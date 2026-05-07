@@ -177,6 +177,7 @@
       :size="sshDrawerFullscreen ? '100%' : '60%'"
       destroy-on-close
       :show-close="false"
+      :trap-focus="false"
       class="nd-ssh-drawer"
       @close="closeSshDrawer"
     >
@@ -189,10 +190,13 @@
           <div class="nd-ssh-header-toolbar">
             <button
               type="button"
+              tabindex="-1"
               class="nd-ssh-header-icon-btn"
               title="重新连接"
               :disabled="sshConnecting"
               @click.stop="reconnectSsh"
+              @keydown.enter.prevent.stop
+              @keydown.space.prevent.stop
             >
               <ElIcon :size="20">
                 <Refresh />
@@ -200,16 +204,27 @@
             </button>
             <button
               type="button"
+              tabindex="-1"
               class="nd-ssh-header-icon-btn"
               :title="sshDrawerFullscreen ? '退出全屏' : '全屏'"
               @click.stop="sshDrawerFullscreen = !sshDrawerFullscreen"
+              @keydown.enter.prevent.stop
+              @keydown.space.prevent.stop
             >
               <ElIcon :size="20">
                 <ScaleToOriginal v-if="sshDrawerFullscreen" />
                 <FullScreen v-else />
               </ElIcon>
             </button>
-            <button type="button" class="nd-ssh-header-icon-btn" title="关闭" @click.stop="dismissSshDrawer">
+            <button
+              type="button"
+              tabindex="-1"
+              class="nd-ssh-header-icon-btn"
+              title="关闭"
+              @click.stop="dismissSshDrawer"
+              @keydown.enter.prevent.stop
+              @keydown.space.prevent.stop
+            >
               <ElIcon :size="20">
                 <Close />
               </ElIcon>
@@ -222,16 +237,17 @@
           ref="sshTermRef"
           class="nd-ssh-terminal"
           tabindex="0"
-          @keydown="onTermKeydown"
+          @keydown.stop="onTermKeydown"
           @click="focusTerm"
         >
-          <span
-            v-for="(line, idx) in sshOutputLines"
-            :key="idx"
-            class="nd-ssh-line"
-            v-html="line"
-          />
-          <span class="nd-ssh-cursor" />
+          <template v-if="sshOutputLines.length === 0">
+            <span class="nd-ssh-line"><span class="nd-ssh-cursor" /></span>
+          </template>
+          <template v-else>
+            <span v-for="(line, idx) in sshOutputLines" :key="idx" class="nd-ssh-line">
+              {{ line }}<span v-if="idx === sshOutputLines.length - 1" class="nd-ssh-cursor" />
+            </span>
+          </template>
         </div>
       </div>
     </ElDrawer>
@@ -263,7 +279,7 @@
 <script setup lang="ts">
   import { ArrowLeft, Close, FullScreen, Refresh, ScaleToOriginal } from '@element-plus/icons-vue'
   import { ElIcon, ElInput, ElMessage, ElMessageBox, ElTag } from 'element-plus'
-  import { computed, inject, nextTick, onMounted, onBeforeUnmount, ref } from 'vue'
+  import { computed, inject, nextTick, onMounted, onBeforeUnmount, ref, watch } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import YAML from 'js-yaml'
   import ArtButtonMore, { type ButtonMoreItem } from '@/components/core/forms/art-button-more/index.vue'
@@ -278,6 +294,7 @@
   import { fetchNodeUsageMetrics } from '@/api/kubernetes/metrics'
   import { kubeProxyAxios } from '@/api/kubeProxy'
   import { resolvePixiuWsOrigin } from '@/utils/pixiu-ws-origin'
+  import { normalizeNewlinesForPlainTerminal, stripAnsiSequences } from '@/utils/strip-ansi-display'
   import {
     formatContainerRuntime,
     formatKubeletVersion,
@@ -664,21 +681,14 @@
     sshConnecting.value = false
   }
 
-  function escapeHtml(s: string): string {
-    return s
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-  }
-
   function appendOutput(raw: string) {
-    // Split on newlines, keep \r for terminal compatibility
-    const parts = raw.split('\n')
+    const sanitized = stripAnsiSequences(normalizeNewlinesForPlainTerminal(raw))
+    const parts = sanitized.split('\n')
     if (sshOutputLines.value.length === 0) sshOutputLines.value.push('')
     const last = sshOutputLines.value.length - 1
-    sshOutputLines.value[last] += escapeHtml(parts[0])
+    sshOutputLines.value[last] += parts[0]
     for (let i = 1; i < parts.length; i++) {
-      sshOutputLines.value.push(escapeHtml(parts[i]))
+      sshOutputLines.value.push(parts[i])
     }
     nextTick(() => {
       if (sshTermRef.value) {
@@ -766,7 +776,9 @@
       } else {
         text = String(event.data)
       }
+      resetIdleTimer()
       appendOutput(text)
+      nextTick(() => focusTermIfHeaderStoleFocus())
     }
 
     sshSocket.onerror = () => {
@@ -810,6 +822,7 @@
 
   function onTermKeydown(e: KeyboardEvent) {
     e.preventDefault()
+    e.stopPropagation()
     let seq = ''
     if (e.key === 'Enter') {
       seq = '\r'
@@ -843,6 +856,20 @@
     sshTermRef.value?.focus()
   }
 
+  /** 焦点被抽屉头部工具栏抢走时（如焦点陷阱/重绘），把键盘焦点拉回终端，避免 Enter 触发「重新连接」 */
+  function focusTermIfHeaderStoleFocus() {
+    const term = sshTermRef.value
+    if (!sshDrawerVisible.value || !term) return
+    const ae = document.activeElement
+    if (!ae || !(ae instanceof HTMLElement)) return
+    const drawer = term.closest('.el-drawer')
+    if (!drawer || !drawer.contains(ae)) return
+    const header = drawer.querySelector('.el-drawer__header')
+    if (header?.contains(ae)) {
+      term.focus()
+    }
+  }
+
   function closeSshSocket() {
     clearIdleTimer()
     if (sshSocket) {
@@ -863,6 +890,21 @@
   function dismissSshDrawer() {
     sshDrawerVisible.value = false
   }
+
+  watch(
+    [sshDrawerFullscreen, sshDrawerVisible],
+    () => {
+      if (!sshDrawerVisible.value || !sshSocket || sshSocket.readyState !== WebSocket.OPEN) return
+      nextTick(() => {
+        if (!sshTermRef.value || !sshSocket || sshSocket.readyState !== WebSocket.OPEN) return
+        const el = sshTermRef.value
+        const cols = Math.floor(el.clientWidth / 8) || 120
+        const rows = Math.floor(el.clientHeight / 18) || 30
+        sendSshResize(cols, rows)
+      })
+    },
+    { flush: 'post' }
+  )
 
   onBeforeUnmount(() => {
     closeSshSocket()
