@@ -1,244 +1,283 @@
-<!-- 主机管理：布局与交互参考 ui-template 运维管理 / 服务器管理 -->
 <template>
   <div class="host-page art-full-height">
-    <div class="host-grid">
-      <ElCard
-        v-for="item in hostList"
-        :key="item.name"
-        class="host-card"
-        shadow="hover"
-        :body-style="{ padding: '0' }"
-      >
-        <template #header>
-          <div class="host-card__head">
-            <span class="host-card__name">{{ item.name }}</span>
-            <span class="host-card__ip">{{ item.ip }}</span>
-          </div>
+    <HostSearch
+      v-model="searchForm"
+      :plan-options="planOptions"
+      @search="handleSearch"
+      @reset="handleReset"
+    />
+
+    <ElCard class="art-table-card">
+      <ArtTableHeader v-model:columns="columnChecks" :loading="loading" @refresh="refreshData">
+        <template #left>
+          <ElButton :disabled="!searchForm.planId" v-ripple @click="goEditDeploy(searchForm.planId!)">
+            编辑部署节点
+          </ElButton>
         </template>
-        <div class="host-card__body">
-          <div class="host-card__aside">
-            <div class="host-card__figure">
-              <ElIcon :size="88" class="host-card__figure-icon">
-                <Monitor />
-              </ElIcon>
-            </div>
-            <div class="host-card__actions">
-              <ElButtonGroup>
-                <ElButton type="primary" size="default" @click="stubPower('开机', item.name)">
-                  开机
-                </ElButton>
-                <ElButton type="danger" size="default" @click="stubPower('关机', item.name)">
-                  关机
-                </ElButton>
-                <ElButton type="warning" size="default" @click="stubPower('重启', item.name)">
-                  重启
-                </ElButton>
-              </ElButtonGroup>
-            </div>
-          </div>
-          <div class="host-card__metrics">
-            <div class="host-card__metric">
-              <p class="host-card__metric-label">CPU</p>
-              <ElProgress :percentage="item.cpu" :text-inside="true" :stroke-width="17" />
-            </div>
-            <div class="host-card__metric">
-              <p class="host-card__metric-label">RAM</p>
-              <ElProgress
-                :percentage="item.memory"
-                status="success"
-                :text-inside="true"
-                :stroke-width="17"
-              />
-            </div>
-            <div class="host-card__metric">
-              <p class="host-card__metric-label">SWAP</p>
-              <ElProgress
-                :percentage="item.swap"
-                status="warning"
-                :text-inside="true"
-                :stroke-width="17"
-              />
-            </div>
-            <div class="host-card__metric">
-              <p class="host-card__metric-label">DISK</p>
-              <ElProgress
-                :percentage="item.disk"
-                status="success"
-                :text-inside="true"
-                :stroke-width="17"
-              />
-            </div>
-          </div>
-        </div>
-      </ElCard>
-    </div>
+      </ArtTableHeader>
+
+      <ArtTable
+        row-key="id"
+        :loading="loading"
+        :data="data"
+        :columns="columns"
+        :pagination="pagination"
+        :pagination-options="{ align: 'right' }"
+        @pagination:size-change="handleSizeChange"
+        @pagination:current-change="handleCurrentChange"
+      />
+    </ElCard>
   </div>
 </template>
 
 <script setup lang="ts">
-  import { Monitor } from '@element-plus/icons-vue'
-  import { ElMessage } from 'element-plus'
+  import { h, onActivated, onMounted, ref } from 'vue'
+  import { CopyDocument } from '@element-plus/icons-vue'
+  import { ElLink, ElMessage, ElTag } from 'element-plus'
+  import ArtButtonMore, { type ButtonMoreItem } from '@/components/core/forms/art-button-more/index.vue'
+  import { useTable } from '@/hooks/core/useTable'
+  import { fetchPlanList, fetchPlanNodes, type PlanNodeListItem } from '@/api/plan'
+  import { useRouter } from 'vue-router'
+  import HostSearch from './modules/host-search.vue'
 
   defineOptions({ name: 'SafeguardHost' })
 
-  interface HostInfo {
-    name: string
-    ip: string
-    cpu: number
-    memory: number
-    swap: number
-    disk: number
+  const router = useRouter()
+
+  const searchForm = ref<{ planId?: number; hostName?: string }>({})
+
+  const planOptions = ref<{ label: string; value: number }[]>([])
+  function authTypeLabel(t?: string): string {
+    if (t === 'password') return '密码'
+    if (t === 'key') return '密钥'
+    if (t === 'none') return '无'
+    return t?.trim() ? String(t) : '—'
   }
 
-  const UPDATE_INTERVAL = 3000
-
-  const hostList = reactive<HostInfo[]>([
-    { name: '开发主机', ip: '192.168.1.100', cpu: 85, memory: 65, swap: 45, disk: 92 },
-    { name: '测试主机', ip: '192.168.1.101', cpu: 32, memory: 78, swap: 90, disk: 45 },
-    { name: '预发布主机', ip: '192.168.1.102', cpu: 95, memory: 42, swap: 67, disk: 88 },
-    { name: '线上主机', ip: '192.168.1.103', cpu: 58, memory: 93, swap: 25, disk: 73 }
-  ])
-
-  function generateRandomValue(min = 0, max = 100): number {
-    return Math.floor(Math.random() * (max - min + 1)) + min
+  function authTagType(t?: string): 'success' | 'warning' | 'info' {
+    if (t === 'password') return 'success'
+    if (t === 'key') return 'warning'
+    return 'info'
   }
 
-  function updateHostMetrics(): void {
-    hostList.forEach((host) => {
-      host.cpu = generateRandomValue()
-      host.memory = generateRandomValue()
-      host.swap = generateRandomValue()
-      host.disk = generateRandomValue()
+  function goEditDeploy(planId: number) {
+    if (!planId) return
+    router.push({
+      path: '/container/cluster/deploy',
+      query: { planId: String(planId), mode: 'edit' }
     })
   }
 
-  function stubPower(action: string, hostName: string) {
-    ElMessage.info(`演示：${action} — ${hostName}`)
+  function hostMoreClick(item: ButtonMoreItem, row: PlanNodeListItem) {
+    switch (item.key) {
+      case 'copyName':
+        void navigator.clipboard.writeText(row.name)
+        ElMessage.success('已复制主机名称')
+        break
+      case 'copyIp':
+        void navigator.clipboard.writeText(row.ip || '')
+        ElMessage.success('已复制 IP')
+        break
+      default:
+        break
+    }
   }
 
-  let timer: number | null = null
-
-  onMounted(() => {
-    timer = window.setInterval(updateHostMetrics, UPDATE_INTERVAL)
+  const {
+    columns,
+    columnChecks,
+    data,
+    loading,
+    pagination,
+    getData,
+    replaceSearchParams,
+    resetSearchParams,
+    handleSizeChange,
+    handleCurrentChange,
+    refreshData
+  } = useTable({
+    core: {
+      immediate: false,
+      apiFn: async (params: {
+        current: number
+        size: number
+        planId?: number | string
+        hostName?: string
+      }) => {
+        const rawPid = params.planId
+        const planId =
+          rawPid === '' || rawPid === undefined || rawPid === null ? NaN : Number(rawPid)
+        if (!Number.isFinite(planId) || planId <= 0) {
+          return {
+            code: 200,
+            data: {
+              records: [] as PlanNodeListItem[],
+              total: 0,
+              current: params.current,
+              size: params.size
+            }
+          }
+        }
+        const list = await fetchPlanNodes(planId)
+        const q = (params.hostName || '').trim().toLowerCase()
+        let rows = list
+        if (q) {
+          rows = rows.filter(
+            (r) => r.name.toLowerCase().includes(q) || (r.ip || '').toLowerCase().includes(q)
+          )
+        }
+        const total = rows.length
+        const start = (params.current - 1) * params.size
+        const records = rows.slice(start, start + params.size)
+        return {
+          code: 200,
+          data: { records, total, current: params.current, size: params.size }
+        }
+      },
+      apiParams: {
+        current: 1,
+        size: 10,
+        planId: undefined as number | undefined,
+        hostName: undefined as string | undefined
+      },
+      columnsFactory: () => [
+        {
+          prop: 'name',
+          label: '主机名称',
+          minWidth: 200,
+          formatter: (row: PlanNodeListItem) =>
+            h('div', { style: 'line-height:1.8' }, [
+              h(
+                ElLink,
+                {
+                  type: 'primary',
+                  underline: 'never',
+                  style: 'font-size:14px',
+                  onClick: () => goEditDeploy(row.plan_id)
+                },
+                () => row.name
+              ),
+              h(
+                'div',
+                {
+                  style:
+                    'display:flex;align-items:center;gap:4px;color:var(--el-text-color-secondary);font-size:12px'
+                },
+                [
+                  h('span', `ID: ${row.id}`),
+                  h(
+                    'span',
+                    {
+                      class: 'icon-action',
+                      style: 'cursor:pointer;display:inline-flex;align-items:center',
+                      title: '复制 ID',
+                      onClick: (e: MouseEvent) => {
+                        e.stopPropagation()
+                        void navigator.clipboard.writeText(String(row.id))
+                        ElMessage.success('已复制')
+                      }
+                    },
+                    [h(CopyDocument, { style: 'width:12px;height:12px' })]
+                  )
+                ]
+              )
+            ])
+        },
+        {
+          prop: 'ip',
+          label: 'IP',
+          minWidth: 140,
+          formatter: (row: PlanNodeListItem) =>
+            h('span', { style: 'font-size:13px;font-family:var(--el-font-family-mono,monospace)' }, row.ip || '—')
+        },
+        {
+          prop: 'auth',
+          label: '认证类型',
+          width: 120,
+          formatter: (row: PlanNodeListItem) => {
+            const t = row.auth?.type
+            return h(
+              ElTag,
+              { type: authTagType(t), size: 'small' },
+              () => authTypeLabel(t)
+            )
+          }
+        },
+        {
+          prop: 'operation',
+          label: '操作',
+          width: 200,
+          fixed: 'right',
+          formatter: (row: PlanNodeListItem) =>
+            h('div', { style: 'display:flex;align-items:center;gap:12px;flex-wrap:nowrap' }, [
+              h(
+                ElLink,
+                {
+                  type: 'primary',
+                  underline: 'never',
+                  style: 'font-size:12px',
+                  onClick: () => goEditDeploy(row.plan_id)
+                },
+                () => '编辑部署'
+              ),
+              h(ArtButtonMore, {
+                list: [
+                  { key: 'copyName', label: '复制主机名称', icon: 'ri:file-copy-line' },
+                  { key: 'copyIp', label: '复制 IP', icon: 'ri:links-line' }
+                ],
+                onClick: (item: ButtonMoreItem) => hostMoreClick(item, row)
+              })
+            ])
+        }
+      ]
+    }
   })
 
-  onUnmounted(() => {
-    if (timer !== null) {
-      window.clearInterval(timer)
-      timer = null
+  function handleSearch(params: typeof searchForm.value) {
+    if (params.planId == null) {
+      ElMessage.warning('请选择部署计划')
+      return
     }
+    replaceSearchParams({
+      planId: params.planId,
+      hostName: params.hostName
+    })
+    void getData()
+  }
+
+  function handleReset() {
+    void resetSearchParams()
+  }
+
+  onMounted(async () => {
+    try {
+      const { list, total } = await fetchPlanList({ page: 1, limit: 500 })
+      planOptions.value = list.map((p) => ({ label: p.name, value: p.id }))
+      if (total > 500 && list.length === 500) {
+        ElMessage.info('部署计划较多，下拉列表仅展示前 500 条，可搜索部署页查看全部')
+      }
+    } catch {
+      planOptions.value = []
+    }
+  })
+
+  onActivated(() => {
+    void refreshData()
   })
 </script>
 
-<style scoped>
-  .host-page {
-    padding-bottom: 20px;
+<style>
+  .host-page .icon-action {
+    opacity: 0;
+    transition: opacity 0.15s;
   }
-
-  .host-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
-    width: 100%;
+  .host-page .el-table__row:hover .icon-action {
+    opacity: 1;
   }
-
-  .host-card {
-    flex: 1 1 calc(50% - 10px);
-    min-width: 280px;
-    max-width: calc(50% - 10px);
-    box-sizing: border-box;
-  }
-
-  @media (max-width: 1024px) {
-    .host-card {
-      flex: 1 1 100%;
-      max-width: 100%;
-    }
-  }
-
-  .host-card__head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-  }
-
-  .host-card__name {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--el-text-color-primary);
-  }
-
-  .host-card__ip {
+  .host-page .art-table .el-table {
     font-size: 13px;
-    color: var(--el-text-color-secondary);
-    font-family: var(--el-font-family-mono, ui-monospace, monospace);
   }
-
-  .host-card__body {
-    display: flex;
-    align-items: stretch;
-    padding: 24px 28px 28px;
-    gap: 24px;
-  }
-
-  @media (max-width: 768px) {
-    .host-card__body {
-      flex-direction: column;
-      align-items: center;
-      padding: 20px;
-    }
-  }
-
-  .host-card__aside {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    flex-shrink: 0;
-  }
-
-  .host-card__figure {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 8px;
-  }
-
-  .host-card__figure-icon {
-    color: var(--el-color-primary);
-    opacity: 0.9;
-  }
-
-  .host-card__actions {
-    display: flex;
-    justify-content: center;
-    margin-top: 4px;
-  }
-
-  .host-card__metrics {
-    flex: 1;
-    min-width: 0;
-    margin-top: 4px;
-  }
-
-  @media (max-width: 768px) {
-    .host-card__metrics {
-      width: 100%;
-      margin-top: 16px;
-    }
-  }
-
-  .host-card__metric {
-    margin-bottom: 14px;
-  }
-
-  .host-card__metric:last-child {
-    margin-bottom: 0;
-  }
-
-  .host-card__metric-label {
-    margin: 0 0 6px;
+  .host-page .art-table .el-table th.el-table__cell {
     font-size: 13px;
-    color: var(--el-text-color-regular);
   }
 </style>

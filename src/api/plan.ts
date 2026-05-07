@@ -124,10 +124,22 @@ export interface PlanNodeDetail {
   cri: string
   ip: string
   auth?: {
-    type?: 'password' | 'key'
+    type?: 'password' | 'key' | 'none' | string
     password?: { user?: string; password?: string }
     key?: { data?: string }
   }
+}
+
+/** GET /pixiu/plans/:planId/nodes 列表项（与后端 types.PlanNode JSON 对齐） */
+export interface PlanNodeListItem {
+  id: number
+  resource_version?: number
+  plan_id: number
+  name: string
+  role: string[]
+  cri: string
+  ip: string
+  auth?: PlanNodeDetail['auth']
 }
 
 export interface PlanResourcesDetail {
@@ -260,6 +272,17 @@ export async function fetchPlanTasks(id: number): Promise<PlanTask[]> {
   const { code, result, message } = res.data
   if (code !== 200) throw new Error(message || '获取任务列表失败')
   return (result ?? []) as PlanTask[]
+}
+
+/**
+ * GET /pixiu/plans/:planId/nodes
+ * 获取部署计划下的主机（节点）列表
+ */
+export async function fetchPlanNodes(planId: number): Promise<PlanNodeListItem[]> {
+  const res = await pixiuAxios.get(`/pixiu/plans/${planId}/nodes`)
+  const { code, result, message } = res.data
+  if (code !== 200) throw new Error(message || '获取主机列表失败')
+  return (result ?? []) as PlanNodeListItem[]
 }
 
 /**
