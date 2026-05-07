@@ -47,7 +47,9 @@ export default ({ mode }: { mode: string }) => {
       proxy: {
         '/pixiu': {
           target: VITE_PIXIU_PROXY_URL || 'http://localhost:8091',
-          changeOrigin: true
+          changeOrigin: true,
+          // WebSocket（节点 SSH、Pod 终端等）必须显式开启，否则握手停留在 Vite，Pixiu 后端收不到请求
+          ws: true
         },
         '/api': {
           target: VITE_API_PROXY_URL,
