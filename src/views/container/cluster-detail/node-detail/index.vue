@@ -179,7 +179,6 @@
       :show-close="false"
       :trap-focus="false"
       class="nd-ssh-drawer"
-      @close="closeSshDrawer"
     >
       <template #header>
         <div class="nd-ssh-drawer-header-inner">
@@ -233,22 +232,7 @@
         </div>
       </template>
       <div class="nd-ssh-terminal-wrap">
-        <div
-          ref="sshTermRef"
-          class="nd-ssh-terminal"
-          tabindex="0"
-          @keydown.stop="onTermKeydown"
-          @click="focusTerm"
-        >
-          <template v-if="sshOutputLines.length === 0">
-            <span class="nd-ssh-line"><span class="nd-ssh-cursor" /></span>
-          </template>
-          <template v-else>
-            <span v-for="(line, idx) in sshOutputLines" :key="idx" class="nd-ssh-line">
-              {{ line }}<span v-if="idx === sshOutputLines.length - 1" class="nd-ssh-cursor" />
-            </span>
-          </template>
-        </div>
+        <div ref="sshXtermHostRef" class="nd-ssh-xterm-host" tabindex="-1" @click="focusTerm" />
       </div>
     </ElDrawer>
 
@@ -294,7 +278,9 @@
   import { fetchNodeUsageMetrics } from '@/api/kubernetes/metrics'
   import { kubeProxyAxios } from '@/api/kubeProxy'
   import { resolvePixiuWsOrigin } from '@/utils/pixiu-ws-origin'
-  import { normalizeNewlinesForPlainTerminal, stripAnsiSequences } from '@/utils/strip-ansi-display'
+  import { FitAddon } from '@xterm/addon-fit'
+  import { Terminal, type ITheme } from '@xterm/xterm'
+  import '@xterm/xterm/css/xterm.css'
   import {
     formatContainerRuntime,
     formatKubeletVersion,
@@ -659,11 +645,103 @@
   const sshDrawerVisible = ref(false)
   const sshDrawerFullscreen = ref(false)
   const sshConnecting = ref(false)
-  const sshTermRef = ref<HTMLElement | null>(null)
-  const sshOutputLines = ref<string[]>([])
+  const sshXtermHostRef = ref<HTMLElement | null>(null)
   let sshSocket: WebSocket | null = null
   let sshIdleTimer: ReturnType<typeof setTimeout> | null = null
   const SSH_IDLE_TIMEOUT = 10 * 60 * 1000 // 10 分钟无操作自动断开
+
+  /** 接近 macOS Terminal + zsh/Oh My Zsh 常见配色：黑底、绿/青/红等 ANSI 16 色 */
+  const zshLikeTerminalTheme: ITheme = {
+    background: '#000000',
+    foreground: '#eeeeee',
+    cursor: '#eeeeee',
+    cursorAccent: '#000000',
+    selectionBackground: 'rgba(255, 255, 255, 0.22)',
+    black: '#000000',
+    red: '#cc5555',
+    green: '#66bb6a',
+    yellow: '#c9c94d',
+    blue: '#6d9eeb',
+    magenta: '#ad85d7',
+    cyan: '#4dd0e1',
+    white: '#d3d7cf',
+    brightBlack: '#555753',
+    brightRed: '#ef5350',
+    brightGreen: '#8ae234',
+    brightYellow: '#ffea5f',
+    brightBlue: '#729fcf',
+    brightMagenta: '#c891ff',
+    brightCyan: '#34e2e2',
+    brightWhite: '#ffffff'
+  }
+
+  let xterm: Terminal | null = null
+  let xtermFit: FitAddon | null = null
+  let sshXtermResizeObserver: ResizeObserver | null = null
+  let sshXtermFitRaf = 0
+  /** 用于识别用户输入的 exit/logout 行，便于主动关 WS（服务端 Read 循环依赖客户端关闭） */
+  let sshExitLineBuf = ''
+  let sshExitDisconnectTimer: ReturnType<typeof setTimeout> | null = null
+
+  function clearSshExitDisconnectTimer() {
+    if (sshExitDisconnectTimer) {
+      clearTimeout(sshExitDisconnectTimer)
+      sshExitDisconnectTimer = null
+    }
+  }
+
+  function onSshLocalInputForExitDetect(data: string) {
+    if (!sshSocket || sshSocket.readyState !== WebSocket.OPEN) return
+    sshExitLineBuf += data
+    if (sshExitLineBuf.length > 2048) sshExitLineBuf = sshExitLineBuf.slice(-1024)
+    for (;;) {
+      const ix = sshExitLineBuf.search(/[\r\n]/)
+      if (ix < 0) break
+      const line = sshExitLineBuf.slice(0, ix).replace(/\r/g, '').trim()
+      sshExitLineBuf = sshExitLineBuf.slice(ix + 1)
+      if (/^(exit|logout)(\s|$)/i.test(line)) {
+        clearSshExitDisconnectTimer()
+        sshExitDisconnectTimer = setTimeout(() => {
+          sshExitDisconnectTimer = null
+          if (sshSocket && sshSocket.readyState === WebSocket.OPEN) closeSshSocket()
+        }, 250)
+        break
+      }
+    }
+  }
+
+  function scheduleFitXtermAndResizeSsh() {
+    if (sshXtermFitRaf) cancelAnimationFrame(sshXtermFitRaf)
+    sshXtermFitRaf = requestAnimationFrame(() => {
+      sshXtermFitRaf = 0
+      fitXtermAndResizeSsh()
+    })
+  }
+
+  function onWindowResizeForSshXterm() {
+    if (!sshDrawerVisible.value || !sshSocket || sshSocket.readyState !== WebSocket.OPEN) return
+    scheduleFitXtermAndResizeSsh()
+  }
+
+  function detachSshXtermResizeHandling() {
+    if (sshXtermResizeObserver) {
+      sshXtermResizeObserver.disconnect()
+      sshXtermResizeObserver = null
+    }
+    window.removeEventListener('resize', onWindowResizeForSshXterm)
+  }
+
+  function attachSshXtermResizeHandling() {
+    detachSshXtermResizeHandling()
+    window.addEventListener('resize', onWindowResizeForSshXterm, { passive: true })
+    const el = sshXtermHostRef.value
+    if (el && typeof ResizeObserver !== 'undefined') {
+      sshXtermResizeObserver = new ResizeObserver(() => {
+        scheduleFitXtermAndResizeSsh()
+      })
+      sshXtermResizeObserver.observe(el)
+    }
+  }
 
   const sshForm = ref({ host: '', port: 22, user: 'root', password: '' })
 
@@ -681,20 +759,60 @@
     sshConnecting.value = false
   }
 
-  function appendOutput(raw: string) {
-    const sanitized = stripAnsiSequences(normalizeNewlinesForPlainTerminal(raw))
-    const parts = sanitized.split('\n')
-    if (sshOutputLines.value.length === 0) sshOutputLines.value.push('')
-    const last = sshOutputLines.value.length - 1
-    sshOutputLines.value[last] += parts[0]
-    for (let i = 1; i < parts.length; i++) {
-      sshOutputLines.value.push(parts[i])
+  function disposeXterm() {
+    clearSshExitDisconnectTimer()
+    detachSshXtermResizeHandling()
+    if (sshXtermFitRaf) {
+      cancelAnimationFrame(sshXtermFitRaf)
+      sshXtermFitRaf = 0
     }
-    nextTick(() => {
-      if (sshTermRef.value) {
-        sshTermRef.value.scrollTop = sshTermRef.value.scrollHeight
-      }
+    try {
+      xterm?.dispose()
+    } catch {
+      // ignore
+    }
+    xterm = null
+    xtermFit = null
+  }
+
+  function initXterm() {
+    const host = sshXtermHostRef.value
+    if (!host) return
+    disposeXterm()
+    xterm = new Terminal({
+      cursorBlink: true,
+      fontFamily: "'JetBrains Mono', Menlo, Monaco, Consolas, 'Source Code Pro', monospace",
+      fontSize: 13,
+      lineHeight: 1.05,
+      theme: zshLikeTerminalTheme,
+      scrollback: 8000
     })
+    xtermFit = new FitAddon()
+    xterm.loadAddon(xtermFit)
+    xterm.open(host)
+    xtermFit.fit()
+    attachSshXtermResizeHandling()
+    xterm.onData((data) => {
+      resetIdleTimer()
+      sendSshData(data)
+      onSshLocalInputForExitDetect(data)
+    })
+  }
+
+  function fitXtermAndResizeSsh() {
+    if (!xterm || !xtermFit || !sshSocket || sshSocket.readyState !== WebSocket.OPEN) return
+    try {
+      xtermFit.fit()
+    } catch {
+      // ignore
+    }
+    sendSshResize(xterm.cols, xterm.rows)
+  }
+
+  function writeXtermSystemLine(message: string, color: 'yellow' | 'red' = 'yellow') {
+    if (!xterm) return
+    const code = color === 'red' ? '\x1b[31m' : '\x1b[33m'
+    xterm.writeln(`${code}${message.replace(/\r?\n/g, '')}\x1b[0m`)
   }
 
   function buildSshWsUrl(): string {
@@ -712,7 +830,7 @@
   function resetIdleTimer() {
     if (sshIdleTimer) clearTimeout(sshIdleTimer)
     sshIdleTimer = setTimeout(() => {
-      appendOutput('\r\n[连接因长时间无操作已自动断开]\r\n')
+      writeXtermSystemLine('[连接因长时间无操作已自动断开]')
       closeSshSocket()
     }, SSH_IDLE_TIMEOUT)
   }
@@ -745,10 +863,10 @@
 
   function connectSsh(options?: { keepLog?: boolean }) {
     closeSshSocket()
-    if (options?.keepLog) {
-      appendOutput('\r\n[正在重新连接...]\r\n')
-    } else {
-      sshOutputLines.value = []
+    if (!options?.keepLog) {
+      disposeXterm()
+    } else if (xterm) {
+      writeXtermSystemLine('[正在重新连接...]')
     }
     const url = buildSshWsUrl()
     const token = localStorage.getItem('pixiu-access-token')
@@ -758,14 +876,23 @@
     sshSocket.onopen = () => {
       sshConnecting.value = false
       resetIdleTimer()
-      nextTick(() => {
-        if (sshTermRef.value) {
-          const el = sshTermRef.value
-          const cols = Math.floor(el.clientWidth / 8) || 120
-          const rows = Math.floor(el.clientHeight / 18) || 30
-          sendSshResize(cols, rows)
-          el.focus()
+      const mountXterm = () => {
+        if (!sshXtermHostRef.value) {
+          requestAnimationFrame(mountXterm)
+          return
         }
+        if (!xterm) initXterm()
+        fitXtermAndResizeSsh()
+        // 抽屉动画结束后宿主宽度才稳定，再 fit 一次并同步 PTY，避免 ls 列数偏少、右侧留白
+        nextTick(() => {
+          requestAnimationFrame(() => {
+            scheduleFitXtermAndResizeSsh()
+          })
+        })
+        xterm?.focus()
+      }
+      nextTick(() => {
+        mountXterm()
       })
     }
 
@@ -777,20 +904,20 @@
         text = String(event.data)
       }
       resetIdleTimer()
-      appendOutput(text)
+      xterm?.write(text)
       nextTick(() => focusTermIfHeaderStoleFocus())
     }
 
     sshSocket.onerror = () => {
       sshConnecting.value = false
       clearIdleTimer()
-      appendOutput('\r\n[连接出错，请检查主机地址、端口和凭证]\r\n')
+      writeXtermSystemLine('[连接出错，请检查主机地址、端口和凭证]', 'red')
     }
 
     sshSocket.onclose = () => {
       sshConnecting.value = false
       clearIdleTimer()
-      appendOutput('\r\n[连接已断开]\r\n')
+      writeXtermSystemLine('[连接已断开]')
     }
   }
 
@@ -820,59 +947,30 @@
     connectSsh()
   }
 
-  function onTermKeydown(e: KeyboardEvent) {
-    e.preventDefault()
-    e.stopPropagation()
-    let seq = ''
-    if (e.key === 'Enter') {
-      seq = '\r'
-    } else if (e.key === 'Backspace') {
-      seq = '\x7f'
-    } else if (e.key === 'Tab') {
-      seq = '\t'
-    } else if (e.key === 'Escape') {
-      seq = '\x1b'
-    } else if (e.ctrlKey && e.key.length === 1) {
-      const code = e.key.toUpperCase().charCodeAt(0) - 64
-      if (code >= 1 && code <= 26) seq = String.fromCharCode(code)
-    } else if (e.key === 'ArrowUp') {
-      seq = '\x1b[A'
-    } else if (e.key === 'ArrowDown') {
-      seq = '\x1b[B'
-    } else if (e.key === 'ArrowRight') {
-      seq = '\x1b[C'
-    } else if (e.key === 'ArrowLeft') {
-      seq = '\x1b[D'
-    } else if (e.key.length === 1 && !e.metaKey) {
-      seq = e.key
-    }
-    if (seq) {
-      resetIdleTimer()
-      sendSshData(seq)
-    }
-  }
-
   function focusTerm() {
-    sshTermRef.value?.focus()
+    xterm?.focus()
   }
 
   /** 焦点被抽屉头部工具栏抢走时（如焦点陷阱/重绘），把键盘焦点拉回终端，避免 Enter 触发「重新连接」 */
   function focusTermIfHeaderStoleFocus() {
-    const term = sshTermRef.value
-    if (!sshDrawerVisible.value || !term) return
+    const host = sshXtermHostRef.value
+    if (!sshDrawerVisible.value || !host) return
     const ae = document.activeElement
     if (!ae || !(ae instanceof HTMLElement)) return
-    const drawer = term.closest('.el-drawer')
+    const drawer = host.closest('.el-drawer')
     if (!drawer || !drawer.contains(ae)) return
     const header = drawer.querySelector('.el-drawer__header')
     if (header?.contains(ae)) {
-      term.focus()
+      xterm?.focus()
     }
   }
 
   function closeSshSocket() {
+    clearSshExitDisconnectTimer()
+    sshExitLineBuf = ''
     clearIdleTimer()
     if (sshSocket) {
+      sshSocket.onopen = null
       sshSocket.onclose = null
       sshSocket.onerror = null
       sshSocket.onmessage = null
@@ -883,7 +981,7 @@
 
   function closeSshDrawer() {
     closeSshSocket()
-    sshOutputLines.value = []
+    disposeXterm()
     sshDrawerFullscreen.value = false
   }
 
@@ -894,13 +992,14 @@
   watch(
     [sshDrawerFullscreen, sshDrawerVisible],
     () => {
-      if (!sshDrawerVisible.value || !sshSocket || sshSocket.readyState !== WebSocket.OPEN) return
+      if (!sshDrawerVisible.value) {
+        closeSshDrawer()
+        return
+      }
+      if (!sshSocket || sshSocket.readyState !== WebSocket.OPEN) return
       nextTick(() => {
-        if (!sshTermRef.value || !sshSocket || sshSocket.readyState !== WebSocket.OPEN) return
-        const el = sshTermRef.value
-        const cols = Math.floor(el.clientWidth / 8) || 120
-        const rows = Math.floor(el.clientHeight / 18) || 30
-        sendSshResize(cols, rows)
+        if (!sshSocket || sshSocket.readyState !== WebSocket.OPEN) return
+        scheduleFitXtermAndResizeSsh()
       })
     },
     { flush: 'post' }
@@ -908,6 +1007,7 @@
 
   onBeforeUnmount(() => {
     closeSshSocket()
+    disposeXterm()
   })
 
   onMounted(async () => {
@@ -1099,47 +1199,35 @@
   .nd-ssh-terminal-wrap {
     flex: 1;
     min-height: 0;
+    min-width: 0;
+    width: 100%;
     display: flex;
     flex-direction: column;
   }
-  .nd-ssh-terminal {
+  .nd-ssh-xterm-host {
     flex: 1;
     min-height: 0;
-    background: #1a1b26;
-    color: #c0caf5;
-    font-family: 'JetBrains Mono', 'Cascadia Code', Consolas, 'Courier New', monospace;
-    font-size: 13px;
-    line-height: 1.6;
-    padding: 12px 16px;
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 12px 12px;
+    background: #000000;
     border-radius: 6px;
-    overflow-y: auto;
-    overflow-x: auto;
-    white-space: pre;
     outline: none;
     cursor: text;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
   }
-  .nd-ssh-terminal:focus {
+  .nd-ssh-xterm-host:focus-within {
     box-shadow: 0 0 0 2px var(--el-color-primary-light-5);
   }
-  .nd-ssh-line {
-    display: block;
-    min-height: 1.6em;
-    white-space: pre;
+  .nd-ssh-xterm-host :deep(.xterm) {
+    width: 100%;
+    height: 100%;
   }
-  .nd-ssh-cursor {
-    display: inline-block;
-    width: 8px;
-    height: 1.1em;
-    background: #c0caf5;
-    vertical-align: text-bottom;
-    animation: nd-blink 1s step-end infinite;
+  .nd-ssh-xterm-host :deep(.xterm-screen) {
+    width: 100%;
   }
-  @keyframes nd-blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0; }
+  .nd-ssh-xterm-host :deep(.xterm-viewport) {
+    overflow-y: auto !important;
   }
 </style>
 

@@ -58,6 +58,8 @@
     "@vueuse/core": "^13.9.0",
     "@wangeditor/editor": "^5.1.23",
     "@wangeditor/editor-for-vue": "next",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
     "axios": "^1.12.2",
     "crypto-js": "^4.2.0",
     "echarts": "^6.0.0",
