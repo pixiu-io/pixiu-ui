@@ -11,6 +11,16 @@ export const safeguardRoutes: AppRouteRecord = {
   },
   children: [
     {
+      path: 'host',
+      name: 'SafeguardHost',
+      component: '/safeguard/host',
+      meta: {
+        title: 'menus.safeguard.host',
+        icon: 'ri:server-line',
+        keepAlive: true
+      }
+    },
+    {
       path: 'audit',
       name: 'SafeguardAudit',
       component: '/safeguard/audit',

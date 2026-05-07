@@ -236,6 +236,7 @@
     },
     "safeguard": {
       "title": "Safeguard",
+      "host": "Host Management",
       "audit": "Audit",
       "agent": "Agent Management"
     },

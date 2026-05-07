@@ -236,6 +236,7 @@
     },
     "safeguard": {
       "title": "运维管理",
+      "host": "主机管理",
       "audit": "操作审计",
       "agent": "Agent"
     },
