@@ -176,6 +176,7 @@
       direction="rtl"
       :size="sshDrawerFullscreen ? '100%' : '60%'"
       destroy-on-close
+      :show-close="false"
       class="nd-ssh-drawer"
       @close="closeSshDrawer"
     >
@@ -185,28 +186,35 @@
             节点远程登录 —
             <span class="nd-ssh-drawer-host">{{ sshForm.user }}@{{ sshForm.host }}:{{ sshForm.port }}</span>
           </span>
-          <button
-            type="button"
-            class="el-drawer__close-btn nd-ssh-header-action-btn"
-            title="重新连接"
-            :disabled="sshConnecting"
-            @click.stop="reconnectSsh"
-          >
-            <ElIcon class="el-drawer__close">
-              <Refresh />
-            </ElIcon>
-          </button>
-          <button
-            type="button"
-            class="el-drawer__close-btn nd-ssh-header-action-btn"
-            :title="sshDrawerFullscreen ? '退出全屏' : '全屏'"
-            @click.stop="sshDrawerFullscreen = !sshDrawerFullscreen"
-          >
-            <ElIcon class="el-drawer__close">
-              <ScaleToOriginal v-if="sshDrawerFullscreen" />
-              <FullScreen v-else />
-            </ElIcon>
-          </button>
+          <div class="nd-ssh-header-toolbar">
+            <button
+              type="button"
+              class="nd-ssh-header-icon-btn"
+              title="重新连接"
+              :disabled="sshConnecting"
+              @click.stop="reconnectSsh"
+            >
+              <ElIcon :size="20">
+                <Refresh />
+              </ElIcon>
+            </button>
+            <button
+              type="button"
+              class="nd-ssh-header-icon-btn"
+              :title="sshDrawerFullscreen ? '退出全屏' : '全屏'"
+              @click.stop="sshDrawerFullscreen = !sshDrawerFullscreen"
+            >
+              <ElIcon :size="20">
+                <ScaleToOriginal v-if="sshDrawerFullscreen" />
+                <FullScreen v-else />
+              </ElIcon>
+            </button>
+            <button type="button" class="nd-ssh-header-icon-btn" title="关闭" @click.stop="dismissSshDrawer">
+              <ElIcon :size="20">
+                <Close />
+              </ElIcon>
+            </button>
+          </div>
         </div>
       </template>
       <div class="nd-ssh-terminal-wrap">
@@ -253,7 +261,7 @@
 </template>
 
 <script setup lang="ts">
-  import { ArrowLeft, FullScreen, Refresh, ScaleToOriginal } from '@element-plus/icons-vue'
+  import { ArrowLeft, Close, FullScreen, Refresh, ScaleToOriginal } from '@element-plus/icons-vue'
   import { ElIcon, ElInput, ElMessage, ElMessageBox, ElTag } from 'element-plus'
   import { computed, inject, nextTick, onMounted, onBeforeUnmount, ref } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
@@ -852,6 +860,10 @@
     sshDrawerFullscreen.value = false
   }
 
+  function dismissSshDrawer() {
+    sshDrawerVisible.value = false
+  }
+
   onBeforeUnmount(() => {
     closeSshSocket()
   })
@@ -1023,7 +1035,7 @@
     align-items: center;
     width: 100%;
     min-width: 0;
-    gap: 4px;
+    gap: 8px;
   }
   .nd-ssh-drawer-title {
     font-size: 14px;
@@ -1031,10 +1043,11 @@
     flex: 1;
     min-width: 0;
   }
-  /* 与 ElDrawer 自带关闭按钮（.el-drawer__close-btn）同一套样式，仅保留与关闭键的间距 */
-  .nd-ssh-header-action-btn {
+  .nd-ssh-header-toolbar {
+    display: inline-flex;
+    align-items: center;
     flex-shrink: 0;
-    margin-inline-end: 4px;
+    gap: 0;
   }
   .nd-ssh-drawer-host {
     font-family: 'JetBrains Mono', Consolas, monospace;
@@ -1096,6 +1109,43 @@
     margin-bottom: 0;
     padding-bottom: 12px;
   }
+
+  /* 刷新 / 全屏 / 关闭：统一点击区域与图标尺寸（关闭为自定义按钮，与另两个同一 toolbar 间距） */
+  .nd-ssh-drawer .el-drawer__header .nd-ssh-header-icon-btn {
+    box-sizing: border-box;
+    width: 36px;
+    height: 36px;
+    margin: 0;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    border-radius: var(--el-border-radius-small);
+    color: var(--el-text-color-secondary);
+    cursor: pointer;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  .nd-ssh-drawer .el-drawer__header .nd-ssh-header-icon-btn:hover:not(:disabled) {
+    color: var(--el-color-primary);
+    background-color: var(--el-fill-color-light);
+  }
+
+  .nd-ssh-drawer .el-drawer__header .nd-ssh-header-icon-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .nd-ssh-drawer .el-drawer__header .nd-ssh-header-icon-btn .el-icon,
+  .nd-ssh-drawer .el-drawer__header .nd-ssh-header-icon-btn svg {
+    width: 20px;
+    height: 20px;
+    font-size: 20px;
+  }
+
   .nd-ssh-drawer .el-drawer__body {
     padding: 4px 16px 16px;
     display: flex;
