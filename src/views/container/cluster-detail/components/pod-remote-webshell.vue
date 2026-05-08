@@ -83,9 +83,18 @@
     namespace: string
     pod: string
     container: string
-    /** 默认 /bin/bash，与 kube exec 一致 */
+    /** 不传则先连 /bin/bash，失败后在抽屉内自动改试 /bin/sh */
     command?: string
   }
+
+  /** exec 失败类输出（与 kube 常见报错文案对齐） */
+  const EXEC_FAIL_RE =
+    /not found|no such file|executable file|unable to start|exec pod command failed|OCI runtime exec|permission denied|cannot find|stat.*no such file/i
+
+  /** 是否已做过「bash → sh」的一次切换，避免循环 */
+  let bashToShFallbackDone = false
+  /** close 用于切换 shell 时不刷「连接已断开」 */
+  let suppressNextSocketCloseMessage = false
 
   const sshDrawerVisible = ref(false)
   const sshDrawerFullscreen = ref(false)
@@ -98,6 +107,8 @@
     pod: string
     container: string
     command: string
+    /** 为 true 时允许在首连 bash 失败后再试 /bin/sh */
+    allowShFallback?: boolean
   } | null>(null)
 
   const targetLine = computed(() => {
@@ -140,13 +151,26 @@
   let fitRaf = 0
 
   function open(opts: PodWebshellOpenOpts) {
-    const cmd = (opts.command ?? '/bin/bash').trim() || '/bin/bash'
-    session.value = {
-      cluster: opts.cluster,
-      namespace: opts.namespace,
-      pod: opts.pod,
-      container: opts.container,
-      command: cmd
+    const explicit = (opts.command ?? '').trim()
+    bashToShFallbackDone = false
+    if (explicit) {
+      session.value = {
+        cluster: opts.cluster,
+        namespace: opts.namespace,
+        pod: opts.pod,
+        container: opts.container,
+        command: explicit,
+        allowShFallback: false
+      }
+    } else {
+      session.value = {
+        cluster: opts.cluster,
+        namespace: opts.namespace,
+        pod: opts.pod,
+        container: opts.container,
+        command: '/bin/bash',
+        allowShFallback: true
+      }
     }
     sshConnecting.value = true
     sshDrawerVisible.value = true
@@ -244,6 +268,34 @@
     xterm.writeln(`${code}${message.replace(/\r?\n/g, '')}\x1b[0m`)
   }
 
+  function trySwitchToShAfterBashFailure(source: 'exec' | 'ws'): boolean {
+    const s = session.value
+    if (!s || bashToShFallbackDone || !s.allowShFallback || s.command !== '/bin/bash') return false
+    bashToShFallbackDone = true
+    session.value = {
+      ...s,
+      command: '/bin/sh',
+      allowShFallback: false
+    }
+    const msg =
+      source === 'exec'
+        ? '[/bin/bash 无法启动，正在尝试 /bin/sh…]'
+        : '[/bin/bash 连接异常，正在尝试 /bin/sh…]'
+    if (xterm) writeSystemLine(msg, 'yellow')
+    suppressNextSocketCloseMessage = true
+    closeSocket()
+    sshConnecting.value = true
+    connectWs({ keepLog: true })
+    return true
+  }
+
+  function reportFinalShellFailureInDrawer() {
+    const line =
+      '[无法使用 /bin/bash 与 /bin/sh 进入容器，请检查镜像与入口配置、集群网络与权限]'
+    if (xterm) writeSystemLine(line, 'red')
+    else ElMessage.error(line)
+  }
+
   function buildWsUrl(): string {
     const base = resolvePixiuWsOrigin()
     const s = session.value
@@ -299,7 +351,8 @@
     const url = buildWsUrl()
     if (!url) {
       sshConnecting.value = false
-      ElMessage.warning('会话参数不完整')
+      if (xterm) writeSystemLine('[会话参数不完整]', 'red')
+      else ElMessage.warning('会话参数不完整')
       return
     }
     const token = localStorage.getItem('pixiu-access-token')
@@ -314,6 +367,10 @@
           return
         }
         if (!xterm) initXterm()
+        const s = session.value
+        if (s?.allowShFallback && s.command === '/bin/bash' && !options?.keepLog) {
+          writeSystemLine('正在连接 Shell…')
+        }
         fitXtermAndResize()
         nextTick(() => {
           requestAnimationFrame(() => {
@@ -332,27 +389,47 @@
       resetIdleTimer()
       try {
         const msg = JSON.parse(str) as { operation?: string; data?: string }
-        if (msg.operation === 'stdout' && msg.data != null) {
-          xterm?.write(msg.data)
-        } else if (msg.operation === 'stderr' && msg.data != null) {
-          xterm?.write(msg.data)
+        const op = msg.operation
+        const data = msg.data != null ? String(msg.data) : ''
+        if ((op === 'stdout' || op === 'stderr') && data) {
+          if (EXEC_FAIL_RE.test(data)) {
+            if (trySwitchToShAfterBashFailure('exec')) return
+            if (session.value?.command === '/bin/sh' && !session.value.allowShFallback) {
+              xterm?.write(data)
+              reportFinalShellFailureInDrawer()
+              return
+            }
+          }
+          xterm?.write(data)
         }
       } catch {
+        if (EXEC_FAIL_RE.test(str) && trySwitchToShAfterBashFailure('exec')) return
+        if (EXEC_FAIL_RE.test(str) && session.value?.command === '/bin/sh' && !session.value.allowShFallback) {
+          xterm?.write(str)
+          reportFinalShellFailureInDrawer()
+          return
+        }
         xterm?.write(str)
       }
       nextTick(() => focusTermIfHeaderStoleFocus())
     }
 
     podSocket.onerror = () => {
+      if (trySwitchToShAfterBashFailure('ws')) return
       sshConnecting.value = false
       clearIdleTimer()
-      writeSystemLine('[连接出错，请检查集群、命名空间与容器是否可用]', 'red')
+      if (xterm) writeSystemLine('[连接出错，请检查集群、命名空间与容器是否可用]', 'red')
+      else ElMessage.error('连接出错')
     }
 
     podSocket.onclose = () => {
+      if (suppressNextSocketCloseMessage) {
+        suppressNextSocketCloseMessage = false
+        return
+      }
       sshConnecting.value = false
       clearIdleTimer()
-      writeSystemLine('[连接已断开]')
+      if (xterm) writeSystemLine('[连接已断开]')
     }
   }
 
@@ -400,6 +477,8 @@
     disposeXterm()
     sshDrawerFullscreen.value = false
     session.value = null
+    bashToShFallbackDone = false
+    suppressNextSocketCloseMessage = false
   }
 
   function dismissDrawer() {

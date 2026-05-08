@@ -613,12 +613,11 @@
   function loginPodWithAutoShell(opts: { pod: string; namespace: string; container: string }) {
     const cluster = String(route.query.cluster ?? '')
     if (!cluster) return
-    podRemoteWebshellRef.value?.open({
+    void podRemoteWebshellRef.value?.open({
       cluster,
       namespace: opts.namespace,
       pod: opts.pod,
-      container: opts.container,
-      command: '/bin/bash'
+      container: opts.container
     })
     remoteLoginVisible.value = false
     resetRemoteLogin()
