@@ -1,4 +1,4 @@
-<!-- 主机管理：Web SSH 仅传 host，服务端按 IP 查 nodes 表取凭证（与节点详情页「完整 query」模式共存） -->
+<!-- Web SSH：仅传 host，服务端按 IP 查 nodes 表取凭证。主机管理 / 集群节点详情共用。 -->
 <template>
   <ElDrawer
     v-model="sshDrawerVisible"
@@ -120,12 +120,7 @@
 
   const sshForm = ref({ host: '' })
 
-  function open(row: PixiuNodeItem) {
-    const ip = (row.ip || '').trim()
-    if (!ip) {
-      ElMessage.warning('该主机暂无 IP，无法远程登录')
-      return
-    }
+  function startSessionForHost(ip: string) {
     void ElMessageBox.confirm('远程登陆主机会通过 IP 查询登录权限，请确认？', '远程登录', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
@@ -141,7 +136,26 @@
       .catch(() => {})
   }
 
-  defineExpose({ open })
+  function open(row: PixiuNodeItem) {
+    const ip = (row.ip || '').trim()
+    if (!ip) {
+      ElMessage.warning('该主机暂无 IP，无法远程登录')
+      return
+    }
+    startSessionForHost(ip)
+  }
+
+  /** 集群节点详情等：仅已知节点 IP 时与主机管理同一套确认 + WS（仅 host） */
+  function openByIp(ip: string) {
+    const trimmed = (ip || '').trim()
+    if (!trimmed) {
+      ElMessage.warning('暂无 IP，无法远程登录')
+      return
+    }
+    startSessionForHost(trimmed)
+  }
+
+  defineExpose({ open, openByIp })
 
   function clearSshExitDisconnectTimer() {
     if (sshExitDisconnectTimer) {
