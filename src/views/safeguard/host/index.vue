@@ -1,23 +1,16 @@
 <template>
   <div class="host-page art-full-height">
-    <HostSearch
-      v-model="searchForm"
-      :plan-options="planOptions"
-      @search="handleSearch"
-      @reset="handleReset"
-    />
+    <HostSearch v-model="searchForm" @search="handleSearch" @reset="handleReset" />
 
     <ElCard class="art-table-card">
-      <ArtTableHeader v-model:columns="columnChecks" :loading="loading" @refresh="refreshData">
+      <ArtTableHeader v-model:columns="columnChecks" :loading="loading" @refresh="handleTableRefresh">
         <template #left>
-          <ElButton :disabled="!searchForm.planId" v-ripple @click="goEditDeploy(searchForm.planId!)">
-            编辑部署节点
-          </ElButton>
+          <ElButton v-ripple @click="openAddNodeDialog">新增节点</ElButton>
         </template>
       </ArtTableHeader>
 
       <ArtTable
-        row-key="id"
+        :row-key="hostRowKey"
         :loading="loading"
         :data="data"
         :columns="columns"
@@ -27,26 +20,124 @@
         @pagination:current-change="handleCurrentChange"
       />
     </ElCard>
+
+    <ElDialog
+      v-model="addNodeVisible"
+      title="新增节点"
+      width="540px"
+      align-center
+      destroy-on-close
+      :close-on-click-modal="false"
+      class="host-add-node-dialog"
+      @closed="resetAddNodeForm"
+    >
+      <ElForm
+        ref="addNodeFormRef"
+        :model="addNodeForm"
+        :rules="addNodeRules"
+        label-width="100px"
+        label-position="right"
+      >
+        <ElFormItem label="主机名称" prop="name">
+          <ElInput v-model="addNodeForm.name" clearable placeholder="小写字母、数字、中划线" />
+        </ElFormItem>
+        <ElFormItem label="IP 地址" prop="ip">
+          <ElInput v-model="addNodeForm.ip" clearable />
+        </ElFormItem>
+        <ElFormItem label="认证方式" prop="authType">
+          <ElRadioGroup v-model="addNodeForm.authType">
+            <ElRadio value="password">密码</ElRadio>
+            <ElRadio value="key">密钥</ElRadio>
+          </ElRadioGroup>
+        </ElFormItem>
+        <ElFormItem label="用户名">
+          <span class="host-add-node-fixed-user">root</span>
+        </ElFormItem>
+        <template v-if="addNodeForm.authType === 'password'">
+          <ElFormItem label="密码" prop="password">
+            <ElInput v-model="addNodeForm.password" type="password" show-password />
+          </ElFormItem>
+        </template>
+        <template v-else>
+          <ElFormItem label="私钥" prop="privateKey">
+            <ElInput
+              v-model="addNodeForm.privateKey"
+              type="textarea"
+              :rows="6"
+              placeholder="请粘贴 SSH 私钥内容（PEM 格式）"
+              spellcheck="false"
+            />
+          </ElFormItem>
+        </template>
+      </ElForm>
+      <template #footer>
+        <ElButton @click="addNodeVisible = false">取消</ElButton>
+        <ElButton type="primary" :loading="addNodeSubmitting" @click="submitAddNode">确定</ElButton>
+      </template>
+    </ElDialog>
   </div>
 </template>
 
 <script setup lang="ts">
-  import { h, onActivated, onMounted, ref } from 'vue'
+  import { h, nextTick, onActivated, reactive, ref } from 'vue'
   import { CopyDocument } from '@element-plus/icons-vue'
   import { ElLink, ElMessage, ElTag } from 'element-plus'
+  import type { FormInstance, FormRules } from 'element-plus'
   import ArtButtonMore, { type ButtonMoreItem } from '@/components/core/forms/art-button-more/index.vue'
   import { useTable } from '@/hooks/core/useTable'
-  import { fetchPlanList, fetchPlanNodes, type PlanNodeListItem } from '@/api/plan'
-  import { useRouter } from 'vue-router'
+  import {
+    fetchCreatePlanNode,
+    fetchPlanList,
+    fetchPlanNodes,
+    fetchPlanWithResources,
+    type PlanNodeListItem
+  } from '@/api/plan'
+  import { useRoute, useRouter } from 'vue-router'
   import HostSearch from './modules/host-search.vue'
 
   defineOptions({ name: 'SafeguardHost' })
 
+  const route = useRoute()
   const router = useRouter()
 
-  const searchForm = ref<{ planId?: number; hostName?: string }>({})
+  const searchForm = ref<{ hostName?: string }>({})
 
-  const planOptions = ref<{ label: string; value: number }[]>([])
+  const PLAN_LIST_LIMIT = 500
+  const NODE_FETCH_CONCURRENCY = 10
+
+  async function fetchAllPlanNodesMerged(): Promise<PlanNodeListItem[]> {
+    const { list } = await fetchPlanList({ page: 1, limit: PLAN_LIST_LIMIT })
+    if (!list.length) return []
+    const merged: PlanNodeListItem[] = []
+    for (let i = 0; i < list.length; i += NODE_FETCH_CONCURRENCY) {
+      const chunk = list.slice(i, i + NODE_FETCH_CONCURRENCY)
+      const batches = await Promise.all(
+        chunk.map(async (p) => {
+          try {
+            return await fetchPlanNodes(p.id)
+          } catch {
+            return [] as PlanNodeListItem[]
+          }
+        })
+      )
+      for (const nodes of batches) merged.push(...nodes)
+    }
+    return merged
+  }
+
+  const mergedNodesCache = ref<PlanNodeListItem[] | null>(null)
+
+  async function loadMergedNodesCached(): Promise<PlanNodeListItem[]> {
+    if (mergedNodesCache.value === null) {
+      mergedNodesCache.value = await fetchAllPlanNodesMerged()
+    }
+    return mergedNodesCache.value
+  }
+
+  function hostRowKey(row: PlanNodeListItem) {
+    return `${row.plan_id}-${row.id}`
+  }
+
   function authTypeLabel(t?: string): string {
     if (t === 'password') return '密码'
     if (t === 'key') return '密钥'
@@ -83,6 +174,110 @@
     }
   }
 
+  /** —— 新增节点对话框 —— */
+  const addNodeVisible = ref(false)
+  const addNodeFormRef = ref<FormInstance>()
+  const addNodeSubmitting = ref(false)
+
+  const addNodeEmpty = () => ({
+    name: '',
+    ip: '',
+    authType: 'password' as 'password' | 'key',
+    password: '',
+    privateKey: ''
+  })
+
+  const addNodeForm = reactive(addNodeEmpty())
+
+  const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/
+
+  const addNodeRules: FormRules = {
+    name: [
+      { required: true, message: '请输入主机名称', trigger: 'blur' },
+      {
+        validator: (_r, value: string, cb) => {
+          const hostname = String(value ?? '').trim()
+          const hostnamePattern = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/
+          if (!hostnamePattern.test(hostname)) {
+            cb(
+              new Error(
+                '主机名称需符合 Linux 规范：1-63 位，小写字母/数字/中划线，且不能以中划线开头或结尾'
+              )
+            )
+            return
+          }
+          cb()
+        },
+        trigger: 'blur'
+      }
+    ],
+    ip: [
+      { required: true, message: '请输入 IP 地址', trigger: 'blur' },
+      {
+        validator: (_r, value: string, cb) => {
+          if (!ipPattern.test(value)) cb(new Error('请输入有效的 IP 地址'))
+          else cb()
+        },
+        trigger: 'blur'
+      }
+    ],
+    authType: [{ required: true, message: '请选择认证方式', trigger: 'change' }],
+    password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
+    privateKey: [{ required: true, message: '请粘贴私钥内容', trigger: 'blur' }]
+  }
+
+  function openAddNodeDialog() {
+    Object.assign(addNodeForm, addNodeEmpty())
+    addNodeVisible.value = true
+    nextTick(() => addNodeFormRef.value?.clearValidate())
+  }
+
+  function resetAddNodeForm() {
+    Object.assign(addNodeForm, addNodeEmpty())
+    addNodeFormRef.value?.clearValidate()
+  }
+
+  async function submitAddNode() {
+    if (!addNodeFormRef.value || addNodeSubmitting.value) return
+    const valid = await addNodeFormRef.value
+      .validate()
+      .then(() => true)
+      .catch(() => false)
+    if (!valid || addNodeForm.planId == null) return
+
+    addNodeSubmitting.value = true
+    try {
+      const resources = await fetchPlanWithResources(addNodeForm.planId)
+      const rt = resources.config?.runtime?.runtime
+      const cri = rt === 'docker' || rt === 'containerd' ? rt : 'containerd'
+
+      const auth =
+        addNodeForm.authType === 'password'
+          ? {
+              type: 'password' as const,
+              password: { user: 'root', password: addNodeForm.password }
+            }
+          : { type: 'key' as const, key: { data: addNodeForm.privateKey } }
+
+      await fetchCreatePlanNode(addNodeForm.planId, {
+        name: addNodeForm.name.trim(),
+        role: [...addNodeForm.role],
+        cri,
+        ip: addNodeForm.ip.trim(),
+        auth
+      })
+      ElMessage.success('新增节点成功')
+      addNodeVisible.value = false
+      mergedNodesCache.value = null
+      await handleTableRefresh()
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : '新增节点失败'
+      ElMessage.error(msg)
+    } finally {
+      addNodeSubmitting.value = false
+    }
+  }
+
   const {
     columns,
     columnChecks,
@@ -97,30 +292,11 @@
     refreshData
   } = useTable({
     core: {
-      immediate: false,
-      apiFn: async (params: {
-        current: number
-        size: number
-        planId?: number | string
-        hostName?: string
-      }) => {
-        const rawPid = params.planId
-        const planId =
-          rawPid === '' || rawPid === undefined || rawPid === null ? NaN : Number(rawPid)
-        if (!Number.isFinite(planId) || planId <= 0) {
-          return {
-            code: 200,
-            data: {
-              records: [] as PlanNodeListItem[],
-              total: 0,
-              current: params.current,
-              size: params.size
-            }
-          }
-        }
-        const list = await fetchPlanNodes(planId)
+      immediate: true,
+      apiFn: async (params: { current: number; size: number; hostName?: string }) => {
+        const all = await loadMergedNodesCached()
         const q = (params.hostName || '').trim().toLowerCase()
-        let rows = list
+        let rows = all
         if (q) {
           rows = rows.filter(
             (r) => r.name.toLowerCase().includes(q) || (r.ip || '').toLowerCase().includes(q)
@@ -137,7 +313,6 @@
       apiParams: {
         current: 1,
         size: 10,
-        planId: undefined as number | undefined,
         hostName: undefined as string | undefined
       },
       columnsFactory: () => [
@@ -234,12 +409,7 @@
   })
 
   function handleSearch(params: typeof searchForm.value) {
-    if (params.planId == null) {
-      ElMessage.warning('请选择部署计划')
-      return
-    }
     replaceSearchParams({
-      planId: params.planId,
       hostName: params.hostName
     })
     void getData()
@@ -249,19 +419,13 @@
     void resetSearchParams()
   }
 
-  onMounted(async () => {
-    try {
-      const { list, total } = await fetchPlanList({ page: 1, limit: 500 })
-      planOptions.value = list.map((p) => ({ label: p.name, value: p.id }))
-      if (total > 500 && list.length === 500) {
-        ElMessage.info('部署计划较多，下拉列表仅展示前 500 条，可搜索部署页查看全部')
-      }
-    } catch {
-      planOptions.value = []
-    }
-  })
+  async function handleTableRefresh() {
+    mergedNodesCache.value = null
+    await refreshData()
+  }
 
   onActivated(() => {
+    mergedNodesCache.value = null
     void refreshData()
   })
 </script>
@@ -279,5 +443,8 @@
   }
   .host-page .art-table .el-table th.el-table__cell {
     font-size: 13px;
+  }
+  .host-add-node-fixed-user {
+    color: var(--el-text-color-regular);
   }
 </style>

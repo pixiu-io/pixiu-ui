@@ -142,6 +142,17 @@ export interface PlanNodeListItem {
   auth?: PlanNodeDetail['auth']
 }
 
+/** POST /pixiu/plans/:planId/nodes 请求体（与后端 CreatePlanNodeRequest 对齐） */
+export interface CreatePlanNodeBody {
+  name: string
+  role: string[]
+  cri: 'docker' | 'containerd'
+  ip: string
+  auth:
+    | { type: 'password'; password: { user: string; password: string } }
+    | { type: 'key'; key: { data: string } }
+}
+
 export interface PlanResourcesDetail {
   id: number
   resource_version?: number
@@ -272,6 +283,16 @@ export async function fetchPlanTasks(id: number): Promise<PlanTask[]> {
   const { code, result, message } = res.data
   if (code !== 200) throw new Error(message || '获取任务列表失败')
   return (result ?? []) as PlanTask[]
+}
+
+/**
+ * POST /pixiu/plans/:planId/nodes
+ * 向部署计划新增主机（节点）
+ */
+export async function fetchCreatePlanNode(planId: number, body: CreatePlanNodeBody): Promise<void> {
+  const res = await pixiuAxios.post(`/pixiu/plans/${planId}/nodes`, body)
+  const { code, message } = res.data
+  if (code !== 200) throw new Error(message || '新增节点失败')
 }
 
 /**
