@@ -62,7 +62,7 @@
       </div>
     </template>
     <div class="host-ssh-terminal-wrap">
-      <div ref="xtermHostRef" class="host-ssh-xterm-host" tabindex="-1" @click="focusTerm" />
+      <div ref="sshXtermHostRef" class="host-ssh-xterm-host" tabindex="-1" @click="focusTerm" />
     </div>
   </ElDrawer>
 </template>
@@ -99,7 +99,7 @@
   const sshDrawerVisible = ref(false)
   const sshDrawerFullscreen = ref(false)
   const sshConnecting = ref(false)
-  const xtermHostRef = ref<HTMLElement | null>(null)
+  const sshXtermHostRef = ref<HTMLElement | null>(null)
 
   const session = ref<{
     cluster: string
@@ -205,7 +205,7 @@
   function attachResize() {
     detachResize()
     window.addEventListener('resize', onWindowResize, { passive: true })
-    const el = xtermHostRef.value
+    const el = sshXtermHostRef.value
     if (el && typeof ResizeObserver !== 'undefined') {
       resizeObserver = new ResizeObserver(() => {
         scheduleFit()
@@ -230,7 +230,7 @@
   }
 
   function initXterm() {
-    const host = xtermHostRef.value
+    const host = sshXtermHostRef.value
     if (!host) return
     disposeXterm()
     xterm = new Terminal({
@@ -362,14 +362,14 @@
       sshConnecting.value = false
       resetIdleTimer()
       const mount = () => {
-        if (!xtermHostRef.value) {
+        if (!sshXtermHostRef.value) {
           requestAnimationFrame(mount)
           return
         }
         if (!xterm) initXterm()
         const s = session.value
         if (s?.allowShFallback && s.command === '/bin/bash' && !options?.keepLog) {
-          writeSystemLine('正在连接 Shell…')
+          writeSystemLine('[正在连接 Shell…]')
         }
         fitXtermAndResize()
         nextTick(() => {
@@ -448,7 +448,7 @@
   }
 
   function focusTermIfHeaderStoleFocus() {
-    const host = xtermHostRef.value
+    const host = sshXtermHostRef.value
     if (!sshDrawerVisible.value || !host) return
     const ae = document.activeElement
     if (!ae || !(ae instanceof HTMLElement)) return
@@ -506,116 +506,6 @@
   })
 </script>
 
-<style scoped>
-  .host-ssh-drawer-header-inner {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    min-width: 0;
-    gap: 8px;
-  }
-  .host-ssh-drawer-title {
-    font-size: 14px;
-    font-weight: 500;
-    flex: 1;
-    min-width: 0;
-  }
-  .host-ssh-header-toolbar {
-    display: inline-flex;
-    align-items: center;
-    flex-shrink: 0;
-    gap: 0;
-  }
-  .host-ssh-drawer-host {
-    font-family: 'JetBrains Mono', Consolas, monospace;
-    font-size: 13px;
-    color: var(--el-color-primary);
-  }
-  .host-ssh-terminal-wrap {
-    flex: 1;
-    min-height: 0;
-    min-width: 0;
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-  }
-  .host-ssh-xterm-host {
-    flex: 1;
-    min-height: 0;
-    min-width: 0;
-    width: 100%;
-    box-sizing: border-box;
-    padding: 8px 12px 24px;
-    background: #000000;
-    border-radius: 6px;
-    outline: none;
-    cursor: text;
-    overflow: hidden;
-  }
-  .host-ssh-xterm-host:focus-within {
-    box-shadow: 0 0 0 2px var(--el-color-primary-light-5);
-  }
-  .host-ssh-xterm-host :deep(.xterm) {
-    width: 100%;
-    height: 100%;
-  }
-  .host-ssh-xterm-host :deep(.xterm-screen) {
-    width: 100%;
-  }
-  .host-ssh-xterm-host :deep(.xterm-viewport) {
-    overflow-y: auto !important;
-    margin-bottom: 2px;
-  }
-</style>
-
 <style>
-  .host-ssh-drawer .el-drawer__header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 0;
-    padding-bottom: 12px;
-  }
-
-  .host-ssh-drawer .el-drawer__header .host-ssh-header-icon-btn {
-    box-sizing: border-box;
-    width: 36px;
-    height: 36px;
-    margin: 0;
-    padding: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: none;
-    background: transparent;
-    border-radius: var(--el-border-radius-small);
-    color: var(--el-text-color-secondary);
-    cursor: pointer;
-    line-height: 1;
-    flex-shrink: 0;
-  }
-
-  .host-ssh-drawer .el-drawer__header .host-ssh-header-icon-btn:hover:not(:disabled) {
-    color: var(--el-color-primary);
-    background-color: var(--el-fill-color-light);
-  }
-
-  .host-ssh-drawer .el-drawer__header .host-ssh-header-icon-btn:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-  }
-
-  .host-ssh-drawer .el-drawer__header .host-ssh-header-icon-btn .el-icon,
-  .host-ssh-drawer .el-drawer__header .host-ssh-header-icon-btn svg {
-    width: 20px;
-    height: 20px;
-    font-size: 20px;
-  }
-
-  .host-ssh-drawer .el-drawer__body {
-    padding: 4px 16px 20px;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-  }
+  @import '@/styles/host-ssh-drawer.css';
 </style>
