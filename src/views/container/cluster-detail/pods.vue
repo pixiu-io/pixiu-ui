@@ -132,6 +132,8 @@
         />
       </div>
     </ElDrawer>
+
+    <PodRemoteWebshell ref="podRemoteWebshellRef" />
   </div>
 </template>
 
@@ -146,6 +148,7 @@
   import { deleteK8sPod, fetchK8sPod, fetchK8sPodList, type K8sPod } from '@/api/kubernetes/pod'
   import { formatNodeCreationTime } from '@/utils/kubernetes/nodeDisplay'
   import { clusterDetailNamespaceKey } from './context'
+  import PodRemoteWebshell from './components/pod-remote-webshell.vue'
 
   defineOptions({ name: 'ClusterDetailPods' })
 
@@ -178,6 +181,7 @@
   })
 
   const yamlVisible = ref(false)
+  const podRemoteWebshellRef = ref<InstanceType<typeof PodRemoteWebshell> | null>(null)
 
   function formatPodStatusText(row: K8sPod): string {
     return row.status?.phase || '未知'
@@ -590,119 +594,34 @@
       return
     }
     if (containers.length === 1) {
-      void loginPodWithAutoShell({ pod, namespace, container: containers[0] })
+      loginPodWithAutoShell({ pod, namespace, container: containers[0] })
       return
     }
     remoteLogin.value = { pod, namespace, containers, container: containers[0] ?? '' }
     remoteLoginVisible.value = true
   }
 
-  async function confirmRemoteLogin() {
+  function confirmRemoteLogin() {
     const { pod, namespace, container } = remoteLogin.value
     if (!pod || !namespace || !container) {
       ElMessage.warning('请先选择容器')
       return
     }
-    await loginPodWithAutoShell({ pod, namespace, container })
+    loginPodWithAutoShell({ pod, namespace, container })
   }
 
-  async function loginPodWithAutoShell(opts: { pod: string; namespace: string; container: string }) {
+  function loginPodWithAutoShell(opts: { pod: string; namespace: string; container: string }) {
     const cluster = String(route.query.cluster ?? '')
     if (!cluster) return
-    const command = await detectPodShell(cluster, opts.namespace, opts.pod, opts.container)
-    if (!command) {
-      ElMessage.warning('未探测到可用 shell（/bin/bash 或 /bin/sh）')
-      return
-    }
-    const isLocalHost =
-      window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    const webshellBase =
-      isLocalHost && window.location.port !== '8080'
-        ? `${window.location.protocol}//${window.location.hostname}:8080`
-        : window.location.origin
-    const url =
-      `${webshellBase}/#/podshell?pod=${encodeURIComponent(opts.pod)}` +
-      `&namespace=${encodeURIComponent(opts.namespace)}` +
-      `&cluster=${encodeURIComponent(cluster)}` +
-      `&container=${encodeURIComponent(opts.container)}` +
-      `&command=${encodeURIComponent(command)}`
-    window.open(url, '_blank', 'width=1000,height=600')
+    podRemoteWebshellRef.value?.open({
+      cluster,
+      namespace: opts.namespace,
+      pod: opts.pod,
+      container: opts.container,
+      command: '/bin/bash'
+    })
     remoteLoginVisible.value = false
     resetRemoteLogin()
-  }
-
-  async function detectPodShell(
-    cluster: string,
-    namespace: string,
-    pod: string,
-    container: string
-  ): Promise<'/bin/bash' | '/bin/sh' | null> {
-    const bashOk = await probePodShell(cluster, namespace, pod, container, '/bin/bash')
-    if (bashOk) return '/bin/bash'
-    const shOk = await probePodShell(cluster, namespace, pod, container, '/bin/sh')
-    if (shOk) return '/bin/sh'
-    return null
-  }
-
-  async function probePodShell(
-    cluster: string,
-    namespace: string,
-    pod: string,
-    container: string,
-    command: '/bin/bash' | '/bin/sh'
-  ): Promise<boolean> {
-    return new Promise((resolve) => {
-      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-      const wsHost =
-        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
-        window.location.port !== '8080'
-          ? `${window.location.hostname}:8080`
-          : window.location.host
-      const wsUrl =
-        `${wsProtocol}//${wsHost}/pixiu/kubeproxy/ws` +
-        `?cluster=${encodeURIComponent(cluster)}` +
-        `&namespace=${encodeURIComponent(namespace)}` +
-        `&pod=${encodeURIComponent(pod)}` +
-        `&container=${encodeURIComponent(container)}` +
-        `&command=${encodeURIComponent(command)}`
-      const token = localStorage.getItem('pixiu-access-token')
-      const socket = token ? new WebSocket(wsUrl, [token]) : new WebSocket(wsUrl)
-      let settled = false
-      let sawOutput = false
-      const done = (ok: boolean) => {
-        if (settled) return
-        settled = true
-        try { socket.close() } catch { /* ignore */ }
-        resolve(ok)
-      }
-      // 超时兜底：仍在连接中且未收到错误 → 认为 shell 可用
-      const timer = window.setTimeout(() => { done(true) }, 3000)
-      socket.onopen = () => {
-        try {
-          socket.send('{"operation":"resize","cols":80,"rows":24}')
-          socket.send(JSON.stringify({ operation: 'stdin', data: 'exit\n' }))
-        } catch { /* ignore */ }
-      }
-      socket.onmessage = (event) => {
-        const raw = String(event.data ?? '')
-        const text = (() => {
-          try {
-            const parsed = JSON.parse(raw) as { data?: string }
-            return String(parsed.data ?? '')
-          } catch { return raw }
-        })()
-        // 检测到错误立即判定不可用，不等 onclose
-        if (/not found|no such file|executable file|unable to start|exec pod command failed/i.test(text)) {
-          window.clearTimeout(timer)
-          done(false)
-          return
-        }
-        sawOutput = true
-      }
-      socket.onerror = () => { window.clearTimeout(timer); done(false) }
-      // onclose：收到过正常输出（shell 运行后 exit 退出）→ 可用；否则 → 不可用
-      socket.onclose = () => { window.clearTimeout(timer); done(sawOutput) }
-    })
   }
 
   interface K8sEventRow {
