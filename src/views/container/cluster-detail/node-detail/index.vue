@@ -783,7 +783,7 @@
       cursorBlink: true,
       fontFamily: "'JetBrains Mono', Menlo, Monaco, Consolas, 'Source Code Pro', monospace",
       fontSize: 13,
-      lineHeight: 1.05,
+      lineHeight: 1.15,
       theme: zshLikeTerminalTheme,
       scrollback: 8000
     })
@@ -1210,11 +1210,12 @@
     min-width: 0;
     width: 100%;
     box-sizing: border-box;
-    padding: 8px 12px 12px;
+    padding: 8px 12px 24px;
     background: #000000;
     border-radius: 6px;
     outline: none;
     cursor: text;
+    overflow: hidden;
   }
   .nd-ssh-xterm-host:focus-within {
     box-shadow: 0 0 0 2px var(--el-color-primary-light-5);
@@ -1228,6 +1229,7 @@
   }
   .nd-ssh-xterm-host :deep(.xterm-viewport) {
     overflow-y: auto !important;
+    margin-bottom: 2px;
   }
 </style>
 
@@ -1277,8 +1279,9 @@
   }
 
   .nd-ssh-drawer .el-drawer__body {
-    padding: 4px 16px 16px;
+    padding: 4px 16px 20px;
     display: flex;
     flex-direction: column;
+    min-height: 0;
   }
 </style>
