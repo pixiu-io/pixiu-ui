@@ -32,7 +32,7 @@
       label: '主机名称',
       key: 'hostName',
       type: 'input',
-      placeholder: '请输入主机名称或 IP 过滤',
+      placeholder: '请输入主机名称（模糊）',
       clearable: true
     }
   ])
