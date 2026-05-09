@@ -295,16 +295,17 @@
                     class="dc-section-divider-top"
                     style="visibility: hidden; margin: 0"
                   />
-                  <ElFormItem label="容器名称" prop="name">
-                    <ElInput
-                      v-model="form.containers[activeContainerIdx].name"
-                      placeholder="请输入容器名称"
-                      style="width: 300px"
-                    />
-                    <div class="dc-field-tip"
-                      >最长 63
-                      个字符，只能包含小写字母、数字及分隔符（-），且不能以分隔符开头或结尾</div
-                    >
+                  <ElFormItem label="容器名称" prop="name" class="container-name-form-item">
+                    <div class="container-name-field-col">
+                      <ElInput
+                        v-model="form.containers[activeContainerIdx].name"
+                        placeholder="请输入容器名称"
+                        style="width: 300px"
+                      />
+                      <div class="dc-field-tip container-name-tip">
+                        最长 63 个字符，只能包含小写字母、数字及分隔符（-），且不能以分隔符开头或结尾。
+                      </div>
+                    </div>
                   </ElFormItem>
                   <ElFormItem label="镜像" prop="image">
                     <ElInput
@@ -397,223 +398,274 @@
                         :key="`env-${idx}`"
                         class="env-row"
                       >
-                        <ElInput v-model="item.name" placeholder="变量名，如 APP_ENV" />
                         <ElSelect v-model="item.mode" style="width: 140px">
-                          <ElOption label="value" value="value" />
-                          <ElOption label="ConfigMapKeyRef" value="configMap" />
-                          <ElOption label="SecretKeyRef" value="secret" />
+                          <ElOption label="自定义" value="value" />
                         </ElSelect>
+                        <ElInput v-model="item.name" placeholder="变量名称" style="width: 200px" />
                         <ElInput
                           v-if="item.mode === 'value'"
                           v-model="item.value"
                           placeholder="变量值"
+                          style="width: 200px"
                         />
                         <template v-else>
                           <ElInput v-model="item.sourceName" placeholder="来源名称" />
                           <ElInput v-model="item.sourceKey" placeholder="键名 key" />
                         </template>
-                        <ElButton link type="danger" @click="removeEnv(idx)">删除</ElButton>
+                        <ElButton
+                          link
+                          type="danger"
+                          class="kv-del-btn env-del-btn"
+                          title="删除"
+                          @click="removeEnv(idx)"
+                          ><ElIcon><Close /></ElIcon
+                        ></ElButton>
                       </div>
                       <ElButton link type="primary" class="kv-add-btn" @click="addEnv"
-                        >新增环境变量</ElButton
+                        >新增变量</ElButton
                       >
                     </div>
                   </ElFormItem>
-                  <ElFormItem label="启动命令">
-                    <ElInput
-                      v-model="form.containers[activeContainerIdx].commandText"
-                      type="textarea"
-                      :rows="3"
-                      placeholder="每行一个 command 参数，如 /bin/sh"
-                    />
-                  </ElFormItem>
-                  <ElFormItem label="启动参数">
-                    <ElInput
-                      v-model="form.containers[activeContainerIdx].argsText"
-                      type="textarea"
-                      :rows="3"
-                      placeholder="每行一个 args 参数，如 -c"
-                    />
-                  </ElFormItem>
-                  <ElDivider content-position="left">资源配置</ElDivider>
-                  <ElFormItem label="CPU Request">
-                    <ElInput
-                      v-model="form.containers[activeContainerIdx].cpuRequest"
-                      placeholder="如 100m"
-                      style="width: 240px"
-                    />
-                  </ElFormItem>
-                  <ElFormItem label="CPU Limit">
-                    <ElInput
-                      v-model="form.containers[activeContainerIdx].cpuLimit"
-                      placeholder="如 500m"
-                      style="width: 240px"
-                    />
-                  </ElFormItem>
-                  <ElFormItem label="内存 Request">
-                    <ElInput
-                      v-model="form.containers[activeContainerIdx].memoryRequest"
-                      placeholder="如 128Mi"
-                      style="width: 240px"
-                    />
-                  </ElFormItem>
-                  <ElFormItem label="内存 Limit">
-                    <ElInput
-                      v-model="form.containers[activeContainerIdx].memoryLimit"
-                      placeholder="如 512Mi"
-                      style="width: 240px"
-                    />
-                  </ElFormItem>
-                  <ElDivider content-position="left">健康检查</ElDivider>
-                  <ElFormItem label="存活探针路径">
-                    <ElInput
-                      v-model="form.containers[activeContainerIdx].livenessPath"
-                      placeholder="如 /healthz"
-                      style="width: 240px"
-                    />
-                  </ElFormItem>
-                  <ElFormItem label="存活探针端口">
-                    <ElInputNumber
-                      v-model="form.containers[activeContainerIdx].livenessPort"
-                      :min="1"
-                      :max="65535"
-                      :precision="0"
-                    />
-                  </ElFormItem>
-                  <ElFormItem label="存活探针参数">
-                    <div class="probe-grid">
-                      <ElInputNumber
-                        v-model="form.containers[activeContainerIdx].livenessInitialDelaySeconds"
-                        :min="0"
-                        :precision="0"
-                        placeholder="initialDelaySeconds"
-                      />
-                      <ElInputNumber
-                        v-model="form.containers[activeContainerIdx].livenessPeriodSeconds"
-                        :min="1"
-                        :precision="0"
-                        placeholder="periodSeconds"
-                      />
-                      <ElInputNumber
-                        v-model="form.containers[activeContainerIdx].livenessTimeoutSeconds"
-                        :min="1"
-                        :precision="0"
-                        placeholder="timeoutSeconds"
-                      />
-                      <ElInputNumber
-                        v-model="form.containers[activeContainerIdx].livenessSuccessThreshold"
-                        :min="1"
-                        :precision="0"
-                        placeholder="successThreshold"
-                      />
-                      <ElInputNumber
-                        v-model="form.containers[activeContainerIdx].livenessFailureThreshold"
-                        :min="1"
-                        :precision="0"
-                        placeholder="failureThreshold"
-                      />
+                  <ElFormItem
+                    label="CPU/内存限制"
+                    label-width="112px"
+                    class="cpu-mem-limit-form-item"
+                  >
+                    <div class="cpu-mem-limit-wrap">
+                      <div class="cpu-mem-limit-block">
+                        <div class="cpu-mem-limit-block-title">CPU限制</div>
+                        <div class="cpu-mem-limit-inputs">
+                          <div class="resource-affix-group resource-affix-group--grow">
+                            <span class="resource-affix-label">request</span>
+                            <ElInput
+                              v-model="form.containers[activeContainerIdx].cpuRequest"
+                              placeholder="如 0.25"
+                              class="resource-affix-input"
+                            />
+                          </div>
+                          <span class="resource-affix-sep">-</span>
+                          <div class="resource-affix-group resource-affix-group--grow">
+                            <span class="resource-affix-label">limit</span>
+                            <ElInput
+                              v-model="form.containers[activeContainerIdx].cpuLimit"
+                              placeholder="如 0.5"
+                              class="resource-affix-input"
+                            />
+                          </div>
+                          <span class="resource-unit-suffix">核</span>
+                        </div>
+                      </div>
+                      <div class="cpu-mem-limit-block">
+                        <div class="cpu-mem-limit-block-title">内存限制</div>
+                        <div class="cpu-mem-limit-inputs">
+                          <div class="resource-affix-group resource-affix-group--grow">
+                            <span class="resource-affix-label">request</span>
+                            <ElInput
+                              v-model="form.containers[activeContainerIdx].memoryRequest"
+                              placeholder="如 256Mi"
+                              class="resource-affix-input"
+                            />
+                          </div>
+                          <span class="resource-affix-sep">-</span>
+                          <div class="resource-affix-group resource-affix-group--grow">
+                            <span class="resource-affix-label">limit</span>
+                            <ElInput
+                              v-model="form.containers[activeContainerIdx].memoryLimit"
+                              placeholder="如 1024Mi"
+                              class="resource-affix-input"
+                            />
+                          </div>
+                          <span class="resource-unit-suffix">MiB</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="cpu-mem-limit-tips">
+                      <div class="dc-field-tip cpu-mem-tip-line">
+                        Request 用于预分配资源，当集群中的节点没有 request
+                        所要求的资源数量时，容器会创建失败。
+                      </div>
+                      <div class="dc-field-tip cpu-mem-tip-line">
+                        Limit 用于设置容器使用资源的最大上限，避免异常情况下节点资源消耗过多。
+                      </div>
                     </div>
                   </ElFormItem>
-                  <ElFormItem label="就绪探针路径">
-                    <ElInput
-                      v-model="form.containers[activeContainerIdx].readinessPath"
-                      placeholder="如 /ready"
-                      style="width: 240px"
-                    />
-                  </ElFormItem>
-                  <ElFormItem label="就绪探针端口">
-                    <ElInputNumber
-                      v-model="form.containers[activeContainerIdx].readinessPort"
-                      :min="1"
-                      :max="65535"
-                      :precision="0"
-                    />
-                  </ElFormItem>
-                  <ElFormItem label="就绪探针参数">
-                    <div class="probe-grid">
-                      <ElInputNumber
-                        v-model="form.containers[activeContainerIdx].readinessInitialDelaySeconds"
-                        :min="0"
-                        :precision="0"
-                        placeholder="initialDelaySeconds"
+                  <div class="container-advanced-config-toggle">
+                    <ElButton
+                      link
+                      type="primary"
+                      class="kv-add-btn"
+                      @click="showContainerAdvancedConfig = !showContainerAdvancedConfig"
+                    >
+                      {{ showContainerAdvancedConfig ? '隐藏高级配置' : '显示高级配置' }}
+                    </ElButton>
+                  </div>
+                  <template v-if="showContainerAdvancedConfig">
+                    <ElFormItem label="启动命令">
+                      <ElInput
+                        v-model="form.containers[activeContainerIdx].commandText"
+                        type="textarea"
+                        :rows="3"
+                        placeholder="每行一个 command 参数，如 /bin/sh"
                       />
+                    </ElFormItem>
+                    <ElFormItem label="启动参数">
+                      <ElInput
+                        v-model="form.containers[activeContainerIdx].argsText"
+                        type="textarea"
+                        :rows="3"
+                        placeholder="每行一个 args 参数，如 -c"
+                      />
+                    </ElFormItem>
+                    <ElDivider content-position="left">健康检查</ElDivider>
+                    <ElFormItem label="存活探针路径">
+                      <ElInput
+                        v-model="form.containers[activeContainerIdx].livenessPath"
+                        placeholder="如 /healthz"
+                        style="width: 240px"
+                      />
+                    </ElFormItem>
+                    <ElFormItem label="存活探针端口">
                       <ElInputNumber
-                        v-model="form.containers[activeContainerIdx].readinessPeriodSeconds"
+                        v-model="form.containers[activeContainerIdx].livenessPort"
                         :min="1"
+                        :max="65535"
                         :precision="0"
-                        placeholder="periodSeconds"
                       />
+                    </ElFormItem>
+                    <ElFormItem label="存活探针参数">
+                      <div class="probe-grid">
+                        <ElInputNumber
+                          v-model="form.containers[activeContainerIdx].livenessInitialDelaySeconds"
+                          :min="0"
+                          :precision="0"
+                          placeholder="initialDelaySeconds"
+                        />
+                        <ElInputNumber
+                          v-model="form.containers[activeContainerIdx].livenessPeriodSeconds"
+                          :min="1"
+                          :precision="0"
+                          placeholder="periodSeconds"
+                        />
+                        <ElInputNumber
+                          v-model="form.containers[activeContainerIdx].livenessTimeoutSeconds"
+                          :min="1"
+                          :precision="0"
+                          placeholder="timeoutSeconds"
+                        />
+                        <ElInputNumber
+                          v-model="form.containers[activeContainerIdx].livenessSuccessThreshold"
+                          :min="1"
+                          :precision="0"
+                          placeholder="successThreshold"
+                        />
+                        <ElInputNumber
+                          v-model="form.containers[activeContainerIdx].livenessFailureThreshold"
+                          :min="1"
+                          :precision="0"
+                          placeholder="failureThreshold"
+                        />
+                      </div>
+                    </ElFormItem>
+                    <ElFormItem label="就绪探针路径">
+                      <ElInput
+                        v-model="form.containers[activeContainerIdx].readinessPath"
+                        placeholder="如 /ready"
+                        style="width: 240px"
+                      />
+                    </ElFormItem>
+                    <ElFormItem label="就绪探针端口">
                       <ElInputNumber
-                        v-model="form.containers[activeContainerIdx].readinessTimeoutSeconds"
+                        v-model="form.containers[activeContainerIdx].readinessPort"
                         :min="1"
+                        :max="65535"
                         :precision="0"
-                        placeholder="timeoutSeconds"
                       />
+                    </ElFormItem>
+                    <ElFormItem label="就绪探针参数">
+                      <div class="probe-grid">
+                        <ElInputNumber
+                          v-model="form.containers[activeContainerIdx].readinessInitialDelaySeconds"
+                          :min="0"
+                          :precision="0"
+                          placeholder="initialDelaySeconds"
+                        />
+                        <ElInputNumber
+                          v-model="form.containers[activeContainerIdx].readinessPeriodSeconds"
+                          :min="1"
+                          :precision="0"
+                          placeholder="periodSeconds"
+                        />
+                        <ElInputNumber
+                          v-model="form.containers[activeContainerIdx].readinessTimeoutSeconds"
+                          :min="1"
+                          :precision="0"
+                          placeholder="timeoutSeconds"
+                        />
+                        <ElInputNumber
+                          v-model="form.containers[activeContainerIdx].readinessSuccessThreshold"
+                          :min="1"
+                          :precision="0"
+                          placeholder="successThreshold"
+                        />
+                        <ElInputNumber
+                          v-model="form.containers[activeContainerIdx].readinessFailureThreshold"
+                          :min="1"
+                          :precision="0"
+                          placeholder="failureThreshold"
+                        />
+                      </div>
+                    </ElFormItem>
+                    <ElFormItem label="启动探针路径">
+                      <ElInput
+                        v-model="form.containers[activeContainerIdx].startupPath"
+                        placeholder="如 /startup"
+                        style="width: 240px"
+                      />
+                    </ElFormItem>
+                    <ElFormItem label="启动探针端口">
                       <ElInputNumber
-                        v-model="form.containers[activeContainerIdx].readinessSuccessThreshold"
+                        v-model="form.containers[activeContainerIdx].startupPort"
                         :min="1"
+                        :max="65535"
                         :precision="0"
-                        placeholder="successThreshold"
                       />
-                      <ElInputNumber
-                        v-model="form.containers[activeContainerIdx].readinessFailureThreshold"
-                        :min="1"
-                        :precision="0"
-                        placeholder="failureThreshold"
-                      />
-                    </div>
-                  </ElFormItem>
-                  <ElFormItem label="启动探针路径">
-                    <ElInput
-                      v-model="form.containers[activeContainerIdx].startupPath"
-                      placeholder="如 /startup"
-                      style="width: 240px"
-                    />
-                  </ElFormItem>
-                  <ElFormItem label="启动探针端口">
-                    <ElInputNumber
-                      v-model="form.containers[activeContainerIdx].startupPort"
-                      :min="1"
-                      :max="65535"
-                      :precision="0"
-                    />
-                  </ElFormItem>
-                  <ElFormItem label="启动探针参数">
-                    <div class="probe-grid">
-                      <ElInputNumber
-                        v-model="form.containers[activeContainerIdx].startupInitialDelaySeconds"
-                        :min="0"
-                        :precision="0"
-                        placeholder="initialDelaySeconds"
-                      />
-                      <ElInputNumber
-                        v-model="form.containers[activeContainerIdx].startupPeriodSeconds"
-                        :min="1"
-                        :precision="0"
-                        placeholder="periodSeconds"
-                      />
-                      <ElInputNumber
-                        v-model="form.containers[activeContainerIdx].startupTimeoutSeconds"
-                        :min="1"
-                        :precision="0"
-                        placeholder="timeoutSeconds"
-                      />
-                      <ElInputNumber
-                        v-model="form.containers[activeContainerIdx].startupSuccessThreshold"
-                        :min="1"
-                        :precision="0"
-                        placeholder="successThreshold"
-                      />
-                      <ElInputNumber
-                        v-model="form.containers[activeContainerIdx].startupFailureThreshold"
-                        :min="1"
-                        :precision="0"
-                        placeholder="failureThreshold"
-                      />
-                    </div>
-                  </ElFormItem>
-                  <ElDivider content-position="left">卷挂载</ElDivider>
-                  <ElFormItem label="VolumeMounts">
+                    </ElFormItem>
+                    <ElFormItem label="启动探针参数">
+                      <div class="probe-grid">
+                        <ElInputNumber
+                          v-model="form.containers[activeContainerIdx].startupInitialDelaySeconds"
+                          :min="0"
+                          :precision="0"
+                          placeholder="initialDelaySeconds"
+                        />
+                        <ElInputNumber
+                          v-model="form.containers[activeContainerIdx].startupPeriodSeconds"
+                          :min="1"
+                          :precision="0"
+                          placeholder="periodSeconds"
+                        />
+                        <ElInputNumber
+                          v-model="form.containers[activeContainerIdx].startupTimeoutSeconds"
+                          :min="1"
+                          :precision="0"
+                          placeholder="timeoutSeconds"
+                        />
+                        <ElInputNumber
+                          v-model="form.containers[activeContainerIdx].startupSuccessThreshold"
+                          :min="1"
+                          :precision="0"
+                          placeholder="successThreshold"
+                        />
+                        <ElInputNumber
+                          v-model="form.containers[activeContainerIdx].startupFailureThreshold"
+                          :min="1"
+                          :precision="0"
+                          placeholder="failureThreshold"
+                        />
+                      </div>
+                    </ElFormItem>
+                  </template>
+                  <ElFormItem :label-width="0" class="volume-mounts-form-item">
                     <div class="kv-list">
                       <div
                         v-for="(item, idx) in form.containers[activeContainerIdx].volumeMounts"
@@ -630,7 +682,6 @@
                         />
                         <ElButton link type="danger" @click="removeVolumeMount(idx)">删除</ElButton>
                       </div>
-                      <ElButton link type="primary" @click="addVolumeMount">新增挂载</ElButton>
                     </div>
                   </ElFormItem>
                 </ElForm>
@@ -943,13 +994,6 @@
   }
   function removeAnnotation(index: number) {
     form.value.annotations.splice(index, 1)
-  }
-  function addVolumeMount() {
-    form.value.containers[activeContainerIdx.value].volumeMounts.push({
-      name: '',
-      mountPath: '',
-      readOnly: false
-    })
   }
   function removeVolumeMount(index: number) {
     form.value.containers[activeContainerIdx.value].volumeMounts.splice(index, 1)
@@ -1503,6 +1547,7 @@
 
   const showPullSecretSelect = ref(false)
   const showAdvancedOptions = ref(false)
+  const showContainerAdvancedConfig = ref(false)
 
   function onAddPullSecret() {
     showPullSecretSelect.value = true
@@ -1778,9 +1823,14 @@
 
   .env-row {
     display: grid;
-    grid-template-columns: 1fr 140px 1fr 1fr auto;
+    grid-template-columns: 140px 1fr 1fr 1fr auto;
     gap: 8px;
     margin-bottom: 8px;
+  }
+
+  .env-row .env-del-btn {
+    justify-self: end;
+    align-self: center;
   }
 
   .container-pane {
@@ -1869,31 +1919,65 @@
 
   .pull-policy-group {
     --el-radio-button-checked-border-color: var(--el-color-primary);
+    --el-radio-button-checked-bg-color: var(--el-color-white, #fff);
+    --el-radio-button-checked-text-color: var(--el-color-primary);
+    display: flex;
+    width: 320px;
+    min-width: 320px;
+    max-width: 320px;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+
+  .pull-policy-group :deep(.el-radio-button) {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
   }
 
   .pull-policy-group :deep(.el-radio-button__inner) {
-    font-size: 12px;
-    padding: 6px 16px;
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    box-sizing: border-box;
+    text-align: center;
+    font-size: 13px;
+    padding: 6px 10px;
+    font-weight: 400;
+    color: var(--el-text-color-regular);
+    background: transparent;
+    border: 1px solid var(--el-border-color);
     border-radius: 0 !important;
+    transition:
+      border-color 0.15s,
+      color 0.15s,
+      background-color 0.15s;
   }
 
-  .pull-policy-group :deep(.el-radio-button:first-child .el-radio-button__inner) {
-    border-radius: 0 !important;
-  }
-
+  .pull-policy-group :deep(.el-radio-button:first-child .el-radio-button__inner),
   .pull-policy-group :deep(.el-radio-button:last-child .el-radio-button__inner) {
     border-radius: 0 !important;
   }
 
+  .pull-policy-group :deep(.el-radio-button__inner:hover) {
+    border-color: var(--el-color-primary);
+    color: var(--el-color-primary);
+  }
+
   .pull-policy-group :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
-    background-color: #fff !important;
+    background-color: var(--el-color-white, #fff) !important;
     color: var(--el-color-primary) !important;
+    font-weight: 500 !important;
     border-color: var(--el-color-primary) !important;
-    box-shadow: -1px 0 0 0 var(--el-color-primary) !important;
+    box-shadow: none !important;
+    position: relative;
+    z-index: 1;
   }
 
   .container-form-wrap .dc-form {
-    max-width: 680px;
+    max-width: 920px;
   }
 
   .container-dc-form :deep(.el-form-item__label) {
@@ -1904,6 +1988,156 @@
   .container-dc-form :deep(.el-textarea__inner),
   .container-dc-form :deep(.el-select__wrapper) {
     font-size: 13px;
+  }
+
+  .container-name-field-col {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .container-dc-form .container-name-tip {
+    width: max-content;
+    max-width: none;
+    margin-top: 6px;
+    white-space: nowrap;
+  }
+
+  .cpu-mem-limit-form-item.el-form-item {
+    align-items: flex-start;
+  }
+
+  .cpu-mem-limit-form-item :deep(.el-form-item__label) {
+    padding-top: 14px;
+    line-height: 20px;
+  }
+
+  .cpu-mem-limit-form-item :deep(.el-form-item__content) {
+    flex: 1;
+    flex-direction: column;
+    align-items: stretch;
+    min-width: 0;
+    padding-top: 14px;
+  }
+
+  .cpu-mem-limit-wrap {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 40px;
+    row-gap: 0;
+    width: 100%;
+    min-width: 0;
+    align-items: start;
+  }
+
+  .cpu-mem-limit-block {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .cpu-mem-limit-block-title {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--el-text-color-primary);
+    line-height: 1.2;
+    margin: 0;
+  }
+
+  .cpu-mem-limit-inputs {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .resource-affix-group {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    min-width: 0;
+    border: 1px solid var(--el-border-color);
+    border-radius: var(--el-border-radius-base);
+    overflow: hidden;
+    background: var(--el-fill-color-blank);
+    box-sizing: border-box;
+  }
+
+  .resource-affix-group--grow {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .resource-affix-sep {
+    flex-shrink: 0;
+    color: var(--el-text-color-secondary);
+    font-size: 13px;
+    user-select: none;
+    line-height: 1;
+  }
+
+  .resource-affix-group:focus-within {
+    border-color: var(--el-color-primary);
+  }
+
+  .resource-affix-label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    flex-shrink: 0;
+    padding: 0 6px;
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+    background: var(--el-fill-color-light);
+    border-right: 1px solid var(--el-border-color);
+    box-sizing: border-box;
+  }
+
+  .resource-affix-input {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .resource-affix-input :deep(.el-input) {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .resource-affix-input :deep(.el-input__wrapper) {
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background-color: transparent;
+  }
+
+  .resource-unit-suffix {
+    flex-shrink: 0;
+    align-self: center;
+    font-size: 13px;
+    color: var(--el-text-color-regular);
+    white-space: nowrap;
+  }
+
+  .cpu-mem-limit-tips {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+    max-width: none;
+  }
+
+  .cpu-mem-tip-line {
+    white-space: normal;
+    line-height: 1.5;
   }
 
   .probe-grid {
@@ -1984,6 +2218,28 @@
   }
 
   .advanced-toggle-row .kv-add-btn {
+    font-size: 12px;
+  }
+
+  .container-advanced-config-toggle {
+    padding-left: 0px;
+    margin-top: 4px;
+    margin-bottom: 2px;
+  }
+
+  .volume-mounts-form-item :deep(.el-form-item__label) {
+    display: none;
+    width: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .volume-mounts-form-item :deep(.el-form-item__content) {
+    margin-left: 0 !important;
+    justify-content: flex-start;
+  }
+
+  .container-advanced-config-toggle .kv-add-btn {
     font-size: 12px;
   }
 
