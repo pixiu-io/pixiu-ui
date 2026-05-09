@@ -87,9 +87,9 @@
     command?: string
   }
 
-  /** exec 失败类输出（与 kube 常见报错文案对齐） */
+  /** exec 失败类输出（仅匹配 K8s/OCI 运行时层的 exec 报错，不匹配 shell 内部命令输出） */
   const EXEC_FAIL_RE =
-    /not found|no such file|executable file|unable to start|exec pod command failed|OCI runtime exec|permission denied|cannot find|stat.*no such file/i
+    /exec pod command failed|OCI runtime exec|unable to start container process|stat\s+["']?\/bin\/(ba)?sh["']?\s*[:：]\s*no such file|exec:\s*["']\/bin\/(ba)?sh["']/i
 
   /** 是否已做过「bash → sh」的一次切换，避免循环 */
   let bashToShFallbackDone = false
@@ -289,13 +289,6 @@
     return true
   }
 
-  function reportFinalShellFailureInDrawer() {
-    const line =
-      '[无法使用 /bin/bash 与 /bin/sh 进入容器，请检查镜像与入口配置、集群网络与权限]'
-    if (xterm) writeSystemLine(line, 'red')
-    else ElMessage.error(line)
-  }
-
   function buildWsUrl(): string {
     const base = resolvePixiuWsOrigin()
     const s = session.value
@@ -392,23 +385,11 @@
         const op = msg.operation
         const data = msg.data != null ? String(msg.data) : ''
         if ((op === 'stdout' || op === 'stderr') && data) {
-          if (EXEC_FAIL_RE.test(data)) {
-            if (trySwitchToShAfterBashFailure('exec')) return
-            if (session.value?.command === '/bin/sh' && !session.value.allowShFallback) {
-              xterm?.write(data)
-              reportFinalShellFailureInDrawer()
-              return
-            }
-          }
+          if (EXEC_FAIL_RE.test(data) && trySwitchToShAfterBashFailure('exec')) return
           xterm?.write(data)
         }
       } catch {
         if (EXEC_FAIL_RE.test(str) && trySwitchToShAfterBashFailure('exec')) return
-        if (EXEC_FAIL_RE.test(str) && session.value?.command === '/bin/sh' && !session.value.allowShFallback) {
-          xterm?.write(str)
-          reportFinalShellFailureInDrawer()
-          return
-        }
         xterm?.write(str)
       }
       nextTick(() => focusTermIfHeaderStoleFocus())

@@ -134,14 +134,59 @@
     </ElDrawer>
 
     <PodRemoteWebshell ref="podRemoteWebshellRef" />
+
+    <!-- 日志抽屉 -->
+    <ElDrawer
+      v-model="logDrawerVisible"
+      direction="rtl"
+      :size="logDrawerFullscreen ? '100%' : '60%'"
+      destroy-on-close
+      :show-close="false"
+      class="pod-log-drawer"
+      @close="closePodLogs"
+    >
+      <template #header>
+        <div class="pod-log-drawer-header">
+          <span class="pod-log-title">Pod 日志 — <span class="pod-log-pod-name">{{ logPod?.metadata?.name }}</span></span>
+          <div class="pod-log-toolbar">
+            <ElSelect v-model="logContainer" size="small" style="width:160px" placeholder="选择容器" @change="reconnectLogWs">
+              <ElOption v-for="c in logContainers" :key="c" :value="c" :label="c" />
+            </ElSelect>
+            <ElSelect v-model="logTailLines" size="small" style="width:90px" @change="reconnectLogWs">
+              <ElOption :value="100" label="100行" />
+              <ElOption :value="200" label="200行" />
+              <ElOption :value="500" label="500行" />
+              <ElOption :value="1000" label="1000行" />
+            </ElSelect>
+            <button type="button" class="pod-log-icon-btn" title="刷新" @click.stop="reconnectLogWs">
+              <ElIcon :size="18"><Refresh /></ElIcon>
+            </button>
+            <button type="button" class="pod-log-icon-btn" :title="logDrawerFullscreen ? '退出全屏' : '全屏'" @click.stop="logDrawerFullscreen = !logDrawerFullscreen">
+              <ElIcon :size="18"><ScaleToOriginal v-if="logDrawerFullscreen" /><FullScreen v-else /></ElIcon>
+            </button>
+            <button type="button" class="pod-log-icon-btn" title="关闭" @click.stop="logDrawerVisible = false">
+              <ElIcon :size="18"><Close /></ElIcon>
+            </button>
+          </div>
+        </div>
+      </template>
+      <div class="pod-log-body">
+        <ElTable :data="logRows" v-loading="logConnecting" class="pod-log-table">
+          <ElTableColumn prop="line" label="日志内容" />
+          <template #empty>
+            <div style="color:var(--el-text-color-secondary);font-size:13px;padding:16px 0">暂无日志</div>
+          </template>
+        </ElTable>
+      </div>
+    </ElDrawer>
   </div>
 </template>
 
 <script setup lang="ts">
-  import { ElAlert, ElButton, ElDialog, ElDrawer, ElInput, ElForm, ElFormItem, ElLink, ElMessage, ElMessageBox, ElOption, ElPagination, ElRadio, ElRadioGroup, ElSelect, ElTable, ElTableColumn, ElTag, ElTooltip } from 'element-plus'
+  import { ElAlert, ElButton, ElDialog, ElDrawer, ElIcon, ElInput, ElForm, ElFormItem, ElLink, ElMessage, ElMessageBox, ElOption, ElPagination, ElRadio, ElRadioGroup, ElSelect, ElTable, ElTableColumn, ElTag, ElTooltip } from 'element-plus'
   import ArtButtonMore, { type ButtonMoreItem } from '@/components/core/forms/art-button-more/index.vue'
-  import { CopyDocument } from '@element-plus/icons-vue'
-  import { h, ref, computed, watch, inject } from 'vue'
+  import { Close, CopyDocument, FullScreen, Refresh, ScaleToOriginal } from '@element-plus/icons-vue'
+  import { h, nextTick, ref, computed, watch, inject } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
   import { deleteK8sEvent, fetchKubeRawEventList } from '@/api/kubernetes/events'
@@ -149,6 +194,7 @@
   import { formatNodeCreationTime } from '@/utils/kubernetes/nodeDisplay'
   import { clusterDetailNamespaceKey } from './context'
   import PodRemoteWebshell from './components/pod-remote-webshell.vue'
+  import { resolvePixiuWsOrigin } from '@/utils/pixiu-ws-origin'
 
   defineOptions({ name: 'ClusterDetailPods' })
 
@@ -340,6 +386,22 @@
           }
         },
         {
+          prop: 'ready',
+          label: 'Ready',
+          width: 80,
+          formatter: (row: K8sPod) => {
+            const statuses = row.status?.containerStatuses ?? []
+            const total = statuses.length || (row.spec?.containers?.length ?? 0)
+            const ready = statuses.filter((c) => c.ready).length
+            const notReady = total > 0 && ready < total
+            return h(
+              'span',
+              { style: `font-size:12px;${notReady ? 'color:var(--el-color-warning)' : ''}` },
+              `${ready}/${total}`
+            )
+          }
+        },
+        {
           prop: 'status.hostIP',
           label: '所在节点',
           minWidth: 190,
@@ -455,14 +517,15 @@
         {
           prop: 'operation',
           label: '操作',
-          width: 130,
+          width: 118,
           fixed: 'right',
           formatter: (row: K8sPod) =>
-            h('div', { style: 'display:flex;align-items:center;gap:8px;flex-wrap:nowrap' }, [
-              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => openRemoteLoginDialog(row) }, () => '登录'),
-              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void viewYaml(row) }, () => '查看'),
+            h('div', { style: 'display:flex;align-items:center;gap:6px;flex-wrap:nowrap' }, [
+              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px;line-height:1', onClick: () => openRemoteLoginDialog(row) }, () => '登录'),
+              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px;line-height:1', onClick: () => openPodLogs(row) }, () => '日志'),
               h(ArtButtonMore, {
                 list: [
+                  { key: 'yaml', label: '查看YAML', icon: 'ri:file-code-line' },
                   { key: 'delete', label: '删除', icon: 'ri:delete-bin-4-line', color: '#f56c6c' }
                 ],
                 onClick: (item: ButtonMoreItem) => podMoreClick(item, row)
@@ -566,6 +629,9 @@
 
   function podMoreClick(item: ButtonMoreItem, row: K8sPod) {
     switch (item.key) {
+      case 'yaml':
+        void viewYaml(row)
+        break
       case 'delete':
         void removePod(row)
         break
@@ -701,6 +767,96 @@
       ElMessage.error(e instanceof Error ? e.message : '删除失败')
     }
   }
+
+  // ========== Pod 日志 ==========
+  const logDrawerVisible = ref(false)
+  const logDrawerFullscreen = ref(false)
+  const logConnecting = ref(false)
+  const logPod = ref<K8sPod | null>(null)
+  const logContainer = ref('')
+  const logContainers = ref<string[]>([])
+  const logTailLines = ref<number>(100)
+  const logRows = ref<{ line: string }[]>([])
+  let logSocket: WebSocket | null = null
+
+  function buildLogWsUrl(): string {
+    const cluster = String(route.query.cluster ?? '')
+    const pod = logPod.value
+    if (!cluster || !pod) return ''
+    const ns = pod.metadata?.namespace ?? ''
+    const name = pod.metadata?.name ?? ''
+    const base = resolvePixiuWsOrigin()
+    return (
+      `${base}/pixiu/kubeproxy/clusters/${encodeURIComponent(cluster)}/namespaces/${encodeURIComponent(ns)}/pods/${encodeURIComponent(name)}/log` +
+      `?container=${encodeURIComponent(logContainer.value)}&tailLines=${logTailLines.value}`
+    )
+  }
+
+  function closeLogSocket() {
+    if (logSocket) {
+      logSocket.onopen = null
+      logSocket.onmessage = null
+      logSocket.onerror = null
+      logSocket.onclose = null
+      logSocket.close()
+      logSocket = null
+    }
+  }
+
+  function connectLogWs() {
+    closeLogSocket()
+    logRows.value = []
+    logConnecting.value = true
+    const url = buildLogWsUrl()
+    if (!url) { logConnecting.value = false; return }
+    const token = localStorage.getItem('pixiu-access-token')
+    logSocket = token ? new WebSocket(url, [token]) : new WebSocket(url)
+
+    logSocket.onopen = () => { logConnecting.value = false }
+
+    logSocket.onmessage = (event) => {
+      const text = typeof event.data === 'string' ? event.data : new TextDecoder().decode(event.data as ArrayBuffer)
+      const parts = text.split('\n')
+      for (const p of parts) {
+        if (p !== '') logRows.value.push({ line: p })
+      }
+    }
+
+    logSocket.onerror = () => {
+      logConnecting.value = false
+      logRows.value.push({ line: '[连接出错]' })
+    }
+
+    logSocket.onclose = () => {
+      logConnecting.value = false
+    }
+  }
+
+  function reconnectLogWs() {
+    connectLogWs()
+  }
+
+  function openPodLogs(row: K8sPod) {
+    logPod.value = row
+    logContainers.value = (row.spec?.containers ?? []).map((c) => c.name ?? '').filter(Boolean)
+    logContainer.value = logContainers.value[0] ?? ''
+    logTailLines.value = 100
+    logRows.value = []
+    logDrawerFullscreen.value = false
+    logDrawerVisible.value = true
+    nextTick(() => { connectLogWs() })
+  }
+
+  function closePodLogs() {
+    closeLogSocket()
+    logRows.value = []
+    logPod.value = null
+    logDrawerFullscreen.value = false
+  }
+
+  watch(logDrawerFullscreen, () => {
+    // no-op, fullscreen just resizes the drawer
+  })
 </script>
 
 <style>
@@ -716,6 +872,16 @@
   }
   .pods-page .art-table .el-table th.el-table__cell {
     font-size: 13px;
+  }
+
+  /* 日志抽屉 */
+  .pod-log-drawer .el-drawer__header {
+    padding: 12px 16px;
+    margin-bottom: 0;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+  }
+  .pod-log-drawer .el-drawer__body {
+    padding: 0;
   }
 </style>
 
@@ -815,5 +981,57 @@
 
   .mt-3 {
     margin-top: 12px;
+  }
+
+  /* 日志抽屉内部 */
+  .pod-log-drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 12px;
+  }
+  .pod-log-title {
+    font-size: 14px;
+    font-weight: 500;
+    flex-shrink: 0;
+  }
+  .pod-log-pod-name {
+    font-family: 'JetBrains Mono', Consolas, monospace;
+    font-size: 13px;
+    color: var(--el-color-primary);
+  }
+  .pod-log-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+  .pod-log-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    color: var(--el-text-color-secondary);
+    cursor: pointer;
+    border-radius: 4px;
+    transition: color 0.15s, background-color 0.15s;
+  }
+  .pod-log-icon-btn:hover {
+    color: var(--el-color-primary);
+    background-color: var(--el-color-primary-light-9);
+  }
+  .pod-log-body {
+    flex: 1;
+    min-height: 0;
+    padding: 12px 16px;
+    overflow: auto;
+  }
+  .pod-log-table {
+    width: 100%;
   }
 </style>

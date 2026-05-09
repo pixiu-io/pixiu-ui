@@ -23,3 +23,5 @@
 2026-04-21 15:59:10 style: sync cluster-detail sidebar menu text-color with outer sidebar theme
 2026-04-21 16:20:47 style: fix cluster-detail sidebar text color via storeToRefs and active-text-color alignment
 2026-04-21 16:45:52 style: redesign deployment detail page with clean header, summary strip and section-based layout
+2026-05-09 14:32:45 feat: add pod detail page with containers/events/logs tabs and route
+2026-05-09 14:50:43 style: add section dividers and grouping to deployment-create form

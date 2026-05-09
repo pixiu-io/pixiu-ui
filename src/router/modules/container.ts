@@ -102,6 +102,16 @@ export const containerRoutes: AppRouteRecord = {
       }
     },
     {
+      path: 'pod-detail',
+      name: 'PodDetail',
+      component: '/container/cluster-detail/pod-detail/index',
+      meta: {
+        title: 'Pod 详情',
+        isHide: true,
+        keepAlive: false
+      }
+    },
+    {
       path: 'statefulset-detail',
       name: 'StatefulSetDetail',
       component: '/container/cluster-detail/deployment-detail/index',
