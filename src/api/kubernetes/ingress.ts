@@ -62,3 +62,17 @@ export async function fetchK8sIngress(cluster: string, namespace: string, name: 
 export async function deleteK8sIngress(cluster: string, namespace: string, name: string): Promise<void> {
   await kubeProxyAxios.delete(`${ingressBase(cluster, namespace)}/${encodeURIComponent(name)}`)
 }
+
+export async function createK8sIngress(cluster: string, namespace: string, body: K8sIngress): Promise<K8sIngress> {
+  const { data } = await kubeProxyAxios.post<K8sIngress>(ingressBase(cluster, namespace), body)
+  return data
+}
+
+export async function patchK8sIngress(cluster: string, namespace: string, name: string, patch: object): Promise<K8sIngress> {
+  const { data } = await kubeProxyAxios.patch<K8sIngress>(
+    `${ingressBase(cluster, namespace)}/${encodeURIComponent(name)}`,
+    patch,
+    { headers: { 'Content-Type': 'application/merge-patch+json' } }
+  )
+  return data
+}

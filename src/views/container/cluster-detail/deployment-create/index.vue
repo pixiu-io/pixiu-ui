@@ -16,247 +16,113 @@
 
     <ElCard class="deploy-create-card">
       <div class="deploy-create-main">
-        <ElTabs v-model="activeStep" tab-position="left" class="deploy-create-tabs">
-          <ElTabPane label="基础信息" name="basic">
-            <ElForm
-              ref="basicFormRef"
-              :model="form"
-              :rules="basicRules"
-              label-width="120px"
-              class="dc-form"
+        <ElForm
+          ref="basicFormRef"
+          :model="form"
+          :rules="basicRules"
+          label-width="140px"
+          class="dc-form"
+        >
+          <ElDivider content-position="left" class="dc-section-divider-top">基础配置</ElDivider>
+          <ElFormItem label="名称" prop="name">
+            <div class="dc-field-col">
+              <ElInput
+                v-model="form.name"
+                placeholder="请输入 Deployment 名称"
+                style="width: 280px"
+              />
+              <div class="dc-field-tip"
+                >最长 63
+                个字符，只能包含小写字母、数字及分隔符（-），且必须以小写字母开头，以数字或小写字母结尾</div
+              >
+            </div>
+          </ElFormItem>
+          <ElFormItem label="命名空间" prop="namespace">
+            <ElSelect
+              v-model="form.namespace"
+              filterable
+              placeholder="请选择命名空间"
+              style="width: 280px"
             >
-              <ElDivider content-position="left" class="dc-section-divider-top">基础配置</ElDivider>
-              <ElFormItem label="名称" prop="name">
-                <ElInput
-                  v-model="form.name"
-                  placeholder="请输入 Deployment 名称"
-                  style="width: 280px"
-                />
-                <div class="dc-field-tip"
-                  >最长 63
-                  个字符，只能包含小写字母、数字及分隔符（-），且必须以小写字母开头，以数字或小写字母结尾</div
-                >
-              </ElFormItem>
-              <ElFormItem label="命名空间" prop="namespace">
-                <ElSelect
-                  v-model="form.namespace"
-                  filterable
-                  placeholder="请选择命名空间"
-                  style="width: 280px"
-                >
-                  <ElOption v-for="ns in namespaces" :key="ns" :label="ns" :value="ns" />
-                </ElSelect>
-              </ElFormItem>
-              <ElFormItem label="Labels">
-                <div class="kv-list">
-                  <div v-for="(item, idx) in form.labels" :key="`label-${idx}`" class="kv-row">
-                    <ElInput v-model="item.key" />
-                    <ElInput v-model="item.value" />
-                    <ElButton link class="kv-del-btn" @click="removeLabel(idx)"
-                      ><ElIcon><Delete /></ElIcon
-                    ></ElButton>
-                  </div>
-                  <ElButton link type="primary" class="kv-add-btn" @click="addLabel">新增</ElButton>
+              <ElOption v-for="ns in namespaces" :key="ns" :label="ns" :value="ns" />
+            </ElSelect>
+          </ElFormItem>
+          <ElFormItem label="Labels">
+            <div class="dc-field-col">
+              <div class="kv-list">
+                <div v-for="(item, idx) in form.labels" :key="`label-${idx}`" class="kv-row">
+                  <ElInput v-model="item.key" />
+                  <ElInput v-model="item.value" />
+                  <ElButton link class="kv-del-btn" @click="removeLabel(idx)"
+                    ><ElIcon><Delete /></ElIcon
+                  ></ElButton>
                 </div>
-                <div class="dc-field-tip"
-                  >键名不超过 63 个字符，只能包含字母、数字及分隔符（- _
-                  .），且必须以字母或数字开头和结尾</div
+                <ElButton link type="primary" class="kv-add-btn" @click="addLabel">新增</ElButton>
+              </div>
+              <div class="dc-field-tip"
+                >键名不超过 63 个字符，只能包含字母、数字及分隔符（- _
+                .），且必须以字母或数字开头和结尾</div
+              >
+            </div>
+          </ElFormItem>
+          <ElFormItem label="Annotations">
+            <div class="dc-field-col">
+              <div class="kv-list">
+                <div
+                  v-for="(item, idx) in form.annotations"
+                  :key="`annotation-${idx}`"
+                  class="kv-row"
                 >
-              </ElFormItem>
-              <ElFormItem label="Annotations">
-                <div class="kv-list">
-                  <div
-                    v-for="(item, idx) in form.annotations"
-                    :key="`annotation-${idx}`"
-                    class="kv-row"
-                  >
-                    <ElInput v-model="item.key" />
-                    <ElInput v-model="item.value" />
-                    <ElButton link class="kv-del-btn" @click="removeAnnotation(idx)"
-                      ><ElIcon><Delete /></ElIcon
-                    ></ElButton>
-                  </div>
-                  <ElButton link type="primary" class="kv-add-btn" @click="addAnnotation"
-                    >新增</ElButton
-                  >
+                  <ElInput v-model="item.key" />
+                  <ElInput v-model="item.value" />
+                  <ElButton link class="kv-del-btn" @click="removeAnnotation(idx)"
+                    ><ElIcon><Delete /></ElIcon
+                  ></ElButton>
                 </div>
-                <div class="dc-field-tip"
-                  >值为字符串类型无长度限制，建议保持简短并避免换行、空格等特殊字符</div
+                <ElButton link type="primary" class="kv-add-btn" @click="addAnnotation"
+                  >新增</ElButton
                 >
-              </ElFormItem>
-              <ElFormItem label="数据卷（选填）">
-                <div class="kv-list">
-                  <div
-                    v-for="(vol, idx) in form.volumes"
-                    :key="`vol-basic-${idx}`"
-                    class="vol-display-row"
-                  >
-                    <span>数据卷名称：{{ vol.name }}</span>
-                    <span>数据卷类型：{{ volTypeLabel(vol.type) }}</span>
-                    <span v-if="vol.type === 'configMap'"
-                      >{{ vol.configMapName || '-' }} {{ vol.configMapKey || '全部Key' }}</span
-                    >
-                    <div class="vol-display-actions">
-                      <ElButton link class="kv-del-btn" @click="openEditVolume(idx)"
-                        ><ElIcon><EditPen /></ElIcon
-                      ></ElButton>
-                      <ElButton link class="kv-del-btn" @click="removeVolume(idx)"
-                        ><ElIcon><Close /></ElIcon
-                      ></ElButton>
-                    </div>
-                  </div>
-                  <ElButton link type="primary" class="kv-add-btn" @click="openAddVolume"
-                    >添加数据卷</ElButton
-                  >
-                </div>
-                <div class="dc-field-tip"
-                  >为容器提供存储，目前支持临时路径（emptyDir）和配置文件（ConfigMap），还需在容器配置中挂载到指定路径</div
+              </div>
+              <div class="dc-field-tip"
+                >值为字符串类型无长度限制，建议保持简短并避免换行、空格等特殊字符</div
+              >
+            </div>
+          </ElFormItem>
+          <ElFormItem label="数据卷（选填）">
+            <div class="dc-field-col">
+              <div class="kv-list">
+                <div
+                  v-for="(vol, idx) in form.volumes"
+                  :key="`vol-basic-${idx}`"
+                  class="vol-display-row"
                 >
-              </ElFormItem>
-              <ElFormItem label="实例数量" prop="replicas">
-                <ElInputNumber v-model="form.replicas" :min="0" :precision="0" />
-              </ElFormItem>
-              <ElFormItem label="镜像访问凭证">
-                <div class="pull-secret-wrap">
-                  <div v-if="showPullSecretSelect" class="pull-secret-row">
-                    <ElSelect
-                      v-model="form.imagePullSecret"
-                      placeholder="不指定访问凭证"
-                      style="width: 280px"
-                      filterable
-                    >
-                      <ElOption v-for="s in pullSecrets" :key="s" :label="s" :value="s" />
-                    </ElSelect>
-                    <ElButton link class="pull-secret-icon-btn" @click="loadPullSecrets"
-                      ><ElIcon><Refresh /></ElIcon
+                  <span>数据卷名称：{{ vol.name }}</span>
+                  <span>数据卷类型：{{ volTypeLabel(vol.type) }}</span>
+                  <span v-if="vol.type === 'configMap'"
+                    >{{ vol.configMapName || '-' }} {{ vol.configMapKey || '全部Key' }}</span
+                  >
+                  <div class="vol-display-actions">
+                    <ElButton link class="kv-del-btn" @click="openEditVolume(idx)"
+                      ><ElIcon><EditPen /></ElIcon
                     ></ElButton>
-                    <ElButton link class="pull-secret-icon-btn" @click="clearPullSecret"
+                    <ElButton link class="kv-del-btn" @click="removeVolume(idx)"
                       ><ElIcon><Close /></ElIcon
                     ></ElButton>
                   </div>
-                  <ElButton link type="primary" class="kv-add-btn" @click="onAddPullSecret"
-                    >添加镜像访问凭证</ElButton
-                  >
-                  <div
-                    class="dc-field-tip"
-                    style="
-                      margin-top: -10px;
-                      display: flex;
-                      align-items: center;
-                      gap: 2px;
-                      white-space: nowrap;
-                    "
-                  >
-                    请指定镜像访问凭证以拉取私有镜像 实现免密拉取；如无合适的访问凭证，请
-                    <ElButton
-                      link
-                      type="primary"
-                      class="kv-add-btn"
-                      style="padding: 0; flex-shrink: 0"
-                      @click="newSecretDialogVisible = true"
-                      >新建访问凭证</ElButton
-                    >
-                  </div>
                 </div>
-              </ElFormItem>
-              <ElFormItem label="节点调度策略">
-                <div class="scheduling-policy-wrap">
-                  <ElRadioGroup v-model="form.schedulingPolicy">
-                    <ElRadio value="default">使用默认调度规则</ElRadio>
-                    <ElRadio value="custom" disabled>自定义调度规则</ElRadio>
-                  </ElRadioGroup>
-                  <div class="dc-field-tip">
-                    默认调度规则由 Kubernetes 调度器自动分配节点，无需手动干预
-                  </div>
-                </div>
-              </ElFormItem>
-              <div class="advanced-toggle-row">
-                <ElButton
-                  link
-                  type="primary"
-                  class="kv-add-btn"
-                  @click="showAdvancedOptions = !showAdvancedOptions"
+                <ElButton link type="primary" class="kv-add-btn" @click="openAddVolume"
+                  >添加数据卷</ElButton
                 >
-                  {{ showAdvancedOptions ? '隐藏高级选项' : '显示高级选项' }}
-                </ElButton>
               </div>
-              <template v-if="showAdvancedOptions">
-                <ElFormItem label="更新方式">
-                  <div class="advanced-field-wrap">
-                    <ElSelect v-model="form.strategyType" style="width: 220px">
-                      <ElOption label="滚动更新（推荐）" value="RollingUpdate" />
-                      <ElOption label="快速更新" value="Recreate" />
-                    </ElSelect>
-                    <div v-if="form.strategyType === 'RollingUpdate'" class="dc-field-tip"
-                      >对实例进行逐个更新，这种方式可以让您不中断业务实现对服务的更新</div
-                    >
-                    <div v-else class="dc-field-tip">直接关闭所有实例，启动相同数量的新实例</div>
-                  </div>
-                </ElFormItem>
-                <template v-if="form.strategyType === 'RollingUpdate'">
-                  <ElFormItem label="更新间隔">
-                    <div style="display: flex; align-items: center; gap: 8px">
-                      <ElInputNumber
-                        v-model="form.minReadySeconds"
-                        :min="0"
-                        :precision="0"
-                        style="width: 160px"
-                      />
-                      <span style="font-size: 13px; color: var(--el-text-color-regular)">秒</span>
-                    </div>
-                  </ElFormItem>
-                  <ElFormItem label="更新策略">
-                    <div class="advanced-field-wrap">
-                      <ElRadioGroup v-model="form.updatePolicy">
-                        <ElRadio value="start-first">启动新的Pod，停止旧的Pod</ElRadio>
-                        <ElRadio value="stop-first">停止旧的Pod，启动新的Pod</ElRadio>
-                        <ElRadio value="custom">自定义</ElRadio>
-                      </ElRadioGroup>
-                      <div v-if="form.updatePolicy === 'start-first'" class="dc-field-tip"
-                        >请确认集群有足够的CPU和内存用于启动新的Pod，否则可能导致集群崩溃</div
-                      >
-                    </div>
-                  </ElFormItem>
-                  <ElFormItem label="策略配置">
-                    <div class="strategy-config-block">
-                      <template v-if="form.updatePolicy !== 'custom'">
-                        <div class="strategy-config-row">
-                          <span class="strategy-config-label" style="min-width: 40px">Pods</span>
-                          <ElInputNumber
-                            v-model="form.updateBatchSize"
-                            :min="1"
-                            :precision="0"
-                            style="width: 240px"
-                          />
-                        </div>
-                        <div class="dc-field-tip" style="margin-left: 56px"
-                          >Pod将批量启动或停止</div
-                        >
-                      </template>
-                      <template v-else>
-                        <div class="strategy-config-row">
-                          <span class="strategy-config-label">MaxSurge</span>
-                          <ElInput v-model="form.maxSurge" style="width: 240px" />
-                        </div>
-                        <div class="dc-field-tip" style="margin-left: 124px"
-                          >允许超出所需规模的最大Pod数量</div
-                        >
-                        <div class="strategy-config-row" style="margin-top: 10px">
-                          <span class="strategy-config-label">MaxUnavailable</span>
-                          <ElInput v-model="form.maxUnavailable" style="width: 240px" />
-                        </div>
-                        <div class="dc-field-tip" style="margin-left: 124px"
-                          >允许最大不可用的Pod数量</div
-                        >
-                      </template>
-                    </div>
-                  </ElFormItem>
-                </template>
-              </template>
-            </ElForm>
-          </ElTabPane>
-
-          <ElTabPane label="容器配置" name="container">
+              <div class="dc-field-tip"
+                >为容器提供存储，目前支持临时路径（emptyDir）和配置文件（ConfigMap），还需在容器配置中挂载到指定路径</div
+              >
+            </div>
+          </ElFormItem>
+          <ElFormItem label="实例数量" prop="replicas">
+            <ElInputNumber v-model="form.replicas" :min="0" :precision="0" />
+          </ElFormItem>
+          <ElFormItem label="实例内容器" class="container-form-item">
             <div class="container-pane">
               <div class="container-tabs-bar">
                 <div
@@ -287,7 +153,7 @@
                   ref="containerFormRef"
                   :model="form.containers[activeContainerIdx]"
                   :rules="containerRules"
-                  label-width="80px"
+                  label-width="110px"
                   class="dc-form container-dc-form"
                 >
                   <ElDivider
@@ -303,7 +169,8 @@
                         style="width: 300px"
                       />
                       <div class="dc-field-tip container-name-tip">
-                        最长 63 个字符，只能包含小写字母、数字及分隔符（-），且不能以分隔符开头或结尾。
+                        最长 63
+                        个字符，只能包含小写字母、数字及分隔符（-），且不能以分隔符开头或结尾。
                       </div>
                     </div>
                   </ElFormItem>
@@ -344,6 +211,104 @@
                           >默认使用本地镜像，若本地无该镜像则远程拉取该镜像</template
                         >
                         <template v-else>只使用本地镜像，若本地没有该镜像将报异常</template>
+                      </div>
+                    </div>
+                  </ElFormItem>
+                  <ElFormItem label="环境变量">
+                    <div class="kv-list">
+                      <div
+                        v-for="(item, idx) in form.containers[activeContainerIdx].envs"
+                        :key="`env-${idx}`"
+                        class="env-row"
+                      >
+                        <ElSelect v-model="item.mode" style="width: 140px">
+                          <ElOption label="自定义" value="value" />
+                        </ElSelect>
+                        <ElInput v-model="item.name" placeholder="变量名称" style="width: 200px" />
+                        <ElInput
+                          v-if="item.mode === 'value'"
+                          v-model="item.value"
+                          placeholder="变量值"
+                          style="width: 200px"
+                        />
+                        <template v-else>
+                          <ElInput v-model="item.sourceName" placeholder="来源名称" />
+                          <ElInput v-model="item.sourceKey" placeholder="键名 key" />
+                        </template>
+                        <ElButton
+                          link
+                          type="danger"
+                          class="kv-del-btn env-del-btn"
+                          title="删除"
+                          @click="removeEnv(idx)"
+                          ><ElIcon><Close /></ElIcon
+                        ></ElButton>
+                      </div>
+                      <ElButton link type="primary" class="kv-add-btn" @click="addEnv"
+                        >新增变量</ElButton
+                      >
+                    </div>
+                  </ElFormItem>
+                  <ElFormItem
+                    label="CPU/内存限制"
+                    label-width="110px"
+                    class="cpu-mem-limit-form-item"
+                  >
+                    <div class="cpu-mem-limit-wrap">
+                      <div class="cpu-mem-limit-block">
+                        <div class="cpu-mem-limit-block-title">CPU限制</div>
+                        <div class="cpu-mem-limit-inputs">
+                          <div class="resource-affix-group resource-affix-group--grow">
+                            <span class="resource-affix-label">request</span>
+                            <ElInput
+                              v-model="form.containers[activeContainerIdx].cpuRequest"
+                              placeholder="不限制"
+                              class="resource-affix-input"
+                            />
+                          </div>
+                          <span class="resource-affix-sep">-</span>
+                          <div class="resource-affix-group resource-affix-group--grow">
+                            <span class="resource-affix-label">limit</span>
+                            <ElInput
+                              v-model="form.containers[activeContainerIdx].cpuLimit"
+                              placeholder="不限制"
+                              class="resource-affix-input"
+                            />
+                          </div>
+                          <span class="resource-unit-suffix">核</span>
+                        </div>
+                      </div>
+                      <div class="cpu-mem-limit-block">
+                        <div class="cpu-mem-limit-block-title">内存限制</div>
+                        <div class="cpu-mem-limit-inputs">
+                          <div class="resource-affix-group resource-affix-group--grow">
+                            <span class="resource-affix-label">request</span>
+                            <ElInput
+                              v-model="form.containers[activeContainerIdx].memoryRequest"
+                              placeholder="不限制"
+                              class="resource-affix-input"
+                            />
+                          </div>
+                          <span class="resource-affix-sep">-</span>
+                          <div class="resource-affix-group resource-affix-group--grow">
+                            <span class="resource-affix-label">limit</span>
+                            <ElInput
+                              v-model="form.containers[activeContainerIdx].memoryLimit"
+                              placeholder="不限制"
+                              class="resource-affix-input"
+                            />
+                          </div>
+                          <span class="resource-unit-suffix">MiB</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="cpu-mem-limit-tips">
+                      <div class="dc-field-tip cpu-mem-tip-line">
+                        Request 用于预分配资源，当集群中的节点没有 request
+                        所要求的资源数量时，容器会创建失败。
+                      </div>
+                      <div class="dc-field-tip cpu-mem-tip-line">
+                        Limit 用于设置容器使用资源的最大上限，避免异常情况下节点资源消耗过多。
                       </div>
                     </div>
                   </ElFormItem>
@@ -391,104 +356,6 @@
                       >
                     </div>
                   </ElFormItem>
-                  <ElFormItem label="环境变量">
-                    <div class="kv-list">
-                      <div
-                        v-for="(item, idx) in form.containers[activeContainerIdx].envs"
-                        :key="`env-${idx}`"
-                        class="env-row"
-                      >
-                        <ElSelect v-model="item.mode" style="width: 140px">
-                          <ElOption label="自定义" value="value" />
-                        </ElSelect>
-                        <ElInput v-model="item.name" placeholder="变量名称" style="width: 200px" />
-                        <ElInput
-                          v-if="item.mode === 'value'"
-                          v-model="item.value"
-                          placeholder="变量值"
-                          style="width: 200px"
-                        />
-                        <template v-else>
-                          <ElInput v-model="item.sourceName" placeholder="来源名称" />
-                          <ElInput v-model="item.sourceKey" placeholder="键名 key" />
-                        </template>
-                        <ElButton
-                          link
-                          type="danger"
-                          class="kv-del-btn env-del-btn"
-                          title="删除"
-                          @click="removeEnv(idx)"
-                          ><ElIcon><Close /></ElIcon
-                        ></ElButton>
-                      </div>
-                      <ElButton link type="primary" class="kv-add-btn" @click="addEnv"
-                        >新增变量</ElButton
-                      >
-                    </div>
-                  </ElFormItem>
-                  <ElFormItem
-                    label="CPU/内存限制"
-                    label-width="112px"
-                    class="cpu-mem-limit-form-item"
-                  >
-                    <div class="cpu-mem-limit-wrap">
-                      <div class="cpu-mem-limit-block">
-                        <div class="cpu-mem-limit-block-title">CPU限制</div>
-                        <div class="cpu-mem-limit-inputs">
-                          <div class="resource-affix-group resource-affix-group--grow">
-                            <span class="resource-affix-label">request</span>
-                            <ElInput
-                              v-model="form.containers[activeContainerIdx].cpuRequest"
-                              placeholder="如 0.25"
-                              class="resource-affix-input"
-                            />
-                          </div>
-                          <span class="resource-affix-sep">-</span>
-                          <div class="resource-affix-group resource-affix-group--grow">
-                            <span class="resource-affix-label">limit</span>
-                            <ElInput
-                              v-model="form.containers[activeContainerIdx].cpuLimit"
-                              placeholder="如 0.5"
-                              class="resource-affix-input"
-                            />
-                          </div>
-                          <span class="resource-unit-suffix">核</span>
-                        </div>
-                      </div>
-                      <div class="cpu-mem-limit-block">
-                        <div class="cpu-mem-limit-block-title">内存限制</div>
-                        <div class="cpu-mem-limit-inputs">
-                          <div class="resource-affix-group resource-affix-group--grow">
-                            <span class="resource-affix-label">request</span>
-                            <ElInput
-                              v-model="form.containers[activeContainerIdx].memoryRequest"
-                              placeholder="如 256Mi"
-                              class="resource-affix-input"
-                            />
-                          </div>
-                          <span class="resource-affix-sep">-</span>
-                          <div class="resource-affix-group resource-affix-group--grow">
-                            <span class="resource-affix-label">limit</span>
-                            <ElInput
-                              v-model="form.containers[activeContainerIdx].memoryLimit"
-                              placeholder="如 1024Mi"
-                              class="resource-affix-input"
-                            />
-                          </div>
-                          <span class="resource-unit-suffix">MiB</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="cpu-mem-limit-tips">
-                      <div class="dc-field-tip cpu-mem-tip-line">
-                        Request 用于预分配资源，当集群中的节点没有 request
-                        所要求的资源数量时，容器会创建失败。
-                      </div>
-                      <div class="dc-field-tip cpu-mem-tip-line">
-                        Limit 用于设置容器使用资源的最大上限，避免异常情况下节点资源消耗过多。
-                      </div>
-                    </div>
-                  </ElFormItem>
                   <div class="container-advanced-config-toggle">
                     <ElButton
                       link
@@ -500,168 +367,407 @@
                     </ElButton>
                   </div>
                   <template v-if="showContainerAdvancedConfig">
-                    <ElFormItem label="启动命令">
+                    <ElFormItem label="初始化容器">
+                      <div class="advanced-field-wrap">
+                        <ElSwitch v-model="form.containers[activeContainerIdx].initContainer" />
+                        <div class="dc-field-tip">容器标识为init container</div>
+                      </div>
+                    </ElFormItem>
+                    <ElFormItem label="特权级容器">
+                      <div class="advanced-field-wrap">
+                        <ElSwitch v-model="form.containers[activeContainerIdx].privileged" />
+                        <div class="dc-field-tip">容器开启特权级，将拥有宿主机的root权限</div>
+                      </div>
+                    </ElFormItem>
+                    <ElFormItem label="运行命令">
                       <ElInput
                         v-model="form.containers[activeContainerIdx].commandText"
                         type="textarea"
                         :rows="3"
+                        style="width: 350px"
                         placeholder="每行一个 command 参数，如 /bin/sh"
                       />
                     </ElFormItem>
-                    <ElFormItem label="启动参数">
+                    <ElFormItem label="运行参数">
                       <ElInput
                         v-model="form.containers[activeContainerIdx].argsText"
                         type="textarea"
                         :rows="3"
+                        style="width: 350px"
                         placeholder="每行一个 args 参数，如 -c"
                       />
                     </ElFormItem>
-                    <ElDivider content-position="left">健康检查</ElDivider>
-                    <ElFormItem label="存活探针路径">
-                      <ElInput
-                        v-model="form.containers[activeContainerIdx].livenessPath"
-                        placeholder="如 /healthz"
-                        style="width: 240px"
-                      />
-                    </ElFormItem>
-                    <ElFormItem label="存活探针端口">
-                      <ElInputNumber
-                        v-model="form.containers[activeContainerIdx].livenessPort"
-                        :min="1"
-                        :max="65535"
-                        :precision="0"
-                      />
-                    </ElFormItem>
-                    <ElFormItem label="存活探针参数">
-                      <div class="probe-grid">
-                        <ElInputNumber
-                          v-model="form.containers[activeContainerIdx].livenessInitialDelaySeconds"
-                          :min="0"
-                          :precision="0"
-                          placeholder="initialDelaySeconds"
-                        />
-                        <ElInputNumber
-                          v-model="form.containers[activeContainerIdx].livenessPeriodSeconds"
-                          :min="1"
-                          :precision="0"
-                          placeholder="periodSeconds"
-                        />
-                        <ElInputNumber
-                          v-model="form.containers[activeContainerIdx].livenessTimeoutSeconds"
-                          :min="1"
-                          :precision="0"
-                          placeholder="timeoutSeconds"
-                        />
-                        <ElInputNumber
-                          v-model="form.containers[activeContainerIdx].livenessSuccessThreshold"
-                          :min="1"
-                          :precision="0"
-                          placeholder="successThreshold"
-                        />
-                        <ElInputNumber
-                          v-model="form.containers[activeContainerIdx].livenessFailureThreshold"
-                          :min="1"
-                          :precision="0"
-                          placeholder="failureThreshold"
-                        />
+                    <ElFormItem label="生命周期">
+                      <div class="lifecycle-wrap">
+                        <div class="lifecycle-section">
+                          <div class="lifecycle-section-label">
+                            <span>启动后执行</span>
+                            <ElTooltip
+                              content="容器启动后执行的命令（postStart hook）"
+                              placement="top"
+                            >
+                              <ElIcon class="lifecycle-info-icon"><InfoFilled /></ElIcon>
+                            </ElTooltip>
+                            <ElButton
+                              link
+                              type="primary"
+                              class="kv-add-btn lifecycle-add-btn"
+                              @click="addPostStart"
+                              >新增</ElButton
+                            >
+                          </div>
+                          <div class="lifecycle-inputs">
+                            <div
+                              v-for="(cmd, ci) in form.containers[activeContainerIdx]
+                                .postStartCommands"
+                              :key="`post-${ci}`"
+                              class="lifecycle-input-row"
+                            >
+                              <ElInput
+                                v-model="form.containers[activeContainerIdx].postStartCommands[ci]"
+                                type="textarea"
+                                :rows="3"
+                                placeholder="为避免解析错误，注意每条命令需单独在一个输入框输入"
+                                class="lifecycle-textarea"
+                              />
+                              <ElButton
+                                link
+                                class="kv-del-btn lifecycle-del-btn"
+                                @click="removePostStart(ci)"
+                              >
+                                <ElIcon><Close /></ElIcon>
+                              </ElButton>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="lifecycle-section">
+                          <div class="lifecycle-section-label">
+                            <span>结束前执行</span>
+                            <ElTooltip
+                              content="容器终止前执行的命令（preStop hook）"
+                              placement="top"
+                            >
+                              <ElIcon class="lifecycle-info-icon"><InfoFilled /></ElIcon>
+                            </ElTooltip>
+                            <ElButton
+                              link
+                              type="primary"
+                              class="kv-add-btn lifecycle-add-btn"
+                              @click="addPreStop"
+                              >新增</ElButton
+                            >
+                          </div>
+                          <div class="lifecycle-inputs">
+                            <div
+                              v-for="(cmd, ci) in form.containers[activeContainerIdx]
+                                .preStopCommands"
+                              :key="`pre-${ci}`"
+                              class="lifecycle-input-row"
+                            >
+                              <ElInput
+                                v-model="form.containers[activeContainerIdx].preStopCommands[ci]"
+                                type="textarea"
+                                :rows="3"
+                                placeholder="为避免解析错误，注意每条命令需单独在一个输入框输入"
+                                class="lifecycle-textarea"
+                              />
+                              <ElButton
+                                link
+                                class="kv-del-btn lifecycle-del-btn"
+                                @click="removePreStop(ci)"
+                              >
+                                <ElIcon><Close /></ElIcon>
+                              </ElButton>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </ElFormItem>
-                    <ElFormItem label="就绪探针路径">
-                      <ElInput
-                        v-model="form.containers[activeContainerIdx].readinessPath"
-                        placeholder="如 /ready"
-                        style="width: 240px"
-                      />
-                    </ElFormItem>
-                    <ElFormItem label="就绪探针端口">
-                      <ElInputNumber
-                        v-model="form.containers[activeContainerIdx].readinessPort"
-                        :min="1"
-                        :max="65535"
-                        :precision="0"
-                      />
-                    </ElFormItem>
-                    <ElFormItem label="就绪探针参数">
-                      <div class="probe-grid">
-                        <ElInputNumber
-                          v-model="form.containers[activeContainerIdx].readinessInitialDelaySeconds"
-                          :min="0"
-                          :precision="0"
-                          placeholder="initialDelaySeconds"
-                        />
-                        <ElInputNumber
-                          v-model="form.containers[activeContainerIdx].readinessPeriodSeconds"
-                          :min="1"
-                          :precision="0"
-                          placeholder="periodSeconds"
-                        />
-                        <ElInputNumber
-                          v-model="form.containers[activeContainerIdx].readinessTimeoutSeconds"
-                          :min="1"
-                          :precision="0"
-                          placeholder="timeoutSeconds"
-                        />
-                        <ElInputNumber
-                          v-model="form.containers[activeContainerIdx].readinessSuccessThreshold"
-                          :min="1"
-                          :precision="0"
-                          placeholder="successThreshold"
-                        />
-                        <ElInputNumber
-                          v-model="form.containers[activeContainerIdx].readinessFailureThreshold"
-                          :min="1"
-                          :precision="0"
-                          placeholder="failureThreshold"
-                        />
-                      </div>
-                    </ElFormItem>
-                    <ElFormItem label="启动探针路径">
-                      <ElInput
-                        v-model="form.containers[activeContainerIdx].startupPath"
-                        placeholder="如 /startup"
-                        style="width: 240px"
-                      />
-                    </ElFormItem>
-                    <ElFormItem label="启动探针端口">
-                      <ElInputNumber
-                        v-model="form.containers[activeContainerIdx].startupPort"
-                        :min="1"
-                        :max="65535"
-                        :precision="0"
-                      />
-                    </ElFormItem>
-                    <ElFormItem label="启动探针参数">
-                      <div class="probe-grid">
-                        <ElInputNumber
-                          v-model="form.containers[activeContainerIdx].startupInitialDelaySeconds"
-                          :min="0"
-                          :precision="0"
-                          placeholder="initialDelaySeconds"
-                        />
-                        <ElInputNumber
-                          v-model="form.containers[activeContainerIdx].startupPeriodSeconds"
-                          :min="1"
-                          :precision="0"
-                          placeholder="periodSeconds"
-                        />
-                        <ElInputNumber
-                          v-model="form.containers[activeContainerIdx].startupTimeoutSeconds"
-                          :min="1"
-                          :precision="0"
-                          placeholder="timeoutSeconds"
-                        />
-                        <ElInputNumber
-                          v-model="form.containers[activeContainerIdx].startupSuccessThreshold"
-                          :min="1"
-                          :precision="0"
-                          placeholder="successThreshold"
-                        />
-                        <ElInputNumber
-                          v-model="form.containers[activeContainerIdx].startupFailureThreshold"
-                          :min="1"
-                          :precision="0"
-                          placeholder="failureThreshold"
-                        />
+                    <ElFormItem class="health-check-form-item">
+                      <template #label>
+                        <span>容器健康检查</span>
+                        <ElTooltip content="配置容器存活检查与就绪检查" placement="top">
+                          <ElIcon class="lifecycle-info-icon" style="margin-left: 4px"
+                            ><InfoFilled
+                          /></ElIcon>
+                        </ElTooltip>
+                      </template>
+                      <div class="health-check-wrap">
+                        <!-- 存活检查 -->
+                        <div class="health-check-row">
+                          <ElCheckbox
+                            v-model="form.containers[activeContainerIdx].liveness.enabled"
+                          />
+                          <span class="health-check-title">存活检查</span>
+                          <span class="health-check-desc">检查容器是否正常，不正常则重启实例</span>
+                        </div>
+                        <div
+                          v-if="form.containers[activeContainerIdx].liveness.enabled"
+                          class="health-check-panel"
+                        >
+                          <div class="probe-field-row">
+                            <span class="probe-field-label">检查方法</span>
+                            <ElSelect
+                              v-model="form.containers[activeContainerIdx].liveness.method"
+                              style="width: 200px"
+                            >
+                              <ElOption label="TCP端口检查" value="tcp" />
+                              <ElOption label="HTTP请求检查" value="http" />
+                              <ElOption label="执行命令检查" value="exec" />
+                            </ElSelect>
+                          </div>
+                          <div class="probe-field-row">
+                            <span class="probe-field-label">
+                              host
+                              <ElTooltip
+                                content="大多数情况下不需要填 host 字段，请谨慎填写防止探测失败"
+                                placement="top"
+                              >
+                                <ElIcon class="lifecycle-info-icon"><InfoFilled /></ElIcon>
+                              </ElTooltip>
+                            </span>
+                            <div class="probe-field-col">
+                              <ElInput
+                                v-model="form.containers[activeContainerIdx].liveness.host"
+                                placeholder="默认为 Pod IP，一般不需要修改"
+                                style="width: 280px"
+                              />
+                              <div class="dc-field-tip"
+                                >大多数情况下不需要填 host 字段，请谨慎填写防止探测失败</div
+                              >
+                            </div>
+                          </div>
+                          <div class="probe-field-row">
+                            <span class="probe-field-label">检查端口</span>
+                            <div class="probe-field-col">
+                              <ElInput
+                                v-model="form.containers[activeContainerIdx].liveness.port"
+                                placeholder="请输入检查端口"
+                                style="width: 280px"
+                              />
+                              <div class="dc-field-tip">端口范围：1~65535，支持使用端口名</div>
+                            </div>
+                          </div>
+                          <div class="probe-field-row">
+                            <span class="probe-field-label">
+                              启动延时
+                              <ElTooltip content="容器启动后等待多少秒才开始探测" placement="top">
+                                <ElIcon class="lifecycle-info-icon"><InfoFilled /></ElIcon>
+                              </ElTooltip>
+                            </span>
+                            <div class="probe-field-col">
+                              <div class="probe-input-unit">
+                                <ElInput
+                                  v-model.number="
+                                    form.containers[activeContainerIdx].liveness.initialDelaySeconds
+                                  "
+                                  placeholder="请输入启动延时"
+                                  style="width: 220px"
+                                />
+                                <span class="probe-unit">秒</span>
+                              </div>
+                              <div class="dc-field-tip">启动延时最小值为0秒，默认为不设置</div>
+                            </div>
+                          </div>
+                          <div class="probe-field-row">
+                            <span class="probe-field-label">
+                              响应超时
+                              <ElTooltip content="探测超时时间，超过则判定失败" placement="top">
+                                <ElIcon class="lifecycle-info-icon"><InfoFilled /></ElIcon>
+                              </ElTooltip>
+                            </span>
+                            <div class="probe-field-col">
+                              <div class="probe-input-unit">
+                                <ElInput
+                                  v-model.number="
+                                    form.containers[activeContainerIdx].liveness.timeoutSeconds
+                                  "
+                                  placeholder="请输入响应超时"
+                                  style="width: 220px"
+                                />
+                                <span class="probe-unit">秒</span>
+                              </div>
+                              <div class="dc-field-tip">响应超时最小值为1秒，默认为1秒</div>
+                            </div>
+                          </div>
+                          <div class="probe-field-row">
+                            <span class="probe-field-label">
+                              间隔时间
+                              <ElTooltip content="两次探测之间的时间间隔" placement="top">
+                                <ElIcon class="lifecycle-info-icon"><InfoFilled /></ElIcon>
+                              </ElTooltip>
+                            </span>
+                            <div class="probe-field-col">
+                              <div class="probe-input-unit">
+                                <ElInput
+                                  v-model.number="
+                                    form.containers[activeContainerIdx].liveness.periodSeconds
+                                  "
+                                  placeholder="请输入间隔时间"
+                                  style="width: 220px"
+                                />
+                                <span class="probe-unit">秒</span>
+                              </div>
+                              <div class="dc-field-tip">间隔时间最小值为1秒，默认为10秒</div>
+                            </div>
+                          </div>
+                          <div class="probe-field-row">
+                            <span class="probe-field-label">
+                              健康阈值
+                              <ElTooltip content="连续成功多少次才认为健康" placement="top">
+                                <ElIcon class="lifecycle-info-icon"><InfoFilled /></ElIcon>
+                              </ElTooltip>
+                            </span>
+                            <div class="probe-input-unit">
+                              <ElInput
+                                v-model.number="
+                                  form.containers[activeContainerIdx].liveness.successThreshold
+                                "
+                                style="width: 220px"
+                              />
+                              <span class="probe-unit">次</span>
+                            </div>
+                          </div>
+                        </div>
+                        <!-- 就绪检查 -->
+                        <div class="health-check-row" style="margin-top: 8px">
+                          <ElCheckbox
+                            v-model="form.containers[activeContainerIdx].readiness.enabled"
+                          />
+                          <span class="health-check-title">就绪检查</span>
+                          <span class="health-check-desc"
+                            >检查容器是否就绪，未就绪则不接收流量</span
+                          >
+                        </div>
+                        <div
+                          v-if="form.containers[activeContainerIdx].readiness.enabled"
+                          class="health-check-panel"
+                        >
+                          <div class="probe-field-row">
+                            <span class="probe-field-label">检查方法</span>
+                            <ElSelect
+                              v-model="form.containers[activeContainerIdx].readiness.method"
+                              style="width: 200px"
+                            >
+                              <ElOption label="TCP端口检查" value="tcp" />
+                              <ElOption label="HTTP请求检查" value="http" />
+                              <ElOption label="执行命令检查" value="exec" />
+                            </ElSelect>
+                          </div>
+                          <div class="probe-field-row">
+                            <span class="probe-field-label">
+                              host
+                              <ElTooltip
+                                content="大多数情况下不需要填 host 字段，请谨慎填写防止探测失败"
+                                placement="top"
+                              >
+                                <ElIcon class="lifecycle-info-icon"><InfoFilled /></ElIcon>
+                              </ElTooltip>
+                            </span>
+                            <div class="probe-field-col">
+                              <ElInput
+                                v-model="form.containers[activeContainerIdx].readiness.host"
+                                placeholder="默认为 Pod IP，一般不需要修改"
+                                style="width: 280px"
+                              />
+                              <div class="dc-field-tip"
+                                >大多数情况下不需要填 host 字段，请谨慎填写防止探测失败</div
+                              >
+                            </div>
+                          </div>
+                          <div class="probe-field-row">
+                            <span class="probe-field-label">检查端口</span>
+                            <div class="probe-field-col">
+                              <ElInput
+                                v-model="form.containers[activeContainerIdx].readiness.port"
+                                placeholder="请输入检查端口"
+                                style="width: 280px"
+                              />
+                              <div class="dc-field-tip">端口范围：1~65535，支持使用端口名</div>
+                            </div>
+                          </div>
+                          <div class="probe-field-row">
+                            <span class="probe-field-label">
+                              启动延时
+                              <ElTooltip content="容器启动后等待多少秒才开始探测" placement="top">
+                                <ElIcon class="lifecycle-info-icon"><InfoFilled /></ElIcon>
+                              </ElTooltip>
+                            </span>
+                            <div class="probe-field-col">
+                              <div class="probe-input-unit">
+                                <ElInput
+                                  v-model.number="
+                                    form.containers[activeContainerIdx].readiness
+                                      .initialDelaySeconds
+                                  "
+                                  placeholder="请输入启动延时"
+                                  style="width: 220px"
+                                />
+                                <span class="probe-unit">秒</span>
+                              </div>
+                              <div class="dc-field-tip">启动延时最小值为0秒，默认为不设置</div>
+                            </div>
+                          </div>
+                          <div class="probe-field-row">
+                            <span class="probe-field-label">
+                              响应超时
+                              <ElTooltip content="探测超时时间，超过则判定失败" placement="top">
+                                <ElIcon class="lifecycle-info-icon"><InfoFilled /></ElIcon>
+                              </ElTooltip>
+                            </span>
+                            <div class="probe-field-col">
+                              <div class="probe-input-unit">
+                                <ElInput
+                                  v-model.number="
+                                    form.containers[activeContainerIdx].readiness.timeoutSeconds
+                                  "
+                                  placeholder="请输入响应超时"
+                                  style="width: 220px"
+                                />
+                                <span class="probe-unit">秒</span>
+                              </div>
+                              <div class="dc-field-tip">响应超时最小值为1秒，默认为1秒</div>
+                            </div>
+                          </div>
+                          <div class="probe-field-row">
+                            <span class="probe-field-label">
+                              间隔时间
+                              <ElTooltip content="两次探测之间的时间间隔" placement="top">
+                                <ElIcon class="lifecycle-info-icon"><InfoFilled /></ElIcon>
+                              </ElTooltip>
+                            </span>
+                            <div class="probe-field-col">
+                              <div class="probe-input-unit">
+                                <ElInput
+                                  v-model.number="
+                                    form.containers[activeContainerIdx].readiness.periodSeconds
+                                  "
+                                  placeholder="请输入间隔时间"
+                                  style="width: 220px"
+                                />
+                                <span class="probe-unit">秒</span>
+                              </div>
+                              <div class="dc-field-tip">间隔时间最小值为1秒，默认为10秒</div>
+                            </div>
+                          </div>
+                          <div class="probe-field-row">
+                            <span class="probe-field-label">
+                              健康阈值
+                              <ElTooltip content="连续成功多少次才认为就绪" placement="top">
+                                <ElIcon class="lifecycle-info-icon"><InfoFilled /></ElIcon>
+                              </ElTooltip>
+                            </span>
+                            <div class="probe-input-unit">
+                              <ElInput
+                                v-model.number="
+                                  form.containers[activeContainerIdx].readiness.successThreshold
+                                "
+                                style="width: 220px"
+                              />
+                              <span class="probe-unit">次</span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </ElFormItem>
                   </template>
@@ -687,42 +793,263 @@
                 </ElForm>
               </div>
             </div>
-          </ElTabPane>
-
-          <ElTabPane label="高级选项" name="advanced">
-            <ElForm label-width="120px" class="dc-form">
-              <ElDivider content-position="left" class="dc-section-divider-top">升级策略</ElDivider>
-              <ElFormItem label="升级策略">
-                <ElSelect v-model="form.strategyType" style="width: 200px">
-                  <ElOption label="RollingUpdate" value="RollingUpdate" />
-                  <ElOption label="Recreate" value="Recreate" />
+          </ElFormItem>
+          <ElFormItem label="镜像访问凭证">
+            <div class="pull-secret-wrap">
+              <div v-if="showPullSecretSelect" class="pull-secret-row">
+                <ElSelect
+                  v-model="form.imagePullSecret"
+                  placeholder="不指定访问凭证"
+                  style="width: 280px"
+                  filterable
+                >
+                  <ElOption v-for="s in pullSecrets" :key="s" :label="s" :value="s" />
                 </ElSelect>
+                <ElButton link class="pull-secret-icon-btn" @click="loadPullSecrets">
+                  <ElIcon><Refresh /></ElIcon>
+                </ElButton>
+                <ElButton link class="pull-secret-icon-btn" @click="clearPullSecret">
+                  <ElIcon><Close /></ElIcon>
+                </ElButton>
+              </div>
+              <ElButton link type="primary" class="kv-add-btn" @click="onAddPullSecret"
+                >添加镜像访问凭证</ElButton
+              >
+              <div
+                class="dc-field-tip"
+                style="
+                  margin-top: -10px;
+                  display: flex;
+                  align-items: center;
+                  gap: 2px;
+                  white-space: nowrap;
+                "
+              >
+                请指定镜像访问凭证以拉取私有镜像 实现免密拉取；如无合适的访问凭证，请
+                <ElButton
+                  link
+                  type="primary"
+                  class="kv-add-btn"
+                  style="padding: 0; flex-shrink: 0"
+                  @click="newSecretDialogVisible = true"
+                  >新建访问凭证</ElButton
+                >
+              </div>
+            </div>
+          </ElFormItem>
+          <ElFormItem label="节点调度策略">
+            <div class="scheduling-policy-wrap">
+              <ElRadioGroup v-model="form.schedulingPolicy">
+                <ElRadio value="default">使用默认调度规则</ElRadio>
+                <ElRadio value="custom" disabled>自定义调度规则</ElRadio>
+              </ElRadioGroup>
+              <div class="dc-field-tip">
+                默认调度规则由 Kubernetes 调度器自动分配节点，无需手动干预
+              </div>
+            </div>
+          </ElFormItem>
+          <div class="advanced-toggle-row">
+            <ElButton
+              link
+              type="primary"
+              class="kv-add-btn"
+              @click="showAdvancedOptions = !showAdvancedOptions"
+            >
+              {{ showAdvancedOptions ? '隐藏高级选项' : '显示高级选项' }}
+            </ElButton>
+          </div>
+          <template v-if="showAdvancedOptions">
+            <ElFormItem label="更新方式">
+              <ElRadioGroup v-model="form.strategyType">
+                <ElRadio value="RollingUpdate">滚动更新</ElRadio>
+                <ElRadio value="Recreate">重建更新</ElRadio>
+              </ElRadioGroup>
+            </ElFormItem>
+            <ElFormItem label="最小就绪秒数">
+              <div class="dc-field-col">
+                <ElInputNumber
+                  v-model="form.minReadySeconds"
+                  :min="0"
+                  :precision="0"
+                  style="width: 160px"
+                />
+                <div class="dc-field-tip">Pod 最少就绪秒数，默认为 0 秒（即可用即视为就绪）</div>
+              </div>
+            </ElFormItem>
+            <template v-if="form.strategyType === 'RollingUpdate'">
+              <ElFormItem label="最大不可用">
+                <div class="dc-field-col">
+                  <ElInput v-model="form.maxUnavailable" style="width: 160px" placeholder="25%" />
+                  <div class="dc-field-tip">
+                    滚动更新期间允许不可用的 Pod 最大数量或比例，默认 25%
+                  </div>
+                </div>
               </ElFormItem>
-              <ElFormItem v-if="form.strategyType === 'RollingUpdate'" label="maxUnavailable">
-                <ElInput v-model="form.maxUnavailable" placeholder="25%" style="width: 200px" />
+              <ElFormItem label="最大超出">
+                <div class="dc-field-col">
+                  <ElInput v-model="form.maxSurge" style="width: 160px" placeholder="25%" />
+                  <div class="dc-field-tip">
+                    滚动更新期间允许超出期望副本数的 Pod 最大数量或比例，默认 25%
+                  </div>
+                </div>
               </ElFormItem>
-              <ElFormItem v-if="form.strategyType === 'RollingUpdate'" label="maxSurge">
-                <ElInput v-model="form.maxSurge" placeholder="25%" style="width: 200px" />
-              </ElFormItem>
-            </ElForm>
-          </ElTabPane>
-        </ElTabs>
+            </template>
+          </template>
+
+          <!-- ── 访问设置（Service） ── -->
+          <ElDivider content-position="left">访问设置（Service）</ElDivider>
+
+          <ElFormItem label="Service">
+            <ElCheckbox v-model="form.svc.enabled">启用</ElCheckbox>
+          </ElFormItem>
+
+          <template v-if="form.svc.enabled">
+            <ElFormItem label="服务名称">
+              <ElInput
+                v-model="form.svc.name"
+                placeholder="不填默认与工作负载名称相同"
+                style="width: 300px"
+              />
+            </ElFormItem>
+
+            <ElFormItem label="服务访问方式">
+              <div class="dc-field-col">
+                <ElRadioGroup v-model="form.svc.serviceType">
+                  <ElRadio value="ClusterIP">仅在集群内访问</ElRadio>
+                  <ElRadio value="NodePort">主机端口访问</ElRadio>
+                  <ElRadio value="LoadBalancer">LoadBalancer</ElRadio>
+                </ElRadioGroup>
+                <div class="dc-field-tip">
+                  <template v-if="form.svc.serviceType === 'ClusterIP'"
+                    >即 ClusterIP 类型，将提供一个可以被集群内其他服务或容器访问的入口，支持 TCP/UDP
+                    协议</template
+                  >
+                  <template v-else-if="form.svc.serviceType === 'NodePort'"
+                    >即 NodePort 类型，将在所有节点上开放一个端口，集群外可通过
+                    &lt;NodeIP&gt;:&lt;NodePort&gt; 访问</template
+                  >
+                  <template v-else
+                    >即 LoadBalancer 类型，将在集群外部创建一个负载均衡器，分配公网或内网
+                    IP</template
+                  >
+                </div>
+                <div v-if="form.svc.serviceType === 'ClusterIP'" class="dc-headless-row">
+                  <ElCheckbox v-model="form.svc.headless">Headless Service</ElCheckbox>
+                  <span class="dc-field-tip dc-headless-tip"
+                    >（Headless Service 将 clusterIP 设为 None，DNS 直接返回 Pod
+                    IP，只支持创建时选择，创建完成后不支持变更访问方式）</span
+                  >
+                </div>
+              </div>
+            </ElFormItem>
+
+            <ElFormItem label="端口映射">
+              <div class="dc-svc-field-col">
+                <div v-if="form.svc.ports.length" class="dc-svc-port-table-box">
+                  <div class="dc-svc-port-table-header">
+                    <span class="dc-svc-port-col-protocol">协议</span>
+                    <span class="dc-svc-port-col-port">Service 端口</span>
+                    <span class="dc-svc-port-col-port">容器端口</span>
+                    <span v-if="form.svc.serviceType === 'NodePort'" class="dc-svc-port-col-port"
+                      >节点端口</span
+                    >
+                    <span class="dc-svc-port-col-name">端口名称</span>
+                    <span class="dc-svc-port-col-action"></span>
+                  </div>
+                  <div
+                    v-for="(p, idx) in form.svc.ports"
+                    :key="`svc-port-${idx}`"
+                    class="dc-svc-port-table-row"
+                  >
+                    <ElSelect v-model="p.protocol" class="dc-svc-port-col-protocol">
+                      <ElOption label="TCP" value="TCP" />
+                      <ElOption label="UDP" value="UDP" />
+                    </ElSelect>
+                    <ElInput
+                      v-model="p.port"
+                      class="dc-svc-port-col-port"
+                      placeholder="建议与容器端口保持一致"
+                      @input="(v: string) => (p.port = v.replace(/\D/g, ''))"
+                    />
+                    <ElInput
+                      v-model="p.targetPort"
+                      class="dc-svc-port-col-port"
+                      placeholder="容器内程序监听端口"
+                    />
+                    <ElInput
+                      v-if="form.svc.serviceType === 'NodePort'"
+                      v-model="p.nodePort"
+                      class="dc-svc-port-col-port"
+                      placeholder="30000-32767"
+                      @input="(v: string) => (p.nodePort = v.replace(/\D/g, ''))"
+                    />
+                    <ElInput v-model="p.name" class="dc-svc-port-col-name" placeholder="可选" />
+                    <ElButton
+                      link
+                      type="primary"
+                      class="kv-del-btn dc-svc-port-col-action"
+                      @click="form.svc.ports.splice(idx, 1)"
+                      ><ElIcon><Close /></ElIcon
+                    ></ElButton>
+                  </div>
+                </div>
+                <ElButton link type="primary" class="kv-add-btn" @click="addSvcPort"
+                  >添加端口</ElButton
+                >
+                <div class="dc-field-tip"
+                  >Service 端口为对外暴露的端口，容器端口为 Pod 实际监听的端口（支持端口名）</div
+                >
+              </div>
+            </ElFormItem>
+
+            <ElFormItem
+              v-if="form.svc.serviceType === 'NodePort' || form.svc.serviceType === 'LoadBalancer'"
+              label="ExternalTrafficPolicy"
+            >
+              <div class="dc-field-col">
+                <ElRadioGroup v-model="form.svc.externalTrafficPolicy">
+                  <ElRadio value="Cluster">Cluster</ElRadio>
+                  <ElRadio value="Local">Local</ElRadio>
+                </ElRadioGroup>
+                <div v-if="form.svc.externalTrafficPolicy === 'Cluster'" class="dc-field-tip"
+                  >默认均衡转发到工作负载的所有Pod</div
+                >
+                <div v-else class="dc-field-tip dc-etp-local-tip"
+                  >能够保留来源IP，并可以保证公网、VPC内网访问（LoadBalancer）和主机端口访问（NodePort）模式下流量仅在本节点转发。Local转发使部分没有业务Pod存在的节点健康检查失败，可能存在流量不均衡的转发的风险。</div
+                >
+              </div>
+            </ElFormItem>
+
+            <ElFormItem label="会话保持">
+              <div class="dc-field-col">
+                <ElRadioGroup v-model="form.svc.sessionAffinity">
+                  <ElRadio value="None">不启用</ElRadio>
+                  <ElRadio value="ClientIP">ClientIP</ElRadio>
+                </ElRadioGroup>
+                <div v-if="form.svc.sessionAffinity === 'ClientIP'" class="dc-field-tip"
+                  >基于客户端 IP 做会话保持，同一 IP 的请求将路由到同一个 Pod</div
+                >
+              </div>
+            </ElFormItem>
+
+            <ElFormItem v-if="form.svc.sessionAffinity === 'ClientIP'" label="最大会话保持时间">
+              <div class="dc-field-col">
+                <div class="dc-svc-timeout-ctrl">
+                  <ElButton class="dc-svc-timeout-btn" @click="decreaseSvcTimeout">−</ElButton>
+                  <span class="dc-svc-timeout-value">{{ form.svc.sessionAffinityTimeout }}</span>
+                  <ElButton class="dc-svc-timeout-btn" @click="increaseSvcTimeout">+</ElButton>
+                  <span class="dc-svc-timeout-unit">秒</span>
+                </div>
+                <div class="dc-field-tip">会话保持时间范围为0-86400</div>
+              </div>
+            </ElFormItem>
+          </template>
+        </ElForm>
       </div>
 
       <div class="deploy-create-footer">
-        <ElButton v-if="activeStep !== 'basic'" @click="prevStep">上一步</ElButton>
-        <ElButton v-if="activeStep !== 'advanced'" type="primary" @click="nextStep"
-          >下一步</ElButton
-        >
         <ElButton @click="goBack">取消</ElButton>
-        <ElButton
-          v-if="activeStep === 'advanced'"
-          type="primary"
-          :loading="submitting"
-          @click="submit"
-        >
-          确定
-        </ElButton>
+        <ElButton type="primary" :loading="submitting" @click="submit">确定</ElButton>
       </div>
     </ElCard>
 
@@ -818,16 +1145,23 @@
 <script setup lang="ts">
   import type { FormInstance, FormRules } from 'element-plus'
   import { ElMessage } from 'element-plus'
-  import { ArrowLeft, Delete, EditPen, Close, Refresh, Plus } from '@element-plus/icons-vue'
+  import {
+    ArrowLeft,
+    Delete,
+    EditPen,
+    Close,
+    Refresh,
+    Plus,
+    InfoFilled
+  } from '@element-plus/icons-vue'
   import { useRoute, useRouter } from 'vue-router'
   import yaml from 'js-yaml'
   import { createK8sDeployment } from '@/api/kubernetes/deployment'
+  import { createK8sService } from '@/api/kubernetes/service'
   import { fetchK8sNamespaceList } from '@/api/kubernetes/namespace'
   import { fetchK8sSecretList } from '@/api/kubernetes/secret'
 
   defineOptions({ name: 'DeploymentCreatePage' })
-
-  type StepKey = 'basic' | 'container' | 'advanced'
 
   const route = useRoute()
   const router = useRouter()
@@ -835,10 +1169,17 @@
   const defaultNamespace = computed(() => String(route.query.namespace ?? ''))
 
   const namespaces = ref<string[]>([])
-  const activeStep = ref<StepKey>('basic')
   const yamlVisible = ref(false)
   const yamlText = ref('')
   const submitting = ref(false)
+
+  type SvcPortEntry = {
+    name: string
+    protocol: string
+    port: string
+    targetPort: string
+    nodePort: string
+  }
 
   type ContainerConfig = {
     name: string
@@ -859,28 +1200,35 @@
     cpuLimit: string
     memoryRequest: string
     memoryLimit: string
-    livenessPath: string
-    livenessPort: number
-    livenessInitialDelaySeconds: number
-    livenessPeriodSeconds: number
-    livenessTimeoutSeconds: number
-    livenessSuccessThreshold: number
-    livenessFailureThreshold: number
-    readinessPath: string
-    readinessPort: number
-    readinessInitialDelaySeconds: number
-    readinessPeriodSeconds: number
-    readinessTimeoutSeconds: number
-    readinessSuccessThreshold: number
-    readinessFailureThreshold: number
-    startupPath: string
-    startupPort: number
-    startupInitialDelaySeconds: number
-    startupPeriodSeconds: number
-    startupTimeoutSeconds: number
-    startupSuccessThreshold: number
-    startupFailureThreshold: number
+    liveness: {
+      enabled: boolean
+      method: 'tcp' | 'http' | 'exec'
+      host: string
+      port: string
+      path: string
+      initialDelaySeconds: number
+      timeoutSeconds: number
+      periodSeconds: number
+      successThreshold: number
+      failureThreshold: number
+    }
+    readiness: {
+      enabled: boolean
+      method: 'tcp' | 'http' | 'exec'
+      host: string
+      port: string
+      path: string
+      initialDelaySeconds: number
+      timeoutSeconds: number
+      periodSeconds: number
+      successThreshold: number
+      failureThreshold: number
+    }
     volumeMounts: Array<{ name: string; mountPath: string; readOnly: boolean }>
+    initContainer: boolean
+    privileged: boolean
+    postStartCommands: string[]
+    preStopCommands: string[]
   }
 
   function newContainer(_idx: number): ContainerConfig {
@@ -897,28 +1245,35 @@
       cpuLimit: '',
       memoryRequest: '',
       memoryLimit: '',
-      livenessPath: '',
-      livenessPort: 80,
-      livenessInitialDelaySeconds: 0,
-      livenessPeriodSeconds: 10,
-      livenessTimeoutSeconds: 1,
-      livenessSuccessThreshold: 1,
-      livenessFailureThreshold: 3,
-      readinessPath: '',
-      readinessPort: 80,
-      readinessInitialDelaySeconds: 0,
-      readinessPeriodSeconds: 10,
-      readinessTimeoutSeconds: 1,
-      readinessSuccessThreshold: 1,
-      readinessFailureThreshold: 3,
-      startupPath: '',
-      startupPort: 80,
-      startupInitialDelaySeconds: 0,
-      startupPeriodSeconds: 10,
-      startupTimeoutSeconds: 1,
-      startupSuccessThreshold: 1,
-      startupFailureThreshold: 30,
-      volumeMounts: []
+      liveness: {
+        enabled: false,
+        method: 'tcp' as const,
+        host: '',
+        port: '',
+        path: '',
+        initialDelaySeconds: 0,
+        timeoutSeconds: 1,
+        periodSeconds: 10,
+        successThreshold: 1,
+        failureThreshold: 3
+      },
+      readiness: {
+        enabled: false,
+        method: 'tcp' as const,
+        host: '',
+        port: '',
+        path: '',
+        initialDelaySeconds: 0,
+        timeoutSeconds: 1,
+        periodSeconds: 10,
+        successThreshold: 1,
+        failureThreshold: 3
+      },
+      volumeMounts: [],
+      initContainer: false,
+      privileged: false,
+      postStartCommands: [],
+      preStopCommands: []
     }
   }
 
@@ -944,7 +1299,19 @@
     updatePolicy: 'start-first' as 'start-first' | 'stop-first' | 'custom',
     updateBatchSize: 1,
     imagePullSecret: '',
-    schedulingPolicy: 'default' as 'default' | 'custom'
+    schedulingPolicy: 'default' as 'default' | 'custom',
+    svc: {
+      enabled: false,
+      name: '',
+      serviceType: 'ClusterIP' as 'ClusterIP' | 'NodePort' | 'LoadBalancer',
+      headless: false,
+      ports: [
+        { name: '', protocol: 'TCP', port: '', targetPort: '', nodePort: '' }
+      ] as SvcPortEntry[],
+      sessionAffinity: 'None' as 'None' | 'ClientIP',
+      sessionAffinityTimeout: 30,
+      externalTrafficPolicy: 'Cluster' as 'Cluster' | 'Local'
+    }
   })
 
   const basicFormRef = ref<FormInstance>()
@@ -1094,6 +1461,19 @@
   function removePort(index: number) {
     form.value.containers[activeContainerIdx.value].ports.splice(index, 1)
   }
+
+  function addSvcPort() {
+    form.value.svc.ports.push({ name: '', protocol: 'TCP', port: '', targetPort: '', nodePort: '' })
+  }
+  function decreaseSvcTimeout() {
+    form.value.svc.sessionAffinityTimeout = Math.max(0, form.value.svc.sessionAffinityTimeout - 1)
+  }
+  function increaseSvcTimeout() {
+    form.value.svc.sessionAffinityTimeout = Math.min(
+      86400,
+      form.value.svc.sessionAffinityTimeout + 1
+    )
+  }
   function addEnv() {
     form.value.containers[activeContainerIdx.value].envs.push({
       name: '',
@@ -1105,6 +1485,19 @@
   }
   function removeEnv(index: number) {
     form.value.containers[activeContainerIdx.value].envs.splice(index, 1)
+  }
+
+  function addPostStart() {
+    form.value.containers[activeContainerIdx.value].postStartCommands.push('')
+  }
+  function removePostStart(index: number) {
+    form.value.containers[activeContainerIdx.value].postStartCommands.splice(index, 1)
+  }
+  function addPreStop() {
+    form.value.containers[activeContainerIdx.value].preStopCommands.push('')
+  }
+  function removePreStop(index: number) {
+    form.value.containers[activeContainerIdx.value].preStopCommands.splice(index, 1)
   }
 
   function buildEnv(c: ContainerConfig) {
@@ -1311,24 +1704,26 @@
     const appLabel = labels.app || form.value.name
     const finalLabels = { app: appLabel, ...labels }
 
-    const buildProbe = (
-      path: string,
-      port: number,
-      initialDelaySeconds: number,
-      periodSeconds: number,
-      timeoutSeconds: number,
-      successThreshold: number,
-      failureThreshold: number
-    ) => {
-      if (!path.trim()) return undefined
-      return {
-        httpGet: { path: path.trim(), port },
-        initialDelaySeconds,
-        periodSeconds,
-        timeoutSeconds,
-        successThreshold,
-        failureThreshold
+    const buildProbe = (probe: ContainerConfig['liveness']) => {
+      if (!probe.enabled) return undefined
+      const base = {
+        initialDelaySeconds: probe.initialDelaySeconds,
+        periodSeconds: probe.periodSeconds,
+        timeoutSeconds: probe.timeoutSeconds,
+        successThreshold: probe.successThreshold,
+        failureThreshold: probe.failureThreshold
       }
+      const port = probe.port.trim() || 80
+      const host = probe.host.trim()
+      if (probe.method === 'tcp') {
+        return { ...base, tcpSocket: { port, ...(host ? { host } : {}) } }
+      } else if (probe.method === 'http') {
+        return {
+          ...base,
+          httpGet: { path: probe.path.trim() || '/', port, ...(host ? { host } : {}) }
+        }
+      }
+      return undefined
     }
 
     const volumes = form.value.volumes
@@ -1364,33 +1759,8 @@
       const volumeMounts = c.volumeMounts
         .map((m) => ({ name: m.name.trim(), mountPath: m.mountPath.trim(), readOnly: m.readOnly }))
         .filter((m) => m.name && m.mountPath)
-      const livenessProbe = buildProbe(
-        c.livenessPath,
-        c.livenessPort,
-        c.livenessInitialDelaySeconds,
-        c.livenessPeriodSeconds,
-        c.livenessTimeoutSeconds,
-        c.livenessSuccessThreshold,
-        c.livenessFailureThreshold
-      )
-      const readinessProbe = buildProbe(
-        c.readinessPath,
-        c.readinessPort,
-        c.readinessInitialDelaySeconds,
-        c.readinessPeriodSeconds,
-        c.readinessTimeoutSeconds,
-        c.readinessSuccessThreshold,
-        c.readinessFailureThreshold
-      )
-      const startupProbe = buildProbe(
-        c.startupPath,
-        c.startupPort,
-        c.startupInitialDelaySeconds,
-        c.startupPeriodSeconds,
-        c.startupTimeoutSeconds,
-        c.startupSuccessThreshold,
-        c.startupFailureThreshold
-      )
+      const livenessProbe = buildProbe(c.liveness)
+      const readinessProbe = buildProbe(c.readiness)
       return {
         name: c.name.trim(),
         image: c.imageTag.trim() ? `${c.image.trim()}:${c.imageTag.trim()}` : c.image.trim(),
@@ -1400,7 +1770,6 @@
         ...(resources ? { resources } : {}),
         ...(livenessProbe ? { livenessProbe } : {}),
         ...(readinessProbe ? { readinessProbe } : {}),
-        ...(startupProbe ? { startupProbe } : {}),
         ...(command.length ? { command } : {}),
         ...(args.length ? { args } : {}),
         ...(volumeMounts.length ? { volumeMounts } : {})
@@ -1440,32 +1809,6 @@
     }
   }
 
-  async function nextStep() {
-    if (activeStep.value === 'basic') {
-      const ok = await basicFormRef.value
-        ?.validate()
-        .then(() => true)
-        .catch(() => false)
-      if (!ok) return
-      activeStep.value = 'container'
-      return
-    }
-    if (activeStep.value === 'container') {
-      const ok = await containerFormRef.value
-        ?.validate()
-        .then(() => true)
-        .catch(() => false)
-      if (!ok) return
-      if (!validateContainerSemantics()) return
-      activeStep.value = 'advanced'
-    }
-  }
-
-  function prevStep() {
-    if (activeStep.value === 'advanced') activeStep.value = 'container'
-    else if (activeStep.value === 'container') activeStep.value = 'basic'
-  }
-
   function goBack() {
     router.push({ path: '/container/workloads', query: { cluster: cluster.value } })
   }
@@ -1483,7 +1826,6 @@
       .then(() => true)
       .catch(() => false)
     if (!basicOk) {
-      activeStep.value = 'basic'
       return
     }
     const containerOk = await containerFormRef.value
@@ -1491,7 +1833,6 @@
       .then(() => true)
       .catch(() => false)
     if (!containerOk) {
-      activeStep.value = 'container'
       return
     }
     if (!cluster.value) {
@@ -1504,6 +1845,63 @@
     try {
       const manifest = buildDeploymentManifest()
       await createK8sDeployment(cluster.value, form.value.namespace, manifest)
+
+      // 联动创建 Service（仅在启用且有有效端口时）
+      const svc = form.value.svc
+      if (svc.enabled) {
+        const svcPorts = svc.ports
+          .map((p) => {
+            const port = parseInt(p.port)
+            if (!port || port < 1 || port > 65535) return null
+            const targetPort = /^\d+$/.test(p.targetPort.trim())
+              ? parseInt(p.targetPort.trim())
+              : p.targetPort.trim() || port
+            const entry: Record<string, unknown> = { protocol: p.protocol, port, targetPort }
+            if (p.name.trim()) entry.name = p.name.trim()
+            if (svc.serviceType === 'NodePort' && p.nodePort) {
+              const np = parseInt(p.nodePort)
+              if (np >= 30000 && np <= 32767) entry.nodePort = np
+            }
+            return entry
+          })
+          .filter(Boolean)
+
+        if (svcPorts.length) {
+          const appLabel = form.value.name.trim()
+          const svcName = svc.name.trim() || appLabel
+          const svcSpec: Record<string, unknown> = {
+            type: svc.serviceType,
+            selector: { app: appLabel },
+            ports: svcPorts,
+            sessionAffinity: svc.sessionAffinity
+          }
+          if (svc.serviceType === 'ClusterIP' && svc.headless) svcSpec.clusterIP = 'None'
+          if (svc.serviceType === 'NodePort' || svc.serviceType === 'LoadBalancer') {
+            svcSpec.externalTrafficPolicy = svc.externalTrafficPolicy
+          }
+          if (svc.sessionAffinity === 'ClientIP') {
+            svcSpec.sessionAffinityConfig = {
+              clientIP: { timeoutSeconds: svc.sessionAffinityTimeout }
+            }
+          }
+          const svcManifest = {
+            apiVersion: 'v1',
+            kind: 'Service',
+            metadata: { name: svcName, namespace: form.value.namespace },
+            spec: svcSpec
+          }
+          try {
+            await createK8sService(cluster.value, form.value.namespace, svcManifest)
+          } catch (e: unknown) {
+            ElMessage.warning(
+              `Deployment 创建成功，但 Service 创建失败：${e instanceof Error ? e.message : '未知错误'}`
+            )
+            goBack()
+            return
+          }
+        }
+      }
+
       ElMessage.success(`Deployment(${form.value.name}) 创建成功`)
       goBack()
     } catch (e: unknown) {
@@ -1684,21 +2082,27 @@
 
   .deploy-create-main {
     display: flex;
-    gap: 14px;
+    gap: 0;
   }
 
-  .deploy-create-tabs {
-    flex: 1;
-    min-width: 0;
+  .dc-form {
+    max-width: none;
+    width: 100%;
   }
 
-  .deploy-create-tabs :deep(.el-tabs__content) {
-    min-height: 420px;
-    padding-top: 12px;
+  .dc-form :deep(.el-form-item__label) {
+    font-size: 12px;
+    padding-right: 16px;
   }
 
-  .deploy-create-tabs :deep(.el-tab-pane > .el-form > .el-form-item:first-child) {
-    margin-top: 6px;
+  /* 全局：所有 placeholder 和 checkbox label 12px */
+  .dc-form :deep(.el-input__placeholder),
+  .dc-form :deep(.el-textarea__placeholder) {
+    font-size: 12px;
+  }
+
+  .dc-form :deep(.el-checkbox__label) {
+    font-size: 12px;
   }
 
   /* Section divider: reduce top margin for first divider in a tab */
@@ -1710,17 +2114,15 @@
     font-weight: 500;
     color: var(--el-text-color-primary);
   }
-  .deploy-create-tabs :deep(.el-divider__text) {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--el-text-color-primary);
+
+  .container-form-item :deep(.el-form-item__content) {
+    width: 100%;
+    max-width: none;
+    flex: 1;
   }
 
-  .deploy-create-aside {
-    width: 120px;
-    display: flex;
-    justify-content: flex-end;
-    padding-top: 6px;
+  .container-form-item :deep(.el-form-item__label) {
+    font-size: 12px;
   }
 
   .deploy-create-footer {
@@ -1767,7 +2169,7 @@
   }
 
   .port-table-box {
-    background: #fff;
+    background: var(--el-bg-color-overlay);
     border: 1px solid var(--el-border-color-light);
     border-radius: 4px;
     padding: 10px 12px;
@@ -1876,7 +2278,7 @@
   }
 
   .container-tab-item.is-active {
-    background: var(--el-color-white, #fff);
+    background: var(--el-bg-color-overlay);
     color: var(--el-color-primary);
     font-weight: 500;
     border-color: var(--el-color-primary);
@@ -1919,7 +2321,7 @@
 
   .pull-policy-group {
     --el-radio-button-checked-border-color: var(--el-color-primary);
-    --el-radio-button-checked-bg-color: var(--el-color-white, #fff);
+    --el-radio-button-checked-bg-color: var(--el-bg-color-overlay);
     --el-radio-button-checked-text-color: var(--el-color-primary);
     display: flex;
     width: 320px;
@@ -1967,7 +2369,7 @@
   }
 
   .pull-policy-group :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
-    background-color: var(--el-color-white, #fff) !important;
+    background-color: var(--el-bg-color-overlay) !important;
     color: var(--el-color-primary) !important;
     font-weight: 500 !important;
     border-color: var(--el-color-primary) !important;
@@ -1982,6 +2384,7 @@
 
   .container-dc-form :deep(.el-form-item__label) {
     font-size: 12px;
+    white-space: nowrap;
   }
 
   .container-dc-form :deep(.el-input__inner),
@@ -2010,8 +2413,8 @@
   }
 
   .cpu-mem-limit-form-item :deep(.el-form-item__label) {
-    padding-top: 14px;
     line-height: 20px;
+    padding-top: 0;
   }
 
   .cpu-mem-limit-form-item :deep(.el-form-item__content) {
@@ -2019,7 +2422,7 @@
     flex-direction: column;
     align-items: stretch;
     min-width: 0;
-    padding-top: 14px;
+    padding-top: 0;
   }
 
   .cpu-mem-limit-wrap {
@@ -2147,8 +2550,89 @@
     gap: 8px;
   }
 
-  .dc-form {
-    max-width: 680px;
+  .health-check-form-item :deep(.el-form-item__label) {
+    display: flex;
+    align-items: center;
+  }
+
+  .health-check-wrap {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .health-check-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .health-check-title {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--el-text-color-primary);
+  }
+
+  .health-check-desc {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+  }
+
+  .health-check-panel {
+    background: var(--el-bg-color-overlay);
+    border: 1px solid var(--el-border-color-light);
+    border-radius: 6px;
+    padding: 16px 20px;
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .probe-field-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .probe-field-label {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    width: 72px;
+    flex-shrink: 0;
+    font-size: 12px;
+    color: var(--el-text-color-regular);
+    padding-top: 5px;
+  }
+
+  .probe-field-col {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .probe-input-unit {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .probe-unit {
+    font-size: 12px;
+    color: var(--el-text-color-regular);
+    white-space: nowrap;
+  }
+
+  .health-check-panel :deep(.el-input__inner),
+  .health-check-panel :deep(.el-textarea__inner),
+  .health-check-panel :deep(.el-select__wrapper) {
+    font-size: 12px;
+  }
+
+  .health-check-panel .dc-field-tip {
+    font-size: 12px;
+    margin-top: 2px;
   }
 
   .dc-form :deep(.el-input__inner),
@@ -2171,8 +2655,77 @@
     row-gap: 0;
   }
 
+  .dc-field-col {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .dc-field-col > .dc-field-tip {
+    margin-top: 0;
+    white-space: nowrap;
+  }
+
+  .container-dc-form :deep(.el-form-item) {
+    margin-bottom: 18px;
+  }
+
   .kv-add-btn {
     font-size: 12px;
+  }
+
+  .lifecycle-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 100%;
+  }
+
+  .lifecycle-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .lifecycle-section-label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--el-text-color-regular);
+    margin-bottom: 4px;
+  }
+
+  .lifecycle-info-icon {
+    font-size: 14px;
+    color: var(--el-text-color-placeholder);
+    cursor: default;
+  }
+
+  .lifecycle-inputs {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .lifecycle-input-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .lifecycle-textarea {
+    flex: 1;
+  }
+
+  .lifecycle-del-btn {
+    margin-top: 6px;
+    flex-shrink: 0;
+  }
+
+  .lifecycle-add-btn {
+    margin-left: 8px;
   }
 
   .pull-secret-wrap {
@@ -2213,7 +2766,7 @@
   }
 
   .advanced-toggle-row {
-    padding-left: 25px;
+    padding-left: 140px;
     margin-bottom: 12px;
   }
 
@@ -2222,7 +2775,7 @@
   }
 
   .container-advanced-config-toggle {
-    padding-left: 0px;
+    padding-left: 20px;
     margin-top: 4px;
     margin-bottom: 2px;
   }
@@ -2248,6 +2801,10 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 4px;
+  }
+
+  .advanced-field-wrap .dc-field-tip {
+    margin-top: 0;
   }
 
   .advanced-field-wrap :deep(.el-radio__label) {
@@ -2297,5 +2854,157 @@
     margin-left: auto;
     display: flex;
     gap: 0;
+  }
+
+  .pull-secret-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .pull-secret-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .pull-secret-icon-btn {
+    padding: 4px;
+    font-size: 14px;
+  }
+
+  .scheduling-policy-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  /* ── 访问设置（Service）section ── */
+  .dc-headless-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .dc-headless-tip {
+    white-space: nowrap;
+    margin-left: 4px;
+  }
+
+  .dc-etp-local-tip {
+    white-space: nowrap;
+  }
+
+  .dc-svc-field-col {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    width: 100%;
+  }
+
+  .dc-svc-port-table-box {
+    width: 100%;
+    border: 1px solid var(--el-border-color-light);
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--el-bg-color-overlay);
+  }
+
+  .dc-svc-port-table-header,
+  .dc-svc-port-table-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+  }
+
+  .dc-svc-port-table-header {
+    background: var(--el-fill-color-light);
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+    font-weight: 500;
+  }
+
+  .dc-svc-port-table-row {
+    border-top: 1px solid var(--el-border-color-lighter);
+  }
+
+  .dc-svc-port-col-protocol {
+    width: 80px;
+    flex-shrink: 0;
+    font-size: 12px;
+  }
+
+  .dc-svc-port-col-port {
+    width: 180px;
+    flex-shrink: 0;
+    font-size: 12px;
+  }
+
+  .dc-svc-port-col-name {
+    width: 150px;
+    flex-shrink: 0;
+    font-size: 12px;
+  }
+
+  .dc-svc-port-col-action {
+    width: 28px;
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+
+  .dc-svc-timeout-ctrl {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--el-border-color);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .dc-svc-timeout-btn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border-radius: 0;
+    border: none;
+    background: var(--el-fill-color-light);
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  .dc-svc-timeout-value {
+    min-width: 48px;
+    text-align: center;
+    font-size: 13px;
+    padding: 0 8px;
+    height: 32px;
+    line-height: 32px;
+    border-left: 1px solid var(--el-border-color);
+    border-right: 1px solid var(--el-border-color);
+    color: var(--el-text-color-primary);
+  }
+
+  .dc-svc-timeout-unit {
+    font-size: 12px;
+    margin-left: 8px;
+    color: var(--el-text-color-regular);
+  }
+
+  /* 访问设置（Service）区域字体统一 12px */
+  .dc-headless-row :deep(.el-checkbox__label),
+  .dc-field-col :deep(.el-radio__label),
+  .dc-field-col :deep(.el-checkbox__label),
+  .dc-svc-field-col :deep(.el-input__inner),
+  .dc-svc-field-col :deep(.el-input__placeholder),
+  .dc-svc-field-col :deep(.el-select__placeholder),
+  .dc-svc-field-col :deep(.el-select__selected-item),
+  .dc-field-col :deep(.el-input__inner),
+  .dc-field-col :deep(.el-input__placeholder),
+  .dc-field-col :deep(.el-select__placeholder),
+  .dc-field-col :deep(.el-select__selected-item) {
+    font-size: 12px;
   }
 </style>

@@ -98,6 +98,16 @@ html.dark .el-card {
   }
 }
 
+// 统一 placeholder 字体大小
+input::placeholder,
+textarea::placeholder,
+.el-input__inner::placeholder,
+.el-textarea__inner::placeholder,
+.el-select__placeholder,
+.el-date-editor .el-range-input::placeholder {
+  font-size: 12px !important;
+}
+
 // 修改 el-checkbox-button 高度
 .el-checkbox-button--default .el-checkbox-button__inner,
 // 修改 el-radio-button 高度

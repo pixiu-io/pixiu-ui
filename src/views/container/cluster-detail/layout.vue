@@ -44,7 +44,7 @@
           >
             <template #label="{ label, value }">
               <span style="display:inline-flex;align-items:center;gap:4px">
-                <span style="font-size:13px;color:#C7C7D1">{{ label }}</span>
+                <span class="ns-selected-label">{{ label }}</span>
                 <span v-if="isSystemNamespace(String(value || ''))" class="ns-system-tag">系统</span>
               </span>
             </template>
@@ -420,9 +420,8 @@
 
   /* 与侧栏「基本信息」等 ElMenuItem 文案一致 */
   .cluster-detail-name-label {
-    font-size: var(--el-menu-item-font-size, 14px);
-    font-weight: var(--el-menu-item-font-weight, 400);
-    color: #C7C7D1;
+    font-size: 13px;
+    color: var(--el-text-color-regular);
     flex-shrink: 0;
     white-space: nowrap;
   }
@@ -440,11 +439,12 @@
     min-height: 32px;
     max-width: 100%;
     overflow: hidden;
-    box-shadow: none !important;
-    background-color: transparent;
-    /* 给选中文字提供定位层，避免子节点 z-index 失效 */
+    box-shadow: 0 0 0 1px var(--el-border-color) inset !important;
+    background-color: var(--el-fill-color-blank);
+    border-radius: 6px;
     position: relative;
     z-index: 0;
+    transition: box-shadow 0.2s;
   }
 
   /* 非 filterable 时选中项仍在 .el-select__placeholder 上，主题默认 z-index:-1 会沉到透明背景下方导致看不见 */
@@ -471,7 +471,7 @@
   }
 
   .cluster-detail-cluster-select :deep(.el-select__wrapper:hover) {
-    box-shadow: none !important;
+    box-shadow: 0 0 0 1px var(--el-border-color-hover) inset !important;
   }
 
   .cluster-detail-cluster-select :deep(.el-select__wrapper.is-focused) {
@@ -501,8 +501,10 @@
     font-size: 13px;
     min-height: 32px;
     max-width: 100%;
-    box-shadow: none !important;
-    background-color: transparent;
+    box-shadow: 0 0 0 1px var(--el-border-color) inset !important;
+    background-color: var(--el-fill-color-blank);
+    border-radius: 6px;
+    transition: box-shadow 0.2s;
   }
 
   .cluster-detail-ns-select :deep(.el-select__selection) {
@@ -518,13 +520,12 @@
   }
 
   .cluster-detail-ns-select :deep(.el-select__placeholder) {
-    color: #C7C7D1;
+    color: var(--el-text-color-regular);
     font-size: 13px;
-    font-weight: var(--el-menu-item-font-weight, 400);
   }
 
   .cluster-detail-ns-select :deep(.el-select__wrapper:hover) {
-    box-shadow: none !important;
+    box-shadow: 0 0 0 1px var(--el-border-color-hover) inset !important;
   }
 
   .cluster-detail-ns-select :deep(.el-select__wrapper.is-focused) {
@@ -562,6 +563,11 @@
 
   .ns-option-name {
     font-size: 13px;
+  }
+
+  .ns-selected-label {
+    font-size: 13px;
+    color: var(--el-text-color-primary);
   }
 
   .ns-system-tag {

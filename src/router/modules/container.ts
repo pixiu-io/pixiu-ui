@@ -82,6 +82,26 @@ export const containerRoutes: AppRouteRecord = {
       }
     },
     {
+      path: 'service-create',
+      name: 'ServiceCreate',
+      component: '/container/cluster-detail/service-create/index',
+      meta: {
+        title: '创建 Service',
+        isHide: true,
+        keepAlive: false
+      }
+    },
+    {
+      path: 'ingress-create',
+      name: 'IngressCreate',
+      component: '/container/cluster-detail/ingress-create/index',
+      meta: {
+        title: '创建 Ingress',
+        isHide: true,
+        keepAlive: false
+      }
+    },
+    {
       path: 'deployment-create',
       name: 'DeploymentCreate',
       component: '/container/cluster-detail/deployment-create/index',
