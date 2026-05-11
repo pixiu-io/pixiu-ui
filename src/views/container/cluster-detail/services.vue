@@ -102,19 +102,14 @@
       </ElTabs>
     </ElCard>
 
-    <!-- YAML readonly dialog (shared) -->
-    <ElDialog v-model="yamlVisible" title="查看 YAML" width="720px" destroy-on-close>
-      <ElInput
-        v-model="yamlText"
-        type="textarea"
-        :rows="22"
-        readonly
-        class="deploy-yaml-textarea"
-      />
-      <template #footer>
-        <ElButton type="primary" @click="yamlVisible = false">关闭</ElButton>
-      </template>
-    </ElDialog>
+    <K8sYamlDialog
+      v-model="yamlVisible"
+      title="查看 YAML"
+      :yaml="yamlText"
+      read-only
+      width="900px"
+      :editor-height="480"
+    />
   </div>
 </template>
 
@@ -122,7 +117,6 @@
   import {
     ElButton,
     ElCard,
-    ElDialog,
     ElInput,
     ElLink,
     ElMessage,
@@ -150,6 +144,7 @@
   } from '@/api/kubernetes/ingress'
   import { formatNodeCreationTime } from '@/utils/kubernetes/nodeDisplay'
   import { clusterDetailNamespaceKey } from './context'
+  import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
 
   defineOptions({ name: 'ClusterDetailServices' })
 
@@ -795,8 +790,4 @@
     outline-offset: 1px;
   }
 
-  .deploy-yaml-textarea :deep(textarea) {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    font-size: 12px;
-  }
 </style>

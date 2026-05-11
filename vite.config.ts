@@ -8,6 +8,12 @@ import AutoImport from 'unplugin-auto-import/vite'
 import ElementPlus from 'unplugin-element-plus/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 import tailwindcss from '@tailwindcss/vite'
+import monacoEditorPluginModule from 'vite-plugin-monaco-editor'
+
+const monacoEditorPlugin =
+  typeof monacoEditorPluginModule === 'function'
+    ? monacoEditorPluginModule
+    : (monacoEditorPluginModule as { default: typeof monacoEditorPluginModule }).default
 // import { visualizer } from 'rollup-plugin-visualizer'
 
 export default ({ mode }: { mode: string }) => {
@@ -91,6 +97,9 @@ export default ({ mode }: { mode: string }) => {
     },
     plugins: [
       vue(),
+      monacoEditorPlugin({
+        languageWorkers: ['editorWorkerService']
+      }),
       tailwindcss(),
       // 自动按需导入 API
       AutoImport({

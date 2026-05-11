@@ -1053,12 +1053,14 @@
       </div>
     </ElCard>
 
-    <ElDialog v-model="yamlVisible" title="预览 YAML" width="760px">
-      <ElInput v-model="yamlText" type="textarea" :rows="22" readonly />
-      <template #footer>
-        <ElButton type="primary" @click="yamlVisible = false">关闭</ElButton>
-      </template>
-    </ElDialog>
+    <K8sYamlDialog
+      v-model="yamlVisible"
+      title="预览 YAML"
+      :yaml="yamlText"
+      read-only
+      width="900px"
+      :editor-height="480"
+    />
 
     <ElDialog
       v-model="volumeDialogVisible"
@@ -1160,6 +1162,7 @@
   import { createK8sService } from '@/api/kubernetes/service'
   import { fetchK8sNamespaceList } from '@/api/kubernetes/namespace'
   import { fetchK8sSecretList } from '@/api/kubernetes/secret'
+  import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
 
   defineOptions({ name: 'DeploymentCreatePage' })
 

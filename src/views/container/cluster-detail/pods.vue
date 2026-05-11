@@ -49,13 +49,15 @@
       />
     </ElCard>
 
-    <ElDialog v-model="yamlVisible" title="查看 YAML" width="720px" destroy-on-close class="pod-yaml-dialog">
-      <ElInput v-model="yamlText" type="textarea" :rows="20" readonly class="pod-yaml-textarea" />
-      <template #footer>
-        <ElButton type="primary" @click="copyYaml">复制</ElButton>
-        <ElButton @click="yamlVisible = false">关闭</ElButton>
-      </template>
-    </ElDialog>
+    <K8sYamlDialog
+      v-model="yamlVisible"
+      title="查看 YAML"
+      :yaml="yamlText"
+      read-only
+      show-copy
+      width="900px"
+      :editor-height="520"
+    />
 
     <ElDialog
       v-model="remoteLoginVisible"
@@ -194,7 +196,9 @@
   import { formatNodeCreationTime } from '@/utils/kubernetes/nodeDisplay'
   import { clusterDetailNamespaceKey } from './context'
   import PodRemoteWebshell from './components/pod-remote-webshell.vue'
+  import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
   import { resolvePixiuWsOrigin } from '@/utils/pixiu-ws-origin'
+  import yaml from 'js-yaml'
 
   defineOptions({ name: 'ClusterDetailPods' })
 
@@ -594,17 +598,11 @@
     if (!cluster || !namespace || !name) return
     try {
       const pod = await fetchK8sPod(cluster, namespace, name)
-      yamlText.value = JSON.stringify(pod, null, 2)
+      yamlText.value = yaml.dump(pod, { quotingType: '"' })
       yamlVisible.value = true
     } catch (e: unknown) {
       ElMessage.error(e instanceof Error ? e.message : '加载失败')
     }
-  }
-
-  function copyYaml() {
-    if (!yamlText.value) return
-    void navigator.clipboard.writeText(yamlText.value)
-    ElMessage.success('已复制')
   }
 
   async function removePod(row: K8sPod) {
@@ -947,11 +945,6 @@
   .pods-toolbar-search-btn:focus-visible {
     outline: 2px solid var(--el-color-primary);
     outline-offset: 1px;
-  }
-
-  .pod-yaml-textarea :deep(textarea) {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    font-size: 12px;
   }
 
   .remote-login-select {

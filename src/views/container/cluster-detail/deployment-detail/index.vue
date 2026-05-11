@@ -528,20 +528,18 @@
       </template>
     </el-dialog>
 
-    <!-- YAML Dialog -->
-    <el-dialog v-model="yamlVisible" title="编辑 YAML" width="860px" top="5vh">
-      <el-input
-        v-model="yamlContent"
-        type="textarea"
-        :rows="30"
-        resize="none"
-        style="font-family: monospace; font-size: 13px; line-height: 1.5"
-      />
-      <template #footer>
-        <el-button @click="yamlVisible = false">取消</el-button>
-        <el-button type="primary" :loading="yamlSaving" @click="saveYaml">保存</el-button>
-      </template>
-    </el-dialog>
+    <K8sYamlDialog
+      v-model="yamlVisible"
+      title="编辑 YAML"
+      :yaml="yamlContent"
+      :read-only="false"
+      footer-mode="edit"
+      confirm-text="保存"
+      width="900px"
+      :editor-height="520"
+      :submit-loading="yamlSaving"
+      @save="onDeploymentDetailYamlSave"
+    />
   </div>
 </template>
 
@@ -583,6 +581,7 @@
   import type { K8sReplicaSet } from '@/api/kubernetes/replicaset'
   import { updateK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
   import YAML from 'js-yaml'
+  import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
 
   const router = useRouter()
   const route = useRoute()
@@ -1044,6 +1043,11 @@
     } finally {
       yamlSaving.value = false
     }
+  }
+
+  function onDeploymentDetailYamlSave(text: string) {
+    yamlContent.value = text
+    void saveYaml()
   }
 
   // ── Navigation ──

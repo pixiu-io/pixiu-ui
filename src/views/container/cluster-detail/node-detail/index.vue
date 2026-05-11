@@ -142,12 +142,14 @@
 
     <HostRemoteSsh ref="hostRemoteSshRef" />
 
-    <ElDialog v-model="yamlVisible" title="查看 YAML" width="760px">
-      <ElInput v-model="yamlText" type="textarea" :rows="24" readonly />
-      <template #footer>
-        <ElButton @click="yamlVisible = false">关闭</ElButton>
-      </template>
-    </ElDialog>
+    <K8sYamlDialog
+      v-model="yamlVisible"
+      title="查看 YAML"
+      :yaml="yamlText"
+      read-only
+      width="900px"
+      :editor-height="520"
+    />
 
     <ElDialog v-model="labelVisible" title="标签管理" width="720px" @close="resetLabelForm">
       <div v-for="(item, index) in labelRows" :key="index" class="label-row">
@@ -184,6 +186,7 @@
   import { fetchNodeUsageMetrics } from '@/api/kubernetes/metrics'
   import { kubeProxyAxios } from '@/api/kubeProxy'
   import HostRemoteSsh from '@/views/safeguard/host/modules/host-remote-ssh.vue'
+  import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
   import {
     formatContainerRuntime,
     formatKubeletVersion,

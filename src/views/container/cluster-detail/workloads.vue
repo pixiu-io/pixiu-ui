@@ -478,15 +478,18 @@
       </template>
     </ElDialog>
 
-    <!-- 通用 YAML 查看/编辑 Dialog（所有 tab 共用） -->
-    <ElDialog v-model="yamlVisible" :title="yamlReadonly ? '查看 YAML' : '编辑 YAML'" width="720px" destroy-on-close>
-      <ElInput v-model="yamlText" type="textarea" :rows="22" :readonly="yamlReadonly" class="deploy-yaml-textarea" />
-      <template #footer>
-        <ElButton v-if="!yamlReadonly" @click="yamlVisible = false">取消</ElButton>
-        <ElButton v-if="!yamlReadonly" type="primary" :loading="yamlSubmitting" @click="submitYamlEdit">确定</ElButton>
-        <ElButton v-if="yamlReadonly" type="primary" @click="yamlVisible = false">关闭</ElButton>
-      </template>
-    </ElDialog>
+    <K8sYamlDialog
+      v-model="yamlVisible"
+      :title="yamlReadonly ? '查看 YAML' : '编辑 YAML'"
+      :yaml="yamlText"
+      :read-only="yamlReadonly"
+      :footer-mode="yamlReadonly ? 'dashboard' : 'edit'"
+      confirm-text="确定"
+      width="900px"
+      :editor-height="520"
+      :submit-loading="yamlSubmitting"
+      @save="onWorkloadYamlSave"
+    />
 
     <ElDialog
       v-model="podLoginVisible"
@@ -597,6 +600,7 @@
   import { updateK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
   import { formatNodeCreationTime } from '@/utils/kubernetes/nodeDisplay'
   import { clusterDetailNamespaceKey } from './context'
+  import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
 
   defineOptions({ name: 'ClusterDetailWorkloads' })
   const props = withDefaults(
@@ -2779,6 +2783,11 @@
     }
   }
 
+  function onWorkloadYamlSave(text: string) {
+    yamlText.value = text
+    void submitYamlEdit()
+  }
+
   // ── Delete / Redeploy ──
   // 通用删除（供 sts/ds/job/cj 复用）
   async function deleteWorkload(
@@ -3137,11 +3146,6 @@
 
   .scale-input {
     width: 160px;
-  }
-
-  .deploy-yaml-textarea :deep(textarea) {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    font-size: 12px;
   }
 
   .workloads-tabs :deep(.el-tabs__header) {

@@ -247,21 +247,15 @@
       </el-tabs>
     </ElCard>
 
-    <!-- YAML Dialog -->
-    <el-dialog v-model="yamlVisible" title="查看 YAML" width="860px" top="5vh" destroy-on-close>
-      <el-input
-        v-model="yamlContent"
-        type="textarea"
-        :rows="30"
-        resize="none"
-        readonly
-        style="font-family:monospace;font-size:13px;line-height:1.5"
-      />
-      <template #footer>
-        <el-button @click="copyYaml">复制</el-button>
-        <el-button @click="yamlVisible = false">关闭</el-button>
-      </template>
-    </el-dialog>
+    <K8sYamlDialog
+      v-model="yamlVisible"
+      title="查看 YAML"
+      :yaml="yamlContent"
+      read-only
+      show-copy
+      width="900px"
+      :editor-height="520"
+    />
 
     <!-- Remote webshell -->
     <PodRemoteWebshell ref="podWebshellRef" />
@@ -275,6 +269,7 @@
   import { useRoute, useRouter } from 'vue-router'
   import ArtButtonMore, { type ButtonMoreItem } from '@/components/core/forms/art-button-more/index.vue'
   import PodRemoteWebshell from '../components/pod-remote-webshell.vue'
+  import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
   import { clusterDetailContextKey } from '../context'
   import { fetchK8sPod, deleteK8sPod } from '@/api/kubernetes/pod'
   import { fetchKubeRawEventList } from '@/api/kubernetes/events'
@@ -427,12 +422,6 @@
       ElMessage.error('获取 YAML 失败')
     }
   }
-  function copyYaml() {
-    if (!yamlContent.value) return
-    void navigator.clipboard.writeText(yamlContent.value)
-    ElMessage.success('已复制')
-  }
-
   // ── Login ──
   const podWebshellRef = ref<InstanceType<typeof PodRemoteWebshell> | null>(null)
   function openLogin() {

@@ -61,13 +61,18 @@
       </template>
     </ElDialog>
 
-    <ElDialog v-model="yamlVisible" title="编辑YAML" width="720px" destroy-on-close>
-      <ElInput v-model="yamlText" type="textarea" :rows="20" class="namespace-yaml-textarea" />
-      <template #footer>
-        <ElButton @click="yamlVisible = false">取消</ElButton>
-        <ElButton type="primary" :loading="yamlSubmitting" @click="submitYamlEdit">确定</ElButton>
-      </template>
-    </ElDialog>
+    <K8sYamlDialog
+      v-model="yamlVisible"
+      title="编辑YAML"
+      :yaml="yamlText"
+      :read-only="false"
+      footer-mode="edit"
+      confirm-text="确定"
+      width="900px"
+      :editor-height="480"
+      :submit-loading="yamlSubmitting"
+      @save="onNamespaceYamlSave"
+    />
 
     <ElDialog
       v-model="quotaVisible"
@@ -116,6 +121,7 @@
   import { CopyDocument } from '@element-plus/icons-vue'
   import yaml from 'js-yaml'
   import ArtButtonMore, { type ButtonMoreItem } from '@/components/core/forms/art-button-more/index.vue'
+  import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
   import { h, ref, watch } from 'vue'
   import { useRoute } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
@@ -399,6 +405,11 @@
     }
   }
 
+  function onNamespaceYamlSave(text: string) {
+    yamlText.value = text
+    void submitYamlEdit()
+  }
+
   function namespaceMoreClick(item: ButtonMoreItem, row: K8sNamespace) {
     switch (item.key) {
       case 'yaml':
@@ -570,11 +581,6 @@
   .namespaces-toolbar-search-btn:focus-visible {
     outline: 2px solid var(--el-color-primary);
     outline-offset: 1px;
-  }
-
-  .namespace-yaml-textarea :deep(textarea) {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    font-size: 12px;
   }
 
   .mb-3 {

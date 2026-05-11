@@ -53,20 +53,15 @@
       />
     </ElCard>
 
-    <!-- 查看 YAML -->
-    <ElDialog
+    <K8sYamlDialog
       v-model="yamlVisible"
       title="查看 YAML"
-      width="720px"
-      destroy-on-close
-      class="node-res-dialog"
-    >
-      <ElInput v-model="yamlText" type="textarea" :rows="20" readonly class="node-yaml-textarea" />
-      <template #footer>
-        <ElButton type="primary" @click="copyYaml">复制</ElButton>
-        <ElButton @click="yamlVisible = false">关闭</ElButton>
-      </template>
-    </ElDialog>
+      :yaml="yamlText"
+      read-only
+      show-copy
+      width="900px"
+      :editor-height="520"
+    />
 
     <!-- 标签管理 -->
     <ElDialog
@@ -306,6 +301,8 @@
     formatNodeTypeText,
     nodeStatusTagType
   } from '@/utils/kubernetes/nodeDisplay'
+  import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
+  import yaml from 'js-yaml'
 
   defineOptions({ name: 'ClusterDetailNodes' })
   const props = withDefaults(
@@ -894,17 +891,11 @@
     const cluster = String(route.query.cluster ?? '')
     try {
       const node = await fetchK8sNode(cluster, row.metadata!.name)
-      yamlText.value = JSON.stringify(node, null, 2)
+      yamlText.value = yaml.dump(node, { quotingType: '"' })
       yamlVisible.value = true
     } catch (e: unknown) {
       ElMessage.error(e instanceof Error ? e.message : '加载失败')
     }
-  }
-
-  function copyYaml() {
-    if (!yamlText.value) return
-    void navigator.clipboard.writeText(yamlText.value)
-    ElMessage.success('已复制')
   }
 
   // —— 标签 ——
@@ -1251,11 +1242,6 @@
   .node-toolbar__status {
     width: 130px;
     max-width: 100%;
-  }
-
-  .node-yaml-textarea :deep(textarea) {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    font-size: 12px;
   }
 
   .label-row {
