@@ -101,7 +101,7 @@
                   <ElSelect
                     v-model="scheduleParams.interval"
                     placeholder="间隔"
-                    style="width: 100px"
+                    style="width: 110px"
                   >
                     <ElOption
                       v-for="n in dailyIntervalOptions"
@@ -110,13 +110,12 @@
                       :value="n"
                     />
                   </ElSelect>
-                  <ElSelect v-model="scheduleParams.unit" placeholder="单位" style="width: 100px">
+                  <ElSelect v-model="scheduleParams.unit" placeholder="单位" style="width: 110px">
                     <ElOption label="小时" value="hour" />
                     <ElOption label="分钟" value="minute" />
                   </ElSelect>
                   <span class="schedule-text">执行一次</span>
                 </div>
-                <div class="dc-field-tip">Cron 规则：{{ form.schedule }}</div>
               </div>
               <div v-else-if="scheduleMode === 'weekly'" class="schedule-weekly-panel">
                 <div class="schedule-builder schedule-builder--in-panel">
@@ -152,10 +151,6 @@
                   </ElSelect>
                   <span class="schedule-text">分</span>
                   <span class="schedule-text">执行一次</span>
-                </div>
-                <div class="dc-field-tip">Cron 规则：{{ form.schedule }}</div>
-                <div class="dc-field-tip schedule-tz-hint">
-                  说明：Cron 表达式按集群所在时区解析；常见为 UTC+08:00，实际以集群时区配置为准。
                 </div>
               </div>
               <div v-else-if="scheduleMode === 'monthly'" class="schedule-monthly-panel">
@@ -203,25 +198,13 @@
                   <span class="schedule-text">分</span>
                   <span class="schedule-text">执行一次</span>
                 </div>
-                <div class="dc-field-tip">Cron 规则：{{ form.schedule }}</div>
-                <div class="dc-field-tip schedule-tz-hint">
-                  说明：Cron 表达式按集群所在时区解析；常见为 UTC+08:00，实际以集群时区配置为准。
-                </div>
               </div>
               <div v-else class="schedule-cron-panel">
-                <ElInput
-                  v-model="form.schedule"
-                  placeholder="如 0 */12 * * *"
-                  class="schedule-cron-expr-input"
-                  clearable
-                />
+                <ElInput v-model="form.schedule" class="schedule-cron-expr-input" clearable />
                 <div class="dc-field-tip schedule-cron-format-hint">
-                  格式：分 时 日 月 周（共 5 段，与 Kubernetes CronJob 一致；如
+                  格式：分 时 日 月 周（如
                   <span class="schedule-cron-example">0 0 * * *</span>
                   表示每天 00:00 执行一次）
-                </div>
-                <div class="dc-field-tip schedule-tz-hint">
-                  说明：Cron 表达式按集群所在时区解析；常见为 UTC+08:00，实际以集群时区配置为准。
                 </div>
               </div>
             </div>
@@ -1330,7 +1313,7 @@
       configMapKey: string
     }>,
     containers: [newContainer(0)] as ContainerConfig[],
-    schedule: '0 */12 * * *',
+    schedule: '0',
     successfulJobsHistoryLimit: 3,
     failedJobsHistoryLimit: 1,
     completions: 1,
@@ -1365,7 +1348,7 @@
           scheduleParams.interval >= 1 && scheduleParams.interval <= 23
             ? scheduleParams.interval
             : 12
-        return `0 */${h} * * *`
+        return `0`
       }
       const m =
         scheduleParams.interval >= 1 && scheduleParams.interval <= 59 ? scheduleParams.interval : 1
