@@ -95,7 +95,6 @@
                 <ElRadio value="monthly">按月</ElRadio>
                 <ElRadio value="cron">Cron表达式</ElRadio>
               </ElRadioGroup>
-<<<<<<< HEAD
               <div v-if="scheduleMode === 'daily'" class="schedule-daily-panel">
                 <div class="schedule-builder schedule-builder--in-panel">
                   <span class="schedule-text">每</span>
@@ -117,6 +116,7 @@
                   </ElSelect>
                   <span class="schedule-text">执行一次</span>
                 </div>
+                <div class="dc-field-tip">Cron 规则：{{ form.schedule }}</div>
               </div>
               <div v-else-if="scheduleMode === 'weekly'" class="schedule-weekly-panel">
                 <div class="schedule-builder schedule-builder--in-panel">
@@ -152,6 +152,10 @@
                   </ElSelect>
                   <span class="schedule-text">分</span>
                   <span class="schedule-text">执行一次</span>
+                </div>
+                <div class="dc-field-tip">Cron 规则：{{ form.schedule }}</div>
+                <div class="dc-field-tip schedule-tz-hint">
+                  说明：Cron 表达式按集群所在时区解析；常见为 UTC+08:00，实际以集群时区配置为准。
                 </div>
               </div>
               <div v-else-if="scheduleMode === 'monthly'" class="schedule-monthly-panel">
@@ -199,97 +203,27 @@
                   <span class="schedule-text">分</span>
                   <span class="schedule-text">执行一次</span>
                 </div>
+                <div class="dc-field-tip">Cron 规则：{{ form.schedule }}</div>
+                <div class="dc-field-tip schedule-tz-hint">
+                  说明：Cron 表达式按集群所在时区解析；常见为 UTC+08:00，实际以集群时区配置为准。
+                </div>
               </div>
               <div v-else class="schedule-cron-panel">
-                <ElInput v-model="form.schedule" class="schedule-cron-expr-input" clearable />
-                <div class="dc-field-tip schedule-cron-format-hint">
-                  格式：分 时 日 月 周（如
-                  <span class="schedule-cron-example">0 0 * * *</span>
-                  表示每天 00:00 执行一次）
-                </div>
-              </div>
-=======
-              <div v-if="scheduleMode === 'daily'" class="schedule-builder">
-                <span class="schedule-text">每</span>
-                <ElInputNumber
-                  v-model="scheduleParams.interval"
-                  :min="1"
-                  :precision="0"
-                  style="width: 90px"
-                />
-                <ElSelect v-model="scheduleParams.unit" style="width: 90px">
-                  <ElOption label="小时" value="hour" />
-                  <ElOption label="分钟" value="minute" />
-                </ElSelect>
-                <span class="schedule-text">执行一次</span>
-              </div>
-              <div
-                v-else-if="scheduleMode === 'weekly'"
-                class="schedule-builder schedule-builder--week"
-              >
-                <ElCheckboxGroup v-model="scheduleParams.weekdays" class="schedule-weekdays">
-                  <ElCheckbox
-                    v-for="(d, i) in WEEKDAY_LABELS"
-                    :key="i"
-                    :label="d"
-                    :value="i"
-                  />
-                </ElCheckboxGroup>
-                <div class="schedule-time">
-                  <ElInputNumber
-                    v-model="scheduleParams.hour"
-                    :min="0"
-                    :max="23"
-                    :precision="0"
-                    style="width: 80px"
-                  />
-                  <span class="schedule-text">时</span>
-                  <ElInputNumber
-                    v-model="scheduleParams.minute"
-                    :min="0"
-                    :max="59"
-                    :precision="0"
-                    style="width: 80px"
-                  />
-                  <span class="schedule-text">分执行</span>
-                </div>
-              </div>
-              <div v-else-if="scheduleMode === 'monthly'" class="schedule-builder">
-                <span class="schedule-text">每月第</span>
-                <ElInputNumber
-                  v-model="scheduleParams.monthDay"
-                  :min="1"
-                  :max="28"
-                  :precision="0"
-                  style="width: 80px"
-                />
-                <span class="schedule-text">天</span>
-                <ElInputNumber
-                  v-model="scheduleParams.hour"
-                  :min="0"
-                  :max="23"
-                  :precision="0"
-                  style="width: 80px"
-                />
-                <span class="schedule-text">时</span>
-                <ElInputNumber
-                  v-model="scheduleParams.minute"
-                  :min="0"
-                  :max="59"
-                  :precision="0"
-                  style="width: 80px"
-                />
-                <span class="schedule-text">分执行</span>
-              </div>
-              <div v-else class="schedule-builder">
                 <ElInput
                   v-model="form.schedule"
                   placeholder="如 0 */12 * * *"
-                  style="width: 280px"
+                  class="schedule-cron-expr-input"
+                  clearable
                 />
+                <div class="dc-field-tip schedule-cron-format-hint">
+                  格式：分 时 日 月 周（共 5 段，与 Kubernetes CronJob 一致；如
+                  <span class="schedule-cron-example">0 0 * * *</span>
+                  表示每天 00:00 执行一次）
+                </div>
+                <div class="dc-field-tip schedule-tz-hint">
+                  说明：Cron 表达式按集群所在时区解析；常见为 UTC+08:00，实际以集群时区配置为准。
+                </div>
               </div>
-              <div class="dc-field-tip">Cron 规则：{{ form.schedule }}</div>
->>>>>>> 7e6cbece26bc2afd667c48d2810700b5fecb1be8
             </div>
           </ElFormItem>
 
@@ -1255,7 +1189,6 @@
   const defaultNamespace = computed(() => String(route.query.namespace ?? ''))
 
   // 定时规则
-<<<<<<< HEAD
   /** 按星期：Cron 星期字段 0=周日 … 6=周六 */
   const WEEKDAY_SELECT_OPTIONS = [
     { label: '周日', value: 0 },
@@ -1273,19 +1206,12 @@
   // 按天：每 N 小时 → 0 */N * * *；每 N 分钟 → */N * * * *
   const DAILY_HOUR_INTERVALS = Array.from({ length: 23 }, (_, i) => i + 1)
   const DAILY_MINUTE_INTERVALS = Array.from({ length: 59 }, (_, i) => i + 1)
-=======
-  const WEEKDAY_LABELS = ['日', '一', '二', '三', '四', '五', '六']
->>>>>>> 7e6cbece26bc2afd667c48d2810700b5fecb1be8
   const scheduleMode = ref<'daily' | 'weekly' | 'monthly' | 'cron'>('daily')
   const scheduleParams = reactive({
     interval: 12,
     unit: 'hour' as 'hour' | 'minute',
-<<<<<<< HEAD
     weekday: 1,
     monthInterval: 1,
-=======
-    weekdays: [1, 2, 3, 4, 5] as number[],
->>>>>>> 7e6cbece26bc2afd667c48d2810700b5fecb1be8
     monthDay: 1,
     hour: 0,
     minute: 0
@@ -1418,7 +1344,6 @@
   const basicFormRef = ref<FormInstance>()
   const containerFormRef = ref<FormInstance>()
 
-<<<<<<< HEAD
   const dailyIntervalOptions = computed(() =>
     scheduleParams.unit === 'hour' ? DAILY_HOUR_INTERVALS : DAILY_MINUTE_INTERVALS
   )
@@ -1464,19 +1389,6 @@
         scheduleParams.minute >= 0 && scheduleParams.minute <= 59 ? scheduleParams.minute : 0
       const monthField = mi === 1 ? '*' : `*/${mi}`
       return `${min} ${h} ${dom} ${monthField} *`
-=======
-  // 根据选择模式自动计算 cron 表达式
-  function computeSchedule(): string {
-    if (scheduleMode.value === 'daily') {
-      return scheduleParams.unit === 'hour'
-        ? `0 */${scheduleParams.interval} * * *`
-        : `*/${scheduleParams.interval} * * * *`
-    } else if (scheduleMode.value === 'weekly') {
-      const days = [...scheduleParams.weekdays].sort().join(',') || '*'
-      return `${scheduleParams.minute} ${scheduleParams.hour} * * ${days}`
-    } else if (scheduleMode.value === 'monthly') {
-      return `${scheduleParams.minute} ${scheduleParams.hour} ${scheduleParams.monthDay} * *`
->>>>>>> 7e6cbece26bc2afd667c48d2810700b5fecb1be8
     }
     return form.value.schedule
   }
@@ -2409,12 +2321,9 @@
     background: var(--el-fill-color-light, #f5f7fa);
     border-radius: 6px;
     padding: 16px 12px 8px;
-<<<<<<< HEAD
     width: 920px;
     max-width: 100%;
     box-sizing: border-box;
-=======
->>>>>>> 7e6cbece26bc2afd667c48d2810700b5fecb1be8
   }
 
   .pull-policy-group {
@@ -2934,7 +2843,6 @@
     margin-top: 4px;
   }
 
-<<<<<<< HEAD
   /* 按天 / 按星期 / 按月 / Cron 表达式：灰底配置区（宽度随内容，不超过表单列） */
   .schedule-daily-panel,
   .schedule-weekly-panel,
@@ -2989,28 +2897,6 @@
 
   .schedule-builder--in-panel {
     margin-top: 0;
-=======
-  .schedule-builder--week {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .schedule-weekdays {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px 0;
-  }
-
-  .schedule-weekdays :deep(.el-checkbox__label) {
-    font-size: 13px;
-  }
-
-  .schedule-time {
-    display: flex;
-    align-items: center;
-    gap: 8px;
->>>>>>> 7e6cbece26bc2afd667c48d2810700b5fecb1be8
   }
 
   .schedule-text {
@@ -3031,12 +2917,8 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
-<<<<<<< HEAD
     width: 920px;
     max-width: 100%;
-=======
-    width: 100%;
->>>>>>> 7e6cbece26bc2afd667c48d2810700b5fecb1be8
     box-sizing: border-box;
   }
 
