@@ -52,15 +52,21 @@ export const setWorktab = (to: RouteLocationNormalized): void => {
         })
       }
     } else if (useSettingStore().showWorkTab || path === useCommon().homePath.value) {
+      const tabGroup = meta.tabGroup as string | undefined
+      const title =
+        tabGroup === 'clusterDetail' && query.cluster
+          ? `容器集群:${String(query.aliasName || query.cluster)}`
+          : (meta.title as string)
       worktabStore.openTab({
-        title: meta.title as string,
+        title,
         icon: meta.icon as string,
         path,
         name: name as string,
         keepAlive: meta.keepAlive as boolean,
         params,
         query,
-        fixedTab: meta.fixedTab as boolean
+        fixedTab: meta.fixedTab as boolean,
+        tabGroup
       })
     }
   }

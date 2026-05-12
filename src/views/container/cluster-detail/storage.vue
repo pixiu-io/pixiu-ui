@@ -111,7 +111,7 @@
           >
             <template #left>
               <div class="workloads-toolbar">
-                <ElButton v-ripple @click="ElMessage.warning('暂不支持，功能开发中')">新建</ElButton>
+                <ElButton v-ripple @click="goCreateStorageClass">新建</ElButton>
                 <div class="workloads-toolbar__filters">
                   <ElInput
                     v-model="scSearchForm.name"
@@ -159,6 +159,19 @@
       width="900px"
       :editor-height="480"
     />
+
+    <K8sYamlDialog
+      v-model="scEditYamlVisible"
+      title="编辑 YAML"
+      :yaml="scEditYamlText"
+      :read-only="false"
+      footer-mode="edit"
+      confirm-text="确认"
+      width="900px"
+      :editor-height="480"
+      :submit-loading="scEditYamlSubmitting"
+      @save="saveScYaml"
+    />
   </div>
 </template>
 
@@ -177,11 +190,11 @@
   import { CopyDocument } from '@element-plus/icons-vue'
   import yaml from 'js-yaml'
   import { computed, h, inject, ref, watch } from 'vue'
-  import { useRoute } from 'vue-router'
+  import { useRoute, useRouter } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
   import { fetchK8sPVCList, fetchK8sPVC, deleteK8sPVC, type K8sPVC } from '@/api/kubernetes/pvc'
   import { fetchK8sPVList, fetchK8sPV, deleteK8sPV, type K8sPV } from '@/api/kubernetes/pv'
-  import { fetchK8sStorageClassList, fetchK8sStorageClass, deleteK8sStorageClass, type K8sStorageClass } from '@/api/kubernetes/storageclass'
+  import { fetchK8sStorageClassList, fetchK8sStorageClass, deleteK8sStorageClass, putK8sStorageClass, type K8sStorageClass } from '@/api/kubernetes/storageclass'
   import { formatNodeCreationTime } from '@/utils/kubernetes/nodeDisplay'
   import { clusterDetailNamespaceKey } from './context'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
@@ -189,7 +202,11 @@
   defineOptions({ name: 'ClusterDetailStorage' })
 
   const route = useRoute()
-  const kind = ref('pvc')
+  const router = useRouter()
+  const tabFromQuery = String(route.query.tab ?? '').toLowerCase()
+  const kind = ref<'pvc' | 'pv' | 'sc'>(
+    tabFromQuery === 'pv' || tabFromQuery === 'sc' ? (tabFromQuery as 'pv' | 'sc') : 'pvc'
+  )
 
   // ── PVC tab state ──
   const pvcSearchForm = ref<{ name?: string }>({})
@@ -209,6 +226,12 @@
   // ── YAML dialog state ──
   const yamlVisible = ref(false)
   const yamlText = ref('')
+
+  // ── SC 编辑 YAML dialog state ──
+  const scEditYamlVisible = ref(false)
+  const scEditYamlText = ref('')
+  const scEditYamlName = ref('')
+  const scEditYamlSubmitting = ref(false)
 
   // ── Shared helpers ──
   function renderNsCell(ns: string) {
@@ -252,6 +275,36 @@
       yamlVisible.value = true
     } catch (e: unknown) {
       ElMessage.error(e instanceof Error ? e.message : '加载失败')
+    }
+  }
+
+  async function openScEditYaml(name: string) {
+    const cluster = String(route.query.cluster ?? '')
+    if (!cluster || !name) return
+    try {
+      const resource = await fetchK8sStorageClass(cluster, name)
+      scEditYamlText.value = yaml.dump(resource, { quotingType: '"' })
+      scEditYamlName.value = name
+      scEditYamlVisible.value = true
+    } catch (e: unknown) {
+      ElMessage.error(e instanceof Error ? e.message : '加载失败')
+    }
+  }
+
+  async function saveScYaml(yamlStr: string) {
+    const cluster = String(route.query.cluster ?? '')
+    if (!cluster || !scEditYamlName.value) return
+    scEditYamlSubmitting.value = true
+    try {
+      const body = yaml.load(yamlStr) as object
+      await putK8sStorageClass(cluster, scEditYamlName.value, body)
+      ElMessage.success('更新成功')
+      scEditYamlVisible.value = false
+      onScRefresh()
+    } catch (e: unknown) {
+      ElMessage.error(e instanceof Error ? e.message : '更新失败')
+    } finally {
+      scEditYamlSubmitting.value = false
     }
   }
 
@@ -355,7 +408,7 @@
           formatter: (row: K8sPVC) =>
             h('div', { style: 'display:flex;align-items:center;gap:12px' }, [
               h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void openYamlDialog('pvc', row.metadata?.namespace ?? '', row.metadata?.name ?? '') }, () => '查看YAML'),
-              h(ElLink, { type: 'danger', underline: 'never', style: 'font-size:12px', onClick: () => void deleteResource('pvc', row.metadata?.namespace ?? '', row.metadata?.name ?? '', onPvcRefresh) }, () => '删除')
+              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void deleteResource('pvc', row.metadata?.namespace ?? '', row.metadata?.name ?? '', onPvcRefresh) }, () => '删除')
             ])
         }
       ]
@@ -470,7 +523,7 @@
           formatter: (row: K8sPV) =>
             h('div', { style: 'display:flex;align-items:center;gap:12px' }, [
               h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void openYamlDialog('pv', '', row.metadata?.name ?? '') }, () => '查看YAML'),
-              h(ElLink, { type: 'danger', underline: 'never', style: 'font-size:12px', onClick: () => void deleteResource('pv', '', row.metadata?.name ?? '', onPvRefresh) }, () => '删除')
+              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void deleteResource('pv', '', row.metadata?.name ?? '', onPvRefresh) }, () => '删除')
             ])
         }
       ]
@@ -547,11 +600,6 @@
             h('span', { style: 'font-size:12px' }, row.volumeBindingMode ?? '—')
         },
         {
-          prop: 'allowVolumeExpansion', label: '允许扩容', width: 90,
-          formatter: (row: K8sStorageClass) =>
-            h(ElTag, { type: row.allowVolumeExpansion ? 'success' : 'info', size: 'small' }, () => row.allowVolumeExpansion ? '是' : '否')
-        },
-        {
           prop: 'metadata.creationTimestamp', label: '创建时间', width: 168, sortable: 'custom',
           formatter: (row: K8sStorageClass) =>
             h('span', { style: 'font-size:12px' }, formatNodeCreationTime(row.metadata?.creationTimestamp))
@@ -560,8 +608,8 @@
           prop: 'operation', label: '操作', width: 160, fixed: 'right',
           formatter: (row: K8sStorageClass) =>
             h('div', { style: 'display:flex;align-items:center;gap:12px' }, [
-              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void openYamlDialog('sc', '', row.metadata?.name ?? '') }, () => '查看YAML'),
-              h(ElLink, { type: 'danger', underline: 'never', style: 'font-size:12px', onClick: () => void deleteResource('sc', '', row.metadata?.name ?? '', onScRefresh) }, () => '删除')
+              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void openScEditYaml(row.metadata?.name ?? '') }, () => '编辑YAML'),
+              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void deleteResource('sc', '', row.metadata?.name ?? '', onScRefresh) }, () => '删除')
             ])
         }
       ]
@@ -583,15 +631,42 @@
     if (prop === 'metadata.creationTimestamp') { scSortOrder.value = (order as 'ascending' | 'descending' | null) ?? null; getScData() }
   }
 
+  function goCreateStorageClass() {
+    router.push({ path: '/container/storageclass-create', query: { cluster: String(route.query.cluster ?? '') } })
+  }
+
   // ── Tab lazy loading ──
   const pvLoaded = ref(false)
   const scLoaded = ref(false)
   watch(kind, (val) => {
+    if (String(route.query.tab ?? '') !== val) {
+      router.replace({
+        query: {
+          ...route.query,
+          tab: val
+        }
+      })
+    }
     const cluster = String(route.query.cluster ?? '')
     if (!cluster) return
     if (val === 'pv' && !pvLoaded.value) { pvLoaded.value = true; getPvData() }
     else if (val === 'sc' && !scLoaded.value) { scLoaded.value = true; getScData() }
   })
+
+  watch(
+    () => String(route.query.cluster ?? ''),
+    (cluster) => {
+      if (!cluster) return
+      if (kind.value === 'pv' && !pvLoaded.value) {
+        pvLoaded.value = true
+        getPvData()
+      } else if (kind.value === 'sc' && !scLoaded.value) {
+        scLoaded.value = true
+        getScData()
+      }
+    },
+    { immediate: true }
+  )
 
   watch(selectedNamespace, () => {
     if (kind.value === 'pvc') getPvcData()

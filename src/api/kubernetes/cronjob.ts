@@ -62,3 +62,8 @@ export async function patchK8sCronJob(cluster: string, namespace: string, name: 
   )
   return data
 }
+
+export async function createK8sCronJob(cluster: string, namespace: string, body: object): Promise<K8sCronJob> {
+  const { data } = await kubeProxyAxios.post<K8sCronJob>(cjBase(cluster, namespace), body)
+  return data
+}

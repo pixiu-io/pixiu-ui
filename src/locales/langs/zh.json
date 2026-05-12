@@ -252,8 +252,7 @@
     },
     "help": {
       "title": "帮助中心",
-      "document": "官方文档",
-      "oldVersion": "v2.6.1 版本"
+      "document": "官方文档"
     }
   },
   "table": {

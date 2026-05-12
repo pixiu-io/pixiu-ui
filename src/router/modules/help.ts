@@ -15,18 +15,6 @@ export const helpRoutes: AppRouteRecord[] = [
     }
   },
   {
-    name: 'OldVersion',
-    path: '',
-    component: '',
-    meta: {
-      title: 'menus.help.oldVersion',
-      icon: 'ri:subway-line',
-      link: WEB_LINKS.OldVersion,
-      isIframe: false,
-      keepAlive: false
-    }
-  },
-  {
     name: 'ChangeLog',
     path: '/change/log',
     component: '/change/log',

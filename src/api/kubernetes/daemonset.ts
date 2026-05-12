@@ -62,3 +62,8 @@ export async function fetchK8sDaemonSet(cluster: string, namespace: string, name
 export async function deleteK8sDaemonSet(cluster: string, namespace: string, name: string): Promise<void> {
   await kubeProxyAxios.delete(`${dsBase(cluster, namespace)}/${encodeURIComponent(name)}`)
 }
+
+export async function createK8sDaemonSet(cluster: string, namespace: string, body: object): Promise<K8sDaemonSet> {
+  const { data } = await kubeProxyAxios.post<K8sDaemonSet>(dsBase(cluster, namespace), body)
+  return data
+}

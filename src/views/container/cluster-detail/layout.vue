@@ -237,7 +237,9 @@
     if (name === undefined || name === null || name === '') return
     const s = String(name)
     if (s === String(route.query.cluster ?? '')) return
-    router.push({ path: route.path, query: { cluster: s } })
+    const selected = clusterListItems.value.find((c) => c.name === s)
+    const aliasName = selected?.aliasName || s
+    router.push({ path: route.path, query: { cluster: s, aliasName } })
   }
 
   watch(
@@ -333,11 +335,14 @@
 
   function preservedQuery(): Record<string, string> {
     const c = route.query.cluster
-    if (c != null && c !== '') return { cluster: String(c) }
-    return {}
+    if (c == null || c === '') return {}
+    const q: Record<string, string> = { cluster: String(c) }
+    const a = route.query.aliasName
+    if (a != null && a !== '') q.aliasName = String(a)
+    return q
   }
 
-  /** 去掉历史书签里的 alias/status 等参数，只保留 cluster */
+  /** 去掉历史书签里的 alias/status 等参数，只保留 cluster 和 aliasName */
   watch(
     () => [route.path, route.query] as const,
     () => {
@@ -348,6 +353,8 @@
         const q: Record<string, string> = { cluster: String(cluster) }
         const ot = route.query.overviewTab
         if (typeof ot === 'string' && ot !== '') q.overviewTab = ot
+        const an = route.query.aliasName
+        if (typeof an === 'string' && an !== '') q.aliasName = an
         router.replace({ path: route.path, query: q })
       }
     },

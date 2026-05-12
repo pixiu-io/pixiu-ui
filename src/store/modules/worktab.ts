@@ -122,9 +122,14 @@ export const useWorktabStore = defineStore(
         removeKeepAliveExclude(tab.name)
       }
 
-      // 先根据路由名称查找（应对动态路由参数导致的多开问题），找不到再根据路径查找
+      // 优先按 tabGroup 查找（同组路由复用同一标签页，如集群详情各子页）
       let existingIndex = -1
-      if (tab.name) {
+      if (tab.tabGroup) {
+        existingIndex = opened.value.findIndex((t) => t.tabGroup === tab.tabGroup)
+      }
+
+      // 再根据路由名称查找（应对动态路由参数导致的多开问题），找不到再根据路径查找
+      if (existingIndex === -1 && tab.name) {
         existingIndex = opened.value.findIndex((t) => t.name === tab.name)
       }
       if (existingIndex === -1) {

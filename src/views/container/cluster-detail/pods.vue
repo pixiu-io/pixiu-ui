@@ -530,7 +530,7 @@
               h(ArtButtonMore, {
                 list: [
                   { key: 'yaml', label: '查看YAML', icon: 'ri:file-code-line' },
-                  { key: 'delete', label: '删除', icon: 'ri:delete-bin-4-line', color: '#f56c6c' }
+                  { key: 'delete', label: '删除', icon: 'ri:delete-bin-4-line', color: '#409eff' }
                 ],
                 onClick: (item: ButtonMoreItem) => podMoreClick(item, row)
               })

@@ -23,7 +23,7 @@
           <ElButton v-ripple @click="openYamlEditor">YAML创建</ElButton>
           <ArtButtonMore
             :list="[
-              { key: 'delete', label: '删除', icon: 'ri:delete-bin-4-line', color: '#f56c6c' }
+              { key: 'delete', label: '删除', icon: 'ri:delete-bin-4-line', color: '#409eff' }
             ]"
             @click="onMoreClick"
           />

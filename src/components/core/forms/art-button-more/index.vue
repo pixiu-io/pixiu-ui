@@ -11,8 +11,7 @@
               :disabled="item.disabled"
               @click="handleClick(item)"
             >
-              <div class="flex-c gap-2" :style="{ color: item.color }">
-                <ArtSvgIcon v-if="item.icon" :icon="item.icon" />
+              <div class="flex-c" :style="{ color: item.color }">
                 <span>{{ item.label }}</span>
               </div>
             </ElDropdownItem>

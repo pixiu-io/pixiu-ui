@@ -10,7 +10,7 @@
         <ElBreadcrumbItem :to="{ path: '/container/workloads', query: { cluster } }"
           >工作负载</ElBreadcrumbItem
         >
-        <ElBreadcrumbItem>创建 Deployment</ElBreadcrumbItem>
+        <ElBreadcrumbItem>创建 Job</ElBreadcrumbItem>
       </ElBreadcrumb>
     </div>
 
@@ -28,7 +28,7 @@
             <div class="dc-field-col">
               <ElInput
                 v-model="form.name"
-                placeholder="请输入 Deployment 名称"
+                placeholder="请输入 Job 名称"
                 style="width: 280px"
               />
               <div class="dc-field-tip"
@@ -88,6 +88,57 @@
               >
             </div>
           </ElFormItem>
+
+          <!-- Job 设置 -->
+          <ElDivider content-position="left" class="dc-section-divider-top">Job 设置</ElDivider>
+          <ElFormItem label="Job设置" class="dc-job-settings-form-item">
+            <div class="dc-job-settings">
+              <div class="dc-job-settings-row">
+                <span class="dc-job-settings-label">
+                  重复次数
+                  <ElTooltip content="Pod 成功运行的次数，默认为 1" placement="top">
+                    <ElIcon class="lifecycle-info-icon"><InfoFilled /></ElIcon>
+                  </ElTooltip>
+                </span>
+                <ElInputNumber v-model="form.completions" :min="1" :precision="0" style="width: 130px" />
+                <span class="dc-job-settings-tip">默认为 1</span>
+              </div>
+              <div class="dc-job-settings-row">
+                <span class="dc-job-settings-label">
+                  并行度
+                  <ElTooltip content="同时运行的 Pod 数量，默认为 1" placement="top">
+                    <ElIcon class="lifecycle-info-icon"><InfoFilled /></ElIcon>
+                  </ElTooltip>
+                </span>
+                <ElInputNumber v-model="form.parallelism" :min="1" :precision="0" style="width: 130px" />
+                <span class="dc-job-settings-tip">默认为 1</span>
+              </div>
+              <div class="dc-job-settings-row">
+                <span class="dc-job-settings-label">
+                  失败重启策略
+                  <ElTooltip content="容器失败时的重启策略" placement="top">
+                    <ElIcon class="lifecycle-info-icon"><InfoFilled /></ElIcon>
+                  </ElTooltip>
+                </span>
+                <ElSelect v-model="form.restartPolicy" style="width: 160px">
+                  <ElOption label="OnFailure" value="OnFailure" />
+                  <ElOption label="Never" value="Never" />
+                </ElSelect>
+                <span class="dc-job-settings-tip">容器失败时的重启策略</span>
+              </div>
+            </div>
+          </ElFormItem>
+
+          <!-- 可抢占 -->
+          <ElFormItem label="可抢占">
+            <div class="advanced-field-wrap">
+              <ElSwitch v-model="form.preemptible" />
+              <div class="dc-field-tip"
+                >开启后，Pod 使用 preemptible 优先级，可被更高优先级任务抢占调度资源</div
+              >
+            </div>
+          </ElFormItem>
+
           <ElFormItem label="数据卷（选填）">
             <div class="dc-field-col">
               <div class="kv-list">
@@ -118,9 +169,6 @@
                 >为容器提供存储，目前支持临时路径（emptyDir）和配置文件（ConfigMap），还需在容器配置中挂载到指定路径</div
               >
             </div>
-          </ElFormItem>
-          <ElFormItem label="实例数量" prop="replicas">
-            <ElInputNumber v-model="form.replicas" :min="0" :precision="0" />
           </ElFormItem>
           <ElFormItem label="实例内容器" class="container-form-item">
             <div class="container-pane">
@@ -848,219 +896,14 @@
               </div>
             </div>
           </ElFormItem>
-          <div class="advanced-toggle-row">
-            <ElButton
-              link
-              type="primary"
-              class="kv-add-btn"
-              @click="showAdvancedOptions = !showAdvancedOptions"
-            >
-              {{ showAdvancedOptions ? '隐藏高级选项' : '显示高级选项' }}
-            </ElButton>
-          </div>
-          <template v-if="showAdvancedOptions">
-            <ElFormItem label="更新方式">
-              <ElRadioGroup v-model="form.strategyType">
-                <ElRadio value="RollingUpdate">滚动更新</ElRadio>
-                <ElRadio value="Recreate">重建更新</ElRadio>
-              </ElRadioGroup>
-            </ElFormItem>
-            <ElFormItem label="最小就绪秒数">
-              <div class="dc-field-col">
-                <ElInputNumber
-                  v-model="form.minReadySeconds"
-                  :min="0"
-                  :precision="0"
-                  style="width: 160px"
-                />
-                <div class="dc-field-tip">Pod 最少就绪秒数，默认为 0 秒（即可用即视为就绪）</div>
-              </div>
-            </ElFormItem>
-            <template v-if="form.strategyType === 'RollingUpdate'">
-              <ElFormItem label="最大不可用">
-                <div class="dc-field-col">
-                  <ElInput v-model="form.maxUnavailable" style="width: 160px" placeholder="25%" />
-                  <div class="dc-field-tip">
-                    滚动更新期间允许不可用的 Pod 最大数量或比例，默认 25%
-                  </div>
-                </div>
-              </ElFormItem>
-              <ElFormItem label="最大超出">
-                <div class="dc-field-col">
-                  <ElInput v-model="form.maxSurge" style="width: 160px" placeholder="25%" />
-                  <div class="dc-field-tip">
-                    滚动更新期间允许超出期望副本数的 Pod 最大数量或比例，默认 25%
-                  </div>
-                </div>
-              </ElFormItem>
-            </template>
-          </template>
-
-          <!-- ── 访问设置（Service） ── -->
-          <ElDivider content-position="left">访问设置（Service）</ElDivider>
-
-          <ElFormItem label="Service">
-            <ElCheckbox v-model="form.svc.enabled">启用</ElCheckbox>
-          </ElFormItem>
-
-          <template v-if="form.svc.enabled">
-            <ElFormItem label="服务名称">
-              <ElInput
-                v-model="form.svc.name"
-                placeholder="不填默认与工作负载名称相同"
-                style="width: 300px"
-              />
-            </ElFormItem>
-
-            <ElFormItem label="服务访问方式">
-              <div class="dc-field-col">
-                <ElRadioGroup v-model="form.svc.serviceType">
-                  <ElRadio value="ClusterIP">仅在集群内访问</ElRadio>
-                  <ElRadio value="NodePort">主机端口访问</ElRadio>
-                  <ElRadio value="LoadBalancer">LoadBalancer</ElRadio>
-                </ElRadioGroup>
-                <div class="dc-field-tip">
-                  <template v-if="form.svc.serviceType === 'ClusterIP'"
-                    >即 ClusterIP 类型，将提供一个可以被集群内其他服务或容器访问的入口，支持 TCP/UDP
-                    协议</template
-                  >
-                  <template v-else-if="form.svc.serviceType === 'NodePort'"
-                    >即 NodePort 类型，将在所有节点上开放一个端口，集群外可通过
-                    &lt;NodeIP&gt;:&lt;NodePort&gt; 访问</template
-                  >
-                  <template v-else
-                    >即 LoadBalancer 类型，将在集群外部创建一个负载均衡器，分配公网或内网
-                    IP</template
-                  >
-                </div>
-                <div v-if="form.svc.serviceType === 'ClusterIP'" class="dc-headless-row">
-                  <ElCheckbox v-model="form.svc.headless">Headless Service</ElCheckbox>
-                  <span class="dc-field-tip dc-headless-tip"
-                    >（Headless Service 将 clusterIP 设为 None，DNS 直接返回 Pod
-                    IP，只支持创建时选择，创建完成后不支持变更访问方式）</span
-                  >
-                </div>
-              </div>
-            </ElFormItem>
-
-            <ElFormItem label="端口映射">
-              <div class="dc-svc-field-col">
-                <div v-if="form.svc.ports.length" class="dc-svc-port-table-box">
-                  <div class="dc-svc-port-table-header">
-                    <span class="dc-svc-port-col-protocol">协议</span>
-                    <span class="dc-svc-port-col-port">Service 端口</span>
-                    <span class="dc-svc-port-col-port">容器端口</span>
-                    <span v-if="form.svc.serviceType === 'NodePort'" class="dc-svc-port-col-port"
-                      >节点端口</span
-                    >
-                    <span class="dc-svc-port-col-name">端口名称</span>
-                    <span class="dc-svc-port-col-action"></span>
-                  </div>
-                  <div
-                    v-for="(p, idx) in form.svc.ports"
-                    :key="`svc-port-${idx}`"
-                    class="dc-svc-port-table-row"
-                  >
-                    <ElSelect v-model="p.protocol" class="dc-svc-port-col-protocol">
-                      <ElOption label="TCP" value="TCP" />
-                      <ElOption label="UDP" value="UDP" />
-                    </ElSelect>
-                    <ElInput
-                      v-model="p.port"
-                      class="dc-svc-port-col-port"
-                      placeholder="建议与容器端口保持一致"
-                      @input="(v: string) => (p.port = v.replace(/\D/g, ''))"
-                    />
-                    <ElInput
-                      v-model="p.targetPort"
-                      class="dc-svc-port-col-port"
-                      placeholder="容器内程序监听端口"
-                    />
-                    <ElInput
-                      v-if="form.svc.serviceType === 'NodePort'"
-                      v-model="p.nodePort"
-                      class="dc-svc-port-col-port"
-                      placeholder="30000-32767"
-                      @input="(v: string) => (p.nodePort = v.replace(/\D/g, ''))"
-                    />
-                    <ElInput v-model="p.name" class="dc-svc-port-col-name" placeholder="可选" />
-                    <ElButton
-                      link
-                      type="primary"
-                      class="kv-del-btn dc-svc-port-col-action"
-                      @click="form.svc.ports.splice(idx, 1)"
-                      ><ElIcon><Close /></ElIcon
-                    ></ElButton>
-                  </div>
-                </div>
-                <ElButton link type="primary" class="kv-add-btn" @click="addSvcPort"
-                  >添加端口</ElButton
-                >
-                <div class="dc-field-tip"
-                  >Service 端口为对外暴露的端口，容器端口为 Pod 实际监听的端口（支持端口名）</div
-                >
-              </div>
-            </ElFormItem>
-
-            <ElFormItem
-              v-if="form.svc.serviceType === 'NodePort' || form.svc.serviceType === 'LoadBalancer'"
-              label="ExternalTrafficPolicy"
-            >
-              <div class="dc-field-col">
-                <ElRadioGroup v-model="form.svc.externalTrafficPolicy">
-                  <ElRadio value="Cluster">Cluster</ElRadio>
-                  <ElRadio value="Local">Local</ElRadio>
-                </ElRadioGroup>
-                <div v-if="form.svc.externalTrafficPolicy === 'Cluster'" class="dc-field-tip"
-                  >默认均衡转发到工作负载的所有Pod</div
-                >
-                <div v-else class="dc-field-tip dc-etp-local-tip"
-                  >能够保留来源IP，并可以保证公网、VPC内网访问（LoadBalancer）和主机端口访问（NodePort）模式下流量仅在本节点转发。Local转发使部分没有业务Pod存在的节点健康检查失败，可能存在流量不均衡的转发的风险。</div
-                >
-              </div>
-            </ElFormItem>
-
-            <ElFormItem label="会话保持">
-              <div class="dc-field-col">
-                <ElRadioGroup v-model="form.svc.sessionAffinity">
-                  <ElRadio value="None">不启用</ElRadio>
-                  <ElRadio value="ClientIP">ClientIP</ElRadio>
-                </ElRadioGroup>
-                <div v-if="form.svc.sessionAffinity === 'ClientIP'" class="dc-field-tip"
-                  >基于客户端 IP 做会话保持，同一 IP 的请求将路由到同一个 Pod</div
-                >
-              </div>
-            </ElFormItem>
-
-            <ElFormItem v-if="form.svc.sessionAffinity === 'ClientIP'" label="最大会话保持时间">
-              <div class="dc-field-col">
-                <div class="dc-svc-timeout-ctrl">
-                  <ElButton class="dc-svc-timeout-btn" @click="decreaseSvcTimeout">−</ElButton>
-                  <span class="dc-svc-timeout-value">{{ form.svc.sessionAffinityTimeout }}</span>
-                  <ElButton class="dc-svc-timeout-btn" @click="increaseSvcTimeout">+</ElButton>
-                  <span class="dc-svc-timeout-unit">秒</span>
-                </div>
-                <div class="dc-field-tip">会话保持时间范围为0-86400</div>
-              </div>
-            </ElFormItem>
-          </template>
         </ElForm>
       </div>
 
       <div class="deploy-create-footer">
         <ElButton @click="goBack">取消</ElButton>
-        <ElButton type="primary" :loading="submitting" @click="submit">创建 Deployment</ElButton>
+        <ElButton type="primary" :loading="submitting" @click="submit">创建 Job</ElButton>
       </div>
     </ElCard>
-
-    <K8sYamlDialog
-      v-model="yamlVisible"
-      title="预览 YAML"
-      :yaml="yamlText"
-      read-only
-      width="900px"
-      :editor-height="480"
-    />
 
     <ElDialog
       v-model="volumeDialogVisible"
@@ -1157,14 +1000,11 @@
     InfoFilled
   } from '@element-plus/icons-vue'
   import { useRoute, useRouter } from 'vue-router'
-  import yaml from 'js-yaml'
-  import { createK8sDeployment } from '@/api/kubernetes/deployment'
-  import { createK8sService } from '@/api/kubernetes/service'
+  import { createK8sJob } from '@/api/kubernetes/job'
   import { fetchK8sNamespaceList } from '@/api/kubernetes/namespace'
   import { fetchK8sSecretList } from '@/api/kubernetes/secret'
-  import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
 
-  defineOptions({ name: 'DeploymentCreatePage' })
+  defineOptions({ name: 'JobCreatePage' })
 
   const route = useRoute()
   const router = useRouter()
@@ -1172,17 +1012,7 @@
   const defaultNamespace = computed(() => String(route.query.namespace ?? ''))
 
   const namespaces = ref<string[]>([])
-  const yamlVisible = ref(false)
-  const yamlText = ref('')
   const submitting = ref(false)
-
-  type SvcPortEntry = {
-    name: string
-    protocol: string
-    port: string
-    targetPort: string
-    nodePort: string
-  }
 
   type ContainerConfig = {
     name: string
@@ -1285,7 +1115,6 @@
   const form = ref({
     name: '',
     namespace: '',
-    replicas: 1,
     labels: [] as Array<{ key: string; value: string }>,
     annotations: [] as Array<{ key: string; value: string }>,
     volumes: [] as Array<{
@@ -1295,26 +1124,12 @@
       configMapKey: string
     }>,
     containers: [newContainer(0)] as ContainerConfig[],
-    strategyType: 'RollingUpdate',
-    maxUnavailable: '25%',
-    maxSurge: '25%',
-    minReadySeconds: 0,
-    updatePolicy: 'start-first' as 'start-first' | 'stop-first' | 'custom',
-    updateBatchSize: 1,
+    completions: 1,
+    parallelism: 1,
+    restartPolicy: 'OnFailure' as 'OnFailure' | 'Never',
     imagePullSecret: '',
     schedulingPolicy: 'default' as 'default' | 'custom',
-    svc: {
-      enabled: false,
-      name: '',
-      serviceType: 'ClusterIP' as 'ClusterIP' | 'NodePort' | 'LoadBalancer',
-      headless: false,
-      ports: [
-        { name: '', protocol: 'TCP', port: '', targetPort: '', nodePort: '' }
-      ] as SvcPortEntry[],
-      sessionAffinity: 'None' as 'None' | 'ClientIP',
-      sessionAffinityTimeout: 30,
-      externalTrafficPolicy: 'Cluster' as 'Cluster' | 'Local'
-    }
+    preemptible: false
   })
 
   const basicFormRef = ref<FormInstance>()
@@ -1367,9 +1182,6 @@
   }
   function removeVolumeMount(index: number) {
     form.value.containers[activeContainerIdx.value].volumeMounts.splice(index, 1)
-  }
-  function addVolume() {
-    form.value.volumes.push({ name: '', type: 'emptyDir', configMapName: '', configMapKey: '' })
   }
   function removeVolume(index: number) {
     form.value.volumes.splice(index, 1)
@@ -1465,18 +1277,6 @@
     form.value.containers[activeContainerIdx.value].ports.splice(index, 1)
   }
 
-  function addSvcPort() {
-    form.value.svc.ports.push({ name: '', protocol: 'TCP', port: '', targetPort: '', nodePort: '' })
-  }
-  function decreaseSvcTimeout() {
-    form.value.svc.sessionAffinityTimeout = Math.max(0, form.value.svc.sessionAffinityTimeout - 1)
-  }
-  function increaseSvcTimeout() {
-    form.value.svc.sessionAffinityTimeout = Math.min(
-      86400,
-      form.value.svc.sessionAffinityTimeout + 1
-    )
-  }
   function addEnv() {
     form.value.containers[activeContainerIdx.value].envs.push({
       name: '',
@@ -1701,7 +1501,7 @@
     }
   }
 
-  function buildDeploymentManifest() {
+  function buildJobManifest() {
     const labels = kvPairsToObject(form.value.labels)
     const annotations = kvPairsToObject(form.value.annotations)
     const appLabel = labels.app || form.value.name
@@ -1780,8 +1580,8 @@
     })
 
     return {
-      apiVersion: 'apps/v1',
-      kind: 'Deployment',
+      apiVersion: 'batch/v1',
+      kind: 'Job',
       metadata: {
         name: form.value.name.trim(),
         namespace: form.value.namespace,
@@ -1789,23 +1589,15 @@
         annotations
       },
       spec: {
-        replicas: form.value.replicas,
-        selector: { matchLabels: { app: appLabel } },
-        strategy:
-          form.value.strategyType === 'RollingUpdate'
-            ? {
-                type: 'RollingUpdate',
-                rollingUpdate: {
-                  maxUnavailable: form.value.maxUnavailable || '25%',
-                  maxSurge: form.value.maxSurge || '25%'
-                }
-              }
-            : { type: 'Recreate' },
+        completions: form.value.completions,
+        parallelism: form.value.parallelism,
         template: {
           metadata: { labels: { app: appLabel, ...finalLabels } },
           spec: {
+            restartPolicy: form.value.restartPolicy,
             containers,
-            ...(volumes.length ? { volumes } : {})
+            ...(volumes.length ? { volumes } : {}),
+            ...(form.value.preemptible ? { priorityClassName: 'preemptible' } : {})
           }
         }
       }
@@ -1813,14 +1605,7 @@
   }
 
   function goBack() {
-    router.push({ path: '/container/workloads', query: { cluster: cluster.value } })
-  }
-
-  function previewYaml() {
-    if (!validateResourceFormats()) return
-    if (!validateContainerSemantics()) return
-    yamlText.value = yaml.dump(buildDeploymentManifest(), { quotingType: '"' })
-    yamlVisible.value = true
+    router.push({ path: '/container/workloads', query: { cluster: cluster.value, tab: 'job' } })
   }
 
   async function submit() {
@@ -1846,66 +1631,9 @@
     if (!validateContainerSemantics()) return
     submitting.value = true
     try {
-      const manifest = buildDeploymentManifest()
-      await createK8sDeployment(cluster.value, form.value.namespace, manifest)
-
-      // 联动创建 Service（仅在启用且有有效端口时）
-      const svc = form.value.svc
-      if (svc.enabled) {
-        const svcPorts = svc.ports
-          .map((p) => {
-            const port = parseInt(p.port)
-            if (!port || port < 1 || port > 65535) return null
-            const targetPort = /^\d+$/.test(p.targetPort.trim())
-              ? parseInt(p.targetPort.trim())
-              : p.targetPort.trim() || port
-            const entry: Record<string, unknown> = { protocol: p.protocol, port, targetPort }
-            if (p.name.trim()) entry.name = p.name.trim()
-            if (svc.serviceType === 'NodePort' && p.nodePort) {
-              const np = parseInt(p.nodePort)
-              if (np >= 30000 && np <= 32767) entry.nodePort = np
-            }
-            return entry
-          })
-          .filter(Boolean)
-
-        if (svcPorts.length) {
-          const appLabel = form.value.name.trim()
-          const svcName = svc.name.trim() || appLabel
-          const svcSpec: Record<string, unknown> = {
-            type: svc.serviceType,
-            selector: { app: appLabel },
-            ports: svcPorts,
-            sessionAffinity: svc.sessionAffinity
-          }
-          if (svc.serviceType === 'ClusterIP' && svc.headless) svcSpec.clusterIP = 'None'
-          if (svc.serviceType === 'NodePort' || svc.serviceType === 'LoadBalancer') {
-            svcSpec.externalTrafficPolicy = svc.externalTrafficPolicy
-          }
-          if (svc.sessionAffinity === 'ClientIP') {
-            svcSpec.sessionAffinityConfig = {
-              clientIP: { timeoutSeconds: svc.sessionAffinityTimeout }
-            }
-          }
-          const svcManifest = {
-            apiVersion: 'v1',
-            kind: 'Service',
-            metadata: { name: svcName, namespace: form.value.namespace },
-            spec: svcSpec
-          }
-          try {
-            await createK8sService(cluster.value, form.value.namespace, svcManifest)
-          } catch (e: unknown) {
-            ElMessage.warning(
-              `Deployment 创建成功，但 Service 创建失败：${e instanceof Error ? e.message : '未知错误'}`
-            )
-            goBack()
-            return
-          }
-        }
-      }
-
-      ElMessage.success(`Deployment(${form.value.name}) 创建成功`)
+      const manifest = buildJobManifest()
+      await createK8sJob(cluster.value, form.value.namespace, manifest)
+      ElMessage.success(`Job(${form.value.name}) 创建成功`)
       goBack()
     } catch (e: unknown) {
       ElMessage.error(e instanceof Error ? e.message : '创建失败')
@@ -1947,7 +1675,6 @@
   }
 
   const showPullSecretSelect = ref(false)
-  const showAdvancedOptions = ref(false)
   const showContainerAdvancedConfig = ref(false)
 
   function onAddPullSecret() {
@@ -2098,7 +1825,6 @@
     padding-right: 16px;
   }
 
-  /* 全局：所有 placeholder 和 checkbox label 12px */
   .dc-form :deep(.el-input__placeholder),
   .dc-form :deep(.el-textarea__placeholder) {
     font-size: 12px;
@@ -2108,7 +1834,6 @@
     font-size: 12px;
   }
 
-  /* Section divider: reduce top margin for first divider in a tab */
   .dc-section-divider-top {
     margin-top: 16px;
   }
@@ -2546,13 +2271,6 @@
     line-height: 1.5;
   }
 
-  .probe-grid {
-    width: 100%;
-    display: grid;
-    grid-template-columns: repeat(5, minmax(120px, 1fr));
-    gap: 8px;
-  }
-
   .health-check-form-item :deep(.el-form-item__label) {
     display: flex;
     align-items: center;
@@ -2735,18 +2453,19 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 4px;
+    gap: 8px;
   }
 
   .pull-secret-row {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
   }
 
   .pull-secret-icon-btn {
-    color: var(--el-text-color-secondary);
+    padding: 4px;
     font-size: 14px;
+    color: var(--el-text-color-secondary);
   }
 
   .pull-secret-icon-btn:hover {
@@ -2765,15 +2484,6 @@
   }
 
   .scheduling-policy-wrap :deep(.el-radio__label) {
-    font-size: 12px;
-  }
-
-  .advanced-toggle-row {
-    padding-left: 140px;
-    margin-bottom: 12px;
-  }
-
-  .advanced-toggle-row .kv-add-btn {
     font-size: 12px;
   }
 
@@ -2814,29 +2524,6 @@
     font-size: 12px;
   }
 
-  .strategy-config-block {
-    background: var(--el-fill-color-light);
-    border-radius: 6px;
-    padding: 12px 16px;
-    width: 100%;
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .strategy-config-row {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .strategy-config-label {
-    font-size: 13px;
-    color: var(--el-text-color-regular);
-    min-width: 108px;
-  }
-
   .vol-display-row {
     display: flex;
     align-items: center;
@@ -2859,155 +2546,49 @@
     gap: 0;
   }
 
-  .pull-secret-wrap {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .pull-secret-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .pull-secret-icon-btn {
-    padding: 4px;
-    font-size: 14px;
-  }
-
-  .scheduling-policy-wrap {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-  }
-
-  /* ── 访问设置（Service）section ── */
-  .dc-headless-row {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-  }
-
-  .dc-headless-tip {
-    white-space: nowrap;
-    margin-left: 4px;
-  }
-
-  .dc-etp-local-tip {
-    white-space: nowrap;
-  }
-
-  .dc-svc-field-col {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-    width: 100%;
-  }
-
-  .dc-svc-port-table-box {
-    width: 100%;
-    border: 1px solid var(--el-border-color-light);
-    border-radius: 6px;
-    overflow: hidden;
-    background: var(--el-bg-color-overlay);
-  }
-
-  .dc-svc-port-table-header,
-  .dc-svc-port-table-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 10px;
-  }
-
-  .dc-svc-port-table-header {
-    background: var(--el-fill-color-light);
-    font-size: 12px;
-    color: var(--el-text-color-secondary);
-    font-weight: 500;
-  }
-
-  .dc-svc-port-table-row {
-    border-top: 1px solid var(--el-border-color-lighter);
-  }
-
-  .dc-svc-port-col-protocol {
-    width: 80px;
-    flex-shrink: 0;
-    font-size: 12px;
-  }
-
-  .dc-svc-port-col-port {
-    width: 180px;
-    flex-shrink: 0;
-    font-size: 12px;
-  }
-
-  .dc-svc-port-col-name {
-    width: 150px;
-    flex-shrink: 0;
-    font-size: 12px;
-  }
-
-  .dc-svc-port-col-action {
-    width: 28px;
-    flex-shrink: 0;
-    margin-left: auto;
-  }
-
-  .dc-svc-timeout-ctrl {
-    display: inline-flex;
-    align-items: center;
-    border: 1px solid var(--el-border-color);
-    border-radius: 4px;
-    overflow: hidden;
-  }
-
-  .dc-svc-timeout-btn {
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    border-radius: 0;
-    border: none;
-    background: var(--el-fill-color-light);
-    font-size: 14px;
-    flex-shrink: 0;
-  }
-
-  .dc-svc-timeout-value {
-    min-width: 48px;
-    text-align: center;
-    font-size: 13px;
-    padding: 0 8px;
-    height: 32px;
-    line-height: 32px;
-    border-left: 1px solid var(--el-border-color);
-    border-right: 1px solid var(--el-border-color);
-    color: var(--el-text-color-primary);
-  }
-
-  .dc-svc-timeout-unit {
-    font-size: 12px;
-    margin-left: 8px;
-    color: var(--el-text-color-regular);
-  }
-
-  /* 访问设置（Service）区域字体统一 12px */
-  .dc-headless-row :deep(.el-checkbox__label),
   .dc-field-col :deep(.el-radio__label),
   .dc-field-col :deep(.el-checkbox__label),
-  .dc-svc-field-col :deep(.el-input__inner),
-  .dc-svc-field-col :deep(.el-input__placeholder),
-  .dc-svc-field-col :deep(.el-select__placeholder),
-  .dc-svc-field-col :deep(.el-select__selected-item),
   .dc-field-col :deep(.el-input__inner),
   .dc-field-col :deep(.el-input__placeholder),
   .dc-field-col :deep(.el-select__placeholder),
   .dc-field-col :deep(.el-select__selected-item) {
     font-size: 12px;
+  }
+
+  /* Job 设置灰底区域 */
+  .dc-job-settings-form-item :deep(.el-form-item__content) {
+    flex: 1;
+  }
+
+  .dc-job-settings {
+    background: var(--el-fill-color-light, #f5f7fa);
+    border-radius: 6px;
+    padding: 14px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .dc-job-settings-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .dc-job-settings-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    width: 96px;
+    flex-shrink: 0;
+    font-size: 12px;
+    color: var(--el-text-color-regular);
+  }
+
+  .dc-job-settings-tip {
+    font-size: 12px;
+    color: var(--el-text-color-placeholder);
   }
 </style>

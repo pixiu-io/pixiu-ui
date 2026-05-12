@@ -1,13 +1,18 @@
 <template>
   <ElDialog
     v-model="visible"
-    :title="title"
     :width="width"
-    destroy-on-close
     align-center
+    destroy-on-close
     class="k8s-yaml-dialog"
     :close-on-click-modal="false"
   >
+    <template #header>
+      <div class="k8s-yaml-dialog__header-content">
+        <span class="k8s-yaml-dialog__title">{{ title }}</span>
+        <ElButton v-if="showCopy" class="k8s-yaml-dialog__copy-btn" @click="copyAll">复制</ElButton>
+      </div>
+    </template>
     <div class="k8s-yaml-dialog__editor-wrap">
       <K8sMonacoEditor
         v-if="visible"
@@ -18,14 +23,17 @@
     </div>
     <template #footer>
       <div class="k8s-yaml-dialog__footer">
-        <ElButton v-if="showCopy" @click="copyAll">复制</ElButton>
         <template v-if="footerMode === 'edit'">
           <ElButton @click="close">{{ cancelText }}</ElButton>
-          <ElButton type="primary" :loading="submitLoading" @click="onSave">{{ confirmText }}</ElButton>
+          <ElButton type="primary" :loading="submitLoading" @click="onSave">{{
+            confirmText
+          }}</ElButton>
         </template>
         <template v-else>
           <ElButton class="k8s-yaml-dialog__btn-close" @click="close">{{ closeText }}</ElButton>
-          <ElButton type="primary" :loading="submitLoading" @click="onDashboardConfirm">{{ confirmText }}</ElButton>
+          <ElButton type="primary" :loading="submitLoading" @click="onDashboardConfirm">{{
+            confirmText
+          }}</ElButton>
         </template>
       </div>
     </template>
@@ -106,8 +114,30 @@
 </script>
 
 <style scoped lang="scss">
+  .k8s-yaml-dialog__header-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    // 为右上角关闭按钮预留空间
+    padding-right: 28px;
+  }
+
+  .k8s-yaml-dialog__title {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--el-text-color-primary);
+  }
+
+  .k8s-yaml-dialog__copy-btn {
+    margin-top: 5px;
+    margin-bottom: -25px;
+    width: 85px;
+  }
+
   .k8s-yaml-dialog__editor-wrap {
-    margin: 0 -4px;
+    margin: 0;
   }
 
   .k8s-yaml-dialog__footer {

@@ -30,14 +30,15 @@ const clusterDetailChildren: AppRouteRecord[] = [
   meta: {
     title: 'menus.container.clusterDetail',
     isHide: true,
-    keepAlive: false
+    keepAlive: false,
+    tabGroup: 'clusterDetail'
   },
   children: [
     {
       path: '',
       name: c.name,
       component: c.component,
-      meta: { title: 'menus.container.clusterDetail' }
+      meta: { title: 'menus.container.clusterDetail', tabGroup: 'clusterDetail' }
     }
   ]
 }))
@@ -82,6 +83,26 @@ export const containerRoutes: AppRouteRecord = {
       }
     },
     {
+      path: 'secret-create',
+      name: 'SecretCreate',
+      component: '/container/cluster-detail/secret-create/index',
+      meta: {
+        title: '创建 Secret',
+        isHide: true,
+        keepAlive: false
+      }
+    },
+    {
+      path: 'configmap-create',
+      name: 'ConfigMapCreate',
+      component: '/container/cluster-detail/configmap-create/index',
+      meta: {
+        title: '创建 ConfigMap',
+        isHide: true,
+        keepAlive: false
+      }
+    },
+    {
       path: 'service-create',
       name: 'ServiceCreate',
       component: '/container/cluster-detail/service-create/index',
@@ -97,6 +118,56 @@ export const containerRoutes: AppRouteRecord = {
       component: '/container/cluster-detail/ingress-create/index',
       meta: {
         title: '创建 Ingress',
+        isHide: true,
+        keepAlive: false
+      }
+    },
+    {
+      path: 'storageclass-create',
+      name: 'StorageClassCreate',
+      component: '/container/cluster-detail/storageclass-create/index',
+      meta: {
+        title: '创建 StorageClass',
+        isHide: true,
+        keepAlive: false
+      }
+    },
+    {
+      path: 'job-create',
+      name: 'JobCreate',
+      component: '/container/cluster-detail/job-create/index',
+      meta: {
+        title: '创建 Job',
+        isHide: true,
+        keepAlive: false
+      }
+    },
+    {
+      path: 'cronjob-create',
+      name: 'CronJobCreate',
+      component: '/container/cluster-detail/cronjob-create/index',
+      meta: {
+        title: '创建 CronJob',
+        isHide: true,
+        keepAlive: false
+      }
+    },
+    {
+      path: 'statefulset-create',
+      name: 'StatefulSetCreate',
+      component: '/container/cluster-detail/statefulset-create/index',
+      meta: {
+        title: '创建 StatefulSet',
+        isHide: true,
+        keepAlive: false
+      }
+    },
+    {
+      path: 'daemonset-create',
+      name: 'DaemonSetCreate',
+      component: '/container/cluster-detail/daemonset-create/index',
+      meta: {
+        title: '创建 DaemonSet',
         isHide: true,
         keepAlive: false
       }

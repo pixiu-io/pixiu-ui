@@ -10,7 +10,7 @@
         <ElBreadcrumbItem :to="{ path: '/container/workloads', query: { cluster } }"
           >工作负载</ElBreadcrumbItem
         >
-        <ElBreadcrumbItem>创建 Deployment</ElBreadcrumbItem>
+        <ElBreadcrumbItem>创建 StatefulSet</ElBreadcrumbItem>
       </ElBreadcrumb>
     </div>
 
@@ -28,7 +28,7 @@
             <div class="dc-field-col">
               <ElInput
                 v-model="form.name"
-                placeholder="请输入 Deployment 名称"
+                placeholder="请输入 StatefulSet 名称"
                 style="width: 280px"
               />
               <div class="dc-field-tip"
@@ -862,7 +862,7 @@
             <ElFormItem label="更新方式">
               <ElRadioGroup v-model="form.strategyType">
                 <ElRadio value="RollingUpdate">滚动更新</ElRadio>
-                <ElRadio value="Recreate">重建更新</ElRadio>
+                <ElRadio value="OnDelete">重建更新</ElRadio>
               </ElRadioGroup>
             </ElFormItem>
             <ElFormItem label="最小就绪秒数">
@@ -882,14 +882,6 @@
                   <ElInput v-model="form.maxUnavailable" style="width: 160px" placeholder="25%" />
                   <div class="dc-field-tip">
                     滚动更新期间允许不可用的 Pod 最大数量或比例，默认 25%
-                  </div>
-                </div>
-              </ElFormItem>
-              <ElFormItem label="最大超出">
-                <div class="dc-field-col">
-                  <ElInput v-model="form.maxSurge" style="width: 160px" placeholder="25%" />
-                  <div class="dc-field-tip">
-                    滚动更新期间允许超出期望副本数的 Pod 最大数量或比例，默认 25%
                   </div>
                 </div>
               </ElFormItem>
@@ -1049,7 +1041,7 @@
 
       <div class="deploy-create-footer">
         <ElButton @click="goBack">取消</ElButton>
-        <ElButton type="primary" :loading="submitting" @click="submit">创建 Deployment</ElButton>
+        <ElButton type="primary" :loading="submitting" @click="submit">创建 StatefulSet</ElButton>
       </div>
     </ElCard>
 
@@ -1158,13 +1150,13 @@
   } from '@element-plus/icons-vue'
   import { useRoute, useRouter } from 'vue-router'
   import yaml from 'js-yaml'
-  import { createK8sDeployment } from '@/api/kubernetes/deployment'
+  import { createK8sStatefulSet } from '@/api/kubernetes/statefulset'
   import { createK8sService } from '@/api/kubernetes/service'
   import { fetchK8sNamespaceList } from '@/api/kubernetes/namespace'
   import { fetchK8sSecretList } from '@/api/kubernetes/secret'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
 
-  defineOptions({ name: 'DeploymentCreatePage' })
+  defineOptions({ name: 'StatefulSetCreatePage' })
 
   const route = useRoute()
   const router = useRouter()
@@ -1297,10 +1289,7 @@
     containers: [newContainer(0)] as ContainerConfig[],
     strategyType: 'RollingUpdate',
     maxUnavailable: '25%',
-    maxSurge: '25%',
     minReadySeconds: 0,
-    updatePolicy: 'start-first' as 'start-first' | 'stop-first' | 'custom',
-    updateBatchSize: 1,
     imagePullSecret: '',
     schedulingPolicy: 'default' as 'default' | 'custom',
     svc: {
@@ -1367,9 +1356,6 @@
   }
   function removeVolumeMount(index: number) {
     form.value.containers[activeContainerIdx.value].volumeMounts.splice(index, 1)
-  }
-  function addVolume() {
-    form.value.volumes.push({ name: '', type: 'emptyDir', configMapName: '', configMapKey: '' })
   }
   function removeVolume(index: number) {
     form.value.volumes.splice(index, 1)
@@ -1701,7 +1687,7 @@
     }
   }
 
-  function buildDeploymentManifest() {
+  function buildStatefulSetManifest() {
     const labels = kvPairsToObject(form.value.labels)
     const annotations = kvPairsToObject(form.value.annotations)
     const appLabel = labels.app || form.value.name
@@ -1781,7 +1767,7 @@
 
     return {
       apiVersion: 'apps/v1',
-      kind: 'Deployment',
+      kind: 'StatefulSet',
       metadata: {
         name: form.value.name.trim(),
         namespace: form.value.namespace,
@@ -1791,16 +1777,15 @@
       spec: {
         replicas: form.value.replicas,
         selector: { matchLabels: { app: appLabel } },
-        strategy:
+        updateStrategy:
           form.value.strategyType === 'RollingUpdate'
             ? {
                 type: 'RollingUpdate',
                 rollingUpdate: {
-                  maxUnavailable: form.value.maxUnavailable || '25%',
-                  maxSurge: form.value.maxSurge || '25%'
+                  maxUnavailable: form.value.maxUnavailable || '25%'
                 }
               }
-            : { type: 'Recreate' },
+            : { type: 'OnDelete' },
         template: {
           metadata: { labels: { app: appLabel, ...finalLabels } },
           spec: {
@@ -1813,13 +1798,13 @@
   }
 
   function goBack() {
-    router.push({ path: '/container/workloads', query: { cluster: cluster.value } })
+    router.push({ path: '/container/workloads', query: { cluster: cluster.value, tab: 'sts' } })
   }
 
   function previewYaml() {
     if (!validateResourceFormats()) return
     if (!validateContainerSemantics()) return
-    yamlText.value = yaml.dump(buildDeploymentManifest(), { quotingType: '"' })
+    yamlText.value = yaml.dump(buildStatefulSetManifest(), { quotingType: '"' })
     yamlVisible.value = true
   }
 
@@ -1846,8 +1831,8 @@
     if (!validateContainerSemantics()) return
     submitting.value = true
     try {
-      const manifest = buildDeploymentManifest()
-      await createK8sDeployment(cluster.value, form.value.namespace, manifest)
+      const manifest = buildStatefulSetManifest()
+      await createK8sStatefulSet(cluster.value, form.value.namespace, manifest)
 
       // 联动创建 Service（仅在启用且有有效端口时）
       const svc = form.value.svc
@@ -1897,7 +1882,7 @@
             await createK8sService(cluster.value, form.value.namespace, svcManifest)
           } catch (e: unknown) {
             ElMessage.warning(
-              `Deployment 创建成功，但 Service 创建失败：${e instanceof Error ? e.message : '未知错误'}`
+              `StatefulSet 创建成功，但 Service 创建失败：${e instanceof Error ? e.message : '未知错误'}`
             )
             goBack()
             return
@@ -1905,7 +1890,7 @@
         }
       }
 
-      ElMessage.success(`Deployment(${form.value.name}) 创建成功`)
+      ElMessage.success(`StatefulSet(${form.value.name}) 创建成功`)
       goBack()
     } catch (e: unknown) {
       ElMessage.error(e instanceof Error ? e.message : '创建失败')
@@ -2039,6 +2024,9 @@
       }
     }
   )
+
+  // suppress unused warning
+  void previewYaml
 </script>
 
 <style scoped>
@@ -2098,7 +2086,6 @@
     padding-right: 16px;
   }
 
-  /* 全局：所有 placeholder 和 checkbox label 12px */
   .dc-form :deep(.el-input__placeholder),
   .dc-form :deep(.el-textarea__placeholder) {
     font-size: 12px;
@@ -2108,7 +2095,6 @@
     font-size: 12px;
   }
 
-  /* Section divider: reduce top margin for first divider in a tab */
   .dc-section-divider-top {
     margin-top: 16px;
   }
@@ -2546,13 +2532,6 @@
     line-height: 1.5;
   }
 
-  .probe-grid {
-    width: 100%;
-    display: grid;
-    grid-template-columns: repeat(5, minmax(120px, 1fr));
-    gap: 8px;
-  }
-
   .health-check-form-item :deep(.el-form-item__label) {
     display: flex;
     align-items: center;
@@ -2735,26 +2714,18 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 4px;
+    gap: 8px;
   }
 
   .pull-secret-row {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
   }
 
   .pull-secret-icon-btn {
-    color: var(--el-text-color-secondary);
+    padding: 4px;
     font-size: 14px;
-  }
-
-  .pull-secret-icon-btn:hover {
-    color: var(--el-color-primary);
-  }
-
-  .kv-del-btn {
-    color: var(--el-text-color-primary);
   }
 
   .scheduling-policy-wrap {
@@ -2814,29 +2785,6 @@
     font-size: 12px;
   }
 
-  .strategy-config-block {
-    background: var(--el-fill-color-light);
-    border-radius: 6px;
-    padding: 12px 16px;
-    width: 100%;
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .strategy-config-row {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .strategy-config-label {
-    font-size: 13px;
-    color: var(--el-text-color-regular);
-    min-width: 108px;
-  }
-
   .vol-display-row {
     display: flex;
     align-items: center;
@@ -2859,32 +2807,10 @@
     gap: 0;
   }
 
-  .pull-secret-wrap {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
+  .kv-del-btn {
+    color: var(--el-text-color-primary);
   }
 
-  .pull-secret-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .pull-secret-icon-btn {
-    padding: 4px;
-    font-size: 14px;
-  }
-
-  .scheduling-policy-wrap {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-  }
-
-  /* ── 访问设置（Service）section ── */
   .dc-headless-row {
     display: flex;
     align-items: center;
@@ -2996,7 +2922,6 @@
     color: var(--el-text-color-regular);
   }
 
-  /* 访问设置（Service）区域字体统一 12px */
   .dc-headless-row :deep(.el-checkbox__label),
   .dc-field-col :deep(.el-radio__label),
   .dc-field-col :deep(.el-checkbox__label),

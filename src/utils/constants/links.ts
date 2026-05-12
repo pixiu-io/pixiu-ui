@@ -18,9 +18,6 @@ export const WEB_LINKS = {
   // 项目文档
   DOCS: 'https://github.com/caoyingjunz/pixiu',
 
-  // v2.6.1版本
-  OldVersion: 'https://github.com/caoyingjunz/pixiu',
-
   // 项目社区
   COMMUNITY: 'https://www.pixiu-cloud.com/docs/zh/community/communicate.html',
 

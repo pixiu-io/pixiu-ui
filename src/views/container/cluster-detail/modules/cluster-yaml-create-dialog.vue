@@ -1,30 +1,35 @@
 <template>
   <ElDialog
     v-model="visibleInner"
-    title="YAML创建资源"
-    width="720px"
+    width="900px"
+    align-center
     destroy-on-close
-    class="cluster-yaml-create-dialog"
+    class="k8s-yaml-dialog"
     @closed="onClosed"
   >
-    <ElInput
-      v-model="yamlText"
-      type="textarea"
-      :rows="20"
-      placeholder="粘贴 Kubernetes 资源 YAML（需包含 apiVersion、kind、metadata.name）"
-      class="cluster-yaml-create-textarea"
-    />
+    <template #header>
+      <div class="k8s-yaml-dialog__header-content">
+        <span class="k8s-yaml-dialog__title">YAML 创建资源</span>
+        <ElButton class="k8s-yaml-dialog__copy-btn" @click="copyAll">复制</ElButton>
+      </div>
+    </template>
+    <div class="k8s-yaml-dialog__editor-wrap">
+      <K8sMonacoEditor v-model="yamlText" :read-only="false" :height="480" />
+    </div>
     <template #footer>
-      <ElButton @click="visibleInner = false">取消</ElButton>
-      <ElButton type="primary" :loading="submitting" @click="onConfirm">确定</ElButton>
+      <div class="k8s-yaml-dialog__footer">
+        <ElButton @click="visibleInner = false">取消</ElButton>
+        <ElButton type="primary" :loading="submitting" @click="onConfirm">确定</ElButton>
+      </div>
     </template>
   </ElDialog>
 </template>
 
 <script setup lang="ts">
-  import { ElButton, ElDialog, ElInput, ElMessage } from 'element-plus'
+  import { ElButton, ElDialog, ElMessage } from 'element-plus'
   import { computed, ref, watch } from 'vue'
   import { createK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
+  import K8sMonacoEditor from '@/components/kubernetes/k8s-monaco-editor.vue'
 
   const props = defineProps<{
     visible: boolean
@@ -56,6 +61,12 @@
     yamlText.value = ''
   }
 
+  function copyAll() {
+    if (!yamlText.value) return
+    void navigator.clipboard.writeText(yamlText.value)
+    ElMessage.success('已复制')
+  }
+
   async function onConfirm() {
     const cluster = props.cluster?.trim()
     if (!cluster) {
@@ -76,9 +87,25 @@
   }
 </script>
 
-<style scoped>
-  .cluster-yaml-create-textarea :deep(textarea) {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    font-size: 12px;
+<style scoped lang="scss">
+  .k8s-yaml-dialog__header-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding-right: 28px;
+  }
+
+  .k8s-yaml-dialog__title {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--el-text-color-primary);
+  }
+
+  .k8s-yaml-dialog__copy-btn {
+    margin-top: 5px;
+    margin-bottom: -25px;
+    width: 85px;
   }
 </style>

@@ -10,7 +10,7 @@
         <ElBreadcrumbItem :to="{ path: '/container/workloads', query: { cluster } }"
           >工作负载</ElBreadcrumbItem
         >
-        <ElBreadcrumbItem>创建 Deployment</ElBreadcrumbItem>
+        <ElBreadcrumbItem>创建 DaemonSet</ElBreadcrumbItem>
       </ElBreadcrumb>
     </div>
 
@@ -28,7 +28,7 @@
             <div class="dc-field-col">
               <ElInput
                 v-model="form.name"
-                placeholder="请输入 Deployment 名称"
+                placeholder="请输入 DaemonSet 名称"
                 style="width: 280px"
               />
               <div class="dc-field-tip"
@@ -118,9 +118,6 @@
                 >为容器提供存储，目前支持临时路径（emptyDir）和配置文件（ConfigMap），还需在容器配置中挂载到指定路径</div
               >
             </div>
-          </ElFormItem>
-          <ElFormItem label="实例数量" prop="replicas">
-            <ElInputNumber v-model="form.replicas" :min="0" :precision="0" />
           </ElFormItem>
           <ElFormItem label="实例内容器" class="container-form-item">
             <div class="container-pane">
@@ -493,7 +490,6 @@
                         </ElTooltip>
                       </template>
                       <div class="health-check-wrap">
-                        <!-- 存活检查 -->
                         <div class="health-check-row">
                           <ElCheckbox
                             v-model="form.containers[activeContainerIdx].liveness.enabled"
@@ -515,27 +511,6 @@
                               <ElOption label="HTTP请求检查" value="http" />
                               <ElOption label="执行命令检查" value="exec" />
                             </ElSelect>
-                          </div>
-                          <div class="probe-field-row">
-                            <span class="probe-field-label">
-                              host
-                              <ElTooltip
-                                content="大多数情况下不需要填 host 字段，请谨慎填写防止探测失败"
-                                placement="top"
-                              >
-                                <ElIcon class="lifecycle-info-icon"><InfoFilled /></ElIcon>
-                              </ElTooltip>
-                            </span>
-                            <div class="probe-field-col">
-                              <ElInput
-                                v-model="form.containers[activeContainerIdx].liveness.host"
-                                placeholder="默认为 Pod IP，一般不需要修改"
-                                style="width: 280px"
-                              />
-                              <div class="dc-field-tip"
-                                >大多数情况下不需要填 host 字段，请谨慎填写防止探测失败</div
-                              >
-                            </div>
                           </div>
                           <div class="probe-field-row">
                             <span class="probe-field-label">检查端口</span>
@@ -611,25 +586,7 @@
                               <div class="dc-field-tip">间隔时间最小值为1秒，默认为10秒</div>
                             </div>
                           </div>
-                          <div class="probe-field-row">
-                            <span class="probe-field-label">
-                              健康阈值
-                              <ElTooltip content="连续成功多少次才认为健康" placement="top">
-                                <ElIcon class="lifecycle-info-icon"><InfoFilled /></ElIcon>
-                              </ElTooltip>
-                            </span>
-                            <div class="probe-input-unit">
-                              <ElInput
-                                v-model.number="
-                                  form.containers[activeContainerIdx].liveness.successThreshold
-                                "
-                                style="width: 220px"
-                              />
-                              <span class="probe-unit">次</span>
-                            </div>
-                          </div>
                         </div>
-                        <!-- 就绪检查 -->
                         <div class="health-check-row" style="margin-top: 8px">
                           <ElCheckbox
                             v-model="form.containers[activeContainerIdx].readiness.enabled"
@@ -653,27 +610,6 @@
                               <ElOption label="HTTP请求检查" value="http" />
                               <ElOption label="执行命令检查" value="exec" />
                             </ElSelect>
-                          </div>
-                          <div class="probe-field-row">
-                            <span class="probe-field-label">
-                              host
-                              <ElTooltip
-                                content="大多数情况下不需要填 host 字段，请谨慎填写防止探测失败"
-                                placement="top"
-                              >
-                                <ElIcon class="lifecycle-info-icon"><InfoFilled /></ElIcon>
-                              </ElTooltip>
-                            </span>
-                            <div class="probe-field-col">
-                              <ElInput
-                                v-model="form.containers[activeContainerIdx].readiness.host"
-                                placeholder="默认为 Pod IP，一般不需要修改"
-                                style="width: 280px"
-                              />
-                              <div class="dc-field-tip"
-                                >大多数情况下不需要填 host 字段，请谨慎填写防止探测失败</div
-                              >
-                            </div>
                           </div>
                           <div class="probe-field-row">
                             <span class="probe-field-label">检查端口</span>
@@ -748,23 +684,6 @@
                                 <span class="probe-unit">秒</span>
                               </div>
                               <div class="dc-field-tip">间隔时间最小值为1秒，默认为10秒</div>
-                            </div>
-                          </div>
-                          <div class="probe-field-row">
-                            <span class="probe-field-label">
-                              健康阈值
-                              <ElTooltip content="连续成功多少次才认为就绪" placement="top">
-                                <ElIcon class="lifecycle-info-icon"><InfoFilled /></ElIcon>
-                              </ElTooltip>
-                            </span>
-                            <div class="probe-input-unit">
-                              <ElInput
-                                v-model.number="
-                                  form.containers[activeContainerIdx].readiness.successThreshold
-                                "
-                                style="width: 220px"
-                              />
-                              <span class="probe-unit">次</span>
                             </div>
                           </div>
                         </div>
@@ -862,7 +781,7 @@
             <ElFormItem label="更新方式">
               <ElRadioGroup v-model="form.strategyType">
                 <ElRadio value="RollingUpdate">滚动更新</ElRadio>
-                <ElRadio value="Recreate">重建更新</ElRadio>
+                <ElRadio value="OnDelete">重建更新</ElRadio>
               </ElRadioGroup>
             </ElFormItem>
             <ElFormItem label="最小就绪秒数">
@@ -882,14 +801,6 @@
                   <ElInput v-model="form.maxUnavailable" style="width: 160px" placeholder="25%" />
                   <div class="dc-field-tip">
                     滚动更新期间允许不可用的 Pod 最大数量或比例，默认 25%
-                  </div>
-                </div>
-              </ElFormItem>
-              <ElFormItem label="最大超出">
-                <div class="dc-field-col">
-                  <ElInput v-model="form.maxSurge" style="width: 160px" placeholder="25%" />
-                  <div class="dc-field-tip">
-                    滚动更新期间允许超出期望副本数的 Pod 最大数量或比例，默认 25%
                   </div>
                 </div>
               </ElFormItem>
@@ -931,13 +842,6 @@
                   <template v-else
                     >即 LoadBalancer 类型，将在集群外部创建一个负载均衡器，分配公网或内网
                     IP</template
-                  >
-                </div>
-                <div v-if="form.svc.serviceType === 'ClusterIP'" class="dc-headless-row">
-                  <ElCheckbox v-model="form.svc.headless">Headless Service</ElCheckbox>
-                  <span class="dc-field-tip dc-headless-tip"
-                    >（Headless Service 将 clusterIP 设为 None，DNS 直接返回 Pod
-                    IP，只支持创建时选择，创建完成后不支持变更访问方式）</span
                   >
                 </div>
               </div>
@@ -1011,12 +915,6 @@
                   <ElRadio value="Cluster">Cluster</ElRadio>
                   <ElRadio value="Local">Local</ElRadio>
                 </ElRadioGroup>
-                <div v-if="form.svc.externalTrafficPolicy === 'Cluster'" class="dc-field-tip"
-                  >默认均衡转发到工作负载的所有Pod</div
-                >
-                <div v-else class="dc-field-tip dc-etp-local-tip"
-                  >能够保留来源IP，并可以保证公网、VPC内网访问（LoadBalancer）和主机端口访问（NodePort）模式下流量仅在本节点转发。Local转发使部分没有业务Pod存在的节点健康检查失败，可能存在流量不均衡的转发的风险。</div
-                >
               </div>
             </ElFormItem>
 
@@ -1026,9 +924,6 @@
                   <ElRadio value="None">不启用</ElRadio>
                   <ElRadio value="ClientIP">ClientIP</ElRadio>
                 </ElRadioGroup>
-                <div v-if="form.svc.sessionAffinity === 'ClientIP'" class="dc-field-tip"
-                  >基于客户端 IP 做会话保持，同一 IP 的请求将路由到同一个 Pod</div
-                >
               </div>
             </ElFormItem>
 
@@ -1049,7 +944,7 @@
 
       <div class="deploy-create-footer">
         <ElButton @click="goBack">取消</ElButton>
-        <ElButton type="primary" :loading="submitting" @click="submit">创建 Deployment</ElButton>
+        <ElButton type="primary" :loading="submitting" @click="submit">创建 DaemonSet</ElButton>
       </div>
     </ElCard>
 
@@ -1158,13 +1053,13 @@
   } from '@element-plus/icons-vue'
   import { useRoute, useRouter } from 'vue-router'
   import yaml from 'js-yaml'
-  import { createK8sDeployment } from '@/api/kubernetes/deployment'
+  import { createK8sDaemonSet } from '@/api/kubernetes/daemonset'
   import { createK8sService } from '@/api/kubernetes/service'
   import { fetchK8sNamespaceList } from '@/api/kubernetes/namespace'
   import { fetchK8sSecretList } from '@/api/kubernetes/secret'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
 
-  defineOptions({ name: 'DeploymentCreatePage' })
+  defineOptions({ name: 'DaemonSetCreatePage' })
 
   const route = useRoute()
   const router = useRouter()
@@ -1285,7 +1180,6 @@
   const form = ref({
     name: '',
     namespace: '',
-    replicas: 1,
     labels: [] as Array<{ key: string; value: string }>,
     annotations: [] as Array<{ key: string; value: string }>,
     volumes: [] as Array<{
@@ -1297,17 +1191,13 @@
     containers: [newContainer(0)] as ContainerConfig[],
     strategyType: 'RollingUpdate',
     maxUnavailable: '25%',
-    maxSurge: '25%',
     minReadySeconds: 0,
-    updatePolicy: 'start-first' as 'start-first' | 'stop-first' | 'custom',
-    updateBatchSize: 1,
     imagePullSecret: '',
     schedulingPolicy: 'default' as 'default' | 'custom',
     svc: {
       enabled: false,
       name: '',
       serviceType: 'ClusterIP' as 'ClusterIP' | 'NodePort' | 'LoadBalancer',
-      headless: false,
       ports: [
         { name: '', protocol: 'TCP', port: '', targetPort: '', nodePort: '' }
       ] as SvcPortEntry[],
@@ -1368,9 +1258,6 @@
   function removeVolumeMount(index: number) {
     form.value.containers[activeContainerIdx.value].volumeMounts.splice(index, 1)
   }
-  function addVolume() {
-    form.value.volumes.push({ name: '', type: 'emptyDir', configMapName: '', configMapKey: '' })
-  }
   function removeVolume(index: number) {
     form.value.volumes.splice(index, 1)
   }
@@ -1395,7 +1282,6 @@
     }
   }
 
-  // --- 数据卷 dialog ---
   const volumeDialogVisible = ref(false)
   const volumeDialogIsEdit = ref(false)
   const volumeDialogEditIdx = ref(-1)
@@ -1515,19 +1401,9 @@
         const sourceKey = item.sourceKey.trim()
         if (!sourceName || !sourceKey) return null
         if (item.mode === 'configMap') {
-          return {
-            name,
-            valueFrom: {
-              configMapKeyRef: { name: sourceName, key: sourceKey }
-            }
-          }
+          return { name, valueFrom: { configMapKeyRef: { name: sourceName, key: sourceKey } } }
         }
-        return {
-          name,
-          valueFrom: {
-            secretKeyRef: { name: sourceName, key: sourceKey }
-          }
-        }
+        return { name, valueFrom: { secretKeyRef: { name: sourceName, key: sourceKey } } }
       })
       .filter(
         (
@@ -1568,70 +1444,19 @@
     return true
   }
 
-  function validateUniqueKeys(
-    list: Array<{ key: string; value?: string }>,
-    label: string
-  ): boolean {
-    const seen = new Set<string>()
-    for (const item of list) {
-      const key = item.key.trim()
-      if (!key) continue
-      if (seen.has(key)) {
-        ElMessage.warning(`${label} 存在重复 key: ${key}`)
-        return false
-      }
-      seen.add(key)
-    }
-    return true
-  }
-
-  function validateLabelKeys(list: Array<{ key: string }>): boolean {
-    const pattern = /^[a-zA-Z0-9]([a-zA-Z0-9\-_.]{0,61}[a-zA-Z0-9])?$|^[a-zA-Z0-9]$/
-    for (const item of list) {
-      const key = item.key.trim()
-      if (!key) continue
-      if (key.length > 63) {
-        ElMessage.warning(`标签键名 "${key}" 超过 63 个字符`)
-        return false
-      }
-      if (!pattern.test(key)) {
-        ElMessage.warning(
-          `标签键名 "${key}" 格式不正确，只能包含字母、数字及 - _ .，且必须以字母或数字开头和结尾`
-        )
-        return false
-      }
-    }
-    return true
-  }
-
-  function validateAnnotationValues(list: Array<{ key: string; value: string }>): boolean {
-    const badChars = /[\n\r\t]/
-    for (const item of list) {
-      const key = item.key.trim()
-      if (!key) continue
-      if (badChars.test(item.value)) {
-        ElMessage.warning(`注释 "${key}" 的值包含换行或制表符等特殊字符，建议移除`)
-        return false
-      }
-    }
-    return true
-  }
-
   function validateContainerSemantics(): boolean {
     for (const c of form.value.containers) {
-      const validPorts = c.ports.filter(
-        (p) => Number.isFinite(Number(p.containerPort)) && Number(p.containerPort) > 0
-      )
       const portSeen = new Set<string>()
-      for (const p of validPorts) {
-        const signature = `${Number(p.containerPort)}-${p.protocol}`
-        if (portSeen.has(signature)) {
-          ElMessage.warning(`[${c.name}] 存在重复端口协议组合: ${signature}`)
+      for (const p of c.ports.filter(
+        (p) => Number.isFinite(Number(p.containerPort)) && Number(p.containerPort) > 0
+      )) {
+        const sig = `${Number(p.containerPort)}-${p.protocol}`
+        if (portSeen.has(sig)) {
+          ElMessage.warning(`[${c.name}] 存在重复端口协议组合: ${sig}`)
           return false
         }
-        portSeen.add(signature)
+        portSeen.add(sig)
       }
-
       const envSeen = new Set<string>()
       for (const e of c.envs) {
         const name = e.name.trim()
@@ -1641,49 +1466,8 @@
           return false
         }
         envSeen.add(name)
-        if (e.mode !== 'value' && (!e.sourceName.trim() || !e.sourceKey.trim())) {
-          ElMessage.warning(`[${c.name}] 环境变量 ${name} 的来源名称与 key 不能为空`)
-          return false
-        }
       }
     }
-
-    const volumeNameSet = new Set<string>()
-    for (const v of form.value.volumes) {
-      const name = v.name.trim()
-      if (!name) continue
-      if (volumeNameSet.has(name)) {
-        ElMessage.warning(`卷名称重复: ${name}`)
-        return false
-      }
-      volumeNameSet.add(name)
-      if (v.type === 'configMap' && !v.configMapName.trim()) {
-        ElMessage.warning(`卷 ${name} 缺少 ConfigMap 名称`)
-        return false
-      }
-    }
-
-    for (const c of form.value.containers) {
-      for (const m of c.volumeMounts) {
-        const mountName = m.name.trim()
-        const mountPath = m.mountPath.trim()
-        if (!mountName && !mountPath) continue
-        if (!mountName || !mountPath) {
-          ElMessage.warning(`[${c.name}] VolumeMount 需要同时填写卷名和挂载路径`)
-          return false
-        }
-        if (!volumeNameSet.has(mountName)) {
-          ElMessage.warning(`[${c.name}] VolumeMount 引用了不存在的卷: ${mountName}`)
-          return false
-        }
-      }
-    }
-
-    if (!validateUniqueKeys(form.value.labels, '标签')) return false
-    if (!validateLabelKeys(form.value.labels)) return false
-    if (!validateUniqueKeys(form.value.annotations, '注释')) return false
-    if (!validateAnnotationValues(form.value.annotations)) return false
-
     return true
   }
 
@@ -1701,7 +1485,7 @@
     }
   }
 
-  function buildDeploymentManifest() {
+  function buildDaemonSetManifest() {
     const labels = kvPairsToObject(form.value.labels)
     const annotations = kvPairsToObject(form.value.annotations)
     const appLabel = labels.app || form.value.name
@@ -1717,15 +1501,8 @@
         failureThreshold: probe.failureThreshold
       }
       const port = probe.port.trim() || 80
-      const host = probe.host.trim()
-      if (probe.method === 'tcp') {
-        return { ...base, tcpSocket: { port, ...(host ? { host } : {}) } }
-      } else if (probe.method === 'http') {
-        return {
-          ...base,
-          httpGet: { path: probe.path.trim() || '/', port, ...(host ? { host } : {}) }
-        }
-      }
+      if (probe.method === 'tcp') return { ...base, tcpSocket: { port } }
+      if (probe.method === 'http') return { ...base, httpGet: { path: '/', port } }
       return undefined
     }
 
@@ -1781,7 +1558,7 @@
 
     return {
       apiVersion: 'apps/v1',
-      kind: 'Deployment',
+      kind: 'DaemonSet',
       metadata: {
         name: form.value.name.trim(),
         namespace: form.value.namespace,
@@ -1789,18 +1566,14 @@
         annotations
       },
       spec: {
-        replicas: form.value.replicas,
         selector: { matchLabels: { app: appLabel } },
-        strategy:
+        updateStrategy:
           form.value.strategyType === 'RollingUpdate'
             ? {
                 type: 'RollingUpdate',
-                rollingUpdate: {
-                  maxUnavailable: form.value.maxUnavailable || '25%',
-                  maxSurge: form.value.maxSurge || '25%'
-                }
+                rollingUpdate: { maxUnavailable: form.value.maxUnavailable || '1' }
               }
-            : { type: 'Recreate' },
+            : { type: 'OnDelete' },
         template: {
           metadata: { labels: { app: appLabel, ...finalLabels } },
           spec: {
@@ -1813,13 +1586,13 @@
   }
 
   function goBack() {
-    router.push({ path: '/container/workloads', query: { cluster: cluster.value } })
+    router.push({ path: '/container/workloads', query: { cluster: cluster.value, tab: 'ds' } })
   }
 
   function previewYaml() {
     if (!validateResourceFormats()) return
     if (!validateContainerSemantics()) return
-    yamlText.value = yaml.dump(buildDeploymentManifest(), { quotingType: '"' })
+    yamlText.value = yaml.dump(buildDaemonSetManifest(), { quotingType: '"' })
     yamlVisible.value = true
   }
 
@@ -1828,16 +1601,12 @@
       ?.validate()
       .then(() => true)
       .catch(() => false)
-    if (!basicOk) {
-      return
-    }
+    if (!basicOk) return
     const containerOk = await containerFormRef.value
       ?.validate()
       .then(() => true)
       .catch(() => false)
-    if (!containerOk) {
-      return
-    }
+    if (!containerOk) return
     if (!cluster.value) {
       ElMessage.warning('缺少集群参数')
       return
@@ -1846,10 +1615,9 @@
     if (!validateContainerSemantics()) return
     submitting.value = true
     try {
-      const manifest = buildDeploymentManifest()
-      await createK8sDeployment(cluster.value, form.value.namespace, manifest)
+      const manifest = buildDaemonSetManifest()
+      await createK8sDaemonSet(cluster.value, form.value.namespace, manifest)
 
-      // 联动创建 Service（仅在启用且有有效端口时）
       const svc = form.value.svc
       if (svc.enabled) {
         const svcPorts = svc.ports
@@ -1878,7 +1646,6 @@
             ports: svcPorts,
             sessionAffinity: svc.sessionAffinity
           }
-          if (svc.serviceType === 'ClusterIP' && svc.headless) svcSpec.clusterIP = 'None'
           if (svc.serviceType === 'NodePort' || svc.serviceType === 'LoadBalancer') {
             svcSpec.externalTrafficPolicy = svc.externalTrafficPolicy
           }
@@ -1897,7 +1664,7 @@
             await createK8sService(cluster.value, form.value.namespace, svcManifest)
           } catch (e: unknown) {
             ElMessage.warning(
-              `Deployment 创建成功，但 Service 创建失败：${e instanceof Error ? e.message : '未知错误'}`
+              `DaemonSet 创建成功，但 Service 创建失败：${e instanceof Error ? e.message : '未知错误'}`
             )
             goBack()
             return
@@ -1905,7 +1672,7 @@
         }
       }
 
-      ElMessage.success(`Deployment(${form.value.name}) 创建成功`)
+      ElMessage.success(`DaemonSet(${form.value.name}) 创建成功`)
       goBack()
     } catch (e: unknown) {
       ElMessage.error(e instanceof Error ? e.message : '创建失败')
@@ -1966,26 +1733,11 @@
 
   async function submitNewSecret() {
     const f = newSecretForm.value
-    if (!f.name.trim()) {
-      ElMessage.warning('请输入凭证名称')
-      return
-    }
-    if (!f.server.trim()) {
-      ElMessage.warning('请输入镜像仓库地址')
-      return
-    }
-    if (!f.username.trim()) {
-      ElMessage.warning('请输入用户名')
-      return
-    }
-    if (!f.password) {
-      ElMessage.warning('请输入密码')
-      return
-    }
-    if (!form.value.namespace) {
-      ElMessage.warning('请先选择命名空间')
-      return
-    }
+    if (!f.name.trim()) { ElMessage.warning('请输入凭证名称'); return }
+    if (!f.server.trim()) { ElMessage.warning('请输入镜像仓库地址'); return }
+    if (!f.username.trim()) { ElMessage.warning('请输入用户名'); return }
+    if (!f.password) { ElMessage.warning('请输入密码'); return }
+    if (!form.value.namespace) { ElMessage.warning('请先选择命名空间'); return }
     newSecretSubmitting.value = true
     try {
       const auth = btoa(`${f.username}:${f.password}`)
@@ -2019,9 +1771,7 @@
 
   watch(
     () => form.value.namespace,
-    (ns) => {
-      if (ns) void loadPullSecrets()
-    }
+    (ns) => { if (ns) void loadPullSecrets() }
   )
 
   watch(
@@ -2030,984 +1780,148 @@
       const n = name.trim()
       const o = (oldName ?? '').trim()
       const c0 = form.value.containers[0]
-      if (c0 && (!c0.name.trim() || c0.name.trim() === o)) {
-        c0.name = n
-      }
+      if (c0 && (!c0.name.trim() || c0.name.trim() === o)) c0.name = n
       const appLabel = form.value.labels.find((item) => item.key.trim() === 'app')
-      if (appLabel && (!appLabel.value.trim() || appLabel.value.trim() === o)) {
-        appLabel.value = n
-      }
+      if (appLabel && (!appLabel.value.trim() || appLabel.value.trim() === o)) appLabel.value = n
     }
   )
+
+  void previewYaml
 </script>
 
 <style scoped>
-  .deploy-create-page {
-    padding: 0 clamp(16px, 4vw, 48px) 0;
-  }
-
-  .deploy-create-header {
-    display: flex;
-    align-items: center;
-    gap: 0;
-    margin-bottom: 12px;
-  }
-
-  .deploy-create-back-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 0 6px 0 2px;
-  }
-
-  .deploy-create-header-divider {
-    margin: 0 12px;
-    height: 16px;
-  }
-
-  .deploy-create-card :deep(.el-card__body) {
-    padding: 16px 20px;
-  }
-
-  @media (max-width: 1200px) {
-    .deploy-create-page {
-      padding-left: 20px;
-      padding-right: 20px;
-    }
-  }
-
-  @media (max-width: 768px) {
-    .deploy-create-page {
-      padding-left: 12px;
-      padding-right: 12px;
-    }
-  }
-
-  .deploy-create-main {
-    display: flex;
-    gap: 0;
-  }
-
-  .dc-form {
-    max-width: none;
-    width: 100%;
-  }
-
-  .dc-form :deep(.el-form-item__label) {
-    font-size: 12px;
-    padding-right: 16px;
-  }
-
-  /* 全局：所有 placeholder 和 checkbox label 12px */
-  .dc-form :deep(.el-input__placeholder),
-  .dc-form :deep(.el-textarea__placeholder) {
-    font-size: 12px;
-  }
-
-  .dc-form :deep(.el-checkbox__label) {
-    font-size: 12px;
-  }
-
-  /* Section divider: reduce top margin for first divider in a tab */
-  .dc-section-divider-top {
-    margin-top: 16px;
-  }
-  .dc-section-divider-top :deep(.el-divider__text) {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--el-text-color-primary);
-  }
-
-  .container-form-item :deep(.el-form-item__content) {
-    width: 100%;
-    max-width: none;
-    flex: 1;
-  }
-
-  .container-form-item :deep(.el-form-item__label) {
-    font-size: 12px;
-  }
-
-  .deploy-create-footer {
-    margin-top: 10px;
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-  }
-
-  .kv-list {
-    width: 100%;
-  }
-
-  .kv-row,
-  .vm-row,
-  .vol-row {
-    display: grid;
-    gap: 8px;
-    margin-bottom: 8px;
-  }
-
-  .kv-list > .kv-row:last-of-type {
-    margin-bottom: 0px;
-  }
-
-  .kv-row {
-    grid-template-columns: 1fr 1fr auto;
-  }
-
-  .vm-row {
-    grid-template-columns: 1fr 1fr 120px auto;
-  }
-
-  .vol-row {
-    grid-template-columns: 1fr 140px 1fr auto;
-  }
-
-  .port-table {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0;
-    width: 100%;
-  }
-
-  .port-table-box {
-    background: var(--el-bg-color-overlay);
-    border: 1px solid var(--el-border-color-light);
-    border-radius: 4px;
-    padding: 10px 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  .port-table-header,
-  .port-table-row {
-    display: grid;
-    grid-template-columns: 120px 120px 120px 1fr;
-    gap: 0;
-    align-items: center;
-  }
-
-  .port-table-header {
-    font-size: 12px;
-    color: var(--el-text-color-secondary);
-    padding-bottom: 2px;
-  }
-
-  .port-col-protocol {
-    margin-left: 30px;
-  }
-
-  .port-col-port {
-    margin-left: 60px;
-  }
-
-  .port-table-row .port-del-btn {
-    justify-self: end;
-  }
-
-  .port-col-name,
-  .port-col-protocol,
-  .port-col-port {
-    width: 100% !important;
-  }
-
-  .port-del-btn {
-    justify-content: center;
-  }
-
-  .port-row {
-    display: grid;
-    grid-template-columns: 170px 1fr 120px auto;
-    gap: 8px;
-    margin-bottom: 8px;
-  }
-
-  .env-row {
-    display: grid;
-    grid-template-columns: 140px 1fr 1fr 1fr auto;
-    gap: 8px;
-    margin-bottom: 8px;
-  }
-
-  .env-row .env-del-btn {
-    justify-self: end;
-    align-self: center;
-  }
-
-  .container-pane {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-  }
-
-  .container-tabs-bar {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    padding: 0 0 8px;
-    flex-wrap: wrap;
-  }
-
-  .container-tab-item {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    padding: 6px 10px;
-    height: 35px;
-    width: 110px;
-    border-radius: 4px;
-    font-size: 13px;
-    cursor: pointer;
-    background: transparent;
-    color: var(--el-text-color-regular);
-    border: 1px solid var(--el-border-color);
-    transition: border-color 0.15s;
-    user-select: none;
-    box-sizing: border-box;
-  }
-
-  .container-tab-item:hover {
-    border-color: var(--el-color-primary);
-  }
-
-  .container-tab-item.is-invalid {
-    border-color: var(--el-color-danger);
-    color: var(--el-color-danger);
-  }
-
-  .container-tab-item.is-active {
-    background: var(--el-bg-color-overlay);
-    color: var(--el-color-primary);
-    font-weight: 500;
-    border-color: var(--el-color-primary);
-  }
-
-  .container-tab-close {
-    position: absolute;
-    top: -7px;
-    right: -7px;
-    width: 14px;
-    height: 14px;
-    font-size: 10px;
-    color: #fff;
-    background: var(--el-text-color-placeholder);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
-  .container-tab-close:hover {
-    background: var(--el-color-danger);
-    color: #fff;
-  }
-
-  .add-container-btn {
-    font-size: 13px;
-    padding: 4px 8px;
-    display: inline-flex;
-    align-items: center;
-    gap: 2px;
-  }
-
-  .container-form-wrap {
-    background: var(--el-fill-color-light, #f5f7fa);
-    border-radius: 6px;
-    padding: 16px 12px 8px;
-  }
-
-  .pull-policy-group {
-    --el-radio-button-checked-border-color: var(--el-color-primary);
-    --el-radio-button-checked-bg-color: var(--el-bg-color-overlay);
-    --el-radio-button-checked-text-color: var(--el-color-primary);
-    display: flex;
-    width: 320px;
-    min-width: 320px;
-    max-width: 320px;
-    overflow: hidden;
-    box-sizing: border-box;
-  }
-
-  .pull-policy-group :deep(.el-radio-button) {
-    flex: 1 1 0;
-    min-width: 0;
-    display: flex;
-  }
-
-  .pull-policy-group :deep(.el-radio-button__inner) {
-    display: flex;
-    flex: 1;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    box-sizing: border-box;
-    text-align: center;
-    font-size: 13px;
-    padding: 6px 10px;
-    font-weight: 400;
-    color: var(--el-text-color-regular);
-    background: transparent;
-    border: 1px solid var(--el-border-color);
-    border-radius: 0 !important;
-    transition:
-      border-color 0.15s,
-      color 0.15s,
-      background-color 0.15s;
-  }
-
-  .pull-policy-group :deep(.el-radio-button:first-child .el-radio-button__inner),
-  .pull-policy-group :deep(.el-radio-button:last-child .el-radio-button__inner) {
-    border-radius: 0 !important;
-  }
-
-  .pull-policy-group :deep(.el-radio-button__inner:hover) {
-    border-color: var(--el-color-primary);
-    color: var(--el-color-primary);
-  }
-
-  .pull-policy-group :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
-    background-color: var(--el-bg-color-overlay) !important;
-    color: var(--el-color-primary) !important;
-    font-weight: 500 !important;
-    border-color: var(--el-color-primary) !important;
-    box-shadow: none !important;
-    position: relative;
-    z-index: 1;
-  }
-
-  .container-form-wrap .dc-form {
-    max-width: 920px;
-  }
-
-  .container-dc-form :deep(.el-form-item__label) {
-    font-size: 12px;
-    white-space: nowrap;
-  }
-
-  .container-dc-form :deep(.el-input__inner),
-  .container-dc-form :deep(.el-textarea__inner),
-  .container-dc-form :deep(.el-select__wrapper) {
-    font-size: 13px;
-  }
-
-  .container-name-field-col {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    width: 100%;
-    min-width: 0;
-  }
-
-  .container-dc-form .container-name-tip {
-    width: max-content;
-    max-width: none;
-    margin-top: 6px;
-    white-space: nowrap;
-  }
-
-  .cpu-mem-limit-form-item.el-form-item {
-    align-items: flex-start;
-  }
-
-  .cpu-mem-limit-form-item :deep(.el-form-item__label) {
-    line-height: 20px;
-    padding-top: 0;
-  }
-
-  .cpu-mem-limit-form-item :deep(.el-form-item__content) {
-    flex: 1;
-    flex-direction: column;
-    align-items: stretch;
-    min-width: 0;
-    padding-top: 0;
-  }
-
-  .cpu-mem-limit-wrap {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    column-gap: 40px;
-    row-gap: 0;
-    width: 100%;
-    min-width: 0;
-    align-items: start;
-  }
-
-  .cpu-mem-limit-block {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-    min-width: 0;
-  }
-
-  .cpu-mem-limit-block-title {
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--el-text-color-primary);
-    line-height: 1.2;
-    margin: 0;
-  }
-
-  .cpu-mem-limit-inputs {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: nowrap;
-    align-items: center;
-    gap: 6px;
-    width: 100%;
-    min-width: 0;
-  }
-
-  .resource-affix-group {
-    display: flex;
-    flex-direction: row;
-    align-items: stretch;
-    min-width: 0;
-    border: 1px solid var(--el-border-color);
-    border-radius: var(--el-border-radius-base);
-    overflow: hidden;
-    background: var(--el-fill-color-blank);
-    box-sizing: border-box;
-  }
-
-  .resource-affix-group--grow {
-    flex: 1 1 0;
-    min-width: 0;
-  }
-
-  .resource-affix-sep {
-    flex-shrink: 0;
-    color: var(--el-text-color-secondary);
-    font-size: 13px;
-    user-select: none;
-    line-height: 1;
-  }
-
-  .resource-affix-group:focus-within {
-    border-color: var(--el-color-primary);
-  }
-
-  .resource-affix-label {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 64px;
-    flex-shrink: 0;
-    padding: 0 6px;
-    font-size: 12px;
-    color: var(--el-text-color-secondary);
-    background: var(--el-fill-color-light);
-    border-right: 1px solid var(--el-border-color);
-    box-sizing: border-box;
-  }
-
-  .resource-affix-input {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .resource-affix-input :deep(.el-input) {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .resource-affix-input :deep(.el-input__wrapper) {
-    box-shadow: none !important;
-    border: none !important;
-    border-radius: 0 !important;
-    background-color: transparent;
-  }
-
-  .resource-unit-suffix {
-    flex-shrink: 0;
-    align-self: center;
-    font-size: 13px;
-    color: var(--el-text-color-regular);
-    white-space: nowrap;
-  }
-
-  .cpu-mem-limit-tips {
-    margin-top: 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    width: 100%;
-    max-width: none;
-  }
-
-  .cpu-mem-tip-line {
-    white-space: normal;
-    line-height: 1.5;
-  }
-
-  .probe-grid {
-    width: 100%;
-    display: grid;
-    grid-template-columns: repeat(5, minmax(120px, 1fr));
-    gap: 8px;
-  }
-
-  .health-check-form-item :deep(.el-form-item__label) {
-    display: flex;
-    align-items: center;
-  }
-
-  .health-check-wrap {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-  }
-
-  .health-check-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .health-check-title {
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--el-text-color-primary);
-  }
-
-  .health-check-desc {
-    font-size: 12px;
-    color: var(--el-text-color-secondary);
-  }
-
-  .health-check-panel {
-    background: var(--el-bg-color-overlay);
-    border: 1px solid var(--el-border-color-light);
-    border-radius: 6px;
-    padding: 16px 20px;
-    margin-top: 8px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .probe-field-row {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-  }
-
-  .probe-field-label {
-    display: flex;
-    align-items: center;
-    gap: 3px;
-    width: 72px;
-    flex-shrink: 0;
-    font-size: 12px;
-    color: var(--el-text-color-regular);
-    padding-top: 5px;
-  }
-
-  .probe-field-col {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .probe-input-unit {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-
-  .probe-unit {
-    font-size: 12px;
-    color: var(--el-text-color-regular);
-    white-space: nowrap;
-  }
-
-  .health-check-panel :deep(.el-input__inner),
-  .health-check-panel :deep(.el-textarea__inner),
-  .health-check-panel :deep(.el-select__wrapper) {
-    font-size: 12px;
-  }
-
-  .health-check-panel .dc-field-tip {
-    font-size: 12px;
-    margin-top: 2px;
-  }
-
-  .dc-form :deep(.el-input__inner),
-  .dc-form :deep(.el-textarea__inner),
-  .dc-form :deep(.el-select__wrapper) {
-    font-size: 13px;
-  }
-
-  .dc-field-tip {
-    font-size: 12px;
-    color: var(--el-text-color-placeholder);
-    line-height: 1.5;
-    margin-top: 4px;
-    white-space: nowrap;
-  }
-
-  .dc-form :deep(.el-form-item__content) {
-    flex-wrap: wrap;
-    align-items: flex-start;
-    row-gap: 0;
-  }
-
-  .dc-field-col {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-  }
-
-  .dc-field-col > .dc-field-tip {
-    margin-top: 0;
-    white-space: nowrap;
-  }
-
-  .container-dc-form :deep(.el-form-item) {
-    margin-bottom: 18px;
-  }
-
-  .kv-add-btn {
-    font-size: 12px;
-  }
-
-  .lifecycle-wrap {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    width: 100%;
-  }
-
-  .lifecycle-section {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-  }
-
-  .lifecycle-section-label {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 12px;
-    color: var(--el-text-color-regular);
-    margin-bottom: 4px;
-  }
-
-  .lifecycle-info-icon {
-    font-size: 14px;
-    color: var(--el-text-color-placeholder);
-    cursor: default;
-  }
-
-  .lifecycle-inputs {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .lifecycle-input-row {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .lifecycle-textarea {
-    flex: 1;
-  }
-
-  .lifecycle-del-btn {
-    margin-top: 6px;
-    flex-shrink: 0;
-  }
-
-  .lifecycle-add-btn {
-    margin-left: 8px;
-  }
-
-  .pull-secret-wrap {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-  }
-
-  .pull-secret-row {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-
-  .pull-secret-icon-btn {
-    color: var(--el-text-color-secondary);
-    font-size: 14px;
-  }
-
-  .pull-secret-icon-btn:hover {
-    color: var(--el-color-primary);
-  }
-
-  .kv-del-btn {
-    color: var(--el-text-color-primary);
-  }
-
-  .scheduling-policy-wrap {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-  }
-
-  .scheduling-policy-wrap :deep(.el-radio__label) {
-    font-size: 12px;
-  }
-
-  .advanced-toggle-row {
-    padding-left: 140px;
-    margin-bottom: 12px;
-  }
-
-  .advanced-toggle-row .kv-add-btn {
-    font-size: 12px;
-  }
-
-  .container-advanced-config-toggle {
-    padding-left: 20px;
-    margin-top: 4px;
-    margin-bottom: 2px;
-  }
-
-  .volume-mounts-form-item :deep(.el-form-item__label) {
-    display: none;
-    width: 0 !important;
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-
-  .volume-mounts-form-item :deep(.el-form-item__content) {
-    margin-left: 0 !important;
-    justify-content: flex-start;
-  }
-
-  .container-advanced-config-toggle .kv-add-btn {
-    font-size: 12px;
-  }
-
-  .advanced-field-wrap {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-  }
-
-  .advanced-field-wrap .dc-field-tip {
-    margin-top: 0;
-  }
-
-  .advanced-field-wrap :deep(.el-radio__label) {
-    font-size: 12px;
-  }
-
-  .strategy-config-block {
-    background: var(--el-fill-color-light);
-    border-radius: 6px;
-    padding: 12px 16px;
-    width: 100%;
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .strategy-config-row {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .strategy-config-label {
-    font-size: 13px;
-    color: var(--el-text-color-regular);
-    min-width: 108px;
-  }
-
-  .vol-display-row {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 8px 12px;
-    background: var(--el-fill-color-light);
-    border-radius: 6px;
-    font-size: 13px;
-    color: var(--el-text-color-regular);
-    margin-bottom: 4px;
-  }
-
-  .kv-list > .vol-display-row:last-of-type {
-    margin-bottom: 0px;
-  }
-
-  .vol-display-actions {
-    margin-left: auto;
-    display: flex;
-    gap: 0;
-  }
-
-  .pull-secret-wrap {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .pull-secret-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .pull-secret-icon-btn {
-    padding: 4px;
-    font-size: 14px;
-  }
-
-  .scheduling-policy-wrap {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-  }
-
-  /* ── 访问设置（Service）section ── */
-  .dc-headless-row {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-  }
-
-  .dc-headless-tip {
-    white-space: nowrap;
-    margin-left: 4px;
-  }
-
-  .dc-etp-local-tip {
-    white-space: nowrap;
-  }
-
-  .dc-svc-field-col {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-    width: 100%;
-  }
-
-  .dc-svc-port-table-box {
-    width: 100%;
-    border: 1px solid var(--el-border-color-light);
-    border-radius: 6px;
-    overflow: hidden;
-    background: var(--el-bg-color-overlay);
-  }
-
-  .dc-svc-port-table-header,
-  .dc-svc-port-table-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 10px;
-  }
-
-  .dc-svc-port-table-header {
-    background: var(--el-fill-color-light);
-    font-size: 12px;
-    color: var(--el-text-color-secondary);
-    font-weight: 500;
-  }
-
-  .dc-svc-port-table-row {
-    border-top: 1px solid var(--el-border-color-lighter);
-  }
-
-  .dc-svc-port-col-protocol {
-    width: 80px;
-    flex-shrink: 0;
-    font-size: 12px;
-  }
-
-  .dc-svc-port-col-port {
-    width: 180px;
-    flex-shrink: 0;
-    font-size: 12px;
-  }
-
-  .dc-svc-port-col-name {
-    width: 150px;
-    flex-shrink: 0;
-    font-size: 12px;
-  }
-
-  .dc-svc-port-col-action {
-    width: 28px;
-    flex-shrink: 0;
-    margin-left: auto;
-  }
-
-  .dc-svc-timeout-ctrl {
-    display: inline-flex;
-    align-items: center;
-    border: 1px solid var(--el-border-color);
-    border-radius: 4px;
-    overflow: hidden;
-  }
-
-  .dc-svc-timeout-btn {
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    border-radius: 0;
-    border: none;
-    background: var(--el-fill-color-light);
-    font-size: 14px;
-    flex-shrink: 0;
-  }
-
-  .dc-svc-timeout-value {
-    min-width: 48px;
-    text-align: center;
-    font-size: 13px;
-    padding: 0 8px;
-    height: 32px;
-    line-height: 32px;
-    border-left: 1px solid var(--el-border-color);
-    border-right: 1px solid var(--el-border-color);
-    color: var(--el-text-color-primary);
-  }
-
-  .dc-svc-timeout-unit {
-    font-size: 12px;
-    margin-left: 8px;
-    color: var(--el-text-color-regular);
-  }
-
-  /* 访问设置（Service）区域字体统一 12px */
-  .dc-headless-row :deep(.el-checkbox__label),
-  .dc-field-col :deep(.el-radio__label),
-  .dc-field-col :deep(.el-checkbox__label),
-  .dc-svc-field-col :deep(.el-input__inner),
-  .dc-svc-field-col :deep(.el-input__placeholder),
-  .dc-svc-field-col :deep(.el-select__placeholder),
-  .dc-svc-field-col :deep(.el-select__selected-item),
-  .dc-field-col :deep(.el-input__inner),
-  .dc-field-col :deep(.el-input__placeholder),
-  .dc-field-col :deep(.el-select__placeholder),
-  .dc-field-col :deep(.el-select__selected-item) {
-    font-size: 12px;
-  }
+  .deploy-create-page { padding: 0 clamp(16px, 4vw, 48px) 0; }
+  .deploy-create-header { display: flex; align-items: center; gap: 0; margin-bottom: 12px; }
+  .deploy-create-back-btn { display: inline-flex; align-items: center; gap: 4px; padding: 0 6px 0 2px; }
+  .deploy-create-header-divider { margin: 0 12px; height: 16px; }
+  .deploy-create-card :deep(.el-card__body) { padding: 16px 20px; }
+  @media (max-width: 1200px) { .deploy-create-page { padding-left: 20px; padding-right: 20px; } }
+  @media (max-width: 768px) { .deploy-create-page { padding-left: 12px; padding-right: 12px; } }
+  .deploy-create-main { display: flex; gap: 0; }
+  .dc-form { max-width: none; width: 100%; }
+  .dc-form :deep(.el-form-item__label) { font-size: 12px; padding-right: 16px; }
+  .dc-form :deep(.el-input__placeholder), .dc-form :deep(.el-textarea__placeholder) { font-size: 12px; }
+  .dc-form :deep(.el-checkbox__label) { font-size: 12px; }
+  .dc-section-divider-top { margin-top: 16px; }
+  .dc-section-divider-top :deep(.el-divider__text) { font-size: 13px; font-weight: 500; color: var(--el-text-color-primary); }
+  .container-form-item :deep(.el-form-item__content) { width: 100%; max-width: none; flex: 1; }
+  .container-form-item :deep(.el-form-item__label) { font-size: 12px; }
+  .deploy-create-footer { margin-top: 10px; display: flex; justify-content: center; gap: 10px; }
+  .kv-list { width: 100%; }
+  .kv-row, .vm-row, .vol-row { display: grid; gap: 8px; margin-bottom: 8px; }
+  .kv-list > .kv-row:last-of-type { margin-bottom: 0px; }
+  .kv-row { grid-template-columns: 1fr 1fr auto; }
+  .vm-row { grid-template-columns: 1fr 1fr 120px auto; }
+  .vol-row { grid-template-columns: 1fr 140px 1fr auto; }
+  .port-table { display: flex; flex-direction: column; align-items: flex-start; gap: 0; width: 100%; }
+  .port-table-box { background: var(--el-bg-color-overlay); border: 1px solid var(--el-border-color-light); border-radius: 4px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; width: 100%; box-sizing: border-box; }
+  .port-table-header, .port-table-row { display: grid; grid-template-columns: 120px 120px 120px 1fr; gap: 0; align-items: center; }
+  .port-table-header { font-size: 12px; color: var(--el-text-color-secondary); padding-bottom: 2px; }
+  .port-col-protocol { margin-left: 30px; }
+  .port-col-port { margin-left: 60px; }
+  .port-table-row .port-del-btn { justify-self: end; }
+  .port-col-name, .port-col-protocol, .port-col-port { width: 100% !important; }
+  .port-del-btn { justify-content: center; }
+  .env-row { display: grid; grid-template-columns: 140px 1fr 1fr 1fr auto; gap: 8px; margin-bottom: 8px; }
+  .env-row .env-del-btn { justify-self: end; align-self: center; }
+  .container-pane { display: flex; flex-direction: column; gap: 0; }
+  .container-tabs-bar { display: flex; align-items: center; gap: 20px; padding: 0 0 8px; flex-wrap: wrap; }
+  .container-tab-item { display: inline-flex; align-items: center; justify-content: center; position: relative; padding: 6px 10px; height: 35px; width: 110px; border-radius: 4px; font-size: 13px; cursor: pointer; background: transparent; color: var(--el-text-color-regular); border: 1px solid var(--el-border-color); transition: border-color 0.15s; user-select: none; box-sizing: border-box; }
+  .container-tab-item:hover { border-color: var(--el-color-primary); }
+  .container-tab-item.is-invalid { border-color: var(--el-color-danger); color: var(--el-color-danger); }
+  .container-tab-item.is-active { background: var(--el-bg-color-overlay); color: var(--el-color-primary); font-weight: 500; border-color: var(--el-color-primary); }
+  .container-tab-close { position: absolute; top: -7px; right: -7px; width: 14px; height: 14px; font-size: 10px; color: #fff; background: var(--el-text-color-placeholder); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .container-tab-close:hover { background: var(--el-color-danger); color: #fff; }
+  .add-container-btn { font-size: 13px; padding: 4px 8px; display: inline-flex; align-items: center; gap: 2px; }
+  .container-form-wrap { background: var(--el-fill-color-light, #f5f7fa); border-radius: 6px; padding: 16px 12px 8px; }
+  .pull-policy-group { --el-radio-button-checked-border-color: var(--el-color-primary); --el-radio-button-checked-bg-color: var(--el-bg-color-overlay); --el-radio-button-checked-text-color: var(--el-color-primary); display: flex; width: 320px; min-width: 320px; max-width: 320px; overflow: hidden; box-sizing: border-box; }
+  .pull-policy-group :deep(.el-radio-button) { flex: 1 1 0; min-width: 0; display: flex; }
+  .pull-policy-group :deep(.el-radio-button__inner) { display: flex; flex: 1; align-items: center; justify-content: center; width: 100%; box-sizing: border-box; text-align: center; font-size: 13px; padding: 6px 10px; font-weight: 400; color: var(--el-text-color-regular); background: transparent; border: 1px solid var(--el-border-color); border-radius: 0 !important; transition: border-color 0.15s, color 0.15s, background-color 0.15s; }
+  .pull-policy-group :deep(.el-radio-button:first-child .el-radio-button__inner), .pull-policy-group :deep(.el-radio-button:last-child .el-radio-button__inner) { border-radius: 0 !important; }
+  .pull-policy-group :deep(.el-radio-button__inner:hover) { border-color: var(--el-color-primary); color: var(--el-color-primary); }
+  .pull-policy-group :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) { background-color: var(--el-bg-color-overlay) !important; color: var(--el-color-primary) !important; font-weight: 500 !important; border-color: var(--el-color-primary) !important; box-shadow: none !important; position: relative; z-index: 1; }
+  .container-form-wrap .dc-form { max-width: 920px; }
+  .container-dc-form :deep(.el-form-item__label) { font-size: 12px; white-space: nowrap; }
+  .container-dc-form :deep(.el-input__inner), .container-dc-form :deep(.el-textarea__inner), .container-dc-form :deep(.el-select__wrapper) { font-size: 13px; }
+  .container-name-field-col { display: flex; flex-direction: column; align-items: flex-start; width: 100%; min-width: 0; }
+  .container-dc-form .container-name-tip { width: max-content; max-width: none; margin-top: 6px; white-space: nowrap; }
+  .cpu-mem-limit-form-item.el-form-item { align-items: flex-start; }
+  .cpu-mem-limit-form-item :deep(.el-form-item__label) { line-height: 20px; padding-top: 0; }
+  .cpu-mem-limit-form-item :deep(.el-form-item__content) { flex: 1; flex-direction: column; align-items: stretch; min-width: 0; padding-top: 0; }
+  .cpu-mem-limit-wrap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 40px; row-gap: 0; width: 100%; min-width: 0; align-items: start; }
+  .cpu-mem-limit-block { display: flex; flex-direction: column; align-items: stretch; gap: 8px; min-width: 0; }
+  .cpu-mem-limit-block-title { font-size: 12px; font-weight: 500; color: var(--el-text-color-primary); line-height: 1.2; margin: 0; }
+  .cpu-mem-limit-inputs { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 6px; width: 100%; min-width: 0; }
+  .resource-affix-group { display: flex; flex-direction: row; align-items: stretch; min-width: 0; border: 1px solid var(--el-border-color); border-radius: var(--el-border-radius-base); overflow: hidden; background: var(--el-fill-color-blank); box-sizing: border-box; }
+  .resource-affix-group--grow { flex: 1 1 0; min-width: 0; }
+  .resource-affix-sep { flex-shrink: 0; color: var(--el-text-color-secondary); font-size: 13px; user-select: none; line-height: 1; }
+  .resource-affix-group:focus-within { border-color: var(--el-color-primary); }
+  .resource-affix-label { display: inline-flex; align-items: center; justify-content: center; width: 64px; flex-shrink: 0; padding: 0 6px; font-size: 12px; color: var(--el-text-color-secondary); background: var(--el-fill-color-light); border-right: 1px solid var(--el-border-color); box-sizing: border-box; }
+  .resource-affix-input { flex: 1; min-width: 0; }
+  .resource-affix-input :deep(.el-input) { width: 100%; min-width: 0; }
+  .resource-affix-input :deep(.el-input__wrapper) { box-shadow: none !important; border: none !important; border-radius: 0 !important; background-color: transparent; }
+  .resource-unit-suffix { flex-shrink: 0; align-self: center; font-size: 13px; color: var(--el-text-color-regular); white-space: nowrap; }
+  .cpu-mem-limit-tips { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; width: 100%; max-width: none; }
+  .cpu-mem-tip-line { white-space: normal; line-height: 1.5; }
+  .health-check-form-item :deep(.el-form-item__label) { display: flex; align-items: center; }
+  .health-check-wrap { display: flex; flex-direction: column; width: 100%; }
+  .health-check-row { display: flex; align-items: center; gap: 8px; }
+  .health-check-title { font-size: 12px; font-weight: 500; color: var(--el-text-color-primary); }
+  .health-check-desc { font-size: 12px; color: var(--el-text-color-secondary); }
+  .health-check-panel { background: var(--el-bg-color-overlay); border: 1px solid var(--el-border-color-light); border-radius: 6px; padding: 16px 20px; margin-top: 8px; display: flex; flex-direction: column; gap: 10px; }
+  .probe-field-row { display: flex; align-items: flex-start; gap: 12px; }
+  .probe-field-label { display: flex; align-items: center; gap: 3px; width: 72px; flex-shrink: 0; font-size: 12px; color: var(--el-text-color-regular); padding-top: 5px; }
+  .probe-field-col { display: flex; flex-direction: column; gap: 2px; }
+  .probe-input-unit { display: flex; align-items: center; gap: 4px; }
+  .probe-unit { font-size: 12px; color: var(--el-text-color-regular); white-space: nowrap; }
+  .health-check-panel :deep(.el-input__inner), .health-check-panel :deep(.el-textarea__inner), .health-check-panel :deep(.el-select__wrapper) { font-size: 12px; }
+  .health-check-panel .dc-field-tip { font-size: 12px; margin-top: 2px; }
+  .dc-form :deep(.el-input__inner), .dc-form :deep(.el-textarea__inner), .dc-form :deep(.el-select__wrapper) { font-size: 13px; }
+  .dc-field-tip { font-size: 12px; color: var(--el-text-color-placeholder); line-height: 1.5; margin-top: 4px; white-space: nowrap; }
+  .dc-form :deep(.el-form-item__content) { flex-wrap: wrap; align-items: flex-start; row-gap: 0; }
+  .dc-field-col { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+  .dc-field-col > .dc-field-tip { margin-top: 0; white-space: nowrap; }
+  .container-dc-form :deep(.el-form-item) { margin-bottom: 18px; }
+  .kv-add-btn { font-size: 12px; }
+  .lifecycle-wrap { display: flex; flex-direction: column; gap: 2px; width: 100%; }
+  .lifecycle-section { display: flex; flex-direction: column; gap: 0; }
+  .lifecycle-section-label { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--el-text-color-regular); margin-bottom: 4px; }
+  .lifecycle-info-icon { font-size: 14px; color: var(--el-text-color-placeholder); cursor: default; }
+  .lifecycle-inputs { display: flex; flex-direction: column; gap: 4px; }
+  .lifecycle-input-row { display: flex; align-items: flex-start; gap: 8px; }
+  .lifecycle-textarea { flex: 1; }
+  .lifecycle-del-btn { margin-top: 6px; flex-shrink: 0; }
+  .lifecycle-add-btn { margin-left: 8px; }
+  .pull-secret-wrap { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+  .pull-secret-row { display: flex; align-items: center; gap: 6px; }
+  .pull-secret-icon-btn { padding: 4px; font-size: 14px; }
+  .scheduling-policy-wrap { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+  .scheduling-policy-wrap :deep(.el-radio__label) { font-size: 12px; }
+  .advanced-toggle-row { padding-left: 140px; margin-bottom: 12px; }
+  .advanced-toggle-row .kv-add-btn { font-size: 12px; }
+  .container-advanced-config-toggle { padding-left: 20px; margin-top: 4px; margin-bottom: 2px; }
+  .volume-mounts-form-item :deep(.el-form-item__label) { display: none; width: 0 !important; padding: 0 !important; margin: 0 !important; }
+  .volume-mounts-form-item :deep(.el-form-item__content) { margin-left: 0 !important; justify-content: flex-start; }
+  .container-advanced-config-toggle .kv-add-btn { font-size: 12px; }
+  .advanced-field-wrap { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+  .advanced-field-wrap .dc-field-tip { margin-top: 0; }
+  .advanced-field-wrap :deep(.el-radio__label) { font-size: 12px; }
+  .vol-display-row { display: flex; align-items: center; gap: 16px; padding: 8px 12px; background: var(--el-fill-color-light); border-radius: 6px; font-size: 13px; color: var(--el-text-color-regular); margin-bottom: 4px; }
+  .kv-list > .vol-display-row:last-of-type { margin-bottom: 0px; }
+  .vol-display-actions { margin-left: auto; display: flex; gap: 0; }
+  .kv-del-btn { color: var(--el-text-color-primary); }
+  .dc-svc-field-col { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; width: 100%; }
+  .dc-svc-port-table-box { width: 100%; border: 1px solid var(--el-border-color-light); border-radius: 6px; overflow: hidden; background: var(--el-bg-color-overlay); }
+  .dc-svc-port-table-header, .dc-svc-port-table-row { display: flex; align-items: center; gap: 8px; padding: 6px 10px; }
+  .dc-svc-port-table-header { background: var(--el-fill-color-light); font-size: 12px; color: var(--el-text-color-secondary); font-weight: 500; }
+  .dc-svc-port-table-row { border-top: 1px solid var(--el-border-color-lighter); }
+  .dc-svc-port-col-protocol { width: 80px; flex-shrink: 0; font-size: 12px; }
+  .dc-svc-port-col-port { width: 180px; flex-shrink: 0; font-size: 12px; }
+  .dc-svc-port-col-name { width: 150px; flex-shrink: 0; font-size: 12px; }
+  .dc-svc-port-col-action { width: 28px; flex-shrink: 0; margin-left: auto; }
+  .dc-svc-timeout-ctrl { display: inline-flex; align-items: center; border: 1px solid var(--el-border-color); border-radius: 4px; overflow: hidden; }
+  .dc-svc-timeout-btn { width: 32px; height: 32px; padding: 0; border-radius: 0; border: none; background: var(--el-fill-color-light); font-size: 14px; flex-shrink: 0; }
+  .dc-svc-timeout-value { min-width: 48px; text-align: center; font-size: 13px; padding: 0 8px; height: 32px; line-height: 32px; border-left: 1px solid var(--el-border-color); border-right: 1px solid var(--el-border-color); color: var(--el-text-color-primary); }
+  .dc-svc-timeout-unit { font-size: 12px; margin-left: 8px; color: var(--el-text-color-regular); }
+  .dc-field-col :deep(.el-radio__label), .dc-field-col :deep(.el-checkbox__label), .dc-svc-field-col :deep(.el-input__inner), .dc-svc-field-col :deep(.el-input__placeholder), .dc-svc-field-col :deep(.el-select__placeholder), .dc-svc-field-col :deep(.el-select__selected-item), .dc-field-col :deep(.el-input__inner), .dc-field-col :deep(.el-input__placeholder), .dc-field-col :deep(.el-select__placeholder), .dc-field-col :deep(.el-select__selected-item) { font-size: 12px; }
 </style>

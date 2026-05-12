@@ -13,7 +13,7 @@
           >
             <template #left>
               <div class="workloads-toolbar">
-                <ElButton v-ripple @click="ElMessage.warning('暂不支持，功能开发中')">新建</ElButton>
+                <ElButton v-ripple @click="goCreateConfigMap">新建</ElButton>
                 <div class="workloads-toolbar__filters">
                   <ElInput
                     v-model="cmSearchForm.name"
@@ -62,7 +62,7 @@
           >
             <template #left>
               <div class="workloads-toolbar">
-                <ElButton v-ripple @click="ElMessage.warning('暂不支持，功能开发中')">新建</ElButton>
+                <ElButton v-ripple @click="goCreateSecret">新建</ElButton>
                 <div class="workloads-toolbar__filters">
                   <ElInput
                     v-model="secSearchForm.name"
@@ -122,14 +122,15 @@
     ElLink,
     ElMessage,
     ElMessageBox,
-    ElTag,
+    ElPopover,
     ElTabs,
-    ElTabPane
+    ElTabPane,
+    ElTooltip
   } from 'element-plus'
   import { CopyDocument } from '@element-plus/icons-vue'
   import yaml from 'js-yaml'
   import { computed, h, inject, ref, watch } from 'vue'
-  import { useRoute } from 'vue-router'
+  import { useRoute, useRouter } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
   import {
     fetchK8sConfigMapList,
@@ -150,7 +151,8 @@
   defineOptions({ name: 'ClusterDetailConfig' })
 
   const route = useRoute()
-  const kind = ref('cm')
+  const router = useRouter()
+  const kind = ref(route.query.tab === 'sec' ? 'sec' : 'cm')
 
   // ── ConfigMap tab state ──
   const cmSearchForm = ref<{ name?: string }>({})
@@ -166,6 +168,20 @@
   const yamlVisible = ref(false)
   const yamlText = ref('')
 
+  function goCreateConfigMap() {
+    router.push({
+      path: '/container/configmap-create',
+      query: { cluster: String(route.query.cluster ?? ''), namespace: selectedNamespace.value }
+    })
+  }
+
+  function goCreateSecret() {
+    router.push({
+      path: '/container/secret-create',
+      query: { cluster: String(route.query.cluster ?? ''), namespace: selectedNamespace.value }
+    })
+  }
+
   // ── Render helpers ──
   function renderNsCell(ns: string) {
     const isSystem = ns === 'default' || ns.startsWith('kube-')
@@ -180,12 +196,102 @@
     ])
   }
 
-  function renderNameCell(name: string) {
-    return h('div', { style: 'display:flex;align-items:center;gap:8px' }, [
-      h('span', { style: 'font-size:14px;color:var(--el-text-color-primary)' }, name),
+  function renderKvCell(lines: string[]) {
+    const lineStyle =
+      'font-size:12px;font-weight:400;line-height:1.5;color:var(--el-text-color-regular);white-space:nowrap;overflow:hidden;text-overflow:ellipsis'
+    const moreStyle =
+      'font-size:12px;font-weight:400;line-height:1.5;color:var(--el-text-color-placeholder)'
+    const emptyStyle =
+      'font-size:12px;font-weight:400;line-height:1.5;color:var(--el-text-color-placeholder);letter-spacing:0.02em'
+    if (!lines.length) return h('span', { style: emptyStyle }, '-')
+    const preview = lines.slice(0, 2)
+    const hasMore = lines.length > 2
+    const trigger = h('div', [
+      ...preview.map((t, i) => h('div', { key: `p${i}`, style: lineStyle }, t)),
+      ...(hasMore ? [h('div', { style: moreStyle }, '...')] : [])
+    ])
+    const body = h(
+      'div',
+      { style: 'max-height:300px;overflow-y:auto;padding:4px 0' },
+      lines.map((t, i) =>
+        h(
+          'div',
+          { key: `f${i}`, style: 'font-size:12px;font-weight:400;line-height:1.8;color:var(--el-text-color-regular);white-space:nowrap' },
+          t
+        )
+      )
+    )
+    return h(
+      ElPopover,
+      { placement: 'top-start', width: 360, trigger: 'hover', showAfter: 200, teleported: true },
+      { reference: () => trigger, default: () => body }
+    )
+  }
+
+  /** ConfigMap 名称：可点击打开 YAML（与「查看YAML」一致，当前无独立详情页） */
+  function renderConfigMapNameCell(row: K8sConfigMap) {
+    const name = row.metadata?.name ?? '—'
+    const ns = row.metadata?.namespace ?? ''
+    return h('div', { style: 'display:flex;align-items:center;min-width:0;gap:8px' }, [
+      h(
+        ElTooltip,
+        { content: name, placement: 'top', showAfter: 300 },
+        {
+          default: () =>
+            h(
+              ElLink,
+              {
+                type: 'primary',
+                underline: 'never',
+                style:
+                  'font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;max-width:100%',
+                onClick: () => void openYamlDialog('cm', ns, name)
+              },
+              () => name
+            )
+        }
+      ),
       h('span', {
         class: 'icon-action',
-        style: 'cursor:pointer;color:var(--el-text-color-secondary);display:inline-flex;align-items:center',
+        style:
+          'flex-shrink:0;cursor:pointer;color:var(--el-text-color-secondary);display:inline-flex;align-items:center',
+        title: '复制',
+        onClick: (e: MouseEvent) => {
+          e.stopPropagation()
+          navigator.clipboard.writeText(name)
+          ElMessage.success('已复制')
+        }
+      }, [h(CopyDocument, { style: 'width:12px;height:12px' })])
+    ])
+  }
+
+  /** Secret 名称：可点击打开 YAML */
+  function renderSecretNameCell(row: K8sSecret) {
+    const name = row.metadata?.name ?? '—'
+    const ns = row.metadata?.namespace ?? ''
+    return h('div', { style: 'display:flex;align-items:center;min-width:0;gap:8px' }, [
+      h(
+        ElTooltip,
+        { content: name, placement: 'top', showAfter: 300 },
+        {
+          default: () =>
+            h(
+              ElLink,
+              {
+                type: 'primary',
+                underline: 'never',
+                style:
+                  'font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;max-width:100%',
+                onClick: () => void openYamlDialog('sec', ns, name)
+              },
+              () => name
+            )
+        }
+      ),
+      h('span', {
+        class: 'icon-action',
+        style:
+          'flex-shrink:0;cursor:pointer;color:var(--el-text-color-secondary);display:inline-flex;align-items:center',
         title: '复制',
         onClick: (e: MouseEvent) => {
           e.stopPropagation()
@@ -270,22 +376,23 @@
           prop: 'metadata.name',
           label: '名称',
           minWidth: 200,
-          formatter: (row: K8sConfigMap) => renderNameCell(row.metadata?.name ?? '—')
+          formatter: (row: K8sConfigMap) => renderConfigMapNameCell(row)
+        },
+        {
+          prop: 'metadata.labels',
+          label: 'Labels',
+          minWidth: 200,
+          formatter: (row: K8sConfigMap) => {
+            const labels = row.metadata?.labels ?? {}
+            const lines = Object.entries(labels).map(([k, v]) => `${k}: ${v}`)
+            return renderKvCell(lines)
+          }
         },
         {
           prop: 'metadata.namespace',
           label: '命名空间',
           width: 160,
           formatter: (row: K8sConfigMap) => renderNsCell(row.metadata?.namespace ?? '—')
-        },
-        {
-          prop: 'dataCount',
-          label: '数据项数',
-          width: 100,
-          formatter: (row: K8sConfigMap) => {
-            const count = Object.keys(row.data ?? {}).length + Object.keys(row.binaryData ?? {}).length
-            return h('span', { style: 'font-size:12px' }, String(count))
-          }
         },
         {
           prop: 'metadata.creationTimestamp',
@@ -303,7 +410,7 @@
           formatter: (row: K8sConfigMap) =>
             h('div', { style: 'display:flex;align-items:center;gap:12px' }, [
               h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void openYamlDialog('cm', row.metadata?.namespace ?? '', row.metadata?.name ?? '') }, () => '查看YAML'),
-              h(ElLink, { type: 'danger', underline: 'never', style: 'font-size:12px', onClick: () => void deleteResource('cm', row.metadata?.namespace ?? '', row.metadata?.name ?? '', onCmRefresh) }, () => '删除')
+              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void deleteResource('cm', row.metadata?.namespace ?? '', row.metadata?.name ?? '', onCmRefresh) }, () => '删除')
             ])
         }
       ]
@@ -368,13 +475,7 @@
           prop: 'metadata.name',
           label: '名称',
           minWidth: 200,
-          formatter: (row: K8sSecret) => renderNameCell(row.metadata?.name ?? '—')
-        },
-        {
-          prop: 'metadata.namespace',
-          label: '命名空间',
-          width: 160,
-          formatter: (row: K8sSecret) => renderNsCell(row.metadata?.namespace ?? '—')
+          formatter: (row: K8sSecret) => renderSecretNameCell(row)
         },
         {
           prop: 'type',
@@ -382,16 +483,13 @@
           width: 280,
           showOverflowTooltip: true,
           formatter: (row: K8sSecret) =>
-            h(ElTag, { type: 'info', size: 'small' }, () => row.type ?? 'Opaque')
+            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, row.type ?? 'Opaque')
         },
         {
-          prop: 'dataCount',
-          label: '数据项数',
-          width: 100,
-          formatter: (row: K8sSecret) => {
-            const count = Object.keys(row.data ?? {}).length + Object.keys(row.stringData ?? {}).length
-            return h('span', { style: 'font-size:12px' }, String(count))
-          }
+          prop: 'metadata.namespace',
+          label: '命名空间',
+          width: 160,
+          formatter: (row: K8sSecret) => renderNsCell(row.metadata?.namespace ?? '—')
         },
         {
           prop: 'metadata.creationTimestamp',
@@ -409,7 +507,7 @@
           formatter: (row: K8sSecret) =>
             h('div', { style: 'display:flex;align-items:center;gap:12px' }, [
               h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void openYamlDialog('sec', row.metadata?.namespace ?? '', row.metadata?.name ?? '') }, () => '查看YAML'),
-              h(ElLink, { type: 'danger', underline: 'never', style: 'font-size:12px', onClick: () => void deleteResource('sec', row.metadata?.namespace ?? '', row.metadata?.name ?? '', onSecRefresh) }, () => '删除')
+              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void deleteResource('sec', row.metadata?.namespace ?? '', row.metadata?.name ?? '', onSecRefresh) }, () => '删除')
             ])
         }
       ]
@@ -439,7 +537,17 @@
     const cluster = String(route.query.cluster ?? '')
     if (!cluster) return
     if (val === 'sec') getSecData()
+    router.replace({ query: { ...route.query, tab: val } })
   })
+
+  watch(
+    () => String(route.query.cluster ?? ''),
+    (cluster) => {
+      if (!cluster) return
+      if (kind.value === 'sec') getSecData()
+    },
+    { immediate: true }
+  )
 
   watch(selectedNamespace, () => {
     if (kind.value === 'cm') getCmData()

@@ -39,3 +39,13 @@ export async function fetchK8sStorageClass(cluster: string, name: string): Promi
 export async function deleteK8sStorageClass(cluster: string, name: string): Promise<void> {
   await kubeProxyAxios.delete(`${scBase(cluster)}/${encodeURIComponent(name)}`)
 }
+
+export async function createK8sStorageClass(cluster: string, body: object): Promise<K8sStorageClass> {
+  const { data } = await kubeProxyAxios.post<K8sStorageClass>(scBase(cluster), body)
+  return data
+}
+
+export async function putK8sStorageClass(cluster: string, name: string, body: object): Promise<K8sStorageClass> {
+  const { data } = await kubeProxyAxios.put<K8sStorageClass>(`${scBase(cluster)}/${encodeURIComponent(name)}`, body)
+  return data
+}

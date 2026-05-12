@@ -17,11 +17,11 @@
         >
           <span
             class="block max-w-46 overflow-hidden text-ellipsis whitespace-nowrap px-1.5 text-sm text-g-600 dark:text-g-800"
-            >{{ formatMenuTitle(item.meta?.title as string) }}</span
+            >{{ formatMenuTitle(item.title) }}</span
           >
         </div>
         <div
-          v-if="!isLastItem(index) && item.meta?.title"
+          v-if="!isLastItem(index) && item.title"
           class="mx-1 text-sm not-italic text-g-500"
           aria-hidden="true"
         >
@@ -44,10 +44,30 @@
     key: string
     path: string
     meta: RouteRecordRaw['meta']
+    title: string
   }
 
   const route = useRoute()
   const router = useRouter()
+
+  const CLUSTER_DETAIL_TITLE_MAP: Record<string, string> = {
+    ClusterDetailOverview: '基本信息',
+    ClusterDetailNodes: '节点管理',
+    ClusterDetailNamespaces: '命名空间',
+    ClusterDetailWorkloads: '工作负载',
+    ClusterDetailPods: 'Pod',
+    ClusterDetailServices: '服务与路由',
+    ClusterDetailConfig: '配置管理',
+    ClusterDetailStorage: '存储',
+    ClusterDetailAutoscaling: '弹性伸缩',
+    ClusterDetailAuth: '认证配置',
+    ClusterDetailPolicy: '策略',
+    ClusterDetailAddonComponents: '扩展组件',
+    ClusterDetailAlert: '告警',
+    ClusterDetailLogs: '日志',
+    ClusterDetailEvents: '事件',
+    ClusterDetailPrometheus: '监控'
+  }
 
   // 使用computed替代watch，提高性能
   const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
@@ -68,12 +88,18 @@
 
     let items = isFirstLevel
       ? [createBreadcrumbItem(currentRoute, matchedLength - 1)]
-      : matched.map((route, index) => createBreadcrumbItem(route, index))
+      : matched.map((m, index) => createBreadcrumbItem(m, index))
 
     // 过滤包裹容器：如果有多个项目且第一个是容器路由（如 /outside），则移除它
     if (items.length > 1 && isWrapperContainer(items[0])) {
       items = items.slice(1)
     }
+
+    // 去掉相邻重复标题（如父子路由 title 相同时）
+    items = items.filter((item, index, arr) => {
+      if (index === 0) return true
+      return arr[index - 1]?.title !== item.title
+    })
 
     // IFrame 页面特殊处理：如果过滤后只剩一个 iframe 页面，或者所有项都是包裹容器，则仅展示当前页
     if (currentRouteMeta?.isIframe && (items.length === 1 || items.every(isWrapperContainer))) {
@@ -88,12 +114,27 @@
     item.path === '/outside' && !!item.meta?.isIframe
 
   // 辅助函数：创建面包屑项目
-  const createBreadcrumbItem = (route: RouteLocationMatched, index: number): BreadcrumbItem => {
-    const routeName = route.name ? String(route.name) : 'anonymous'
+  const createBreadcrumbItem = (matched: RouteLocationMatched, index: number): BreadcrumbItem => {
+    const routeName = matched.name ? String(matched.name) : 'anonymous'
+    const rawTitle = String(matched.meta?.title ?? '')
+    let mappedTitle: string
+    if (rawTitle === 'menus.container.clusterDetail') {
+      if (CLUSTER_DETAIL_TITLE_MAP[routeName]) {
+        // 已知子页（如 ClusterDetailWorkloads → "工作负载"）
+        mappedTitle = CLUSTER_DETAIL_TITLE_MAP[routeName]
+      } else {
+        // 父级布局路由——显示集群别名（route 来自外层 useRoute()）
+        const alias = String(route.query.aliasName || route.query.cluster || '')
+        mappedTitle = alias || rawTitle
+      }
+    } else {
+      mappedTitle = rawTitle
+    }
     return {
-      key: `${route.path}::${routeName}::${index}`,
-      path: route.path,
-      meta: route.meta
+      key: `${matched.path}::${routeName}::${index}`,
+      path: matched.path,
+      meta: matched.meta,
+      title: mappedTitle
     }
   }
 

@@ -37,7 +37,8 @@ export const safeguardRoutes: AppRouteRecord = {
       meta: {
         title: 'menus.safeguard.agent',
         icon: 'ri:robot-2-line',
-        keepAlive: true
+        keepAlive: true,
+        isHide: true
       }
     }
   ]

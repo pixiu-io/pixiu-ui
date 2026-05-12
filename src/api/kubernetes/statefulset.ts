@@ -70,3 +70,8 @@ export async function patchK8sStatefulSet(cluster: string, namespace: string, na
   )
   return data
 }
+
+export async function createK8sStatefulSet(cluster: string, namespace: string, body: object): Promise<K8sStatefulSet> {
+  const { data } = await kubeProxyAxios.post<K8sStatefulSet>(stsBase(cluster, namespace), body)
+  return data
+}

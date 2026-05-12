@@ -103,7 +103,7 @@
           >
             <template #left>
               <div class="workloads-toolbar">
-                <ElButton v-ripple @click="ElMessage.warning('暂不支持，功能开发中')">新建</ElButton>
+                <ElButton v-ripple @click="goCreateSts">新建</ElButton>
                 <div class="workloads-toolbar__filters">
                   <ElInput
                     v-model="stsSearchForm.name"
@@ -144,7 +144,7 @@
           >
             <template #left>
               <div class="workloads-toolbar">
-                <ElButton v-ripple @click="ElMessage.warning('暂不支持，功能开发中')">新建</ElButton>
+                <ElButton v-ripple @click="goCreateDs">新建</ElButton>
                 <div class="workloads-toolbar__filters">
                   <ElInput
                     v-model="dsSearchForm.name"
@@ -194,7 +194,7 @@
                 >
                   批量删除
                 </ElButton>
-                <ElButton v-else v-ripple @click="ElMessage.warning('暂不支持，功能开发中')">新建</ElButton>
+                <ElButton v-else v-ripple @click="goCreateJob">新建</ElButton>
                 <div class="workloads-toolbar__filters">
                   <ElSelect
                     v-if="props.jobDataMode === 'events'"
@@ -250,7 +250,7 @@
           >
             <template #left>
               <div class="workloads-toolbar">
-                <ElButton v-if="props.cjDataMode !== 'history'" v-ripple @click="ElMessage.warning('暂不支持，功能开发中')">新建</ElButton>
+                <ElButton v-if="props.cjDataMode !== 'history'" v-ripple @click="goCreateCronJob">新建</ElButton>
                 <div class="workloads-toolbar__filters">
                   <ElInput
                     v-model="cjSearchForm.name"
@@ -729,7 +729,16 @@
 
   const route = useRoute()
   const router = useRouter()
-  const kind = ref(props.initialTab || 'deploy')
+  const allowedTabs = new Set(['deploy', 'sts', 'ds', 'job', 'cj'])
+  const queryTab = String(route.query.tab ?? '')
+  const kind = ref(
+    (allowedTabs.has(queryTab) ? queryTab : (props.initialTab || 'deploy')) as
+      | 'deploy'
+      | 'sts'
+      | 'ds'
+      | 'job'
+      | 'cj'
+  )
   const deplNamespace = ref('')
   function parseSelectorMap(selector: string): Record<string, string> {
     const out: Record<string, string> = {}
@@ -1128,7 +1137,7 @@
           formatter: (row: K8sStatefulSet) =>
             h('div', { style: 'display:flex;align-items:center;gap:12px' }, [
               h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void openSharedYamlDialog('sts', row.metadata?.namespace ?? '', row.metadata?.name ?? '') }, () => '查看YAML'),
-              h(ElLink, { type: 'danger', underline: 'never', style: 'font-size:12px', onClick: () => void deleteWorkload('sts', row.metadata?.namespace ?? '', row.metadata?.name ?? '', onStsRefresh) }, () => '删除')
+              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void deleteWorkload('sts', row.metadata?.namespace ?? '', row.metadata?.name ?? '', onStsRefresh) }, () => '删除')
             ])
         }
             ]
@@ -1325,7 +1334,7 @@
           formatter: (row: K8sDaemonSet) =>
             h('div', { style: 'display:flex;align-items:center;gap:12px' }, [
               h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void openSharedYamlDialog('ds', row.metadata?.namespace ?? '', row.metadata?.name ?? '') }, () => '查看YAML'),
-              h(ElLink, { type: 'danger', underline: 'never', style: 'font-size:12px', onClick: () => void deleteWorkload('ds', row.metadata?.namespace ?? '', row.metadata?.name ?? '', onDsRefresh) }, () => '删除')
+              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void deleteWorkload('ds', row.metadata?.namespace ?? '', row.metadata?.name ?? '', onDsRefresh) }, () => '删除')
             ])
         }
             ]
@@ -1623,8 +1632,22 @@
             )
         },
         {
+          prop: 'status', label: '状态', width: 100,
+          formatter: (row: K8sJob) => {
+            const { text, type } = getJobStatus(row)
+            return h(ElTag, { type, size: 'small' }, () => text)
+          }
+        },
+        {
           prop: 'metadata.namespace', label: '命名空间', width: 160,
           formatter: (row: K8sJob) => renderNsCell(row.metadata?.namespace ?? '—')
+        },
+        {
+          prop: 'metadata.labels', label: 'Labels', minWidth: 200,
+          formatter: (row: K8sJob) => {
+            const lines = Object.entries(row.metadata?.labels ?? {}).map(([k, v]) => `${k}: ${v}`)
+            return renderKvCell(lines)
+          }
         },
         {
           prop: 'resources', label: 'Request/Limits', minWidth: 170,
@@ -1646,27 +1669,12 @@
           }
         },
         {
-          prop: 'status', label: '状态', width: 100,
-          formatter: (row: K8sJob) => {
-            const { text, type } = getJobStatus(row)
-            return h(ElTag, { type, size: 'small' }, () => text)
-          }
+          prop: 'parallelism', label: '并行度', width: 90,
+          formatter: (row: K8sJob) => h('span', { style: 'font-size:12px' }, String(row.spec?.parallelism ?? 1))
         },
         {
-          prop: 'completions', label: '完成/期望', width: 100,
-          formatter: (row: K8sJob) => {
-            const succeeded = row.status?.succeeded ?? 0
-            const completions = row.spec?.completions ?? 1
-            const ok = succeeded >= completions
-            return h('span', { style: `font-size:12px;color:${ok ? 'var(--el-color-success)' : 'var(--el-text-color-regular)'}` }, `${succeeded} / ${completions}`)
-          }
-        },
-        {
-          prop: 'metadata.labels', label: 'Labels', minWidth: 200,
-          formatter: (row: K8sJob) => {
-            const lines = Object.entries(row.metadata?.labels ?? {}).map(([k, v]) => `${k}: ${v}`)
-            return renderKvCell(lines)
-          }
+          prop: 'retryCount', label: '重复次数', width: 90,
+          formatter: (row: K8sJob) => h('span', { style: 'font-size:12px' }, String(row.spec?.backoffLimit ?? 0))
         },
         {
           prop: 'metadata.creationTimestamp', label: '创建时间', width: 168, sortable: 'custom',
@@ -1677,7 +1685,7 @@
           formatter: (row: K8sJob) =>
             h('div', { style: 'display:flex;align-items:center;gap:12px' }, [
               h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void openSharedYamlDialog('job', row.metadata?.namespace ?? '', row.metadata?.name ?? '') }, () => '查看YAML'),
-              h(ElLink, { type: 'danger', underline: 'never', style: 'font-size:12px', onClick: () => void deleteWorkload('job', row.metadata?.namespace ?? '', row.metadata?.name ?? '', onJobRefresh) }, () => '删除')
+              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void deleteWorkload('job', row.metadata?.namespace ?? '', row.metadata?.name ?? '', onJobRefresh) }, () => '删除')
             ])
         }
             ]
@@ -1962,7 +1970,7 @@
                     h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px',
                       onClick: () => void openSharedYamlDialog('cj', row.metadata?.namespace ?? '', row.metadata?.name ?? '')
                     }, () => '查看YAML'),
-                    h(ElLink, { type: 'danger', underline: 'never', style: 'font-size:12px',
+                    h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px',
                       onClick: () => void deleteWorkload('cj', row.metadata?.namespace ?? '', row.metadata?.name ?? '', onCjRefresh)
                     }, () => '删除')
                   ])
@@ -2242,7 +2250,7 @@
                       () => '查看'
                     ),
                     h(ArtButtonMore, {
-                      list: [{ key: 'delete', label: '删除', icon: 'ri:delete-bin-4-line', color: '#f56c6c' }],
+                      list: [{ key: 'delete', label: '删除', icon: 'ri:delete-bin-4-line', color: '#409eff' }],
                       onClick: (item: ButtonMoreItem) => podRowMoreClick(item, row)
                     })
                   ])
@@ -2670,7 +2678,76 @@
       path: '/container/deployment-create',
       query: {
         cluster,
-        ...(namespace ? { namespace } : {})
+        ...(namespace ? { namespace } : {}),
+        tab: 'deploy'
+      }
+    })
+  }
+
+  function goCreateSts() {
+    const cluster = String(route.query.cluster ?? '')
+    if (!cluster) {
+      ElMessage.warning('缺少集群参数')
+      return
+    }
+    const namespace = globalNamespace.value || nsOptions.value[0] || ''
+    router.push({
+      path: '/container/statefulset-create',
+      query: {
+        cluster,
+        ...(namespace ? { namespace } : {}),
+        tab: 'sts'
+      }
+    })
+  }
+
+  function goCreateDs() {
+    const cluster = String(route.query.cluster ?? '')
+    if (!cluster) {
+      ElMessage.warning('缺少集群参数')
+      return
+    }
+    const namespace = globalNamespace.value || nsOptions.value[0] || ''
+    router.push({
+      path: '/container/daemonset-create',
+      query: {
+        cluster,
+        ...(namespace ? { namespace } : {}),
+        tab: 'ds'
+      }
+    })
+  }
+
+  function goCreateJob() {
+    const cluster = String(route.query.cluster ?? '')
+    if (!cluster) {
+      ElMessage.warning('缺少集群参数')
+      return
+    }
+    const namespace = globalNamespace.value || nsOptions.value[0] || ''
+    router.push({
+      path: '/container/job-create',
+      query: {
+        cluster,
+        ...(namespace ? { namespace } : {}),
+        tab: 'job'
+      }
+    })
+  }
+
+  function goCreateCronJob() {
+    const cluster = String(route.query.cluster ?? '')
+    if (!cluster) {
+      ElMessage.warning('缺少集群参数')
+      return
+    }
+    const namespace = globalNamespace.value || nsOptions.value[0] || ''
+    router.push({
+      path: '/container/cronjob-create',
+      query: {
+        cluster,
+        ...(namespace ? { namespace } : {}),
+        tab: 'cj'
       }
     })
   }
@@ -2930,6 +3007,14 @@
 
   // ── Tab lazy loading ──
   watch(kind, (val) => {
+    if (String(route.query.tab ?? '') !== val) {
+      router.replace({
+        query: {
+          ...route.query,
+          tab: val
+        }
+      })
+    }
     const cluster = String(route.query.cluster ?? '')
     if (!cluster) return
     if (val === 'sts') getStsData()

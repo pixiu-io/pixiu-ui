@@ -53,7 +53,7 @@
         clearable
         maxlength="63"
         show-word-limit
-        placeholder="请输入命名空间名称（例如 dev-team）"
+        placeholder="请输入命名空间名称"
       />
       <template #footer>
         <ElButton @click="createDialogVisible = false">取消</ElButton>
@@ -120,7 +120,9 @@
   } from 'element-plus'
   import { CopyDocument } from '@element-plus/icons-vue'
   import yaml from 'js-yaml'
-  import ArtButtonMore, { type ButtonMoreItem } from '@/components/core/forms/art-button-more/index.vue'
+  import ArtButtonMore, {
+    type ButtonMoreItem
+  } from '@/components/core/forms/art-button-more/index.vue'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
   import { h, ref, watch } from 'vue'
   import { useRoute } from 'vue-router'
@@ -136,6 +138,7 @@
     patchK8sNamespaceQuota,
     type K8sNamespace
   } from '@/api/kubernetes/namespace'
+  import { fetchK8sPodList } from '@/api/kubernetes/pod'
   import { updateK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
   import { formatNodeCreationTime } from '@/utils/kubernetes/nodeDisplay'
 
@@ -201,7 +204,16 @@
       immediate: true,
       apiFn: async (params: TableParams) => {
         const cluster = String(route.query.cluster ?? '')
-        if (!cluster) return { code: 200, data: { records: [] as (K8sNamespace & { rowKey: string })[], total: 0, current: 1, size: params.size } }
+        if (!cluster)
+          return {
+            code: 200,
+            data: {
+              records: [] as (K8sNamespace & { rowKey: string })[],
+              total: 0,
+              current: 1,
+              size: params.size
+            }
+          }
         const { items, total } = await fetchK8sNamespaceList(cluster, {
           page: params.current,
           limit: params.size,
@@ -224,13 +236,21 @@
               h('div', { style: 'display:flex;align-items:center;gap:8px' }, [
                 h('span', { style: 'font-size:14px;color:var(--el-text-color-primary)' }, name),
                 isSystem
-                  ? h('span', { style: 'font-size:11px;padding:0 4px;line-height:16px;border-radius:3px;background:var(--el-color-primary-light-9);color:var(--el-color-primary);border:1px solid var(--el-color-primary-light-7);flex-shrink:0' }, '系统')
+                  ? h(
+                      'span',
+                      {
+                        style:
+                          'font-size:11px;padding:0 4px;line-height:16px;border-radius:3px;background:var(--el-color-primary-light-9);color:var(--el-color-primary);border:1px solid var(--el-color-primary-light-7);flex-shrink:0'
+                      },
+                      '系统'
+                    )
                   : null,
                 h(
                   'span',
                   {
                     class: 'icon-action',
-                    style: 'cursor:pointer;color:var(--el-text-color-secondary);display:inline-flex;align-items:center',
+                    style:
+                      'cursor:pointer;color:var(--el-text-color-secondary);display:inline-flex;align-items:center',
                     title: '复制',
                     onClick: (e: MouseEvent) => {
                       e.stopPropagation()
@@ -250,7 +270,8 @@
           width: 110,
           formatter: (row: K8sNamespace) => {
             const phase = row.status?.phase ?? '未知'
-            const type = phase === 'Active' ? 'success' : phase === 'Terminating' ? 'warning' : 'info'
+            const type =
+              phase === 'Active' ? 'success' : phase === 'Terminating' ? 'warning' : 'info'
             const text = phase === 'Active' ? '运行中' : phase === 'Terminating' ? '终止中' : phase
             return h(ElTag, { type, size: 'small' }, () => text)
           }
@@ -260,7 +281,11 @@
           label: '创建时间',
           width: 170,
           formatter: (row: K8sNamespace) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-secondary)' }, formatNodeCreationTime(row.metadata?.creationTimestamp))
+            h(
+              'span',
+              { style: 'font-size:12px;color:var(--el-text-color-secondary)' },
+              formatNodeCreationTime(row.metadata?.creationTimestamp)
+            )
         },
         {
           prop: 'desc',
@@ -363,6 +388,15 @@
     const name = row.metadata?.name
     if (!cluster || !name) return
     try {
+      const { total } = await fetchK8sPodList(cluster, {
+        page: 1,
+        limit: 1,
+        namespace: name
+      })
+      if (total > 0) {
+        ElMessage.warning(`命名空间 "${name}" 下存在 Pod，无法删除`)
+        return
+      }
       await ElMessageBox.confirm(`确定删除命名空间 "${name}" 吗？`, '删除命名空间', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',

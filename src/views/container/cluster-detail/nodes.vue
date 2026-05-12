@@ -77,7 +77,7 @@
       <div v-for="(item, index) in labelRows" :key="index" class="label-row">
         <ElInput v-model="item.key" placeholder="键" class="label-row__key" />
         <ElInput v-model="item.value" placeholder="值" class="label-row__val" />
-        <ElButton text type="danger" @click="labelRows.splice(index, 1)">删除</ElButton>
+        <ElButton text type="primary" @click="labelRows.splice(index, 1)">删除</ElButton>
       </div>
       <ElButton text type="primary" class="mt-2" @click="labelRows.push({ key: '', value: '' })"
         >+ 添加</ElButton
@@ -717,7 +717,7 @@
                         key: 'delete',
                         label: '删除',
                         icon: 'ri:delete-bin-4-line',
-                        color: '#f56c6c'
+                        color: '#409eff'
                       }
                     ],
                     onClick: (item: ButtonMoreItem) => nodeMoreClick(item, row)

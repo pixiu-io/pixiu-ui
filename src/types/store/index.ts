@@ -99,6 +99,8 @@ export interface WorkTab {
   icon?: string
   /** 是否激活 */
   isActive?: boolean
+  /** 标签分组标识：同组路由复用同一个标签页 */
+  tabGroup?: string
 }
 
 // 用户Store状态

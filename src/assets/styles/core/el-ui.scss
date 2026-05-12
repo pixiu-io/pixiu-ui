@@ -86,6 +86,32 @@ html.dark .el-card {
   height: var(--el-component-custom-height) !important;
 }
 
+// 将 danger 按钮统一为主色蓝（全局）
+.el-button--danger {
+  --el-button-bg-color: var(--el-color-primary) !important;
+  --el-button-border-color: var(--el-color-primary) !important;
+  --el-button-hover-bg-color: var(--el-color-primary-light-3) !important;
+  --el-button-hover-border-color: var(--el-color-primary-light-3) !important;
+  --el-button-active-bg-color: var(--el-color-primary-dark-2) !important;
+  --el-button-active-border-color: var(--el-color-primary-dark-2) !important;
+}
+
+.el-button--danger.is-plain {
+  --el-button-bg-color: var(--el-color-primary-light-9) !important;
+  --el-button-border-color: var(--el-color-primary-light-5) !important;
+  --el-button-text-color: var(--el-color-primary) !important;
+  --el-button-hover-bg-color: var(--el-color-primary) !important;
+  --el-button-hover-border-color: var(--el-color-primary) !important;
+  --el-button-hover-text-color: var(--el-color-white) !important;
+}
+
+.el-button--danger.is-text,
+.el-button--danger.is-link {
+  --el-button-text-color: var(--el-color-primary) !important;
+  --el-button-hover-text-color: var(--el-color-primary-light-3) !important;
+  --el-button-active-text-color: var(--el-color-primary-dark-2) !important;
+}
+
 // circle 按钮宽度优化
 .el-button--default.is-circle {
   width: var(--el-component-custom-height) !important;
@@ -191,6 +217,7 @@ textarea::placeholder,
   .el-dropdown-menu__item {
     padding: 6px 16px !important;
     border-radius: 6px !important;
+    font-size: 12px !important;
 
     &:hover:not(.is-disabled) {
       color: var(--art-gray-900) !important;

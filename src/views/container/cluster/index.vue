@@ -210,7 +210,7 @@
 
   /** 集群详情 URL 仅保留 cluster=<internalName> */
   function clusterDetailQuery(row: ClusterItem) {
-    return { cluster: row.name }
+    return { cluster: row.name, aliasName: row.aliasName || row.name }
   }
 
   /** 集群详情 - 概览页「API Server」标签（与 overview 内 overviewTab=api 一致） */
