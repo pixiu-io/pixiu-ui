@@ -2045,6 +2045,9 @@
     background: var(--el-fill-color-light, #f5f7fa);
     border-radius: 6px;
     padding: 16px 12px 8px;
+    width: 920px;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 
   .pull-policy-group {
@@ -2567,7 +2570,8 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
-    width: 100%;
+    width: 920px;
+    max-width: 100%;
     box-sizing: border-box;
   }
 
