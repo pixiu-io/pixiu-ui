@@ -2049,8 +2049,9 @@
   .deploy-create-header {
     display: flex;
     align-items: center;
-    gap: 0;
+    gap: 4px;
     margin-bottom: 12px;
+    margin-left: calc(-1 * clamp(16px, 4vw, 48px));
   }
 
   .deploy-create-back-btn {
@@ -2074,12 +2075,18 @@
       padding-left: 20px;
       padding-right: 20px;
     }
+    .deploy-create-header {
+      margin-left: -20px;
+    }
   }
 
   @media (max-width: 768px) {
     .deploy-create-page {
       padding-left: 12px;
       padding-right: 12px;
+    }
+    .deploy-create-header {
+      margin-left: -12px;
     }
   }
 

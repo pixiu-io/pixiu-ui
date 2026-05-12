@@ -3005,29 +3005,32 @@
     { immediate: true }
   )
 
-  // ── Tab lazy loading ──
-  watch(kind, (val) => {
-    if (String(route.query.tab ?? '') !== val) {
-      router.replace({
-        query: {
-          ...route.query,
-          tab: val
-        }
-      })
-    }
-    const cluster = String(route.query.cluster ?? '')
-    if (!cluster) return
-    if (val === 'sts') getStsData()
-    else if (val === 'ds') {
-      if (props.dsDataMode === 'logs') {
-        void loadDsLogPods()
-      } else {
-        getDsData()
+  // ── Tab lazy loading（含 immediate：从创建页带 ?tab= 返回时 kind 已正确，须挂载即拉取） ──
+  watch(
+    kind,
+    (val) => {
+      if (String(route.query.tab ?? '') !== val) {
+        router.replace({
+          query: {
+            ...route.query,
+            tab: val
+          }
+        })
       }
-    }
-    else if (val === 'job') getJobData()
-    else if (val === 'cj') getCjData()
-  })
+      const cluster = String(route.query.cluster ?? '')
+      if (!cluster) return
+      if (val === 'sts') getStsData()
+      else if (val === 'ds') {
+        if (props.dsDataMode === 'logs') {
+          void loadDsLogPods()
+        } else {
+          getDsData()
+        }
+      } else if (val === 'job') getJobData()
+      else if (val === 'cj') getCjData()
+    },
+    { immediate: true }
+  )
 </script>
 
 <style>

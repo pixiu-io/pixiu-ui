@@ -1790,13 +1790,37 @@
 </script>
 
 <style scoped>
-  .deploy-create-page { padding: 0 clamp(16px, 4vw, 48px) 0; }
-  .deploy-create-header { display: flex; align-items: center; gap: 0; margin-bottom: 12px; }
+  .deploy-create-page {
+    padding: 0 clamp(16px, 4vw, 48px) 0;
+  }
+  .deploy-create-header {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 12px;
+    margin-left: calc(-1 * clamp(16px, 4vw, 48px));
+  }
   .deploy-create-back-btn { display: inline-flex; align-items: center; gap: 4px; padding: 0 6px 0 2px; }
   .deploy-create-header-divider { margin: 0 12px; height: 16px; }
   .deploy-create-card :deep(.el-card__body) { padding: 16px 20px; }
-  @media (max-width: 1200px) { .deploy-create-page { padding-left: 20px; padding-right: 20px; } }
-  @media (max-width: 768px) { .deploy-create-page { padding-left: 12px; padding-right: 12px; } }
+  @media (max-width: 1200px) {
+    .deploy-create-page {
+      padding-left: 20px;
+      padding-right: 20px;
+    }
+    .deploy-create-header {
+      margin-left: -20px;
+    }
+  }
+  @media (max-width: 768px) {
+    .deploy-create-page {
+      padding-left: 12px;
+      padding-right: 12px;
+    }
+    .deploy-create-header {
+      margin-left: -12px;
+    }
+  }
   .deploy-create-main { display: flex; gap: 0; }
   .dc-form { max-width: none; width: 100%; }
   .dc-form :deep(.el-form-item__label) { font-size: 12px; padding-right: 16px; }

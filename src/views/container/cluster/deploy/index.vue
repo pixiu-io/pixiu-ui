@@ -498,12 +498,18 @@
       padding-left: 20px;
       padding-right: 20px;
     }
+    .deploy-create-header {
+      margin-left: -20px;
+    }
   }
 
   @media (max-width: 768px) {
     .deploy-create-page {
       padding-left: 12px;
       padding-right: 12px;
+    }
+    .deploy-create-header {
+      margin-left: -12px;
     }
   }
 
