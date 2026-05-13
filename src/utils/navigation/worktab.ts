@@ -28,6 +28,34 @@ import { useSettingStore } from '@/store/modules/setting'
 import { IframeRouteManager } from '@/router/core'
 import { useCommon } from '@/hooks/core/useCommon'
 
+/** 容器模块中带 cluster 的 meta.isHide 全屏子页（创建/详情等），与 setWorktab 首段条件一致 */
+function isContainerFullscreenClusterChildRoute(route: RouteLocationNormalized): boolean {
+  const { meta, path, query } = route
+  const clusterParam = query.cluster
+  const clusterKey = Array.isArray(clusterParam) ? clusterParam[0] : clusterParam
+  return Boolean(
+    meta.isHide &&
+    clusterKey &&
+    typeof path === 'string' &&
+    path.startsWith('/container/') &&
+    !path.startsWith('/container/cluster')
+  )
+}
+
+/**
+ * 是否隐藏顶部工作台标签栏（集群详情布局 + 上述全屏子页）
+ */
+export function shouldHideWorkTabBar(route: RouteLocationNormalized): boolean {
+  if (
+    route.matched.some(
+      (record) => (record.meta?.tabGroup as string | undefined) === 'clusterDetail'
+    )
+  ) {
+    return true
+  }
+  return isContainerFullscreenClusterChildRoute(route)
+}
+
 /**
  * 根据当前路由信息设置工作标签页（worktab）
  * @param to 当前路由对象
@@ -41,13 +69,7 @@ export const setWorktab = (to: RouteLocationNormalized): void => {
 
   // 容器模块中带 cluster 的 meta.isHide 全屏子页（创建/详情等）：以路由 name 作为 tabGroup，
   // 每种页面类型复用同一工作台标签，互不干扰；返回列表时不会残留多余标签。
-  if (
-    meta.isHide &&
-    clusterKey &&
-    typeof path === 'string' &&
-    path.startsWith('/container/') &&
-    !path.startsWith('/container/cluster')
-  ) {
+  if (isContainerFullscreenClusterChildRoute(to)) {
     const title = (meta.title as string) || `容器集群:${String(clusterKey)}`
     worktabStore.openTab({
       title,

@@ -1,7 +1,7 @@
 <!-- 标签页 -->
 <template>
   <div
-    v-if="showWorkTab && !isClusterDetailRoute"
+    v-if="showWorkTab && !hideWorkTabForRoute"
     class="box-border flex-b w-full px-5 mb-3 select-none max-sm:px-[15px]"
     :class="[
       tabStyle === 'tab-card' ? 'py-1 border-b border-[var(--art-card-border)]' : '',
@@ -95,6 +95,7 @@
   import { useSettingStore } from '@/store/modules/setting'
   import { MenuItemType } from '../../others/art-menu-right/index.vue'
   import { useCommon } from '@/hooks/core/useCommon'
+  import { shouldHideWorkTabBar } from '@/utils/navigation/worktab'
   import { WorkTab } from '@/types'
 
   defineOptions({ name: 'ArtWorkTab' })
@@ -144,9 +145,7 @@
   const list = computed(() => store.opened)
   const activeTab = computed(() => currentRoute.value.path)
   const activeTabIndex = computed(() => list.value.findIndex((tab) => tab.path === activeTab.value))
-  const isClusterDetailRoute = computed(() =>
-    route.matched.some((record) => (record.meta?.tabGroup as string | undefined) === 'clusterDetail')
-  )
+  const hideWorkTabForRoute = computed(() => shouldHideWorkTabBar(route))
 
   // 右键菜单逻辑
   const useContextMenu = () => {
