@@ -124,6 +124,13 @@ html.dark .el-card {
   }
 }
 
+// 统一下拉选择框字体（输入区 + 下拉项）
+.el-select__placeholder,
+.el-select__selected-item,
+.el-select-dropdown__item {
+  font-size: 12px !important;
+}
+
 // 统一 placeholder 字体大小
 input::placeholder,
 textarea::placeholder,
@@ -140,6 +147,71 @@ textarea::placeholder,
 .el-radio-button--default .el-radio-button__inner {
   padding: 10px 15px !important;
 }
+
+// 创建/编辑 workload「拉取策略」：与上方规则同级带 !important，需更高选择器才能覆盖
+.pull-policy-group.el-radio-group .el-radio-button--default .el-radio-button__inner {
+  padding: 8px 10px !important;
+  min-height: 0 !important;
+}
+
+// 拉取策略：右侧为分段按钮 + 下方说明，整块垂直居中会导致标签与第一行按钮错位，改为顶对齐
+.el-form-item:has(.pull-policy-group) {
+  align-items: flex-start;
+
+  // 与左侧标签视觉中线略对齐，整体略下移
+  .pull-policy-group.el-radio-group {
+    margin-top: 4px;
+  }
+}
+
+// workload 创建页「更新方式」单选值统一为 12px
+.strategy-type-group.el-radio-group .el-radio__label {
+  font-size: 12px !important;
+}
+
+// ElInputNumber 两侧加减（非 controls-right）：与「更新Pod数量」期望副本数一致 — 白底一体、加减区透明、行高与对话框一致
+.el-input-number.el-input-number--default:not(.is-controls-right):not(.is-without-controls) {
+  /* EP 默认 150px，略收窄；不要用 !important，便于页面 style / 父级覆盖（如 width:100%） */
+  width: 110px;
+
+  .el-input .el-input__wrapper {
+    border-radius: 0;
+  }
+
+  .el-input__inner {
+    font-size: 12px !important;
+    height: 28px !important;
+    line-height: 28px !important;
+  }
+
+  .el-input-number__decrease,
+  .el-input-number__increase {
+    width: 28px !important;
+    font-size: 13px !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+  }
+
+  .el-input-number__decrease:hover,
+  .el-input-number__increase:hover {
+    background: var(--el-fill-color) !important;
+  }
+}
+
+// 右侧堆叠加减：同色阶统一为透明底 + 浅色 hover，避免大块灰底
+.el-input-number.el-input-number--default.is-controls-right:not(.is-without-controls) {
+  width: 110px;
+
+  .el-input-number__decrease,
+  .el-input-number__increase {
+    background: transparent !important;
+  }
+
+  .el-input-number__decrease:hover,
+  .el-input-number__increase:hover {
+    background: var(--el-fill-color) !important;
+  }
+}
 // -------------------------------- 修改 el-size=default 组件默认高度 end --------------------------------
 
 .el-pagination.is-background .btn-next,
@@ -151,6 +223,18 @@ textarea::placeholder,
 .el-popover {
   min-width: 80px;
   border-radius: var(--el-border-radius-small) !important;
+}
+
+/* Job/CronJob 创建页：失败重启策略下拉面板 */
+.restart-policy-popper {
+  .el-select-dropdown__list {
+    padding: 0 !important;
+  }
+
+  .el-select-dropdown__item {
+    font-size: 12px !important;
+    border-radius: 0 !important;
+  }
 }
 
 .el-dialog {

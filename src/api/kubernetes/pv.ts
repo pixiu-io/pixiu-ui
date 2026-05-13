@@ -49,6 +49,11 @@ export async function fetchK8sPV(cluster: string, name: string): Promise<K8sPV> 
   return data
 }
 
+export async function createK8sPV(cluster: string, body: object): Promise<K8sPV> {
+  const { data } = await kubeProxyAxios.post<K8sPV>(pvBase(cluster), body)
+  return data
+}
+
 export async function deleteK8sPV(cluster: string, name: string): Promise<void> {
   await kubeProxyAxios.delete(`${pvBase(cluster)}/${encodeURIComponent(name)}`)
 }

@@ -396,7 +396,7 @@
     justify-content: space-between;
     flex-wrap: wrap;
     gap: 8px;
-    padding: 4px 0 14px;
+    padding: 10px 0 14px;
     border-bottom: 1px solid var(--el-border-color-lighter);
   }
 

@@ -605,7 +605,7 @@
     gap: 15px;
     margin-left: 4px;
     font-size: 14px;
-    color: #c7c7d1;
+    color: var(--el-text-color-regular);
   }
   .nd-title__value {
     color: var(--el-color-primary);
@@ -621,7 +621,7 @@
   }
   .nd-cluster-label {
     font-size: 14px;
-    color: #c7c7d1;
+    color: var(--el-text-color-regular);
   }
   .nd-cluster-value {
     font-size: 13px;
@@ -637,7 +637,7 @@
     padding: 4px 14px 2px 45px;
     font-size: 14px;
     font-weight: 500;
-    color: #c7c7d1;
+    color: var(--el-text-color-primary);
   }
   .nd-info-grid {
     display: grid;

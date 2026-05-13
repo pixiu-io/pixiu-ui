@@ -224,7 +224,7 @@
       },
       apiParams: { current: 1, size: 10, name: undefined },
       columnsFactory: () => [
-        { type: 'selection' },
+        { type: 'selection', width: 30 },
         {
           prop: 'metadata.name',
           label: '命名空间',
@@ -234,7 +234,7 @@
             const isSystem = name === 'default' || name.startsWith('kube-')
             return h('div', { style: 'line-height:1.8' }, [
               h('div', { style: 'display:flex;align-items:center;gap:8px' }, [
-                h('span', { style: 'font-size:14px;color:var(--el-text-color-primary)' }, name),
+                h('span', { style: 'font-size:12px;color:var(--el-text-color-primary)' }, name),
                 isSystem
                   ? h(
                       'span',
@@ -283,7 +283,7 @@
           formatter: (row: K8sNamespace) =>
             h(
               'span',
-              { style: 'font-size:12px;color:var(--el-text-color-secondary)' },
+              { style: 'font-size:12px;color:var(--el-text-color-regular)' },
               formatNodeCreationTime(row.metadata?.creationTimestamp)
             )
         },
@@ -295,7 +295,7 @@
           formatter: (row: K8sNamespace) =>
             h(
               'span',
-              { style: 'font-size:12px' },
+              { style: 'font-size:12px;color:var(--el-text-color-regular)' },
               row.metadata?.annotations?.description ??
                 row.metadata?.annotations?.['kubernetes.io/description'] ??
                 '-'

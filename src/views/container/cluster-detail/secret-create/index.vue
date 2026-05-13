@@ -30,7 +30,7 @@
         </ElFormItem>
 
         <ElFormItem label="Secret 类型" prop="secretType">
-          <ElRadioGroup v-model="form.secretType" class="secret-type-group">
+          <ElRadioGroup v-model="form.secretType" class="pull-policy-group">
             <ElRadioButton value="Opaque">Opaque</ElRadioButton>
             <ElRadioButton value="kubernetes.io/tls">TLS 证书</ElRadioButton>
             <ElRadioButton value="kubernetes.io/dockerconfigjson"
@@ -697,57 +697,60 @@
     gap: 12px;
   }
 
-  /* ── Secret 类型（同拉取策略风格）── */
-  .secret-type-group {
+  /* ── Secret 类型：与创建 Deployment「拉取策略」分段样式一致（宽度随文案自适应）── */
+  .pull-policy-group {
     --el-radio-button-checked-border-color: var(--el-color-primary);
     --el-radio-button-checked-bg-color: var(--el-bg-color-overlay);
     --el-radio-button-checked-text-color: var(--el-color-primary);
     display: inline-flex;
+    flex-wrap: nowrap;
+    width: fit-content;
+    max-width: 100%;
+    box-sizing: border-box;
+    vertical-align: middle;
   }
 
-  .secret-type-group :deep(.el-radio-button) {
-    display: flex;
+  .pull-policy-group :deep(.el-radio-button) {
+    flex: 0 0 auto;
+    display: inline-flex;
   }
 
-  .secret-type-group :deep(.el-radio-button__inner) {
-    display: flex;
+  .pull-policy-group :deep(.el-radio-button__inner) {
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    white-space: nowrap;
     box-sizing: border-box;
-    font-size: 13px;
-    padding: 0 14px;
-    height: 32px;
-    line-height: 30px;
+    text-align: center;
+    font-size: 12px;
+    line-height: 1.2;
+    padding: 0 10px;
+    height: 28px;
+    white-space: nowrap;
     font-weight: 400;
     color: var(--el-text-color-regular);
     background: transparent;
     border: 1px solid var(--el-border-color);
-    border-left: 1px solid var(--el-border-color);
     border-radius: 0 !important;
     transition:
       border-color 0.15s,
-      color 0.15s;
+      color 0.15s,
+      background-color 0.15s;
   }
 
-  .secret-type-group :deep(.el-radio-button:first-child .el-radio-button__inner) {
-    border-left: 1px solid var(--el-border-color);
-    border-radius: 0 0 0 0 !important;
+  .pull-policy-group :deep(.el-radio-button:first-child .el-radio-button__inner),
+  .pull-policy-group :deep(.el-radio-button:last-child .el-radio-button__inner) {
+    border-radius: 0 !important;
   }
 
-  .secret-type-group :deep(.el-radio-button:last-child .el-radio-button__inner) {
-    border-radius: 0 0 0 0 !important;
-  }
-
-  .secret-type-group :deep(.el-radio-button__inner:hover) {
+  .pull-policy-group :deep(.el-radio-button__inner:hover) {
     border-color: var(--el-color-primary);
     color: var(--el-color-primary);
   }
 
-  .secret-type-group :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
-    background-color: var(--el-bg-color) !important;
+  .pull-policy-group :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
+    background-color: var(--el-bg-color-overlay) !important;
     color: var(--el-color-primary) !important;
-    font-weight: 400 !important;
+    font-weight: 500 !important;
     border-color: var(--el-color-primary) !important;
     box-shadow: none !important;
     position: relative;

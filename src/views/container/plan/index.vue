@@ -426,7 +426,7 @@
       },
       apiParams: { current: 1, size: 10 },
       columnsFactory: () => [
-        { type: 'selection' },
+        { type: 'selection', width: 30 },
         {
           prop: 'name',
           label: '名称',
@@ -439,7 +439,7 @@
                 {
                   type: 'primary',
                   underline: 'never',
-                  style: 'font-size:14px',
+                  style: 'font-size:12px',
                   onClick: () => goToDetail(row)
                 },
                 () => row.name

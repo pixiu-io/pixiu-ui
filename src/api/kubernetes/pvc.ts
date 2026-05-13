@@ -50,6 +50,11 @@ export async function fetchK8sPVC(cluster: string, namespace: string, name: stri
   return data
 }
 
+export async function createK8sPVC(cluster: string, namespace: string, body: object): Promise<K8sPVC> {
+  const { data } = await kubeProxyAxios.post<K8sPVC>(pvcBase(cluster, namespace), body)
+  return data
+}
+
 export async function deleteK8sPVC(cluster: string, namespace: string, name: string): Promise<void> {
   await kubeProxyAxios.delete(`${pvcBase(cluster, namespace)}/${encodeURIComponent(name)}`)
 }

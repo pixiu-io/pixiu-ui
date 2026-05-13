@@ -497,7 +497,7 @@
       },
       apiParams: { current: 1, size: 10 },
       columnsFactory: () => [
-        { type: 'selection' },
+        { type: 'selection', width: 30 },
         {
           prop: 'aliasName',
           label: '名称/ID',
@@ -510,7 +510,7 @@
                       'span',
                       {
                         style:
-                          'font-size:14px;color:var(--el-color-primary);cursor:not-allowed'
+                          'font-size:12px;color:var(--el-color-primary);cursor:not-allowed'
                       },
                       row.aliasName
                     )
@@ -519,7 +519,7 @@
                       {
                         type: 'primary',
                         underline: 'never',
-                        style: 'font-size:14px',
+                        style: 'font-size:12px',
                         onClick: () =>
                           router.push({ path: '/container/overview', query: clusterDetailQuery(row) })
                       },

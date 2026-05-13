@@ -67,3 +67,12 @@ export async function createK8sDaemonSet(cluster: string, namespace: string, bod
   const { data } = await kubeProxyAxios.post<K8sDaemonSet>(dsBase(cluster, namespace), body)
   return data
 }
+
+export async function patchK8sDaemonSet(cluster: string, namespace: string, name: string, patch: object): Promise<K8sDaemonSet> {
+  const { data } = await kubeProxyAxios.patch<K8sDaemonSet>(
+    `${dsBase(cluster, namespace)}/${encodeURIComponent(name)}`,
+    patch,
+    { headers: { 'Content-Type': 'application/merge-patch+json' } }
+  )
+  return data
+}

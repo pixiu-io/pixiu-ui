@@ -133,6 +133,36 @@ export const containerRoutes: AppRouteRecord = {
       }
     },
     {
+      path: 'pv-create',
+      name: 'PVCreate',
+      component: '/container/cluster-detail/pv-create/index',
+      meta: {
+        title: '创建 PersistentVolume',
+        isHide: true,
+        keepAlive: false
+      }
+    },
+    {
+      path: 'pvc-create',
+      name: 'PVCCreate',
+      component: '/container/cluster-detail/pvc-create/index',
+      meta: {
+        title: '创建 PersistentVolumeClaim',
+        isHide: true,
+        keepAlive: false
+      }
+    },
+    {
+      path: 'workload-update',
+      name: 'WorkloadUpdate',
+      component: '/container/cluster-detail/workload-update/index',
+      meta: {
+        title: '更新Pod设置',
+        isHide: true,
+        keepAlive: false
+      }
+    },
+    {
       path: 'job-create',
       name: 'JobCreate',
       component: '/container/cluster-detail/job-create/index',

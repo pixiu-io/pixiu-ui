@@ -191,7 +191,7 @@
       },
       apiParams: { current: 1, size: 10 },
       columnsFactory: () => [
-        { type: 'selection' },
+        { type: 'selection', width: 30 },
         {
           label: '操作人',
           width: 120,

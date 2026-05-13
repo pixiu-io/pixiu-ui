@@ -7,7 +7,7 @@
       </ElButton>
       <ElDivider direction="vertical" class="deploy-create-header-divider" />
       <ElBreadcrumb separator="/">
-        <ElBreadcrumbItem :to="{ path: '/container/workloads', query: { cluster } }"
+        <ElBreadcrumbItem :to="{ path: '/container/workloads', query: { cluster, tab: 'ds' } }"
           >工作负载</ElBreadcrumbItem
         >
         <ElBreadcrumbItem>创建 DaemonSet</ElBreadcrumbItem>
@@ -29,7 +29,7 @@
               <ElInput
                 v-model="form.name"
                 placeholder="请输入 DaemonSet 名称"
-                style="width: 280px"
+                style="width: 200px"
               />
               <div class="dc-field-tip"
                 >最长 63
@@ -42,7 +42,7 @@
               v-model="form.namespace"
               filterable
               placeholder="请选择命名空间"
-              style="width: 280px"
+              style="width: 200px"
             >
               <ElOption v-for="ns in namespaces" :key="ns" :label="ns" :value="ns" />
             </ElSelect>
@@ -518,7 +518,7 @@
                               <ElInput
                                 v-model="form.containers[activeContainerIdx].liveness.port"
                                 placeholder="请输入检查端口"
-                                style="width: 280px"
+                                style="width: 200px"
                               />
                               <div class="dc-field-tip">端口范围：1~65535，支持使用端口名</div>
                             </div>
@@ -617,7 +617,7 @@
                               <ElInput
                                 v-model="form.containers[activeContainerIdx].readiness.port"
                                 placeholder="请输入检查端口"
-                                style="width: 280px"
+                                style="width: 200px"
                               />
                               <div class="dc-field-tip">端口范围：1~65535，支持使用端口名</div>
                             </div>
@@ -719,7 +719,7 @@
                 <ElSelect
                   v-model="form.imagePullSecret"
                   placeholder="不指定访问凭证"
-                  style="width: 280px"
+                  style="width: 200px"
                   filterable
                 >
                   <ElOption v-for="s in pullSecrets" :key="s" :label="s" :value="s" />
@@ -779,7 +779,7 @@
           </div>
           <template v-if="showAdvancedOptions">
             <ElFormItem label="更新方式">
-              <ElRadioGroup v-model="form.strategyType">
+              <ElRadioGroup v-model="form.strategyType" class="strategy-type-group">
                 <ElRadio value="RollingUpdate">滚动更新</ElRadio>
                 <ElRadio value="OnDelete">重建更新</ElRadio>
               </ElRadioGroup>
@@ -1838,7 +1838,7 @@
   .vm-row { grid-template-columns: 1fr 1fr 120px auto; }
   .vol-row { grid-template-columns: 1fr 140px 1fr auto; }
   .port-table { display: flex; flex-direction: column; align-items: flex-start; gap: 0; width: 100%; }
-  .port-table-box { background: var(--el-bg-color-overlay); border: 1px solid var(--el-border-color-light); border-radius: 4px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; width: 100%; box-sizing: border-box; }
+  .port-table-box { background: var(--el-bg-color-overlay); border: 1px solid var(--el-border-color-light); border-radius: 4px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; min-width: 560px; box-sizing: border-box; }
   .port-table-header, .port-table-row { display: grid; grid-template-columns: 120px 120px 120px 1fr; gap: 0; align-items: center; }
   .port-table-header { font-size: 12px; color: var(--el-text-color-secondary); padding-bottom: 2px; }
   .port-col-protocol { margin-left: 30px; }
@@ -1860,7 +1860,7 @@
   .container-form-wrap { background: var(--el-fill-color-light, #f5f7fa); border-radius: 6px; padding: 16px 12px 8px; }
   .pull-policy-group { --el-radio-button-checked-border-color: var(--el-color-primary); --el-radio-button-checked-bg-color: var(--el-bg-color-overlay); --el-radio-button-checked-text-color: var(--el-color-primary); display: flex; width: 320px; min-width: 320px; max-width: 320px; overflow: hidden; box-sizing: border-box; }
   .pull-policy-group :deep(.el-radio-button) { flex: 1 1 0; min-width: 0; display: flex; }
-  .pull-policy-group :deep(.el-radio-button__inner) { display: flex; flex: 1; align-items: center; justify-content: center; width: 100%; box-sizing: border-box; text-align: center; font-size: 13px; padding: 6px 10px; font-weight: 400; color: var(--el-text-color-regular); background: transparent; border: 1px solid var(--el-border-color); border-radius: 0 !important; transition: border-color 0.15s, color 0.15s, background-color 0.15s; }
+  .pull-policy-group :deep(.el-radio-button__inner) { display: flex; flex: 1; align-items: center; justify-content: center; width: 100%; box-sizing: border-box; text-align: center; font-size: 12px; padding: 2px 10px; font-weight: 400; color: var(--el-text-color-regular); background: transparent; border: 1px solid var(--el-border-color); border-radius: 0 !important; transition: border-color 0.15s, color 0.15s, background-color 0.15s; }
   .pull-policy-group :deep(.el-radio-button:first-child .el-radio-button__inner), .pull-policy-group :deep(.el-radio-button:last-child .el-radio-button__inner) { border-radius: 0 !important; }
   .pull-policy-group :deep(.el-radio-button__inner:hover) { border-color: var(--el-color-primary); color: var(--el-color-primary); }
   .pull-policy-group :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) { background-color: var(--el-bg-color-overlay) !important; color: var(--el-color-primary) !important; font-weight: 500 !important; border-color: var(--el-color-primary) !important; box-shadow: none !important; position: relative; z-index: 1; }
@@ -1876,14 +1876,15 @@
   .cpu-mem-limit-block { display: flex; flex-direction: column; align-items: stretch; gap: 8px; min-width: 0; }
   .cpu-mem-limit-block-title { font-size: 12px; font-weight: 500; color: var(--el-text-color-primary); line-height: 1.2; margin: 0; }
   .cpu-mem-limit-inputs { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 6px; width: 100%; min-width: 0; }
-  .resource-affix-group { display: flex; flex-direction: row; align-items: stretch; min-width: 0; border: 1px solid var(--el-border-color); border-radius: var(--el-border-radius-base); overflow: hidden; background: var(--el-fill-color-blank); box-sizing: border-box; }
+  .resource-affix-group { display: flex; flex-direction: row; align-items: stretch; min-width: 0; border: 1px solid var(--el-border-color); border-radius: 0; overflow: hidden; background: var(--el-fill-color-blank); box-sizing: border-box; }
   .resource-affix-group--grow { flex: 1 1 0; min-width: 0; }
   .resource-affix-sep { flex-shrink: 0; color: var(--el-text-color-secondary); font-size: 13px; user-select: none; line-height: 1; }
   .resource-affix-group:focus-within { border-color: var(--el-color-primary); }
   .resource-affix-label { display: inline-flex; align-items: center; justify-content: center; width: 64px; flex-shrink: 0; padding: 0 6px; font-size: 12px; color: var(--el-text-color-secondary); background: var(--el-fill-color-light); border-right: 1px solid var(--el-border-color); box-sizing: border-box; }
   .resource-affix-input { flex: 1; min-width: 0; }
   .resource-affix-input :deep(.el-input) { width: 100%; min-width: 0; }
-  .resource-affix-input :deep(.el-input__wrapper) { box-shadow: none !important; border: none !important; border-radius: 0 !important; background-color: transparent; }
+  .resource-affix-input :deep(.el-input__wrapper) { box-shadow: none !important; border: none !important; border-radius: 0 !important; background-color: transparent; padding-top: 0; padding-bottom: 0; height: 28px; align-items: center; }
+  .resource-affix-input :deep(.el-input__inner) { text-align: left; }
   .resource-unit-suffix { flex-shrink: 0; align-self: center; font-size: 13px; color: var(--el-text-color-regular); white-space: nowrap; }
   .cpu-mem-limit-tips { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; width: 100%; max-width: none; }
   .cpu-mem-tip-line { white-space: normal; line-height: 1.5; }
@@ -1892,13 +1893,17 @@
   .health-check-row { display: flex; align-items: center; gap: 8px; }
   .health-check-title { font-size: 12px; font-weight: 500; color: var(--el-text-color-primary); }
   .health-check-desc { font-size: 12px; color: var(--el-text-color-secondary); }
-  .health-check-panel { background: var(--el-bg-color-overlay); border: 1px solid var(--el-border-color-light); border-radius: 6px; padding: 16px 20px; margin-top: 8px; display: flex; flex-direction: column; gap: 10px; }
+  .health-check-panel { background: var(--el-bg-color-overlay); border: 1px solid var(--el-border-color-light); border-radius: 6px; padding: 16px 20px; margin-top: 8px; display: flex; flex-direction: column; gap: 10px; align-self: flex-start; width: 500px; }
   .probe-field-row { display: flex; align-items: flex-start; gap: 12px; }
   .probe-field-label { display: flex; align-items: center; gap: 3px; width: 72px; flex-shrink: 0; font-size: 12px; color: var(--el-text-color-regular); padding-top: 5px; }
   .probe-field-col { display: flex; flex-direction: column; gap: 2px; }
   .probe-input-unit { display: flex; align-items: center; gap: 4px; }
   .probe-unit { font-size: 12px; color: var(--el-text-color-regular); white-space: nowrap; }
+  .health-check-panel .probe-input-unit :deep(.el-input) { width: 70px !important; }
+  .health-check-panel .probe-input-unit :deep(.el-input__inner) { font-size: 11px !important; }
   .health-check-panel :deep(.el-input__inner), .health-check-panel :deep(.el-textarea__inner), .health-check-panel :deep(.el-select__wrapper) { font-size: 12px; }
+  .health-check-panel :deep(.el-input__wrapper) { height: 28px; }
+  .health-check-panel :deep(.el-select__wrapper) { height: 28px !important; min-height: 28px !important; }
   .health-check-panel .dc-field-tip { font-size: 12px; margin-top: 2px; }
   .dc-form :deep(.el-input__inner), .dc-form :deep(.el-textarea__inner), .dc-form :deep(.el-select__wrapper) { font-size: 13px; }
   .dc-field-tip { font-size: 12px; color: var(--el-text-color-placeholder); line-height: 1.5; margin-top: 4px; white-space: nowrap; }

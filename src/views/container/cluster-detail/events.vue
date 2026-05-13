@@ -151,7 +151,7 @@
       },
       apiParams: { current: 1, size: 10, type: undefined, namespace: undefined },
       columnsFactory: () => [
-        { type: 'selection' },
+        { type: 'selection', width: 30 },
         {
           prop: 'lastTimestamp',
           label: '最后出现时间',
@@ -159,7 +159,7 @@
           formatter: (row: K8sEventRow) =>
             h(
               'span',
-              { style: 'font-size:12px;color:var(--el-text-color-secondary)' },
+              { style: 'font-size:12px;color:var(--el-text-color-regular)' },
               formatNodeCreationTime(row.lastTimestamp)
             )
         },
@@ -187,7 +187,7 @@
             const kind = row.involvedObject?.kind ?? ''
             const name = row.involvedObject?.name ?? ''
             const text = kind && name ? `${kind}/${name}` : kind || name || '—'
-            return h('span', { style: 'font-size:12px' }, text)
+            return h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, text)
           }
         },
         {
@@ -195,7 +195,7 @@
           label: '出现次数',
           width: 100,
           formatter: (row: K8sEventRow) =>
-            h('span', { style: 'font-size:12px' }, String(row.count ?? 0))
+            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, String(row.count ?? 0))
         },
         {
           prop: 'message',
@@ -203,7 +203,7 @@
           minWidth: 280,
           showOverflowTooltip: true,
           formatter: (row: K8sEventRow) =>
-            h('span', { style: 'font-size:12px' }, row.message ?? '—')
+            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, row.message ?? '—')
         },
         {
           prop: 'operation',
@@ -217,7 +217,7 @@
                 {
                   type: 'primary',
                   underline: 'never',
-                  style: 'font-size:12px',
+                  style: 'font-size:12px;color:var(--el-text-color-regular)',
                   onClick: () => void deleteSingleEvent(row)
                 },
                 () => '删除'

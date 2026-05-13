@@ -129,7 +129,7 @@
       //   size: 'pageSize'
       // },
       columnsFactory: () => [
-        { type: 'selection' }, // 勾选列
+        { type: 'selection', width: 30 }, // 勾选列
         { type: 'index', width: 60, label: '序号' }, // 序号
         {
           prop: 'userInfo',

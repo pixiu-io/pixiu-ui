@@ -22,7 +22,9 @@
                 >
                   销毁重建
                 </ElButton>
-                <ElButton v-if="props.showDeployCreate" v-ripple @click="openCreateDialog">新建</ElButton>
+                <ElButton v-if="props.showDeployCreate" v-ripple @click="openCreateDialog"
+                  >新建</ElButton
+                >
                 <div class="workloads-toolbar__filters">
                   <span
                     v-if="isDeployPodMode && !props.deployNamespace"
@@ -40,18 +42,22 @@
                     @change="onDeplNamespaceChange"
                   >
                     <template #label="{ label, value }">
-                      <span style="display:inline-flex;align-items:center;gap:4px">
-                        <span style="font-size:13px;color:#C7C7D1">{{ label }}</span>
-                        <span v-if="isSystemNamespace(String(value || ''))" class="workloads-ns-system-tag"
+                      <span style="display: inline-flex; align-items: center; gap: 4px">
+                        <span style="font-size: 13px; color: #c7c7d1">{{ label }}</span>
+                        <span
+                          v-if="isSystemNamespace(String(value || ''))"
+                          class="workloads-ns-system-tag"
                           >系统</span
                         >
                       </span>
                     </template>
                     <ElOption label="所有命名空间" value="" />
                     <ElOption v-for="ns in nsOptions" :key="ns" :label="ns" :value="ns">
-                      <span style="display:inline-flex;align-items:center;gap:0">
+                      <span style="display: inline-flex; align-items: center; gap: 0">
                         <span class="workloads-ns-option-name">{{ ns }}</span>
-                        <span v-if="isSystemNamespace(ns)" class="workloads-ns-system-tag">系统</span>
+                        <span v-if="isSystemNamespace(ns)" class="workloads-ns-system-tag"
+                          >系统</span
+                        >
                       </span>
                     </ElOption>
                   </ElSelect>
@@ -113,7 +119,14 @@
                     @keyup.enter="runStsSearch"
                     @clear="runStsSearch"
                   />
-                  <div class="workloads-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceStsSearch" @keyup.enter="forceStsSearch">
+                  <div
+                    class="workloads-toolbar-search-btn"
+                    role="button"
+                    tabindex="0"
+                    title="搜索"
+                    @click="forceStsSearch"
+                    @keyup.enter="forceStsSearch"
+                  >
                     <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
                   </div>
                 </div>
@@ -134,7 +147,11 @@
         </ElTabPane>
 
         <!-- ── DaemonSet Tab ── -->
-        <ElTabPane v-if="props.showDsTab && props.dsDataMode !== 'logs'" :label="dsTabLabel" name="ds">
+        <ElTabPane
+          v-if="props.showDsTab && props.dsDataMode !== 'logs'"
+          :label="dsTabLabel"
+          name="ds"
+        >
           <ArtTableHeader
             v-model:columns="dsColumnChecks"
             :loading="dsLoading"
@@ -154,7 +171,14 @@
                     @keyup.enter="runDsSearch"
                     @clear="runDsSearch"
                   />
-                  <div class="workloads-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceDsSearch" @keyup.enter="forceDsSearch">
+                  <div
+                    class="workloads-toolbar-search-btn"
+                    role="button"
+                    tabindex="0"
+                    title="搜索"
+                    @click="forceDsSearch"
+                    @keyup.enter="forceDsSearch"
+                  >
                     <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
                   </div>
                 </div>
@@ -218,7 +242,14 @@
                     @keyup.enter="runJobSearch"
                     @clear="runJobSearch"
                   />
-                  <div class="workloads-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceJobSearch" @keyup.enter="forceJobSearch">
+                  <div
+                    class="workloads-toolbar-search-btn"
+                    role="button"
+                    tabindex="0"
+                    title="搜索"
+                    @click="forceJobSearch"
+                    @keyup.enter="forceJobSearch"
+                  >
                     <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
                   </div>
                 </div>
@@ -250,7 +281,9 @@
           >
             <template #left>
               <div class="workloads-toolbar">
-                <ElButton v-if="props.cjDataMode !== 'history'" v-ripple @click="goCreateCronJob">新建</ElButton>
+                <ElButton v-if="props.cjDataMode !== 'history'" v-ripple @click="goCreateCronJob"
+                  >新建</ElButton
+                >
                 <div class="workloads-toolbar__filters">
                   <ElInput
                     v-model="cjSearchForm.name"
@@ -260,7 +293,14 @@
                     @keyup.enter="runCjSearch"
                     @clear="runCjSearch"
                   />
-                  <div class="workloads-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceCjSearch" @keyup.enter="forceCjSearch">
+                  <div
+                    class="workloads-toolbar-search-btn"
+                    role="button"
+                    tabindex="0"
+                    title="搜索"
+                    @click="forceCjSearch"
+                    @keyup.enter="forceCjSearch"
+                  >
                     <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
                   </div>
                 </div>
@@ -281,12 +321,7 @@
         </ElTabPane>
 
         <ElTabPane v-if="props.showNodeStatusTab" label="状态" name="nodeStatus">
-          <ElTable
-            :data="props.nodeStatusRows"
-            size="small"
-            stripe
-            class="workloads-extra-table"
-          >
+          <ElTable :data="props.nodeStatusRows" size="small" stripe class="workloads-extra-table">
             <ElTableColumn prop="type" label="类型" min-width="170" />
             <ElTableColumn prop="status" label="状态" width="90" />
             <ElTableColumn prop="lastHeartbeatTime" label="最近心跳" width="170" />
@@ -338,11 +373,15 @@
             <div class="workloads-node-metrics__grid">
               <div class="workloads-node-metrics__item">
                 <div class="workloads-node-metrics__title">CPU 使用量</div>
-                <div class="workloads-node-metrics__value">{{ props.nodeMetrics.cpuUsageText }}</div>
+                <div class="workloads-node-metrics__value">{{
+                  props.nodeMetrics.cpuUsageText
+                }}</div>
               </div>
               <div class="workloads-node-metrics__item">
                 <div class="workloads-node-metrics__title">内存使用量</div>
-                <div class="workloads-node-metrics__value">{{ props.nodeMetrics.memoryUsageText }}</div>
+                <div class="workloads-node-metrics__value">{{
+                  props.nodeMetrics.memoryUsageText
+                }}</div>
               </div>
               <div class="workloads-node-metrics__item">
                 <div class="workloads-node-metrics__title">分配情况</div>
@@ -356,19 +395,31 @@
                     <span>内存</span>
                     <span>{{ props.nodeMetrics.memoryUsageAllocText }}</span>
                   </div>
-                  <ElProgress :percentage="props.nodeMetrics.memoryUsagePercent" :stroke-width="8" />
+                  <ElProgress
+                    :percentage="props.nodeMetrics.memoryUsagePercent"
+                    :stroke-width="8"
+                  />
                 </div>
               </div>
             </div>
           </div>
         </ElTabPane>
 
-        <ElTabPane v-if="props.showDsTab && props.dsDataMode === 'logs'" :label="dsTabLabel" name="ds">
+        <ElTabPane
+          v-if="props.showDsTab && props.dsDataMode === 'logs'"
+          :label="dsTabLabel"
+          name="ds"
+        >
           <div class="workloads-log-toolbar">
             <div class="workloads-log-row">
               <span class="workloads-log-label">Pod选项</span>
               <ElSelect v-model="dsLogPod" class="workloads-log-select" @change="onDsLogPodChange">
-                <ElOption v-for="p in dsLogPods" :key="p.metadata?.name" :label="p.metadata?.name" :value="p.metadata?.name" />
+                <ElOption
+                  v-for="p in dsLogPods"
+                  :key="p.metadata?.name"
+                  :label="p.metadata?.name"
+                  :value="p.metadata?.name"
+                />
               </ElSelect>
               <ElSelect v-model="dsLogContainer" class="workloads-log-select">
                 <ElOption v-for="c in dsLogContainerOptions" :key="c" :label="c" :value="c" />
@@ -395,11 +446,23 @@
               <span class="workloads-log-suffix">行</span>
             </div>
             <div class="workloads-log-actions">
-              <ElButton :type="dsLogMode === 'history' ? 'primary' : 'default'" plain @click="dsLogMode = 'history'">历史日志</ElButton>
-              <ElButton :type="dsLogMode === 'realtime' ? 'primary' : 'default'" plain @click="dsLogMode = 'realtime'">实时日志</ElButton>
+              <ElButton
+                :type="dsLogMode === 'history' ? 'primary' : 'default'"
+                plain
+                @click="dsLogMode = 'history'"
+                >历史日志</ElButton
+              >
+              <ElButton
+                :type="dsLogMode === 'realtime' ? 'primary' : 'default'"
+                plain
+                @click="dsLogMode = 'realtime'"
+                >实时日志</ElButton
+              >
               <div class="workloads-log-search">
                 <ElInput v-model="dsLogKeyword" placeholder="名称搜索关键字" clearable />
-                <ElButton type="primary" :loading="dsLogLoading" @click="fetchDsLogs">查询</ElButton>
+                <ElButton type="primary" :loading="dsLogLoading" @click="fetchDsLogs"
+                  >查询</ElButton
+                >
               </div>
             </div>
           </div>
@@ -449,27 +512,34 @@
     </ElDialog>
 
     <!-- Scale Dialog -->
-    <ElDialog v-model="scaleVisible" title="更新Pod数量" width="400px" destroy-on-close>
+    <ElDialog
+      v-model="scaleVisible"
+      title="更新Pod数量"
+      width="400px"
+      destroy-on-close
+      class="scale-dialog"
+    >
       <div class="scale-dialog-body">
         <div class="scale-info-row">
-          <span class="scale-info-label">Deployment</span>
-          <span class="scale-info-value">{{ scaleRow?.metadata?.name }}</span>
+          <span class="scale-info-label">命名空间</span>
+          <span class="scale-info-value">{{ scaleRow?.metadata?.namespace ?? '—' }}</span>
+        </div>
+        <div class="scale-info-row">
+          <span class="scale-info-label">资源名称</span>
+          <span class="scale-info-value"
+            >{{ scaleRow?.metadata?.name }}（{{ scaleResourceKindLabel }}）</span
+          >
         </div>
         <div class="scale-info-row">
           <span class="scale-info-label">当前副本数</span>
-          <span class="scale-info-value scale-info-current">{{
-            scaleRow?.spec?.replicas ?? 0
-          }}</span>
+          <span class="scale-info-value">{{ scaleRow?.spec?.replicas ?? 0 }}</span>
         </div>
-        <div class="scale-info-row scale-input-row">
-          <span class="scale-info-label">新副本数</span>
-          <ElInputNumber
-            v-model="scaleValue"
-            :min="0"
-            :precision="0"
-            controls-position="right"
-            class="scale-input"
-          />
+        <div class="scale-info-row">
+          <span class="scale-info-label">期望副本数</span>
+          <div style="display: flex; align-items: center; gap: 6px">
+            <ElInputNumber v-model="scaleValue" :min="0" :precision="0" />
+            <span style="font-size: 12px; color: var(--el-text-color-regular)">个</span>
+          </div>
         </div>
       </div>
       <template #footer>
@@ -508,12 +578,7 @@
       <ElForm label-width="90px">
         <ElFormItem label="容器名称">
           <ElSelect v-model="podLogin.container" class="remote-login-select">
-            <ElOption
-              v-for="name in podLogin.containers"
-              :key="name"
-              :value="name"
-              :label="name"
-            />
+            <ElOption v-for="name in podLogin.containers" :key="name" :value="name" :label="name" />
           </ElSelect>
         </ElFormItem>
       </ElForm>
@@ -580,12 +645,7 @@
     deleteK8sDaemonSet,
     type K8sDaemonSet
   } from '@/api/kubernetes/daemonset'
-  import {
-    fetchK8sJobList,
-    fetchK8sJob,
-    deleteK8sJob,
-    type K8sJob
-  } from '@/api/kubernetes/job'
+  import { fetchK8sJobList, fetchK8sJob, deleteK8sJob, type K8sJob } from '@/api/kubernetes/job'
   import {
     fetchK8sCronJobList,
     fetchK8sCronJob,
@@ -731,14 +791,12 @@
   const router = useRouter()
   const allowedTabs = new Set(['deploy', 'sts', 'ds', 'job', 'cj'])
   const queryTab = String(route.query.tab ?? '')
-  const kind = ref(
-    (allowedTabs.has(queryTab) ? queryTab : (props.initialTab || 'deploy')) as
-      | 'deploy'
-      | 'sts'
-      | 'ds'
-      | 'job'
-      | 'cj'
-  )
+  function resolveWorkloadKind(q: string, init: string): 'deploy' | 'sts' | 'ds' | 'job' | 'cj' {
+    if (allowedTabs.has(q)) return q as 'deploy' | 'sts' | 'ds' | 'job' | 'cj'
+    if (allowedTabs.has(init)) return init as 'deploy' | 'sts' | 'ds' | 'job' | 'cj'
+    return 'deploy'
+  }
+  const kind = ref(resolveWorkloadKind(queryTab, String(props.initialTab ?? '')))
   const deplNamespace = ref('')
   function parseSelectorMap(selector: string): Record<string, string> {
     const out: Record<string, string> = {}
@@ -753,7 +811,10 @@
       })
     return out
   }
-  function matchSelector(selector: Record<string, string>, labels?: Record<string, string>): boolean {
+  function matchSelector(
+    selector: Record<string, string>,
+    labels?: Record<string, string>
+  ): boolean {
     const entries = Object.entries(selector)
     if (!entries.length) return false
     const all = labels ?? {}
@@ -842,25 +903,34 @@
 
   function renderKvCell(lines: string[]) {
     const lineStyle =
-      'font-size:12px;line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'
+      'box-sizing:border-box;width:100%;min-width:0;max-width:100%;font-size:12px;line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--el-text-color-regular)'
+    const triggerStyle = 'box-sizing:border-box;width:100%;min-width:0;max-width:100%;cursor:default'
     const moreStyle = 'font-size:12px;line-height:1.5;color:var(--el-text-color-placeholder)'
     if (!lines.length) return h('span', { style: lineStyle }, '—')
     const preview = lines.slice(0, 2)
     const hasMore = lines.length > 2
-    const trigger = h('div', [
+    const trigger = h('div', { style: triggerStyle }, [
       ...preview.map((t, i) => h('div', { key: `p${i}`, style: lineStyle }, t)),
       ...(hasMore ? [h('div', { style: moreStyle }, '...')] : [])
     ])
     const body = h(
       'div',
-      { style: 'max-height:300px;overflow-y:auto;padding:4px 0' },
+      { style: 'max-height:300px;overflow-x:hidden;overflow-y:auto;padding:4px 0' },
       lines.map((t, i) =>
-        h('div', { key: `f${i}`, style: 'font-size:12px;line-height:1.8;white-space:nowrap' }, t)
+        h(
+          'div',
+          {
+            key: `f${i}`,
+            style:
+              'padding:2px 0;font-size:12px;line-height:1.5;color:var(--el-text-color-regular);word-break:break-all'
+          },
+          t
+        )
       )
     )
     return h(
       ElPopover,
-      { placement: 'top-start', width: 360, trigger: 'hover', showAfter: 200, teleported: true },
+      { placement: 'top-start', width: 'auto', popperStyle: 'max-width:min(440px,90vw);padding:8px 12px;box-sizing:border-box', trigger: 'hover', showAfter: 200, teleported: true },
       { reference: () => trigger, default: () => body }
     )
   }
@@ -873,12 +943,16 @@
   function renderNsCell(ns: string) {
     const isSystem = isSystemNamespace(ns)
     return h('div', { style: 'display:flex;align-items:center;gap:6px' }, [
-      h('span', { style: 'font-size:12px' }, ns),
+      h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, ns),
       isSystem
-        ? h('span', {
-            style:
-              'font-size:11px;padding:0 4px;line-height:16px;border-radius:3px;background:var(--el-color-primary-light-9);color:var(--el-color-primary);border:1px solid var(--el-color-primary-light-7);flex-shrink:0'
-          }, '系统')
+        ? h(
+            'span',
+            {
+              style:
+                'font-size:11px;padding:0 4px;line-height:16px;border-radius:3px;background:var(--el-color-primary-light-9);color:var(--el-color-primary);border:1px solid var(--el-color-primary-light-7);flex-shrink:0'
+            },
+            '系统'
+          )
         : null
     ])
   }
@@ -886,17 +960,22 @@
   // 通用名称列（name + copy icon）
   function renderNameCell(name: string) {
     return h('div', { style: 'display:flex;align-items:center;gap:8px' }, [
-      h('span', { style: 'font-size:14px;color:var(--el-text-color-primary)' }, name),
-      h('span', {
-        class: 'icon-action',
-        style: 'cursor:pointer;color:var(--el-text-color-secondary);display:inline-flex;align-items:center',
-        title: '复制',
-        onClick: (e: MouseEvent) => {
-          e.stopPropagation()
-          navigator.clipboard.writeText(name)
-          ElMessage.success('已复制')
-        }
-      }, [h(CopyDocument, { style: 'width:12px;height:12px' })])
+      h('span', { style: 'font-size:12px;color:var(--el-text-color-primary)' }, name),
+      h(
+        'span',
+        {
+          class: 'icon-action',
+          style:
+            'cursor:pointer;color:var(--el-text-color-secondary);display:inline-flex;align-items:center',
+          title: '复制',
+          onClick: (e: MouseEvent) => {
+            e.stopPropagation()
+            navigator.clipboard.writeText(name)
+            ElMessage.success('已复制')
+          }
+        },
+        [h(CopyDocument, { style: 'width:12px;height:12px' })]
+      )
     ])
   }
 
@@ -905,6 +984,45 @@
       path,
       query: { cluster: String(route.query.cluster ?? ''), namespace, name }
     })
+  }
+
+  /** 名称 + 复制（与 Deployment 列表样式一致） */
+  function renderWorkloadDetailNameCell(detailPath: string, namespace: string, name: string) {
+    const display = name || '—'
+    return h('div', { style: 'display:flex;align-items:center;gap:8px' }, [
+      h(
+        'span',
+        {
+          style:
+            'font-size:12px;color:var(--el-color-primary);cursor:pointer;text-decoration:none;transition:opacity .15s',
+          onMouseenter: (e: MouseEvent) => {
+            ;(e.target as HTMLElement).style.opacity = '0.75'
+          },
+          onMouseleave: (e: MouseEvent) => {
+            ;(e.target as HTMLElement).style.opacity = '1'
+          },
+          onClick: () => openWorkloadDetail(detailPath, namespace, name)
+        },
+        display
+      ),
+      h(
+        'span',
+        {
+          class: 'icon-action',
+          style:
+            'cursor:pointer;color:var(--el-text-color-secondary);display:inline-flex;align-items:center',
+          title: '复制',
+          onClick: (e: MouseEvent) => {
+            e.stopPropagation()
+            if (display && display !== '—') {
+              navigator.clipboard.writeText(display)
+              ElMessage.success('已复制')
+            }
+          }
+        },
+        [h(CopyDocument, { style: 'width:12px;height:12px' })]
+      )
+    ])
   }
 
   function renderPodNameCell(name: string) {
@@ -927,14 +1045,54 @@
     )
   }
 
-  // 实例个数列（ready/desired）
-  function renderReplicaCell(ready: number, desired: number) {
+  /** 实例 ready/desired；不一致时展示「查看事件列表」跳转详情事件 Tab */
+  function renderReplicaCellWithEvents(
+    ready: number,
+    desired: number,
+    detailPath: string,
+    namespace: string,
+    name: string
+  ) {
     const ok = ready === desired && desired > 0
-    const color = ok ? 'var(--el-color-success)' : 'var(--el-color-warning)'
-    return h('div', { style: 'display:flex;align-items:center;gap:4px' }, [
-      h('span', { style: `font-size:12px;color:${color}` }, `${ready} / ${desired}`),
-      !ok ? h('span', { class: 'deploy-spin', style: 'display:inline-flex;align-items:center;color:var(--el-color-primary)' },
-        [h(Loading, { style: 'width:13px;height:13px' })]) : null
+    const valueLine = h('div', { style: 'display:flex;align-items:center;gap:4px' }, [
+      h(
+        'span',
+        { style: 'font-size:12px;color:var(--el-text-color-primary)' },
+        `${ready} / ${desired}`
+      ),
+      !ok
+        ? h(
+            'span',
+            {
+              class: 'deploy-spin',
+              style: 'display:inline-flex;align-items:center;color:var(--el-color-primary)'
+            },
+            [h(Loading, { style: 'width:13px;height:13px' })]
+          )
+        : null
+    ])
+    if (ok) return valueLine
+    return h('div', { style: 'line-height:1.4;margin-top:2px' }, [
+      valueLine,
+      h(
+        ElLink,
+        {
+          type: 'primary',
+          underline: 'never',
+          style: 'font-size:11px',
+          onClick: () =>
+            router.push({
+              path: detailPath,
+              query: {
+                cluster: String(route.query.cluster ?? ''),
+                namespace,
+                name,
+                tab: 'events'
+              }
+            })
+        },
+        () => '查看事件列表'
+      )
     ])
   }
 
@@ -942,14 +1100,21 @@
     const tagStyle =
       'display:inline-flex;align-items:center;gap:6px;background:var(--el-fill-color);border-radius:4px;padding:2px 8px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%'
     const moreStyle = 'font-size:12px;line-height:1.5;color:var(--el-text-color-placeholder)'
-    if (!lines.length) return h('span', { style: 'font-size:12px' }, '—')
+    if (!lines.length)
+      return h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, '—')
     const preview = lines.slice(0, 2)
     const hasMore = lines.length > 2
     const makeTag = (t: string, key: string, fullWidth = false) =>
       h('div', { key, style: 'display:flex;align-items:center;margin-bottom:2px' }, [
-        h('span', { style: fullWidth ? tagStyle.replace('max-width:100%', 'max-width:none;flex-shrink:0') : tagStyle }, [
-          h('span', { style: 'overflow:hidden;text-overflow:ellipsis' }, t)
-        ])
+        h(
+          'span',
+          {
+            style: fullWidth
+              ? tagStyle.replace('max-width:100%', 'max-width:none;flex-shrink:0')
+              : tagStyle
+          },
+          [h('span', { style: 'overflow:hidden;text-overflow:ellipsis' }, t)]
+        )
       ])
     const trigger = h('div', [
       ...preview.map((t, i) => makeTag(t, `p${i}`)),
@@ -962,7 +1127,14 @@
     )
     return h(
       ElPopover,
-      { placement: 'top-start', width: 'auto', minWidth: 480, trigger: 'hover', showAfter: 200, teleported: true },
+      {
+        placement: 'top-start',
+        width: 'auto',
+        minWidth: 480,
+        trigger: 'hover',
+        showAfter: 200,
+        teleported: true
+      },
       { reference: () => trigger, default: () => body }
     )
   }
@@ -986,22 +1158,46 @@
       immediate: false,
       apiFn: async (params: StsParams) => {
         const cluster = String(route.query.cluster ?? '')
-        if (!cluster) return { code: 200, data: { records: [] as (K8sStatefulSet & { rowKey: string })[], total: 0, current: 1, size: params.size } }
+        if (!cluster)
+          return {
+            code: 200,
+            data: {
+              records: [] as (K8sStatefulSet & { rowKey: string })[],
+              total: 0,
+              current: 1,
+              size: params.size
+            }
+          }
         if (props.stsDataMode === 'services') {
           const ns = props.mirrorNamespace || params.namespace || undefined
-          const { items } = await fetchK8sServiceList(cluster, { page: 1, limit: 500, namespace: ns })
+          const { items } = await fetchK8sServiceList(cluster, {
+            page: 1,
+            limit: 500,
+            namespace: ns
+          })
           const selector = parseSelectorMap(props.mirrorSelector || '')
           const nameFilter = (params.name ?? '').trim().toLowerCase()
           const filtered = items
-            .filter((svc) => matchSelector(selector, svc.spec?.selector as Record<string, string> | undefined))
-            .filter((svc) => !nameFilter || String(svc.metadata?.name ?? '').toLowerCase().includes(nameFilter))
+            .filter((svc) =>
+              matchSelector(selector, svc.spec?.selector as Record<string, string> | undefined)
+            )
+            .filter(
+              (svc) =>
+                !nameFilter ||
+                String(svc.metadata?.name ?? '')
+                  .toLowerCase()
+                  .includes(nameFilter)
+            )
           const total = filtered.length
           const start = (params.current - 1) * params.size
           const list = filtered.slice(start, start + params.size).map((s, i) => ({
             ...s,
             rowKey: s.metadata?.uid ?? s.metadata?.name ?? `svc-${start + i}`
           }))
-          return { code: 200, data: { records: list, total, current: params.current, size: params.size } }
+          return {
+            code: 200,
+            data: { records: list, total, current: params.current, size: params.size }
+          }
         }
         const { items, total } = await fetchK8sStatefulSetList(cluster, {
           page: params.current,
@@ -1009,7 +1205,10 @@
           namespace: params.namespace || undefined,
           name: (params.name ?? '').trim() || undefined
         })
-        let list = items.map((d, i) => ({ ...d, rowKey: d.metadata?.uid ?? d.metadata?.name ?? `sts-${i}` }))
+        let list = items.map((d, i) => ({
+          ...d,
+          rowKey: d.metadata?.uid ?? d.metadata?.name ?? `sts-${i}`
+        }))
         if (stsSortOrder.value) {
           list = [...list].sort((a, b) => {
             const ta = a.metadata?.creationTimestamp ?? ''
@@ -1017,15 +1216,20 @@
             return stsSortOrder.value === 'ascending' ? ta.localeCompare(tb) : tb.localeCompare(ta)
           })
         }
-        return { code: 200, data: { records: list, total, current: params.current, size: params.size } }
+        return {
+          code: 200,
+          data: { records: list, total, current: params.current, size: params.size }
+        }
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
       columnsFactory: () =>
         props.stsDataMode === 'services'
           ? [
-              { type: 'selection' },
+              { type: 'selection', width: 30 },
               {
-                prop: 'metadata.name', label: '名称', minWidth: 140,
+                prop: 'metadata.name',
+                label: '名称',
+                minWidth: 140,
                 formatter: (row: K8sService) =>
                   h(
                     ElTooltip,
@@ -1044,102 +1248,208 @@
                   )
               },
               {
-                prop: 'spec.type', label: '类型', width: 120,
-                formatter: (row: K8sService) => h(ElTag, { size: 'small', effect: 'plain' }, () => row.spec?.type ?? '—')
+                prop: 'spec.type',
+                label: '类型',
+                width: 120,
+                formatter: (row: K8sService) =>
+                  h(ElTag, { size: 'small', effect: 'plain' }, () => row.spec?.type ?? '—')
               },
               {
-                prop: 'spec.clusterIP', label: 'Cluster IP', width: 150,
-                formatter: (row: K8sService) => h('span', { style: 'font-size:12px' }, row.spec?.clusterIP ?? '—')
-              },
-              {
-                prop: 'ports', label: '端口', minWidth: 220,
+                prop: 'spec.clusterIP',
+                label: 'Cluster IP',
+                width: 150,
                 formatter: (row: K8sService) =>
                   h(
                     'span',
-                    { style: 'font-size:12px' },
-                    (row.spec?.ports ?? []).map((p) => `${p.port}:${p.targetPort}/${p.protocol}`).join(', ') || '—'
+                    { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+                    row.spec?.clusterIP ?? '—'
                   )
               },
               {
-                prop: 'metadata.creationTimestamp', label: '创建时间', width: 168, sortable: 'custom',
+                prop: 'ports',
+                label: '端口',
+                minWidth: 220,
                 formatter: (row: K8sService) =>
-                  h('span', { style: 'font-size:12px' }, formatNodeCreationTime(row.metadata?.creationTimestamp))
+                  h(
+                    'span',
+                    { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+                    (row.spec?.ports ?? [])
+                      .map((p) => `${p.port}:${p.targetPort}/${p.protocol}`)
+                      .join(', ') || '—'
+                  )
+              },
+              {
+                prop: 'metadata.creationTimestamp',
+                label: '创建时间',
+                width: 168,
+                sortable: 'custom',
+                formatter: (row: K8sService) =>
+                  h(
+                    'span',
+                    { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+                    formatNodeCreationTime(row.metadata?.creationTimestamp)
+                  )
               }
             ]
           : [
-              { type: 'selection' },
-        {
-          prop: 'metadata.name', label: '名称', minWidth: 200,
-          formatter: (row: K8sStatefulSet) =>
-            h(
-              ElLink,
+              { type: 'selection', width: 30 },
               {
-                type: 'primary',
-                underline: 'never',
-                style: 'font-size:12px',
-                onClick: () =>
-                  openWorkloadDetail(
+                prop: 'metadata.name',
+                label: '名称',
+                minWidth: 200,
+                formatter: (row: K8sStatefulSet) =>
+                  renderWorkloadDetailNameCell(
                     '/container/statefulset-detail',
                     row.metadata?.namespace ?? '',
                     row.metadata?.name ?? ''
                   )
               },
-              () => row.metadata?.name ?? '—'
-            )
-        },
-        {
-          prop: 'metadata.namespace', label: '命名空间', width: 160,
-          formatter: (row: K8sStatefulSet) => renderNsCell(row.metadata?.namespace ?? '—')
-        },
-        {
-          prop: 'resources', label: 'Request/Limits', minWidth: 170,
-          formatter: (row: K8sStatefulSet) => {
-            const containers = row.spec?.template?.spec?.containers ?? []
-            let cpuReqM = 0, cpuLimM = 0, memReqB = 0, memLimB = 0
-            let hasCpuReq = false, hasCpuLim = false, hasMemReq = false, hasMemLim = false
-            for (const c of containers) {
-              if (c.resources?.requests?.cpu) { cpuReqM += parseCpuMilli(c.resources.requests.cpu); hasCpuReq = true }
-              if (c.resources?.limits?.cpu) { cpuLimM += parseCpuMilli(c.resources.limits.cpu); hasCpuLim = true }
-              if (c.resources?.requests?.memory) { memReqB += parseMemBytes(c.resources.requests.memory); hasMemReq = true }
-              if (c.resources?.limits?.memory) { memLimB += parseMemBytes(c.resources.limits.memory); hasMemLim = true }
-            }
-            const s = 'font-size:11px;color:var(--el-text-color-regular);white-space:nowrap'
-            return h('div', { style: 'line-height:1.8' }, [
-              h('div', { style: s }, `CPU: ${hasCpuReq ? formatCpuMilli(cpuReqM) : '无限制'} / ${hasCpuLim ? formatCpuMilli(cpuLimM) : '无限制'}`),
-              h('div', { style: s }, `内存: ${hasMemReq ? formatMemBytes(memReqB) : '无限制'} / ${hasMemLim ? formatMemBytes(memLimB) : '无限制'}`)
-            ])
-          }
-        },
-        {
-          prop: 'status.readyReplicas', label: '实例个数', minWidth: 120,
-          formatter: (row: K8sStatefulSet) => renderReplicaCell(row.status?.readyReplicas ?? 0, row.spec?.replicas ?? 0)
-        },
-        {
-          prop: 'image', label: '镜像', minWidth: 160,
-          formatter: (row: K8sStatefulSet) => {
-            const lines = (row.spec?.template?.spec?.containers ?? []).map((c) => c.image ?? '').filter(Boolean)
-            return renderImageCell(lines)
-          }
-        },
-        {
-          prop: 'metadata.labels', label: 'Labels', minWidth: 200,
-          formatter: (row: K8sStatefulSet) => {
-            const lines = Object.entries(row.metadata?.labels ?? {}).map(([k, v]) => `${k}: ${v}`)
-            return renderKvCell(lines)
-          }
-        },
-        {
-          prop: 'metadata.creationTimestamp', label: '创建时间', width: 168, sortable: 'custom',
-          formatter: (row: K8sStatefulSet) => h('span', { style: 'font-size:12px' }, formatNodeCreationTime(row.metadata?.creationTimestamp))
-        },
-        {
-          prop: 'operation', label: '操作', width: 160, fixed: 'right',
-          formatter: (row: K8sStatefulSet) =>
-            h('div', { style: 'display:flex;align-items:center;gap:12px' }, [
-              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void openSharedYamlDialog('sts', row.metadata?.namespace ?? '', row.metadata?.name ?? '') }, () => '查看YAML'),
-              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void deleteWorkload('sts', row.metadata?.namespace ?? '', row.metadata?.name ?? '', onStsRefresh) }, () => '删除')
-            ])
-        }
+              {
+                prop: 'metadata.namespace',
+                label: '命名空间',
+                width: 160,
+                formatter: (row: K8sStatefulSet) => renderNsCell(row.metadata?.namespace ?? '—')
+              },
+              {
+                prop: 'metadata.labels',
+                label: 'Labels',
+                minWidth: 160,
+                formatter: (row: K8sStatefulSet) => {
+                  const lines = Object.entries(row.metadata?.labels ?? {}).map(
+                    ([k, v]) => `${k}: ${v}`
+                  )
+                  return renderKvCell(lines)
+                }
+              },
+              {
+                prop: 'status.readyReplicas',
+                label: '实例个数',
+                minWidth: 120,
+                formatter: (row: K8sStatefulSet) =>
+                  renderReplicaCellWithEvents(
+                    row.status?.readyReplicas ?? 0,
+                    row.spec?.replicas ?? 0,
+                    '/container/statefulset-detail',
+                    row.metadata?.namespace ?? '',
+                    row.metadata?.name ?? ''
+                  )
+              },
+              {
+                prop: 'image',
+                label: '镜像',
+                minWidth: 160,
+                formatter: (row: K8sStatefulSet) => {
+                  const lines = (row.spec?.template?.spec?.containers ?? [])
+                    .map((c) => c.image ?? '')
+                    .filter(Boolean)
+                  return renderImageCell(lines)
+                }
+              },
+              {
+                prop: 'resources',
+                label: 'Request/Limits',
+                minWidth: 170,
+                formatter: (row: K8sStatefulSet) => {
+                  const containers = row.spec?.template?.spec?.containers ?? []
+                  let cpuReqM = 0,
+                    cpuLimM = 0,
+                    memReqB = 0,
+                    memLimB = 0
+                  let hasCpuReq = false,
+                    hasCpuLim = false,
+                    hasMemReq = false,
+                    hasMemLim = false
+                  for (const c of containers) {
+                    if (c.resources?.requests?.cpu) {
+                      cpuReqM += parseCpuMilli(c.resources.requests.cpu)
+                      hasCpuReq = true
+                    }
+                    if (c.resources?.limits?.cpu) {
+                      cpuLimM += parseCpuMilli(c.resources.limits.cpu)
+                      hasCpuLim = true
+                    }
+                    if (c.resources?.requests?.memory) {
+                      memReqB += parseMemBytes(c.resources.requests.memory)
+                      hasMemReq = true
+                    }
+                    if (c.resources?.limits?.memory) {
+                      memLimB += parseMemBytes(c.resources.limits.memory)
+                      hasMemLim = true
+                    }
+                  }
+                  const s = 'font-size:11px;color:var(--el-text-color-regular);white-space:nowrap'
+                  return h('div', { style: 'line-height:1.8' }, [
+                    h(
+                      'div',
+                      { style: s },
+                      `CPU: ${hasCpuReq ? formatCpuMilli(cpuReqM) : '无限制'} / ${hasCpuLim ? formatCpuMilli(cpuLimM) : '无限制'}`
+                    ),
+                    h(
+                      'div',
+                      { style: s },
+                      `内存: ${hasMemReq ? formatMemBytes(memReqB) : '无限制'} / ${hasMemLim ? formatMemBytes(memLimB) : '无限制'}`
+                    )
+                  ])
+                }
+              },
+              {
+                prop: 'metadata.creationTimestamp',
+                label: '创建时间',
+                width: 168,
+                sortable: 'custom',
+                formatter: (row: K8sStatefulSet) =>
+                  h(
+                    'span',
+                    { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+                    formatNodeCreationTime(row.metadata?.creationTimestamp)
+                  )
+              },
+              {
+                prop: 'operation',
+                label: '操作',
+                minWidth: 220,
+                fixed: 'right',
+                formatter: (row: K8sStatefulSet) =>
+                  h('div', { class: 'workloads-op-cell' }, [
+                    h(
+                      ElLink,
+                      {
+                        type: 'primary',
+                        underline: 'never',
+                        style: 'font-size:12px',
+                        onClick: () => openScaleDialog(row, 'sts')
+                      },
+                      () => '更新Pod数量'
+                    ),
+                    h(
+                      ElLink,
+                      {
+                        type: 'primary',
+                        underline: 'never',
+                        style: 'font-size:12px',
+                        onClick: () =>
+                          openWorkloadUpdate(
+                            row.metadata?.namespace ?? '',
+                            row.metadata?.name ?? '',
+                            'sts'
+                          )
+                      },
+                      () => '更新Pod设置'
+                    ),
+                    h(ArtButtonMore, {
+                      list: [
+                        { key: 'yaml', label: '查看YAML', icon: 'ri:file-code-line' },
+                        { key: 'redeploy', label: '重新部署', icon: 'ri:refresh-line' },
+                        {
+                          key: 'delete',
+                          label: '删除',
+                          icon: 'ri:delete-bin-4-line'
+                        }
+                      ],
+                      onClick: (item: ButtonMoreItem) => stsMoreClick(item, row)
+                    })
+                  ])
+              }
             ]
     }
   })
@@ -1165,9 +1475,14 @@
     replaceStsSearchParams({ name, namespace: ns })
     getStsData()
   }
-  function onStsRefresh() { refreshStsData() }
+  function onStsRefresh() {
+    refreshStsData()
+  }
   function onStsSortChange({ prop, order }: { prop: string; order: string | null }) {
-    if (prop === 'metadata.creationTimestamp') { stsSortOrder.value = (order as 'ascending' | 'descending' | null) ?? null; getStsData() }
+    if (prop === 'metadata.creationTimestamp') {
+      stsSortOrder.value = (order as 'ascending' | 'descending' | null) ?? null
+      getStsData()
+    }
   }
 
   // ── DaemonSet useTable ──
@@ -1189,14 +1504,30 @@
       immediate: false,
       apiFn: async (params: DsParams) => {
         const cluster = String(route.query.cluster ?? '')
-        if (!cluster) return { code: 200, data: { records: [] as (K8sDaemonSet & { rowKey: string })[], total: 0, current: 1, size: params.size } }
+        if (!cluster)
+          return {
+            code: 200,
+            data: {
+              records: [] as (K8sDaemonSet & { rowKey: string })[],
+              total: 0,
+              current: 1,
+              size: params.size
+            }
+          }
         if (props.dsDataMode === 'logs') {
-          return { code: 200, data: { records: [] as any[], total: 0, current: params.current, size: params.size } }
+          return {
+            code: 200,
+            data: { records: [] as any[], total: 0, current: params.current, size: params.size }
+          }
         }
         if (props.dsDataMode === 'containers') {
           const nameFilter = (params.name ?? '').trim().toLowerCase()
-          const raw = (props.mirrorContainers ?? []).filter((c) =>
-            !nameFilter || String(c.name ?? '').toLowerCase().includes(nameFilter)
+          const raw = (props.mirrorContainers ?? []).filter(
+            (c) =>
+              !nameFilter ||
+              String(c.name ?? '')
+                .toLowerCase()
+                .includes(nameFilter)
           )
           const total = raw.length
           const start = (params.current - 1) * params.size
@@ -1204,7 +1535,10 @@
             ...c,
             rowKey: c.name ?? `container-${start + i}`
           }))
-          return { code: 200, data: { records: list, total, current: params.current, size: params.size } }
+          return {
+            code: 200,
+            data: { records: list, total, current: params.current, size: params.size }
+          }
         }
         const { items, total } = await fetchK8sDaemonSetList(cluster, {
           page: params.current,
@@ -1212,7 +1546,10 @@
           namespace: params.namespace || undefined,
           name: (params.name ?? '').trim() || undefined
         })
-        let list = items.map((d, i) => ({ ...d, rowKey: d.metadata?.uid ?? d.metadata?.name ?? `ds-${i}` }))
+        let list = items.map((d, i) => ({
+          ...d,
+          rowKey: d.metadata?.uid ?? d.metadata?.name ?? `ds-${i}`
+        }))
         if (dsSortOrder.value) {
           list = [...list].sort((a, b) => {
             const ta = a.metadata?.creationTimestamp ?? ''
@@ -1220,124 +1557,217 @@
             return dsSortOrder.value === 'ascending' ? ta.localeCompare(tb) : tb.localeCompare(ta)
           })
         }
-        return { code: 200, data: { records: list, total, current: params.current, size: params.size } }
+        return {
+          code: 200,
+          data: { records: list, total, current: params.current, size: params.size }
+        }
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
       columnsFactory: () =>
         props.dsDataMode === 'logs'
           ? []
           : props.dsDataMode === 'containers'
-          ? [
-              { type: 'selection' },
-              {
-                prop: 'name', label: '容器名', minWidth: 160,
-                formatter: (row: { name?: string }) => h('span', { style: 'font-size:12px' }, row.name ?? '—')
-              },
-              {
-                prop: 'image', label: '镜像', minWidth: 240,
-                formatter: (row: { image?: string }) => h('span', { style: 'font-size:12px' }, row.image ?? '—')
-              },
-              {
-                prop: 'resources', label: 'Request/Limits', minWidth: 220,
-                formatter: (row: {
-                  resources?: {
-                    requests?: { cpu?: string; memory?: string }
-                    limits?: { cpu?: string; memory?: string }
-                  }
-                }) =>
-                  h('div', { style: 'line-height:1.8' }, [
+            ? [
+                { type: 'selection', width: 30 },
+                {
+                  prop: 'name',
+                  label: '容器名',
+                  minWidth: 160,
+                  formatter: (row: { name?: string }) =>
                     h(
-                      'div',
-                      { style: 'font-size:11px;color:var(--el-text-color-regular)' },
-                      `CPU: ${row.resources?.requests?.cpu ?? '无限制'} / ${row.resources?.limits?.cpu ?? '无限制'}`
-                    ),
-                    h(
-                      'div',
-                      { style: 'font-size:11px;color:var(--el-text-color-regular)' },
-                      `内存: ${row.resources?.requests?.memory ?? '无限制'} / ${row.resources?.limits?.memory ?? '无限制'}`
+                      'span',
+                      { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+                      row.name ?? '—'
                     )
-                  ])
-              }
-            ]
-          : [
-              { type: 'selection' },
-        {
-          prop: 'metadata.name', label: '名称', minWidth: 200,
-          formatter: (row: K8sDaemonSet) =>
-            h(
-              ElLink,
-              {
-                type: 'primary',
-                underline: 'never',
-                style: 'font-size:12px',
-                onClick: () =>
-                  openWorkloadDetail(
-                    '/container/daemonset-detail',
-                    row.metadata?.namespace ?? '',
-                    row.metadata?.name ?? ''
-                  )
-              },
-              () => row.metadata?.name ?? '—'
-            )
-        },
-        {
-          prop: 'metadata.namespace', label: '命名空间', width: 160,
-          formatter: (row: K8sDaemonSet) => renderNsCell(row.metadata?.namespace ?? '—')
-        },
-        {
-          prop: 'resources', label: 'Request/Limits', minWidth: 170,
-          formatter: (row: K8sDaemonSet) => {
-            const containers = row.spec?.template?.spec?.containers ?? []
-            let cpuReqM = 0, cpuLimM = 0, memReqB = 0, memLimB = 0
-            let hasCpuReq = false, hasCpuLim = false, hasMemReq = false, hasMemLim = false
-            for (const c of containers) {
-              if (c.resources?.requests?.cpu) { cpuReqM += parseCpuMilli(c.resources.requests.cpu); hasCpuReq = true }
-              if (c.resources?.limits?.cpu) { cpuLimM += parseCpuMilli(c.resources.limits.cpu); hasCpuLim = true }
-              if (c.resources?.requests?.memory) { memReqB += parseMemBytes(c.resources.requests.memory); hasMemReq = true }
-              if (c.resources?.limits?.memory) { memLimB += parseMemBytes(c.resources.limits.memory); hasMemLim = true }
-            }
-            const s = 'font-size:11px;color:var(--el-text-color-regular);white-space:nowrap'
-            return h('div', { style: 'line-height:1.8' }, [
-              h('div', { style: s }, `CPU: ${hasCpuReq ? formatCpuMilli(cpuReqM) : '无限制'} / ${hasCpuLim ? formatCpuMilli(cpuLimM) : '无限制'}`),
-              h('div', { style: s }, `内存: ${hasMemReq ? formatMemBytes(memReqB) : '无限制'} / ${hasMemLim ? formatMemBytes(memLimB) : '无限制'}`)
-            ])
-          }
-        },
-        {
-          prop: 'status', label: '调度状态', minWidth: 120,
-          formatter: (row: K8sDaemonSet) => {
-            const ready = row.status?.numberReady ?? 0
-            const desired = row.status?.desiredNumberScheduled ?? 0
-            return renderReplicaCell(ready, desired)
-          }
-        },
-        {
-          prop: 'image', label: '镜像', minWidth: 160,
-          formatter: (row: K8sDaemonSet) => {
-            const lines = (row.spec?.template?.spec?.containers ?? []).map((c) => c.image ?? '').filter(Boolean)
-            return renderImageCell(lines)
-          }
-        },
-        {
-          prop: 'metadata.labels', label: 'Labels', minWidth: 200,
-          formatter: (row: K8sDaemonSet) => {
-            const lines = Object.entries(row.metadata?.labels ?? {}).map(([k, v]) => `${k}: ${v}`)
-            return renderKvCell(lines)
-          }
-        },
-        {
-          prop: 'metadata.creationTimestamp', label: '创建时间', width: 168, sortable: 'custom',
-          formatter: (row: K8sDaemonSet) => h('span', { style: 'font-size:12px' }, formatNodeCreationTime(row.metadata?.creationTimestamp))
-        },
-        {
-          prop: 'operation', label: '操作', width: 160, fixed: 'right',
-          formatter: (row: K8sDaemonSet) =>
-            h('div', { style: 'display:flex;align-items:center;gap:12px' }, [
-              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void openSharedYamlDialog('ds', row.metadata?.namespace ?? '', row.metadata?.name ?? '') }, () => '查看YAML'),
-              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void deleteWorkload('ds', row.metadata?.namespace ?? '', row.metadata?.name ?? '', onDsRefresh) }, () => '删除')
-            ])
-        }
-            ]
+                },
+                {
+                  prop: 'image',
+                  label: '镜像',
+                  minWidth: 240,
+                  formatter: (row: { image?: string }) =>
+                    h(
+                      'span',
+                      { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+                      row.image ?? '—'
+                    )
+                },
+                {
+                  prop: 'resources',
+                  label: 'Request/Limits',
+                  minWidth: 220,
+                  formatter: (row: {
+                    resources?: {
+                      requests?: { cpu?: string; memory?: string }
+                      limits?: { cpu?: string; memory?: string }
+                    }
+                  }) =>
+                    h('div', { style: 'line-height:1.8' }, [
+                      h(
+                        'div',
+                        { style: 'font-size:11px;color:var(--el-text-color-regular)' },
+                        `CPU: ${row.resources?.requests?.cpu ?? '无限制'} / ${row.resources?.limits?.cpu ?? '无限制'}`
+                      ),
+                      h(
+                        'div',
+                        { style: 'font-size:11px;color:var(--el-text-color-regular)' },
+                        `内存: ${row.resources?.requests?.memory ?? '无限制'} / ${row.resources?.limits?.memory ?? '无限制'}`
+                      )
+                    ])
+                }
+              ]
+            : [
+                { type: 'selection', width: 30 },
+                {
+                  prop: 'metadata.name',
+                  label: '名称',
+                  minWidth: 200,
+                  formatter: (row: K8sDaemonSet) =>
+                    renderWorkloadDetailNameCell(
+                      '/container/daemonset-detail',
+                      row.metadata?.namespace ?? '',
+                      row.metadata?.name ?? ''
+                    )
+                },
+                {
+                  prop: 'metadata.namespace',
+                  label: '命名空间',
+                  width: 160,
+                  formatter: (row: K8sDaemonSet) => renderNsCell(row.metadata?.namespace ?? '—')
+                },
+                {
+                  prop: 'metadata.labels',
+                  label: 'Labels',
+                  minWidth: 160,
+                  formatter: (row: K8sDaemonSet) => {
+                    const lines = Object.entries(row.metadata?.labels ?? {}).map(
+                      ([k, v]) => `${k}: ${v}`
+                    )
+                    return renderKvCell(lines)
+                  }
+                },
+                {
+                  prop: 'status',
+                  label: '实例个数',
+                  minWidth: 120,
+                  formatter: (row: K8sDaemonSet) => {
+                    const ready = row.status?.numberReady ?? 0
+                    const desired = row.status?.desiredNumberScheduled ?? 0
+                    return renderReplicaCellWithEvents(
+                      ready,
+                      desired,
+                      '/container/daemonset-detail',
+                      row.metadata?.namespace ?? '',
+                      row.metadata?.name ?? ''
+                    )
+                  }
+                },
+                {
+                  prop: 'image',
+                  label: '镜像',
+                  minWidth: 160,
+                  formatter: (row: K8sDaemonSet) => {
+                    const lines = (row.spec?.template?.spec?.containers ?? [])
+                      .map((c) => c.image ?? '')
+                      .filter(Boolean)
+                    return renderImageCell(lines)
+                  }
+                },
+                {
+                  prop: 'resources',
+                  label: 'Request/Limits',
+                  minWidth: 170,
+                  formatter: (row: K8sDaemonSet) => {
+                    const containers = row.spec?.template?.spec?.containers ?? []
+                    let cpuReqM = 0,
+                      cpuLimM = 0,
+                      memReqB = 0,
+                      memLimB = 0
+                    let hasCpuReq = false,
+                      hasCpuLim = false,
+                      hasMemReq = false,
+                      hasMemLim = false
+                    for (const c of containers) {
+                      if (c.resources?.requests?.cpu) {
+                        cpuReqM += parseCpuMilli(c.resources.requests.cpu)
+                        hasCpuReq = true
+                      }
+                      if (c.resources?.limits?.cpu) {
+                        cpuLimM += parseCpuMilli(c.resources.limits.cpu)
+                        hasCpuLim = true
+                      }
+                      if (c.resources?.requests?.memory) {
+                        memReqB += parseMemBytes(c.resources.requests.memory)
+                        hasMemReq = true
+                      }
+                      if (c.resources?.limits?.memory) {
+                        memLimB += parseMemBytes(c.resources.limits.memory)
+                        hasMemLim = true
+                      }
+                    }
+                    const s = 'font-size:11px;color:var(--el-text-color-regular);white-space:nowrap'
+                    return h('div', { style: 'line-height:1.8' }, [
+                      h(
+                        'div',
+                        { style: s },
+                        `CPU: ${hasCpuReq ? formatCpuMilli(cpuReqM) : '无限制'} / ${hasCpuLim ? formatCpuMilli(cpuLimM) : '无限制'}`
+                      ),
+                      h(
+                        'div',
+                        { style: s },
+                        `内存: ${hasMemReq ? formatMemBytes(memReqB) : '无限制'} / ${hasMemLim ? formatMemBytes(memLimB) : '无限制'}`
+                      )
+                    ])
+                  }
+                },
+                {
+                  prop: 'metadata.creationTimestamp',
+                  label: '创建时间',
+                  width: 168,
+                  sortable: 'custom',
+                  formatter: (row: K8sDaemonSet) =>
+                    h(
+                      'span',
+                      { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+                      formatNodeCreationTime(row.metadata?.creationTimestamp)
+                    )
+                },
+                {
+                  prop: 'operation',
+                  label: '操作',
+                  minWidth: 220,
+                  fixed: 'right',
+                  formatter: (row: K8sDaemonSet) =>
+                    h('div', { class: 'workloads-op-cell' }, [
+                      h(
+                        ElLink,
+                        {
+                          type: 'primary',
+                          underline: 'never',
+                          style: 'font-size:12px',
+                          onClick: () =>
+                            openWorkloadUpdate(
+                              row.metadata?.namespace ?? '',
+                              row.metadata?.name ?? '',
+                              'ds'
+                            )
+                        },
+                        () => '更新Pod设置'
+                      ),
+                      h(ArtButtonMore, {
+                        list: [
+                          { key: 'yaml', label: '查看YAML', icon: 'ri:file-code-line' },
+                          { key: 'redeploy', label: '重新部署', icon: 'ri:refresh-line' },
+                          {
+                            key: 'delete',
+                            label: '删除',
+                            icon: 'ri:delete-bin-4-line'
+                          }
+                        ],
+                        onClick: (item: ButtonMoreItem) => dsMoreClick(item, row)
+                      })
+                    ])
+                }
+              ]
     }
   })
 
@@ -1362,9 +1792,14 @@
     replaceDsSearchParams({ name, namespace: ns })
     getDsData()
   }
-  function onDsRefresh() { refreshDsData() }
+  function onDsRefresh() {
+    refreshDsData()
+  }
   function onDsSortChange({ prop, order }: { prop: string; order: string | null }) {
-    if (prop === 'metadata.creationTimestamp') { dsSortOrder.value = (order as 'ascending' | 'descending' | null) ?? null; getDsData() }
+    if (prop === 'metadata.creationTimestamp') {
+      dsSortOrder.value = (order as 'ascending' | 'descending' | null) ?? null
+      getDsData()
+    }
   }
 
   async function loadDsLogPods() {
@@ -1462,16 +1897,27 @@
 
   // ── Job useTable ──
 
-  function getJobStatus(job: K8sJob): { text: string; type: 'success' | 'primary' | 'danger' | 'warning' | 'info' } {
+  function getJobStatus(job: K8sJob): {
+    text: string
+    type: 'success' | 'primary' | 'danger' | 'warning' | 'info'
+  } {
     const conds = job.status?.conditions ?? []
-    if (conds.some((c) => c.type === 'Complete' && c.status === 'True')) return { text: '已完成', type: 'success' }
-    if (conds.some((c) => c.type === 'Failed' && c.status === 'True')) return { text: '失败', type: 'danger' }
+    if (conds.some((c) => c.type === 'Complete' && c.status === 'True'))
+      return { text: '已完成', type: 'success' }
+    if (conds.some((c) => c.type === 'Failed' && c.status === 'True'))
+      return { text: '失败', type: 'danger' }
     if (job.spec?.suspend) return { text: '已暂停', type: 'warning' }
     if ((job.status?.active ?? 0) > 0) return { text: '运行中', type: 'primary' }
     return { text: '未知', type: 'info' }
   }
 
-  type JobParams = { current: number; size: number; name?: string; type?: string; namespace?: string }
+  type JobParams = {
+    current: number
+    size: number
+    name?: string
+    type?: string
+    namespace?: string
+  }
   const {
     columns: jobColumns,
     columnChecks: jobColumnChecks,
@@ -1488,13 +1934,25 @@
       immediate: false,
       apiFn: async (params: JobParams) => {
         const cluster = String(route.query.cluster ?? '')
-        if (!cluster) return { code: 200, data: { records: [] as (K8sJob & { rowKey: string })[], total: 0, current: 1, size: params.size } }
+        if (!cluster)
+          return {
+            code: 200,
+            data: {
+              records: [] as (K8sJob & { rowKey: string })[],
+              total: 0,
+              current: 1,
+              size: params.size
+            }
+          }
         if (props.jobDataMode === 'events') {
           const ns = props.mirrorNamespace || params.namespace || undefined
           const eventKind = props.mirrorEventKind || 'Deployment'
           const namespaced = props.mirrorEventNamespaced !== false
           if (!props.mirrorResourceName || (namespaced && !ns)) {
-            return { code: 200, data: { records: [] as any[], total: 0, current: params.current, size: params.size } }
+            return {
+              code: 200,
+              data: { records: [] as any[], total: 0, current: params.current, size: params.size }
+            }
           }
           const query: {
             namespace?: string
@@ -1527,7 +1985,9 @@
             filtered = [...filtered].sort((a, b) => {
               const ta = a.lastTimestamp ?? ''
               const tb = b.lastTimestamp ?? ''
-              return jobSortOrder.value === 'ascending' ? ta.localeCompare(tb) : tb.localeCompare(ta)
+              return jobSortOrder.value === 'ascending'
+                ? ta.localeCompare(tb)
+                : tb.localeCompare(ta)
             })
           }
           const total = filtered.length
@@ -1536,7 +1996,10 @@
             ...e,
             rowKey: e.metadata?.uid ?? `${e.reason ?? 'event'}-${start + i}`
           }))
-          return { code: 200, data: { records: list, total, current: params.current, size: params.size } }
+          return {
+            code: 200,
+            data: { records: list, total, current: params.current, size: params.size }
+          }
         }
         const { items, total } = await fetchK8sJobList(cluster, {
           page: params.current,
@@ -1544,7 +2007,10 @@
           namespace: params.namespace || undefined,
           name: (params.name ?? '').trim() || undefined
         })
-        let list = items.map((d, i) => ({ ...d, rowKey: d.metadata?.uid ?? d.metadata?.name ?? `job-${i}` }))
+        let list = items.map((d, i) => ({
+          ...d,
+          rowKey: d.metadata?.uid ?? d.metadata?.name ?? `job-${i}`
+        }))
         if (jobSortOrder.value) {
           list = [...list].sort((a, b) => {
             const ta = a.metadata?.creationTimestamp ?? ''
@@ -1552,24 +2018,32 @@
             return jobSortOrder.value === 'ascending' ? ta.localeCompare(tb) : tb.localeCompare(ta)
           })
         }
-        return { code: 200, data: { records: list, total, current: params.current, size: params.size } }
+        return {
+          code: 200,
+          data: { records: list, total, current: params.current, size: params.size }
+        }
       },
       apiParams: { current: 1, size: 10, name: undefined, type: undefined, namespace: undefined },
       columnsFactory: () =>
         props.jobDataMode === 'events'
           ? [
-              { type: 'selection' },
+              { type: 'selection', width: 30 },
               {
-                prop: 'lastTimestamp', label: '最后出现时间', width: 170, sortable: 'custom',
+                prop: 'lastTimestamp',
+                label: '最后出现时间',
+                width: 170,
+                sortable: 'custom',
                 formatter: (row: any) =>
                   h(
                     'span',
-                    { style: 'font-size:12px;color:var(--el-text-color-secondary)' },
+                    { style: 'font-size:12px;color:var(--el-text-color-regular)' },
                     formatNodeCreationTime(row.lastTimestamp)
                   )
               },
               {
-                prop: 'type', label: '类型', width: 100,
+                prop: 'type',
+                label: '类型',
+                width: 100,
                 formatter: (row: any) =>
                   h(
                     ElTag,
@@ -1587,18 +2061,24 @@
                   )
               },
               {
-                prop: 'resource', label: '资源', minWidth: 200, showOverflowTooltip: true,
+                prop: 'resource',
+                label: '资源',
+                minWidth: 200,
+                showOverflowTooltip: true,
                 formatter: (row: any) =>
                   h(
                     'span',
-                    { style: 'font-size:12px' },
+                    { style: 'font-size:12px;color:var(--el-text-color-regular)' },
                     `${row.involvedObject?.kind ?? ''}/${row.involvedObject?.name ?? ''}` || '—'
                   )
               },
               { prop: 'count', label: '出现次数', width: 100 },
               { prop: 'message', label: '内容', minWidth: 280, showOverflowTooltip: true },
               {
-                prop: 'operation', label: '操作', width: 80, fixed: 'right',
+                prop: 'operation',
+                label: '操作',
+                width: 80,
+                fixed: 'right',
                 formatter: (row: any) =>
                   h('div', { style: 'display:flex;align-items:center;gap:12px;flex-wrap:nowrap' }, [
                     h(
@@ -1615,79 +2095,178 @@
               }
             ]
           : [
-              { type: 'selection' },
-        {
-          prop: 'metadata.name', label: '名称', minWidth: 200,
-          formatter: (row: K8sJob) =>
-            h(
-              ElLink,
+              { type: 'selection', width: 30 },
               {
-                type: 'primary',
-                underline: 'never',
-                style: 'font-size:12px',
-                onClick: () =>
-                  openWorkloadDetail('/container/job-detail', row.metadata?.namespace ?? '', row.metadata?.name ?? '')
+                prop: 'metadata.name',
+                label: '名称',
+                minWidth: 200,
+                formatter: (row: K8sJob) =>
+                  renderWorkloadDetailNameCell(
+                    '/container/job-detail',
+                    row.metadata?.namespace ?? '',
+                    row.metadata?.name ?? ''
+                  )
               },
-              () => row.metadata?.name ?? '—'
-            )
-        },
-        {
-          prop: 'status', label: '状态', width: 100,
-          formatter: (row: K8sJob) => {
-            const { text, type } = getJobStatus(row)
-            return h(ElTag, { type, size: 'small' }, () => text)
-          }
-        },
-        {
-          prop: 'metadata.namespace', label: '命名空间', width: 160,
-          formatter: (row: K8sJob) => renderNsCell(row.metadata?.namespace ?? '—')
-        },
-        {
-          prop: 'metadata.labels', label: 'Labels', minWidth: 200,
-          formatter: (row: K8sJob) => {
-            const lines = Object.entries(row.metadata?.labels ?? {}).map(([k, v]) => `${k}: ${v}`)
-            return renderKvCell(lines)
-          }
-        },
-        {
-          prop: 'resources', label: 'Request/Limits', minWidth: 170,
-          formatter: (row: K8sJob) => {
-            const containers = row.spec?.template?.spec?.containers ?? []
-            let cpuReqM = 0, cpuLimM = 0, memReqB = 0, memLimB = 0
-            let hasCpuReq = false, hasCpuLim = false, hasMemReq = false, hasMemLim = false
-            for (const c of containers) {
-              if (c.resources?.requests?.cpu) { cpuReqM += parseCpuMilli(c.resources.requests.cpu); hasCpuReq = true }
-              if (c.resources?.limits?.cpu) { cpuLimM += parseCpuMilli(c.resources.limits.cpu); hasCpuLim = true }
-              if (c.resources?.requests?.memory) { memReqB += parseMemBytes(c.resources.requests.memory); hasMemReq = true }
-              if (c.resources?.limits?.memory) { memLimB += parseMemBytes(c.resources.limits.memory); hasMemLim = true }
-            }
-            const s = 'font-size:11px;color:var(--el-text-color-regular);white-space:nowrap'
-            return h('div', { style: 'line-height:1.8' }, [
-              h('div', { style: s }, `CPU: ${hasCpuReq ? formatCpuMilli(cpuReqM) : '无限制'} / ${hasCpuLim ? formatCpuMilli(cpuLimM) : '无限制'}`),
-              h('div', { style: s }, `内存: ${hasMemReq ? formatMemBytes(memReqB) : '无限制'} / ${hasMemLim ? formatMemBytes(memLimB) : '无限制'}`)
-            ])
-          }
-        },
-        {
-          prop: 'parallelism', label: '并行度', width: 90,
-          formatter: (row: K8sJob) => h('span', { style: 'font-size:12px' }, String(row.spec?.parallelism ?? 1))
-        },
-        {
-          prop: 'retryCount', label: '重复次数', width: 90,
-          formatter: (row: K8sJob) => h('span', { style: 'font-size:12px' }, String(row.spec?.backoffLimit ?? 0))
-        },
-        {
-          prop: 'metadata.creationTimestamp', label: '创建时间', width: 168, sortable: 'custom',
-          formatter: (row: K8sJob) => h('span', { style: 'font-size:12px' }, formatNodeCreationTime(row.metadata?.creationTimestamp))
-        },
-        {
-          prop: 'operation', label: '操作', width: 160, fixed: 'right',
-          formatter: (row: K8sJob) =>
-            h('div', { style: 'display:flex;align-items:center;gap:12px' }, [
-              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void openSharedYamlDialog('job', row.metadata?.namespace ?? '', row.metadata?.name ?? '') }, () => '查看YAML'),
-              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void deleteWorkload('job', row.metadata?.namespace ?? '', row.metadata?.name ?? '', onJobRefresh) }, () => '删除')
-            ])
-        }
+              {
+                prop: 'status',
+                label: '状态',
+                width: 100,
+                formatter: (row: K8sJob) => {
+                  const { text, type } = getJobStatus(row)
+                  return h(ElTag, { type, size: 'small' }, () => text)
+                }
+              },
+              {
+                prop: 'metadata.namespace',
+                label: '命名空间',
+                width: 160,
+                formatter: (row: K8sJob) => renderNsCell(row.metadata?.namespace ?? '—')
+              },
+              {
+                prop: 'metadata.labels',
+                label: 'Labels',
+                minWidth: 160,
+                formatter: (row: K8sJob) => {
+                  const lines = Object.entries(row.metadata?.labels ?? {}).map(
+                    ([k, v]) => `${k}: ${v}`
+                  )
+                  return renderKvCell(lines)
+                }
+              },
+              {
+                prop: 'parallelism',
+                label: '并行度',
+                width: 90,
+                formatter: (row: K8sJob) =>
+                  h(
+                    'span',
+                    { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+                    String(row.spec?.parallelism ?? 1)
+                  )
+              },
+              {
+                prop: 'retryCount',
+                label: '重复次数',
+                width: 90,
+                formatter: (row: K8sJob) =>
+                  h(
+                    'span',
+                    { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+                    String(row.spec?.backoffLimit ?? 0)
+                  )
+              },
+              {
+                prop: 'completions',
+                label: '完成/期望',
+                minWidth: 120,
+                formatter: (row: K8sJob) =>
+                  renderReplicaCellWithEvents(
+                    row.status?.succeeded ?? 0,
+                    row.spec?.completions ?? 1,
+                    '/container/job-detail',
+                    row.metadata?.namespace ?? '',
+                    row.metadata?.name ?? ''
+                  )
+              },
+              {
+                prop: 'resources',
+                label: 'Request/Limits',
+                minWidth: 170,
+                formatter: (row: K8sJob) => {
+                  const containers = row.spec?.template?.spec?.containers ?? []
+                  let cpuReqM = 0,
+                    cpuLimM = 0,
+                    memReqB = 0,
+                    memLimB = 0
+                  let hasCpuReq = false,
+                    hasCpuLim = false,
+                    hasMemReq = false,
+                    hasMemLim = false
+                  for (const c of containers) {
+                    if (c.resources?.requests?.cpu) {
+                      cpuReqM += parseCpuMilli(c.resources.requests.cpu)
+                      hasCpuReq = true
+                    }
+                    if (c.resources?.limits?.cpu) {
+                      cpuLimM += parseCpuMilli(c.resources.limits.cpu)
+                      hasCpuLim = true
+                    }
+                    if (c.resources?.requests?.memory) {
+                      memReqB += parseMemBytes(c.resources.requests.memory)
+                      hasMemReq = true
+                    }
+                    if (c.resources?.limits?.memory) {
+                      memLimB += parseMemBytes(c.resources.limits.memory)
+                      hasMemLim = true
+                    }
+                  }
+                  const s = 'font-size:11px;color:var(--el-text-color-regular);white-space:nowrap'
+                  return h('div', { style: 'line-height:1.8' }, [
+                    h(
+                      'div',
+                      { style: s },
+                      `CPU: ${hasCpuReq ? formatCpuMilli(cpuReqM) : '无限制'} / ${hasCpuLim ? formatCpuMilli(cpuLimM) : '无限制'}`
+                    ),
+                    h(
+                      'div',
+                      { style: s },
+                      `内存: ${hasMemReq ? formatMemBytes(memReqB) : '无限制'} / ${hasMemLim ? formatMemBytes(memLimB) : '无限制'}`
+                    )
+                  ])
+                }
+              },
+              {
+                prop: 'metadata.creationTimestamp',
+                label: '创建时间',
+                width: 168,
+                sortable: 'custom',
+                formatter: (row: K8sJob) =>
+                  h(
+                    'span',
+                    { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+                    formatNodeCreationTime(row.metadata?.creationTimestamp)
+                  )
+              },
+              {
+                prop: 'operation',
+                label: '操作',
+                minWidth: 120,
+                fixed: 'right',
+                formatter: (row: K8sJob) =>
+                  h('div', { class: 'workloads-op-cell' }, [
+                    h(
+                      ElLink,
+                      {
+                        type: 'primary',
+                        underline: 'never',
+                        style: 'font-size:12px',
+                        onClick: () =>
+                          void openSharedYamlDialog(
+                            'job',
+                            row.metadata?.namespace ?? '',
+                            row.metadata?.name ?? ''
+                          )
+                      },
+                      () => '编辑YAML'
+                    ),
+                    h(
+                      ElLink,
+                      {
+                        type: 'primary',
+                        underline: 'never',
+                        style: 'font-size:12px',
+                        onClick: () =>
+                          void deleteWorkload(
+                            'job',
+                            row.metadata?.namespace ?? '',
+                            row.metadata?.name ?? '',
+                            onJobRefresh
+                          )
+                      },
+                      () => '删除'
+                    )
+                  ])
+              }
             ]
     }
   })
@@ -1720,8 +2299,14 @@
     refreshJobData()
   }
   function onJobSortChange({ prop, order }: { prop: string; order: string | null }) {
-    if (prop === 'metadata.creationTimestamp') { jobSortOrder.value = (order as 'ascending' | 'descending' | null) ?? null; getJobData() }
-    if (prop === 'lastTimestamp') { jobSortOrder.value = (order as 'ascending' | 'descending' | null) ?? null; getJobData() }
+    if (prop === 'metadata.creationTimestamp') {
+      jobSortOrder.value = (order as 'ascending' | 'descending' | null) ?? null
+      getJobData()
+    }
+    if (prop === 'lastTimestamp') {
+      jobSortOrder.value = (order as 'ascending' | 'descending' | null) ?? null
+      getJobData()
+    }
   }
   function onJobSelectionChange(rows: any[]) {
     jobSelectedRows.value = rows
@@ -1753,11 +2338,15 @@
       return
     }
     try {
-      await ElMessageBox.confirm(`确定批量删除 ${jobSelectedRows.value.length} 条事件吗？`, '批量删除事件', {
-        type: 'warning',
-        confirmButtonText: '删除',
-        cancelButtonText: '取消'
-      })
+      await ElMessageBox.confirm(
+        `确定批量删除 ${jobSelectedRows.value.length} 条事件吗？`,
+        '批量删除事件',
+        {
+          type: 'warning',
+          confirmButtonText: '删除',
+          cancelButtonText: '取消'
+        }
+      )
       const cluster = String(route.query.cluster ?? '')
       for (const ev of jobSelectedRows.value) {
         const ns = ev.metadata?.namespace ?? 'default'
@@ -1793,21 +2382,55 @@
       immediate: false,
       apiFn: async (params: CjParams) => {
         const cluster = String(route.query.cluster ?? '')
-        if (!cluster) return { code: 200, data: { records: [] as (K8sCronJob & { rowKey: string })[], total: 0, current: 1, size: params.size } }
+        if (!cluster)
+          return {
+            code: 200,
+            data: {
+              records: [] as (K8sCronJob & { rowKey: string })[],
+              total: 0,
+              current: 1,
+              size: params.size
+            }
+          }
         if (props.cjDataMode === 'history') {
           const ns = props.mirrorNamespace || params.namespace || undefined
           if (!ns || !props.mirrorResourceName) {
-            return { code: 200, data: { records: [] as (K8sReplicaSet & { rowKey: string })[], total: 0, current: params.current, size: params.size } }
+            return {
+              code: 200,
+              data: {
+                records: [] as (K8sReplicaSet & { rowKey: string })[],
+                total: 0,
+                current: params.current,
+                size: params.size
+              }
+            }
           }
-          const { items } = await fetchK8sReplicaSetList(cluster, { namespace: ns, labelSelector: props.mirrorSelector || undefined })
+          const { items } = await fetchK8sReplicaSetList(cluster, {
+            namespace: ns,
+            labelSelector: props.mirrorSelector || undefined
+          })
           const nameFilter = (params.name ?? '').trim().toLowerCase()
           let filtered = items
-            .filter((rs) => (rs.metadata?.ownerReferences ?? []).some((o) => o.kind === 'Deployment' && o.name === props.mirrorResourceName))
-            .filter((rs) => !nameFilter || String(rs.metadata?.name ?? '').toLowerCase().includes(nameFilter))
+            .filter((rs) =>
+              (rs.metadata?.ownerReferences ?? []).some(
+                (o) => o.kind === 'Deployment' && o.name === props.mirrorResourceName
+              )
+            )
+            .filter(
+              (rs) =>
+                !nameFilter ||
+                String(rs.metadata?.name ?? '')
+                  .toLowerCase()
+                  .includes(nameFilter)
+            )
             .map((rs, i) => ({ ...rs, rowKey: rs.metadata?.uid ?? rs.metadata?.name ?? `rs-${i}` }))
           filtered = filtered.sort((a, b) => {
-            const ra = parseInt(a.metadata?.annotations?.['deployment.kubernetes.io/revision'] ?? '0')
-            const rb = parseInt(b.metadata?.annotations?.['deployment.kubernetes.io/revision'] ?? '0')
+            const ra = parseInt(
+              a.metadata?.annotations?.['deployment.kubernetes.io/revision'] ?? '0'
+            )
+            const rb = parseInt(
+              b.metadata?.annotations?.['deployment.kubernetes.io/revision'] ?? '0'
+            )
             return rb - ra
           })
           if (cjSortOrder.value) {
@@ -1820,7 +2443,10 @@
           const total = filtered.length
           const start = (params.current - 1) * params.size
           const list = filtered.slice(start, start + params.size)
-          return { code: 200, data: { records: list, total, current: params.current, size: params.size } }
+          return {
+            code: 200,
+            data: { records: list, total, current: params.current, size: params.size }
+          }
         }
         const { items, total } = await fetchK8sCronJobList(cluster, {
           page: params.current,
@@ -1828,7 +2454,10 @@
           namespace: params.namespace || undefined,
           name: (params.name ?? '').trim() || undefined
         })
-        let list = items.map((d, i) => ({ ...d, rowKey: d.metadata?.uid ?? d.metadata?.name ?? `cj-${i}` }))
+        let list = items.map((d, i) => ({
+          ...d,
+          rowKey: d.metadata?.uid ?? d.metadata?.name ?? `cj-${i}`
+        }))
         if (cjSortOrder.value) {
           list = [...list].sort((a, b) => {
             const ta = a.metadata?.creationTimestamp ?? ''
@@ -1836,22 +2465,34 @@
             return cjSortOrder.value === 'ascending' ? ta.localeCompare(tb) : tb.localeCompare(ta)
           })
         }
-        return { code: 200, data: { records: list, total, current: params.current, size: params.size } }
+        return {
+          code: 200,
+          data: { records: list, total, current: params.current, size: params.size }
+        }
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
       columnsFactory: () =>
         props.cjDataMode === 'history'
           ? [
-              { type: 'selection' },
+              { type: 'selection', width: 30 },
               {
                 prop: 'revision',
                 label: '版本号',
                 minWidth: 130,
                 formatter: (row: K8sReplicaSet) =>
                   h('div', { style: 'display:flex;align-items:center;gap:8px' }, [
-                    h(ElTag, { size: 'small', effect: 'plain' }, () => `# ${row.metadata?.annotations?.['deployment.kubernetes.io/revision'] || '—'}`),
+                    h(
+                      ElTag,
+                      { size: 'small', effect: 'plain' },
+                      () =>
+                        `# ${row.metadata?.annotations?.['deployment.kubernetes.io/revision'] || '—'}`
+                    ),
                     isCurrentHistoryVersion(row)
-                      ? h(ElTag, { size: 'small', type: 'success', effect: 'light' }, () => '当前版本')
+                      ? h(
+                          ElTag,
+                          { size: 'small', type: 'success', effect: 'light' },
+                          () => '当前版本'
+                        )
                       : null
                   ])
               },
@@ -1859,14 +2500,24 @@
                 prop: 'image',
                 label: '镜像',
                 minWidth: 240,
-                formatter: (row: K8sReplicaSet) => renderImageCell((row.spec?.template?.spec?.containers ?? []).map((c) => c.image ?? '').filter(Boolean))
+                formatter: (row: K8sReplicaSet) =>
+                  renderImageCell(
+                    (row.spec?.template?.spec?.containers ?? [])
+                      .map((c) => c.image ?? '')
+                      .filter(Boolean)
+                  )
               },
               {
                 prop: 'metadata.creationTimestamp',
                 label: '创建时间',
                 width: 168,
                 sortable: 'custom',
-                formatter: (row: K8sReplicaSet) => h('span', { style: 'font-size:12px' }, formatNodeCreationTime(row.metadata?.creationTimestamp))
+                formatter: (row: K8sReplicaSet) =>
+                  h(
+                    'span',
+                    { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+                    formatNodeCreationTime(row.metadata?.creationTimestamp)
+                  )
               },
               {
                 prop: 'operation',
@@ -1888,91 +2539,157 @@
               }
             ]
           : [
-              { type: 'selection' },
+              { type: 'selection', width: 30 },
               {
-                prop: 'metadata.name', label: '名称', minWidth: 200,
+                prop: 'metadata.name',
+                label: '名称',
+                minWidth: 200,
                 formatter: (row: K8sCronJob) =>
-                  h(
-                    ElLink,
-                    {
-                      type: 'primary',
-                      underline: 'never',
-                      style: 'font-size:12px',
-                      onClick: () =>
-                        openWorkloadDetail(
-                          '/container/cronjob-detail',
-                          row.metadata?.namespace ?? '',
-                          row.metadata?.name ?? ''
-                        )
-                    },
-                    () => row.metadata?.name ?? '—'
+                  renderWorkloadDetailNameCell(
+                    '/container/cronjob-detail',
+                    row.metadata?.namespace ?? '',
+                    row.metadata?.name ?? ''
                   )
               },
               {
-                prop: 'metadata.namespace', label: '命名空间', width: 160,
+                prop: 'spec.suspend',
+                label: '状态',
+                width: 90,
+                formatter: (row: K8sCronJob) => {
+                  const suspended = row.spec?.suspend
+                  return h(ElTag, { type: suspended ? 'warning' : 'success', size: 'small' }, () =>
+                    suspended ? '已暂停' : '运行中'
+                  )
+                }
+              },
+              {
+                prop: 'metadata.namespace',
+                label: '命名空间',
+                width: 160,
                 formatter: (row: K8sCronJob) => renderNsCell(row.metadata?.namespace ?? '—')
               },
               {
-                prop: 'resources', label: 'Request/Limits', minWidth: 170,
+                prop: 'metadata.labels',
+                label: 'Labels',
+                minWidth: 160,
                 formatter: (row: K8sCronJob) => {
-                  const containers = row.spec?.jobTemplate?.spec?.template?.spec?.containers ?? []
-                  let cpuReqM = 0, cpuLimM = 0, memReqB = 0, memLimB = 0
-                  let hasCpuReq = false, hasCpuLim = false, hasMemReq = false, hasMemLim = false
-                  for (const c of containers) {
-                    if (c.resources?.requests?.cpu) { cpuReqM += parseCpuMilli(c.resources.requests.cpu); hasCpuReq = true }
-                    if (c.resources?.limits?.cpu) { cpuLimM += parseCpuMilli(c.resources.limits.cpu); hasCpuLim = true }
-                    if (c.resources?.requests?.memory) { memReqB += parseMemBytes(c.resources.requests.memory); hasMemReq = true }
-                    if (c.resources?.limits?.memory) { memLimB += parseMemBytes(c.resources.limits.memory); hasMemLim = true }
-                  }
-                  const s = 'font-size:11px;color:var(--el-text-color-regular);white-space:nowrap'
-                  return h('div', { style: 'line-height:1.8' }, [
-                    h('div', { style: s }, `CPU: ${hasCpuReq ? formatCpuMilli(cpuReqM) : '无限制'} / ${hasCpuLim ? formatCpuMilli(cpuLimM) : '无限制'}`),
-                    h('div', { style: s }, `内存: ${hasMemReq ? formatMemBytes(memReqB) : '无限制'} / ${hasMemLim ? formatMemBytes(memLimB) : '无限制'}`)
-                  ])
-                }
-              },
-              {
-                prop: 'spec.schedule', label: '调度规则', minWidth: 140,
-                formatter: (row: K8sCronJob) =>
-                  h('span', { style: 'font-size:12px;font-family:monospace' }, row.spec?.schedule ?? '—')
-              },
-              {
-                prop: 'spec.suspend', label: '状态', width: 90,
-                formatter: (row: K8sCronJob) => {
-                  const suspended = row.spec?.suspend
-                  return h(ElTag, { type: suspended ? 'warning' : 'success', size: 'small' }, () => suspended ? '已暂停' : '运行中')
-                }
-              },
-              {
-                prop: 'status.lastScheduleTime', label: '上次调度', width: 168,
-                formatter: (row: K8sCronJob) =>
-                  h('span', { style: 'font-size:12px' }, formatNodeCreationTime(row.status?.lastScheduleTime))
-              },
-              {
-                prop: 'metadata.labels', label: 'Labels', minWidth: 200,
-                formatter: (row: K8sCronJob) => {
-                  const lines = Object.entries(row.metadata?.labels ?? {}).map(([k, v]) => `${k}: ${v}`)
+                  const lines = Object.entries(row.metadata?.labels ?? {}).map(
+                    ([k, v]) => `${k}: ${v}`
+                  )
                   return renderKvCell(lines)
                 }
               },
               {
-                prop: 'metadata.creationTimestamp', label: '创建时间', width: 168, sortable: 'custom',
-                formatter: (row: K8sCronJob) => h('span', { style: 'font-size:12px' }, formatNodeCreationTime(row.metadata?.creationTimestamp))
+                prop: 'spec.schedule',
+                label: '调度规则',
+                minWidth: 140,
+                formatter: (row: K8sCronJob) =>
+                  h(
+                    'span',
+                    { style: 'font-size:12px;font-family:monospace' },
+                    row.spec?.schedule ?? '—'
+                  )
               },
               {
-                prop: 'operation', label: '操作', width: 200, fixed: 'right',
+                prop: 'status.lastScheduleTime',
+                label: '上次调度',
+                width: 168,
+                formatter: (row: K8sCronJob) =>
+                  h(
+                    'span',
+                    { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+                    formatNodeCreationTime(row.status?.lastScheduleTime)
+                  )
+              },
+              {
+                prop: 'resources',
+                label: 'Request/Limits',
+                minWidth: 170,
+                formatter: (row: K8sCronJob) => {
+                  const containers = row.spec?.jobTemplate?.spec?.template?.spec?.containers ?? []
+                  let cpuReqM = 0,
+                    cpuLimM = 0,
+                    memReqB = 0,
+                    memLimB = 0
+                  let hasCpuReq = false,
+                    hasCpuLim = false,
+                    hasMemReq = false,
+                    hasMemLim = false
+                  for (const c of containers) {
+                    if (c.resources?.requests?.cpu) {
+                      cpuReqM += parseCpuMilli(c.resources.requests.cpu)
+                      hasCpuReq = true
+                    }
+                    if (c.resources?.limits?.cpu) {
+                      cpuLimM += parseCpuMilli(c.resources.limits.cpu)
+                      hasCpuLim = true
+                    }
+                    if (c.resources?.requests?.memory) {
+                      memReqB += parseMemBytes(c.resources.requests.memory)
+                      hasMemReq = true
+                    }
+                    if (c.resources?.limits?.memory) {
+                      memLimB += parseMemBytes(c.resources.limits.memory)
+                      hasMemLim = true
+                    }
+                  }
+                  const s = 'font-size:11px;color:var(--el-text-color-regular);white-space:nowrap'
+                  return h('div', { style: 'line-height:1.8' }, [
+                    h(
+                      'div',
+                      { style: s },
+                      `CPU: ${hasCpuReq ? formatCpuMilli(cpuReqM) : '无限制'} / ${hasCpuLim ? formatCpuMilli(cpuLimM) : '无限制'}`
+                    ),
+                    h(
+                      'div',
+                      { style: s },
+                      `内存: ${hasMemReq ? formatMemBytes(memReqB) : '无限制'} / ${hasMemLim ? formatMemBytes(memLimB) : '无限制'}`
+                    )
+                  ])
+                }
+              },
+              {
+                prop: 'metadata.creationTimestamp',
+                label: '创建时间',
+                width: 168,
+                sortable: 'custom',
+                formatter: (row: K8sCronJob) =>
+                  h(
+                    'span',
+                    { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+                    formatNodeCreationTime(row.metadata?.creationTimestamp)
+                  )
+              },
+              {
+                prop: 'operation',
+                label: '操作',
+                minWidth: 300,
+                fixed: 'right',
                 formatter: (row: K8sCronJob) => {
                   const suspended = row.spec?.suspend
-                  return h('div', { style: 'display:flex;align-items:center;gap:12px' }, [
-                    h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px',
-                      onClick: () => void toggleCjSuspend(row)
-                    }, () => suspended ? '恢复' : '暂停'),
-                    h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px',
-                      onClick: () => void openSharedYamlDialog('cj', row.metadata?.namespace ?? '', row.metadata?.name ?? '')
-                    }, () => '查看YAML'),
-                    h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px',
-                      onClick: () => void deleteWorkload('cj', row.metadata?.namespace ?? '', row.metadata?.name ?? '', onCjRefresh)
-                    }, () => '删除')
+                  return h('div', { class: 'workloads-op-cell' }, [
+                    h(
+                      ElLink,
+                      {
+                        type: 'primary',
+                        underline: 'never',
+                        style: 'font-size:12px',
+                        onClick: () => void toggleCjSuspend(row)
+                      },
+                      () => (suspended ? '恢复' : '暂停')
+                    ),
+                    h(ArtButtonMore, {
+                      list: [
+                        { key: 'yaml', label: '查看YAML', icon: 'ri:file-code-line' },
+                        {
+                          key: 'delete',
+                          label: '删除',
+                          icon: 'ri:delete-bin-4-line',
+                          color: '#409eff'
+                        }
+                      ],
+                      onClick: (item: ButtonMoreItem) => cjMoreClick(item, row)
+                    })
                   ])
                 }
               }
@@ -2001,9 +2718,14 @@
     replaceCjSearchParams({ name, namespace: ns })
     getCjData()
   }
-  function onCjRefresh() { refreshCjData() }
+  function onCjRefresh() {
+    refreshCjData()
+  }
   function onCjSortChange({ prop, order }: { prop: string; order: string | null }) {
-    if (prop === 'metadata.creationTimestamp') { cjSortOrder.value = (order as 'ascending' | 'descending' | null) ?? null; getCjData() }
+    if (prop === 'metadata.creationTimestamp') {
+      cjSortOrder.value = (order as 'ascending' | 'descending' | null) ?? null
+      getCjData()
+    }
   }
 
   function isCurrentHistoryVersion(row: K8sReplicaSet): boolean {
@@ -2109,7 +2831,11 @@
           const raw = data.items ?? []
           const byName = (params.name ?? '').trim().toLowerCase()
           let filtered = byName
-            ? raw.filter((p) => String(p.metadata?.name ?? '').toLowerCase().includes(byName))
+            ? raw.filter((p) =>
+                String(p.metadata?.name ?? '')
+                  .toLowerCase()
+                  .includes(byName)
+              )
             : raw
           if (nodeName) {
             filtered = filtered.filter((p) => String(p.spec?.nodeName ?? '') === nodeName)
@@ -2118,7 +2844,9 @@
             ? [...filtered].sort((a, b) => {
                 const ta = a.metadata?.creationTimestamp ?? ''
                 const tb = b.metadata?.creationTimestamp ?? ''
-                return deplSortOrder.value === 'ascending' ? ta.localeCompare(tb) : tb.localeCompare(ta)
+                return deplSortOrder.value === 'ascending'
+                  ? ta.localeCompare(tb)
+                  : tb.localeCompare(ta)
               })
             : filtered
           const total = sorted.length
@@ -2127,7 +2855,10 @@
             ...p,
             rowKey: p.metadata?.uid ?? p.metadata?.name ?? `pod-${start + i}`
           }))
-          return { code: 200, data: { records: list, total, current: params.current, size: params.size } }
+          return {
+            code: 200,
+            data: { records: list, total, current: params.current, size: params.size }
+          }
         }
         const { items, total } = await fetchK8sDeploymentList(cluster, {
           page: params.current,
@@ -2146,13 +2877,16 @@
             return deplSortOrder.value === 'ascending' ? ta.localeCompare(tb) : tb.localeCompare(ta)
           })
         }
-        return { code: 200, data: { records: list, total, current: params.current, size: params.size } }
+        return {
+          code: 200,
+          data: { records: list, total, current: params.current, size: params.size }
+        }
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
       columnsFactory: () =>
         isDeployPodMode.value
           ? [
-              { type: 'selection' },
+              { type: 'selection', width: 30 },
               {
                 prop: 'metadata.name',
                 label: '名称',
@@ -2184,7 +2918,11 @@
                   const statuses = row.status?.containerStatuses ?? []
                   const ready = statuses.filter((s) => s.ready).length
                   const total = row.spec?.containers?.length ?? 0
-                  return h('span', { style: 'font-size:12px' }, `${ready} / ${total}`)
+                  return h(
+                    'span',
+                    { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+                    `${ready} / ${total}`
+                  )
                 }
               },
               {
@@ -2194,13 +2932,22 @@
                 formatter: (row: K8sPod) =>
                   props.deployNodeName
                     ? renderNsCell(row.metadata?.namespace ?? '—')
-                    : h('span', { style: 'font-size:12px' }, row.spec?.nodeName ?? '—')
+                    : h(
+                        'span',
+                        { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+                        row.spec?.nodeName ?? '—'
+                      )
               },
               {
                 prop: 'status.podIP',
                 label: 'Pod IP',
                 width: 140,
-                formatter: (row: K8sPod) => h('span', { style: 'font-size:12px' }, row.status?.podIP ?? '—')
+                formatter: (row: K8sPod) =>
+                  h(
+                    'span',
+                    { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+                    row.status?.podIP ?? '—'
+                  )
               },
               {
                 prop: 'restart',
@@ -2211,7 +2958,11 @@
                     (sum, s) => sum + (s.restartCount ?? 0),
                     0
                   )
-                  return h('span', { style: 'font-size:12px' }, String(count))
+                  return h(
+                    'span',
+                    { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+                    String(count)
+                  )
                 }
               },
               {
@@ -2220,7 +2971,11 @@
                 width: 168,
                 sortable: 'custom',
                 formatter: (row: K8sPod) =>
-                  h('span', { style: 'font-size:12px' }, formatNodeCreationTime(row.metadata?.creationTimestamp))
+                  h(
+                    'span',
+                    { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+                    formatNodeCreationTime(row.metadata?.creationTimestamp)
+                  )
               },
               {
                 prop: 'operation',
@@ -2235,6 +2990,7 @@
                         type: 'primary',
                         underline: 'never',
                         style: 'font-size:12px;line-height:1',
+                        disabled: row.status?.phase !== 'Running',
                         onClick: () => openPodRemoteLogin(row)
                       },
                       () => '登录'
@@ -2250,240 +3006,193 @@
                       () => '查看'
                     ),
                     h(ArtButtonMore, {
-                      list: [{ key: 'delete', label: '删除', icon: 'ri:delete-bin-4-line', color: '#409eff' }],
+                      list: [
+                        {
+                          key: 'delete',
+                          label: '删除',
+                          icon: 'ri:delete-bin-4-line',
+                          color: '#409eff'
+                        }
+                      ],
                       onClick: (item: ButtonMoreItem) => podRowMoreClick(item, row)
                     })
                   ])
               }
             ]
           : [
-              { type: 'selection' },
-        {
-          prop: 'metadata.name',
-          label: '名称',
-          minWidth: 200,
-          formatter: (row: K8sDeployment) => {
-            const name = row.metadata?.name ?? '—'
-            return h('div', { style: 'display:flex;align-items:center;gap:8px' }, [
-              h(
-                'span',
-                {
-                  style: 'font-size:13px;color:var(--el-color-primary);cursor:pointer;text-decoration:none;transition:opacity .15s',
-                  onMouseenter: (e: MouseEvent) => { (e.target as HTMLElement).style.opacity = '0.75' },
-                  onMouseleave: (e: MouseEvent) => { (e.target as HTMLElement).style.opacity = '1' },
-                  onClick: () => {
-                    const ns = row.metadata?.namespace ?? ''
-                    router.push({
-                      path: '/container/deployment-detail',
-                      query: { cluster: String(route.query.cluster ?? ''), namespace: ns, name }
-                    })
-                  }
-                },
-                name
-              ),
-              h(
-                'span',
-                {
-                  class: 'icon-action',
-                  style:
-                    'cursor:pointer;color:var(--el-text-color-secondary);display:inline-flex;align-items:center',
-                  title: '复制',
-                  onClick: (e: MouseEvent) => {
-                    e.stopPropagation()
-                    navigator.clipboard.writeText(name)
-                    ElMessage.success('已复制')
-                  }
-                },
-                [h(CopyDocument, { style: 'width:12px;height:12px' })]
-              )
-            ])
-          }
-        },
-        {
-          prop: 'metadata.namespace',
-          label: '命名空间',
-          width: 160,
-          formatter: (row: K8sDeployment) => {
-            const ns = row.metadata?.namespace ?? '—'
-            const isSystem = ns === 'default' || ns.startsWith('kube-')
-            return h('div', { style: 'display:flex;align-items:center;gap:6px' }, [
-              h('span', { style: 'font-size:12px' }, ns),
-              isSystem
-                ? h(
-                    'span',
-                    {
-                      style:
-                        'font-size:11px;padding:0 4px;line-height:16px;border-radius:3px;background:var(--el-color-primary-light-9);color:var(--el-color-primary);border:1px solid var(--el-color-primary-light-7);flex-shrink:0'
-                    },
-                    '系统'
+              { type: 'selection', width: 30 },
+              {
+                prop: 'metadata.name',
+                label: '名称',
+                minWidth: 200,
+                formatter: (row: K8sDeployment) =>
+                  renderWorkloadDetailNameCell(
+                    '/container/deployment-detail',
+                    row.metadata?.namespace ?? '',
+                    row.metadata?.name ?? ''
                   )
-                : null
-            ])
-          }
-        },
-        {
-          prop: 'resources',
-          label: 'Request/Limits',
-          minWidth: 170,
-          formatter: (row: K8sDeployment) => {
-            const containers = row.spec?.template?.spec?.containers ?? []
-            let cpuReqM = 0,
-              cpuLimM = 0,
-              memReqB = 0,
-              memLimB = 0
-            let hasCpuReq = false,
-              hasCpuLim = false,
-              hasMemReq = false,
-              hasMemLim = false
-            for (const c of containers) {
-              const cr = c.resources?.requests?.cpu
-              const cl = c.resources?.limits?.cpu
-              const mr = c.resources?.requests?.memory
-              const ml = c.resources?.limits?.memory
-              if (cr) {
-                cpuReqM += parseCpuMilli(cr)
-                hasCpuReq = true
-              }
-              if (cl) {
-                cpuLimM += parseCpuMilli(cl)
-                hasCpuLim = true
-              }
-              if (mr) {
-                memReqB += parseMemBytes(mr)
-                hasMemReq = true
-              }
-              if (ml) {
-                memLimB += parseMemBytes(ml)
-                hasMemLim = true
-              }
-            }
-            const cpuReq = hasCpuReq ? formatCpuMilli(cpuReqM) : '无限制'
-            const cpuLim = hasCpuLim ? formatCpuMilli(cpuLimM) : '无限制'
-            const memReq = hasMemReq ? formatMemBytes(memReqB) : '无限制'
-            const memLim = hasMemLim ? formatMemBytes(memLimB) : '无限制'
-            const s = 'font-size:11px;color:var(--el-text-color-regular);white-space:nowrap'
-            return h('div', { style: 'line-height:1.8' }, [
-              h('div', { style: s }, `CPU: ${cpuReq} / ${cpuLim}`),
-              h('div', { style: s }, `内存: ${memReq} / ${memLim}`)
-            ])
-          }
-        },
-        {
-          prop: 'status.readyReplicas',
-          label: '实例个数',
-          minWidth: 120,
-          formatter: (row: K8sDeployment) => {
-            const ready = row.status?.readyReplicas ?? 0
-            const desired = row.spec?.replicas ?? 0
-            const ok = ready === desired && desired > 0
-            const color = ok ? 'var(--el-color-success)' : 'var(--el-color-warning)'
-            const valueLine = h('div', { style: 'display:flex;align-items:center;gap:4px' }, [
-              h('span', { style: `font-size:12px;color:${color}` }, `${ready} / ${desired}`),
-              !ok
-                ? h(
-                    'span',
-                    {
-                      class: 'deploy-spin',
-                      style: 'display:inline-flex;align-items:center;color:var(--el-color-primary)'
-                    },
-                    [h(Loading, { style: 'width:13px;height:13px' })]
+              },
+              {
+                prop: 'metadata.namespace',
+                label: '命名空间',
+                width: 160,
+                formatter: (row: K8sDeployment) => {
+                  const ns = row.metadata?.namespace ?? '—'
+                  const isSystem = ns === 'default' || ns.startsWith('kube-')
+                  return h('div', { style: 'display:flex;align-items:center;gap:6px' }, [
+                    h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, ns),
+                    isSystem
+                      ? h(
+                          'span',
+                          {
+                            style:
+                              'font-size:11px;padding:0 4px;line-height:16px;border-radius:3px;background:var(--el-color-primary-light-9);color:var(--el-color-primary);border:1px solid var(--el-color-primary-light-7);flex-shrink:0'
+                          },
+                          '系统'
+                        )
+                      : null
+                  ])
+                }
+              },
+              {
+                prop: 'metadata.labels',
+                label: 'Labels',
+                minWidth: 160,
+                formatter: (row: K8sDeployment) => {
+                  const labels = row.metadata?.labels ?? {}
+                  const lines = Object.entries(labels).map(([k, v]) => `${k}: ${v}`)
+                  return renderKvCell(lines)
+                }
+              },
+              {
+                prop: 'status.readyReplicas',
+                label: '实例个数',
+                minWidth: 120,
+                formatter: (row: K8sDeployment) =>
+                  renderReplicaCellWithEvents(
+                    row.status?.readyReplicas ?? 0,
+                    row.spec?.replicas ?? 0,
+                    '/container/deployment-detail',
+                    row.metadata?.namespace ?? '',
+                    row.metadata?.name ?? ''
                   )
-                : null
-            ])
-            if (ok) return valueLine
-            return h('div', { style: 'line-height:1.4;margin-top:2px' }, [
-              valueLine,
-              h(
-                ElLink,
-                {
-                  type: 'primary',
-                  underline: 'never',
-                  style: 'font-size:11px',
-                  onClick: () =>
-                    router.push({
-                      path: '/container/deployment-detail',
-                      query: {
-                        cluster: String(route.query.cluster ?? ''),
-                        namespace: row.metadata?.namespace ?? '',
-                        name: row.metadata?.name ?? '',
-                        tab: 'job'
-                      }
+              },
+              {
+                prop: 'image',
+                label: '镜像',
+                minWidth: 180,
+                formatter: (row: K8sDeployment) => {
+                  const lines = (row.spec?.template?.spec?.containers ?? [])
+                    .map((c) => c.image ?? '')
+                    .filter(Boolean)
+                  return renderImageCell(lines)
+                }
+              },
+              {
+                prop: 'resources',
+                label: 'Request/Limits',
+                minWidth: 170,
+                formatter: (row: K8sDeployment) => {
+                  const containers = row.spec?.template?.spec?.containers ?? []
+                  let cpuReqM = 0,
+                    cpuLimM = 0,
+                    memReqB = 0,
+                    memLimB = 0
+                  let hasCpuReq = false,
+                    hasCpuLim = false,
+                    hasMemReq = false,
+                    hasMemLim = false
+                  for (const c of containers) {
+                    const cr = c.resources?.requests?.cpu
+                    const cl = c.resources?.limits?.cpu
+                    const mr = c.resources?.requests?.memory
+                    const ml = c.resources?.limits?.memory
+                    if (cr) {
+                      cpuReqM += parseCpuMilli(cr)
+                      hasCpuReq = true
+                    }
+                    if (cl) {
+                      cpuLimM += parseCpuMilli(cl)
+                      hasCpuLim = true
+                    }
+                    if (mr) {
+                      memReqB += parseMemBytes(mr)
+                      hasMemReq = true
+                    }
+                    if (ml) {
+                      memLimB += parseMemBytes(ml)
+                      hasMemLim = true
+                    }
+                  }
+                  const cpuReq = hasCpuReq ? formatCpuMilli(cpuReqM) : '无限制'
+                  const cpuLim = hasCpuLim ? formatCpuMilli(cpuLimM) : '无限制'
+                  const memReq = hasMemReq ? formatMemBytes(memReqB) : '无限制'
+                  const memLim = hasMemLim ? formatMemBytes(memLimB) : '无限制'
+                  const s = 'font-size:11px;color:var(--el-text-color-regular);white-space:nowrap'
+                  return h('div', { style: 'line-height:1.8' }, [
+                    h('div', { style: s }, `CPU: ${cpuReq} / ${cpuLim}`),
+                    h('div', { style: s }, `内存: ${memReq} / ${memLim}`)
+                  ])
+                }
+              },
+              {
+                prop: 'metadata.creationTimestamp',
+                label: '创建时间',
+                width: 168,
+                sortable: 'custom',
+                formatter: (row: K8sDeployment) =>
+                  h(
+                    'span',
+                    { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+                    formatNodeCreationTime(row.metadata?.creationTimestamp)
+                  )
+              },
+              {
+                prop: 'operation',
+                label: '操作',
+                minWidth: 220,
+                fixed: 'right',
+                formatter: (row: K8sDeployment) =>
+                  h('div', { class: 'workloads-op-cell' }, [
+                    h(
+                      ElLink,
+                      {
+                        type: 'primary',
+                        underline: 'never',
+                        style: 'font-size:12px',
+                        onClick: () => openScaleDialog(row, 'deploy')
+                      },
+                      () => '更新Pod数量'
+                    ),
+                    h(
+                      ElLink,
+                      {
+                        type: 'primary',
+                        underline: 'never',
+                        style: 'font-size:12px',
+                        onClick: () =>
+                          openWorkloadUpdate(
+                            row.metadata?.namespace ?? '',
+                            row.metadata?.name ?? '',
+                            'deploy'
+                          )
+                      },
+                      () => '更新Pod设置'
+                    ),
+                    h(ArtButtonMore, {
+                      list: [
+                        { key: 'redeploy', label: '重新部署', icon: 'ri:refresh-line' },
+                        { key: 'yaml', label: '编辑YAML', icon: 'ri:file-code-line' },
+                        {
+                          key: 'delete',
+                          label: '删除',
+                          icon: 'ri:delete-bin-4-line'
+                        }
+                      ],
+                      onClick: (item: ButtonMoreItem) => deplMoreClick(item, row)
                     })
-                },
-                () => '查看事件列表'
-              )
-            ])
-          }
-        },
-        {
-          prop: 'image',
-          label: '镜像',
-          minWidth: 180,
-          formatter: (row: K8sDeployment) => {
-            const lines = (row.spec?.template?.spec?.containers ?? [])
-              .map((c) => c.image ?? '')
-              .filter(Boolean)
-            return renderImageCell(lines)
-          }
-        },
-        {
-          prop: 'metadata.labels',
-          label: 'Labels',
-          minWidth: 200,
-          formatter: (row: K8sDeployment) => {
-            const labels = row.metadata?.labels ?? {}
-            const lines = Object.entries(labels).map(([k, v]) => `${k}: ${v}`)
-            return renderKvCell(lines)
-          }
-        },
-        {
-          prop: 'metadata.creationTimestamp',
-          label: '创建时间',
-          width: 168,
-          sortable: 'custom',
-          formatter: (row: K8sDeployment) =>
-            h(
-              'span',
-              { style: 'font-size:12px' },
-              formatNodeCreationTime(row.metadata?.creationTimestamp)
-            )
-        },
-        {
-          prop: 'operation',
-          label: '操作',
-          width: 180,
-          fixed: 'right',
-          formatter: (row: K8sDeployment) =>
-            h('div', { style: 'display:flex;align-items:center;gap:12px;flex-wrap:nowrap' }, [
-              h(
-                ElLink,
-                {
-                  type: 'primary',
-                  underline: 'never',
-                  style: 'font-size:12px',
-                  onClick: () => openScaleDialog(row)
-                },
-                () => '更新Pod数量'
-              ),
-              h(
-                ElLink,
-                {
-                  type: 'primary',
-                  underline: 'never',
-                  style: 'font-size:12px',
-                  onClick: () => void deleteDeployment(row)
-                },
-                () => '删除'
-              ),
-              h(ArtButtonMore, {
-                list: [
-                  { key: 'redeploy', label: '重新部署', icon: 'ri:refresh-line' },
-                  { key: 'yaml', label: '编辑YAML', icon: 'ri:file-code-line' }
-                ],
-                onClick: (item: ButtonMoreItem) => deplMoreClick(item, row)
-              })
-            ])
-        }
+                  ])
+              }
             ]
     }
   })
@@ -2792,13 +3501,18 @@
     }
   }
 
-  // ── Scale ──
+  // ── Scale（Deployment / StatefulSet） ──
   const scaleVisible = ref(false)
   const scaleSubmitting = ref(false)
-  const scaleRow = ref<K8sDeployment | null>(null)
+  const scaleRowKind = ref<'deploy' | 'sts'>('deploy')
+  const scaleRow = ref<K8sDeployment | K8sStatefulSet | null>(null)
   const scaleValue = ref(1)
+  const scaleResourceKindLabel = computed(() =>
+    scaleRowKind.value === 'sts' ? 'StatefulSet' : 'Deployment'
+  )
 
-  function openScaleDialog(row: K8sDeployment) {
+  function openScaleDialog(row: K8sDeployment | K8sStatefulSet, kind: 'deploy' | 'sts') {
+    scaleRowKind.value = kind
     scaleRow.value = row
     scaleValue.value = row.spec?.replicas ?? 1
     scaleVisible.value = true
@@ -2808,14 +3522,25 @@
     const cluster = String(route.query.cluster ?? '')
     const row = scaleRow.value
     if (!row?.metadata?.namespace || !row?.metadata?.name) return
+    if (scaleValue.value === (row.spec?.replicas ?? 0)) {
+      ElMessage.warning('期望副本数与当前副本数相同，无需更新')
+      return
+    }
     scaleSubmitting.value = true
     try {
-      await patchK8sDeployment(cluster, row.metadata.namespace, row.metadata.name, {
-        spec: { replicas: scaleValue.value }
-      })
+      if (scaleRowKind.value === 'sts') {
+        await patchK8sStatefulSet(cluster, row.metadata.namespace, row.metadata.name, {
+          spec: { replicas: scaleValue.value }
+        })
+        onStsRefresh()
+      } else {
+        await patchK8sDeployment(cluster, row.metadata.namespace, row.metadata.name, {
+          spec: { replicas: scaleValue.value }
+        })
+        onDeplRefresh()
+      }
       ElMessage.success('Pod数量更新成功')
       scaleVisible.value = false
-      onDeplRefresh()
     } catch (e: unknown) {
       ElMessage.error(e instanceof Error ? e.message : '操作失败')
     } finally {
@@ -2877,7 +3602,9 @@
     if (!cluster || !namespace || !name) return
     try {
       await ElMessageBox.confirm(`确定删除 "${name}" 吗？`, '删除确认', {
-        type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消'
+        type: 'warning',
+        confirmButtonText: '删除',
+        cancelButtonText: '取消'
       })
       if (kind === 'sts') await deleteK8sStatefulSet(cluster, namespace, name)
       else if (kind === 'ds') await deleteK8sDaemonSet(cluster, namespace, name)
@@ -2954,13 +3681,121 @@
     }
   }
 
+  function openWorkloadUpdate(namespace: string, name: string, kind: 'deploy' | 'sts' | 'ds') {
+    router.push({
+      path: '/container/workload-update',
+      query: { cluster: String(route.query.cluster ?? ''), namespace, name, kind }
+    })
+  }
+
   function deplMoreClick(item: ButtonMoreItem, row: K8sDeployment) {
     switch (item.key) {
+      case 'delete':
+        void deleteDeployment(row)
+        break
       case 'redeploy':
         void redeployDeployment(row)
         break
       case 'yaml':
         void openYamlDialog(row)
+        break
+    }
+  }
+
+  function stsMoreClick(item: ButtonMoreItem, row: K8sStatefulSet) {
+    switch (item.key) {
+      case 'yaml':
+        void openSharedYamlDialog('sts', row.metadata?.namespace ?? '', row.metadata?.name ?? '')
+        break
+      case 'redeploy':
+        void redeployStatefulSet(row)
+        break
+      case 'delete':
+        void deleteWorkload(
+          'sts',
+          row.metadata?.namespace ?? '',
+          row.metadata?.name ?? '',
+          onStsRefresh
+        )
+        break
+    }
+  }
+
+  async function redeployStatefulSet(row: K8sStatefulSet) {
+    const cluster = String(route.query.cluster ?? '')
+    const ns = row.metadata?.namespace
+    const name = row.metadata?.name
+    if (!cluster || !ns || !name) return
+    try {
+      await patchK8sStatefulSet(cluster, ns, name, {
+        spec: {
+          template: {
+            metadata: {
+              annotations: { 'kubectl.kubernetes.io/restartedAt': new Date().toISOString() }
+            }
+          }
+        }
+      })
+      ElMessage.success('重新部署已触发')
+      onStsRefresh()
+    } catch (e: unknown) {
+      ElMessage.error(e instanceof Error ? e.message : '操作失败')
+    }
+  }
+
+  function dsMoreClick(item: ButtonMoreItem, row: K8sDaemonSet) {
+    switch (item.key) {
+      case 'yaml':
+        void openSharedYamlDialog('ds', row.metadata?.namespace ?? '', row.metadata?.name ?? '')
+        break
+      case 'redeploy':
+        void redeployDaemonSet(row)
+        break
+      case 'delete':
+        void deleteWorkload(
+          'ds',
+          row.metadata?.namespace ?? '',
+          row.metadata?.name ?? '',
+          onDsRefresh
+        )
+        break
+    }
+  }
+
+  async function redeployDaemonSet(row: K8sDaemonSet) {
+    const cluster = String(route.query.cluster ?? '')
+    const ns = row.metadata?.namespace
+    const name = row.metadata?.name
+    if (!cluster || !ns || !name) return
+    try {
+      await patchK8sDaemonSet(cluster, ns, name, {
+        spec: {
+          template: {
+            metadata: {
+              annotations: { 'kubectl.kubernetes.io/restartedAt': new Date().toISOString() }
+            }
+          }
+        }
+      })
+      ElMessage.success('重新部署已触发')
+      onDsRefresh()
+    } catch (e: unknown) {
+      ElMessage.error(e instanceof Error ? e.message : '操作失败')
+    }
+  }
+
+  function cjMoreClick(item: ButtonMoreItem, row: K8sCronJob) {
+    switch (item.key) {
+      case 'yaml':
+        void openSharedYamlDialog('cj', row.metadata?.namespace ?? '', row.metadata?.name ?? '')
+        break
+      case 'delete':
+        void deleteWorkload(
+          'cj',
+          row.metadata?.namespace ?? '',
+          row.metadata?.name ?? '',
+          onCjRefresh
+        )
         break
     }
   }
@@ -3005,11 +3840,22 @@
     { immediate: true }
   )
 
+  /** 工作负载详情页主 Tab；勿与列表页 ?tab=deploy|sts|ds|job|cj 混写进 replace */
+  const WORKLOAD_DETAIL_QUERY_TABS = new Set([
+    'pods',
+    'services',
+    'containers',
+    'events',
+    'history',
+    'logs'
+  ])
+
   // ── Tab lazy loading（含 immediate：从创建页带 ?tab= 返回时 kind 已正确，须挂载即拉取） ──
   watch(
     kind,
     (val) => {
-      if (String(route.query.tab ?? '') !== val) {
+      const routeTab = String(route.query.tab ?? '')
+      if (!WORKLOAD_DETAIL_QUERY_TABS.has(routeTab) && routeTab !== val) {
         router.replace({
           query: {
             ...route.query,
@@ -3046,6 +3892,22 @@
   }
   .workloads-page .art-table .el-table th.el-table__cell {
     font-size: 13px;
+  }
+  .workloads-page .workloads-op-cell {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 8px 10px;
+    min-width: 0;
+    justify-content: flex-end;
+    row-gap: 0;
+  }
+  .workloads-page .workloads-op-cell :deep(.el-link) {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .workloads-page .workloads-op-cell :deep(.el-link__inner) {
+    white-space: nowrap;
   }
   .deploy-spin {
     animation: deploy-spin-rotate 1s linear infinite;
@@ -3119,7 +3981,7 @@
   .workloads-toolbar__ns-label {
     font-size: var(--el-menu-item-font-size, 14px);
     font-weight: var(--el-menu-item-font-weight, 400);
-    color: #C7C7D1;
+    color: #c7c7d1;
     flex-shrink: 0;
     white-space: nowrap;
   }
@@ -3144,7 +4006,7 @@
   }
 
   .workloads-toolbar__namespace :deep(.el-select__placeholder) {
-    color: #C7C7D1;
+    color: #c7c7d1;
   }
 
   .workloads-toolbar__namespace :deep(.el-select__wrapper:hover) {
@@ -3177,7 +4039,7 @@
   .workloads-toolbar__type :deep(.el-select__placeholder) {
     font-size: 13px;
     font-weight: var(--el-menu-item-font-weight, 400);
-    color: #C7C7D1;
+    color: #c7c7d1;
   }
 
   .workloads-toolbar-search-btn {
@@ -3207,7 +4069,7 @@
     padding: 4px 8px 8px;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 14px;
   }
 
   .scale-info-row {
@@ -3216,24 +4078,19 @@
   }
 
   .scale-info-label {
-    width: 80px;
+    width: 100px;
     flex-shrink: 0;
-    font-size: 13px;
+    font-size: 12px;
     color: var(--el-text-color-regular);
   }
 
   .scale-info-value {
-    font-size: 13px;
+    font-size: 12px;
     color: var(--el-text-color-primary);
   }
 
-  .scale-info-current {
-    font-weight: 600;
-    color: var(--el-color-primary);
-  }
-
-  .scale-input {
-    width: 160px;
+  .scale-dialog :deep(.el-dialog__title) {
+    font-size: 14px;
   }
 
   .workloads-tabs :deep(.el-tabs__header) {

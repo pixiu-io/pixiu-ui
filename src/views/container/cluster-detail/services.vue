@@ -188,7 +188,7 @@
   function renderNsCell(ns: string) {
     const isSystem = ns === 'default' || ns.startsWith('kube-')
     return h('div', { style: 'display:flex;align-items:center;gap:6px' }, [
-      h('span', { style: 'font-size:12px' }, ns),
+      h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, ns),
       isSystem
         ? h(
             'span',
@@ -204,7 +204,7 @@
 
   function renderNameCell(name: string) {
     return h('div', { style: 'display:flex;align-items:center;gap:8px' }, [
-      h('span', { style: 'font-size:14px;color:var(--el-text-color-primary)' }, name),
+      h('span', { style: 'font-size:12px;color:var(--el-text-color-primary)' }, name),
       h(
         'span',
         {
@@ -251,7 +251,7 @@
         })
       }
     }
-    if (!lines.length) return h('span', { style: 'font-size:12px' }, '—')
+    if (!lines.length) return h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, '—')
 
     const renderLine = (line: LineMeta) =>
       h(
@@ -359,7 +359,7 @@
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
       columnsFactory: () => [
-        { type: 'selection' },
+        { type: 'selection', width: 30 },
         {
           prop: 'metadata.name',
           label: '名称',
@@ -371,7 +371,7 @@
           label: '类型',
           width: 130,
           formatter: (row: K8sService) =>
-            h('span', { style: 'font-size:12px' }, row.spec?.type ?? 'ClusterIP')
+            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, row.spec?.type ?? 'ClusterIP')
         },
         {
           prop: 'metadata.namespace',
@@ -386,7 +386,7 @@
           formatter: (row: K8sService) => {
             const ip = row.spec?.clusterIP ?? '—'
             return h('div', { style: 'display:flex;align-items:center;gap:6px' }, [
-              h('span', { style: 'font-size:12px' }, ip),
+              h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, ip),
               ip !== '—'
                 ? h(
                     'span',
@@ -412,7 +412,7 @@
           label: '端口',
           minWidth: 180,
           formatter: (row: K8sService) =>
-            h('span', { style: 'font-size:12px' }, formatSvcPorts(row.spec?.ports))
+            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, formatSvcPorts(row.spec?.ports))
         },
         {
           prop: 'metadata.creationTimestamp',
@@ -422,7 +422,7 @@
           formatter: (row: K8sService) =>
             h(
               'span',
-              { style: 'font-size:12px' },
+              { style: 'font-size:12px;color:var(--el-text-color-regular)' },
               formatNodeCreationTime(row.metadata?.creationTimestamp)
             )
         },
@@ -546,7 +546,7 @@
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
       columnsFactory: () => [
-        { type: 'selection' },
+        { type: 'selection', width: 30 },
         {
           prop: 'metadata.name',
           label: '名称',
@@ -580,7 +580,7 @@
           formatter: (row: K8sIngress) =>
             h(
               'span',
-              { style: 'font-size:12px' },
+              { style: 'font-size:12px;color:var(--el-text-color-regular)' },
               formatNodeCreationTime(row.metadata?.creationTimestamp)
             )
         },

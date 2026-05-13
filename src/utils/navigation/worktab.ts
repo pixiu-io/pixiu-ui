@@ -35,6 +35,34 @@ import { useCommon } from '@/hooks/core/useCommon'
 export const setWorktab = (to: RouteLocationNormalized): void => {
   const worktabStore = useWorktabStore()
   const { meta, path, name, params, query } = to
+
+  const clusterParam = query.cluster
+  const clusterKey = Array.isArray(clusterParam) ? clusterParam[0] : clusterParam
+
+  // 容器模块中带 cluster 的 meta.isHide 全屏子页（创建/详情等）：以路由 name 作为 tabGroup，
+  // 每种页面类型复用同一工作台标签，互不干扰；返回列表时不会残留多余标签。
+  if (
+    meta.isHide &&
+    clusterKey &&
+    typeof path === 'string' &&
+    path.startsWith('/container/') &&
+    !path.startsWith('/container/cluster')
+  ) {
+    const title = (meta.title as string) || `容器集群:${String(clusterKey)}`
+    worktabStore.openTab({
+      title,
+      icon: meta.icon as string,
+      path,
+      name: name as string,
+      keepAlive: Boolean(meta.keepAlive),
+      params,
+      query,
+      tabGroup: name as string,
+      fixedTab: meta.fixedTab as boolean | undefined
+    })
+    return
+  }
+
   if (!meta.isHideTab) {
     // 如果是 iframe 页面，则特殊处理工作标签页
     if (isIframe(path)) {

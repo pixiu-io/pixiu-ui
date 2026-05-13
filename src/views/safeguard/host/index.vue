@@ -528,7 +528,7 @@
           minWidth: 200,
           formatter: (row: PixiuNodeItem) =>
             h('div', { style: 'display:flex;align-items:center;gap:4px' }, [
-              h('span', { style: 'font-size:14px;color:var(--el-text-color-primary)' }, row.name),
+              h('span', { style: 'font-size:12px;color:var(--el-text-color-primary)' }, row.name),
               h(
                 'span',
                 {

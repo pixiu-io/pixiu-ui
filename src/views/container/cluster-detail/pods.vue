@@ -187,7 +187,7 @@
 <script setup lang="ts">
   import { ElAlert, ElButton, ElDialog, ElDrawer, ElIcon, ElInput, ElForm, ElFormItem, ElLink, ElMessage, ElMessageBox, ElOption, ElPagination, ElRadio, ElRadioGroup, ElSelect, ElTable, ElTableColumn, ElTag, ElTooltip } from 'element-plus'
   import ArtButtonMore, { type ButtonMoreItem } from '@/components/core/forms/art-button-more/index.vue'
-  import { Close, CopyDocument, FullScreen, Refresh, ScaleToOriginal } from '@element-plus/icons-vue'
+  import { Close, CopyDocument, FullScreen, Loading, Refresh, ScaleToOriginal } from '@element-plus/icons-vue'
   import { h, nextTick, ref, computed, watch, inject } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
@@ -280,7 +280,7 @@
     const namespace = ns || '—'
     const isSystem = namespace === 'default' || namespace.startsWith('kube-')
     return h('div', { style: 'display:flex;align-items:center;gap:6px' }, [
-      h('span', { style: 'font-size:12px' }, namespace),
+      h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, namespace),
       isSystem
         ? h(
             'span',
@@ -335,7 +335,7 @@
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
       columnsFactory: () => [
-        { type: 'selection' },
+        { type: 'selection', width: 30 },
         {
           prop: 'metadata.name',
           label: '实例名称',
@@ -352,7 +352,7 @@
                       {
                         type: 'primary',
                         underline: 'never',
-                        style: 'font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block',
+                        style: 'font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block',
                         onClick: () => {
                           const cluster = String(route.query.cluster ?? '')
                           const ns = row.metadata?.namespace ?? ''
@@ -392,17 +392,47 @@
         {
           prop: 'ready',
           label: 'Ready',
-          width: 80,
+          width: 100,
           formatter: (row: K8sPod) => {
             const statuses = row.status?.containerStatuses ?? []
             const total = statuses.length || (row.spec?.containers?.length ?? 0)
             const ready = statuses.filter((c) => c.ready).length
-            const notReady = total > 0 && ready < total
-            return h(
-              'span',
-              { style: `font-size:12px;${notReady ? 'color:var(--el-color-warning)' : ''}` },
-              `${ready}/${total}`
-            )
+            const ok = total > 0 && ready === total
+            const valueLine = h('div', { style: 'display:flex;align-items:center;gap:4px' }, [
+              h(
+                'span',
+                { style: 'font-size:12px;color:var(--el-text-color-primary)' },
+                `${ready} / ${total}`
+              ),
+              !ok
+                ? h(
+                    'span',
+                    {
+                      style: 'display:inline-flex;align-items:center;color:var(--el-color-primary);animation:spin-rotate 1s linear infinite'
+                    },
+                    [h(Loading, { style: 'width:13px;height:13px' })]
+                  )
+                : null
+            ])
+            if (ok) return valueLine
+            return h('div', { style: 'line-height:1.4' }, [
+              valueLine,
+              h(
+                ElLink,
+                {
+                  type: 'primary',
+                  underline: 'never',
+                  style: 'font-size:11px',
+                  onClick: () => {
+                    const cluster = String(route.query.cluster ?? '')
+                    const ns = row.metadata?.namespace ?? ''
+                    const name = row.metadata?.name ?? ''
+                    router.push({ path: '/container/pod-detail', query: { cluster, namespace: ns, pod: name, tab: 'events' } })
+                  }
+                },
+                () => '查看事件列表'
+              )
+            ])
           }
         },
         {
@@ -449,7 +479,7 @@
           formatter: (row: K8sPod) => {
             const ip = row.status?.podIP ?? ''
             return h('div', { style: 'display:flex;align-items:center;gap:4px' }, [
-              h('span', { style: 'font-size:12px' }, ip || '—'),
+              h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, ip || '—'),
               ip
                 ? h(
                     'span',
@@ -509,14 +539,14 @@
           prop: 'restartCount',
           label: '重启次数',
           width: 100,
-          formatter: (row: K8sPod) => h('span', { style: 'font-size:12px' }, String(formatRestartCount(row)))
+          formatter: (row: K8sPod) => h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, String(formatRestartCount(row)))
         },
         {
           prop: 'metadata.creationTimestamp',
           label: '创建时间',
           width: 170,
           formatter: (row: K8sPod) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-secondary)' }, formatNodeCreationTime(row.metadata?.creationTimestamp))
+            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, formatNodeCreationTime(row.metadata?.creationTimestamp))
         },
         {
           prop: 'operation',
@@ -525,7 +555,7 @@
           fixed: 'right',
           formatter: (row: K8sPod) =>
             h('div', { style: 'display:flex;align-items:center;gap:6px;flex-wrap:nowrap' }, [
-              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px;line-height:1', onClick: () => openRemoteLoginDialog(row) }, () => '登录'),
+              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px;line-height:1', disabled: row.status?.phase !== 'Running', onClick: () => openRemoteLoginDialog(row) }, () => '登录'),
               h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px;line-height:1', onClick: () => openPodLogs(row) }, () => '日志'),
               h(ArtButtonMore, {
                 list: [
@@ -858,6 +888,11 @@
 </script>
 
 <style>
+  @keyframes spin-rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
   .pods-page .icon-action {
     opacity: 0;
     transition: opacity 0.15s;

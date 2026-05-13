@@ -18,7 +18,7 @@
           <span class="dd-cluster-value">{{ clusterAlias }}</span>
         </div>
         <div class="dd-hd-actions">
-          <ElButton v-ripple @click="openLogin">登录</ElButton>
+          <ElButton v-ripple :disabled="pod?.status?.phase !== 'Running'" @click="openLogin">登录</ElButton>
           <ElButton v-ripple @click="openYamlEditor">YAML</ElButton>
           <ArtButtonMore
             :list="[{ key: 'delete', label: '删除', icon: 'ri:delete-bin-4-line', color: '#409eff' }]"
@@ -535,7 +535,7 @@
     margin-left: 4px;
     font-size: var(--el-menu-item-font-size, 14px);
     font-weight: var(--el-menu-item-font-weight, 400);
-    color: #c7c7d1;
+    color: var(--el-text-color-regular);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -545,7 +545,7 @@
   .dd-title__kind {
     font-size: var(--el-menu-item-font-size, 14px);
     font-weight: var(--el-menu-item-font-weight, 400);
-    color: #c7c7d1;
+    color: var(--el-text-color-regular);
   }
   .dd-title__value {
     font-size: 14px;
@@ -564,7 +564,7 @@
   }
   .dd-cluster-label {
     font-size: var(--el-menu-item-font-size, 14px);
-    color: #c7c7d1;
+    color: var(--el-text-color-regular);
     flex-shrink: 0;
   }
   .dd-cluster-value {
@@ -583,7 +583,7 @@
     padding: 4px 14px 2px 45px;
     font-size: 14px;
     font-weight: 500;
-    color: #c7c7d1;
+    color: var(--el-text-color-primary);
   }
 
   /* ── Info grid ── */

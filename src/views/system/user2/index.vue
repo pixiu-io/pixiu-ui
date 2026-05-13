@@ -96,7 +96,7 @@
         ...searchForm.value
       },
       columnsFactory: () => [
-        { type: 'selection' },
+        { type: 'selection', width: 30 },
         {
           prop: 'userInfo',
           label: '用户名',

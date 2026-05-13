@@ -20,21 +20,6 @@
                 class="node-toolbar__name"
                 @keyup.enter="runNodeSearch"
               />
-              <ElSelect
-                v-if="!hideStatusFilter"
-                :model-value="statusSelectValue(searchForm)"
-                placeholder="请选择状态"
-                clearable
-                class="node-toolbar__status"
-                @update:model-value="onNodeStatusFilterChange"
-              >
-                <ElOption
-                  v-for="o in nodeStatusFilterOptions"
-                  :key="o.value"
-                  :label="o.label"
-                  :value="o.value"
-                />
-              </ElSelect>
             </div>
           </div>
         </template>
@@ -297,7 +282,6 @@
     formatNodeCreationTime,
     formatNodeInternalIp,
     formatNodeLabelLines,
-    formatNodeStatusText,
     formatNodeTypeText,
     nodeStatusTagType
   } from '@/utils/kubernetes/nodeDisplay'
@@ -307,17 +291,14 @@
   defineOptions({ name: 'ClusterDetailNodes' })
   const props = withDefaults(
     defineProps<{
-      hideStatusFilter?: boolean
       hideFullscreenTool?: boolean
       hideExtraColumns?: boolean
     }>(),
     {
-      hideStatusFilter: false,
       hideFullscreenTool: false,
       hideExtraColumns: false
     }
   )
-  const hideStatusFilter = computed(() => props.hideStatusFilter)
   const hideExtraColumns = computed(() => props.hideExtraColumns)
   const headerLayout = computed(() =>
     props.hideFullscreenTool
@@ -348,30 +329,7 @@
   const route = useRoute()
   const router = useRouter()
 
-  const searchForm = ref<{ name?: string; status?: string }>({})
-
-  const nodeStatusFilterOptions = [
-    { label: '运行中', value: '运行中' },
-    { label: '禁止调度', value: '禁止调度' },
-    { label: '已停止', value: '已停止' },
-    { label: '未知', value: '未知' }
-  ]
-
-  function statusSelectValue(m: { status?: string }) {
-    const s = m?.status
-    if (s === null || s === undefined || s === '') return undefined
-    return String(s)
-  }
-
-  function onNodeStatusFilterChange(val: string | null | undefined) {
-    if (val === null || val === undefined || val === '') {
-      const next = { ...searchForm.value }
-      delete next.status
-      searchForm.value = next
-    } else {
-      searchForm.value = { ...searchForm.value, status: val }
-    }
-  }
+  const searchForm = ref<{ name?: string }>({})
 
   const selectedNodeRows = ref<(K8sNode & { rowKey?: string })[]>([])
 
@@ -379,7 +337,7 @@
     selectedNodeRows.value = rows
   }
 
-  type TableParams = { current: number; size: number; name?: string; status?: string }
+  type TableParams = { current: number; size: number; name?: string }
 
   function renderNodeLabelsCell(row: K8sNode) {
     const lines = formatNodeLabelLines(row)
@@ -388,7 +346,7 @@
         'span',
         {
           class: 'node-labels-empty',
-          style: 'font-size:12px;color:var(--el-text-color-secondary)'
+          style: 'font-size:12px;color:var(--el-text-color-regular)'
         },
         '—'
       )
@@ -454,12 +412,7 @@
           limit: params.size,
           name: (params.name ?? '').trim() || undefined
         })
-        // Note: status filter stays client-side (K8s API doesn't support it)
-        let list = items
-        const statusFilter = (params.status ?? '').trim()
-        if (statusFilter) {
-          list = list.filter((n) => formatNodeStatusText(n) === statusFilter)
-        }
+        const list = items
         const records = list.map((n, i) => ({
           ...n,
           rowKey: n.metadata?.uid ?? n.metadata?.name ?? `node-${i}`
@@ -468,16 +421,16 @@
           code: 200,
           data: {
             records,
-            total: statusFilter ? records.length : total,
+            total,
             current: params.current,
             size: params.size
           }
         }
       },
-      apiParams: { current: 1, size: 10, name: undefined, status: undefined },
+      apiParams: { current: 1, size: 10, name: undefined },
       columnsFactory: () => {
         const baseColumns: any[] = [
-          { type: 'selection' },
+          { type: 'selection', width: 30 },
           {
             prop: 'metadata.name',
             label: '节点名称',
@@ -495,7 +448,7 @@
                     {
                       type: 'primary',
                       underline: 'never',
-                      style: 'font-size:14px',
+                      style: 'font-size:12px',
                       onClick: () =>
                         router.push({
                           path: '/container/node-detail',
@@ -605,7 +558,7 @@
             minWidth: 160,
             showOverflowTooltip: true,
             formatter: (row: K8sNode) =>
-              h('span', { style: 'font-size:12px' }, formatContainerRuntime(row))
+              h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, formatContainerRuntime(row))
           },
           {
             prop: 'os',
@@ -614,7 +567,7 @@
             showOverflowTooltip: true,
             formatter: (row: K8sNode) => {
               const os = row.status?.nodeInfo?.osImage ?? '—'
-              return h('span', { style: 'font-size:12px' }, os)
+              return h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, os)
             }
           },
           {
@@ -636,7 +589,7 @@
           {
             prop: 'metadata.labels',
             label: 'Labels',
-            minWidth: 200,
+            minWidth: 160,
             formatter: (row: K8sNode) => renderNodeLabelsCell(row)
           }
         ]
@@ -648,7 +601,7 @@
           formatter: (row: K8sNode) =>
             h(
               'span',
-              { style: 'font-size:12px;color:var(--el-text-color-secondary)' },
+              { style: 'font-size:12px;color:var(--el-text-color-regular)' },
               formatNodeCreationTime(row.metadata?.creationTimestamp)
             )
         }
@@ -741,8 +694,7 @@
   function runNodeSearch() {
     const raw = searchForm.value
     const name = (raw.name ?? '').trim() || undefined
-    const status = (raw.status ?? '').trim() || undefined
-    replaceSearchParams({ name, status })
+    replaceSearchParams({ name })
     getData()
   }
 
@@ -1239,11 +1191,6 @@
     max-width: 100%;
   }
 
-  .node-toolbar__status {
-    width: 130px;
-    max-width: 100%;
-  }
-
   .label-row {
     display: flex;
     align-items: center;
@@ -1342,14 +1289,14 @@
     max-width: 100%;
     font-size: 12px;
     line-height: 1.5;
-    color: var(--el-text-color-secondary);
+    color: var(--el-text-color-regular);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .nodes-page .node-labels-more {
-    color: var(--el-text-color-secondary);
+    color: var(--el-text-color-placeholder);
   }
 </style>
 

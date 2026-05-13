@@ -186,7 +186,7 @@
   function renderNsCell(ns: string) {
     const isSystem = ns === 'default' || ns.startsWith('kube-')
     return h('div', { style: 'display:flex;align-items:center;gap:6px' }, [
-      h('span', { style: 'font-size:12px' }, ns),
+      h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, ns),
       isSystem
         ? h('span', {
             style:
@@ -244,7 +244,7 @@
                 type: 'primary',
                 underline: 'never',
                 style:
-                  'font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;max-width:100%',
+                  'font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;max-width:100%',
                 onClick: () => void openYamlDialog('cm', ns, name)
               },
               () => name
@@ -281,7 +281,7 @@
                 type: 'primary',
                 underline: 'never',
                 style:
-                  'font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;max-width:100%',
+                  'font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;max-width:100%',
                 onClick: () => void openYamlDialog('sec', ns, name)
               },
               () => name
@@ -371,7 +371,7 @@
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
       columnsFactory: () => [
-        { type: 'selection' },
+        { type: 'selection', width: 30 },
         {
           prop: 'metadata.name',
           label: '名称',
@@ -381,7 +381,7 @@
         {
           prop: 'metadata.labels',
           label: 'Labels',
-          minWidth: 200,
+          minWidth: 160,
           formatter: (row: K8sConfigMap) => {
             const labels = row.metadata?.labels ?? {}
             const lines = Object.entries(labels).map(([k, v]) => `${k}: ${v}`)
@@ -400,7 +400,7 @@
           width: 168,
           sortable: 'custom',
           formatter: (row: K8sConfigMap) =>
-            h('span', { style: 'font-size:12px' }, formatNodeCreationTime(row.metadata?.creationTimestamp))
+            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, formatNodeCreationTime(row.metadata?.creationTimestamp))
         },
         {
           prop: 'operation',
@@ -470,7 +470,7 @@
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
       columnsFactory: () => [
-        { type: 'selection' },
+        { type: 'selection', width: 30 },
         {
           prop: 'metadata.name',
           label: '名称',
@@ -497,7 +497,7 @@
           width: 168,
           sortable: 'custom',
           formatter: (row: K8sSecret) =>
-            h('span', { style: 'font-size:12px' }, formatNodeCreationTime(row.metadata?.creationTimestamp))
+            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, formatNodeCreationTime(row.metadata?.creationTimestamp))
         },
         {
           prop: 'operation',

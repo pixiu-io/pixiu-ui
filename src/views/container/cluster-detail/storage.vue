@@ -2,57 +2,8 @@
   <div class="storage-page">
     <ElCard class="art-table-card">
       <ElTabs v-model="kind">
-        <!-- ── PVC Tab ── -->
-        <ElTabPane label="PVC" name="pvc">
-          <ArtTableHeader
-            v-model:columns="pvcColumnChecks"
-            :loading="pvcLoading"
-            layout="size,fullscreen,columns,settings"
-            style="margin-top: 15px"
-            @refresh="onPvcRefresh"
-          >
-            <template #left>
-              <div class="workloads-toolbar">
-                <ElButton v-ripple @click="ElMessage.warning('暂不支持，功能开发中')">新建</ElButton>
-                <div class="workloads-toolbar__filters">
-                  <ElInput
-                    v-model="pvcSearchForm.name"
-                    clearable
-                    placeholder="请输入名称"
-                    class="workloads-toolbar__search"
-                    @keyup.enter="runPvcSearch"
-                    @clear="runPvcSearch"
-                  />
-                  <div
-                    class="workloads-toolbar-search-btn"
-                    role="button"
-                    tabindex="0"
-                    title="搜索"
-                    @click="forcePvcSearch"
-                    @keyup.enter="forcePvcSearch"
-                  >
-                    <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
-                  </div>
-                </div>
-              </div>
-            </template>
-          </ArtTableHeader>
-
-          <ArtTable
-            row-key="rowKey"
-            :loading="pvcLoading"
-            :data="pvcData"
-            :columns="pvcVisibleColumns"
-            :pagination="pvcPagination"
-            :pagination-options="{ align: 'right' }"
-            @pagination:size-change="pvcHandleSizeChange"
-            @pagination:current-change="pvcHandleCurrentChange"
-            @sort-change="onPvcSortChange"
-          />
-        </ElTabPane>
-
         <!-- ── PV Tab ── -->
-        <ElTabPane label="PV" name="pv">
+        <ElTabPane label="PersistentVolume" name="pv">
           <ArtTableHeader
             v-model:columns="pvColumnChecks"
             :loading="pvLoading"
@@ -62,7 +13,7 @@
           >
             <template #left>
               <div class="workloads-toolbar">
-                <ElButton v-ripple @click="ElMessage.warning('暂不支持，功能开发中')">新建</ElButton>
+                <ElButton v-ripple @click="goCreatePV">新建</ElButton>
                 <div class="workloads-toolbar__filters">
                   <ElInput
                     v-model="pvSearchForm.name"
@@ -97,6 +48,55 @@
             @pagination:size-change="pvHandleSizeChange"
             @pagination:current-change="pvHandleCurrentChange"
             @sort-change="onPvSortChange"
+          />
+        </ElTabPane>
+
+        <!-- ── PVC Tab ── -->
+        <ElTabPane label="PersistentVolumeClaim" name="pvc">
+          <ArtTableHeader
+            v-model:columns="pvcColumnChecks"
+            :loading="pvcLoading"
+            layout="size,fullscreen,columns,settings"
+            style="margin-top: 15px"
+            @refresh="onPvcRefresh"
+          >
+            <template #left>
+              <div class="workloads-toolbar">
+                <ElButton v-ripple @click="goCreatePVC">新建</ElButton>
+                <div class="workloads-toolbar__filters">
+                  <ElInput
+                    v-model="pvcSearchForm.name"
+                    clearable
+                    placeholder="请输入名称"
+                    class="workloads-toolbar__search"
+                    @keyup.enter="runPvcSearch"
+                    @clear="runPvcSearch"
+                  />
+                  <div
+                    class="workloads-toolbar-search-btn"
+                    role="button"
+                    tabindex="0"
+                    title="搜索"
+                    @click="forcePvcSearch"
+                    @keyup.enter="forcePvcSearch"
+                  >
+                    <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
+                  </div>
+                </div>
+              </div>
+            </template>
+          </ArtTableHeader>
+
+          <ArtTable
+            row-key="rowKey"
+            :loading="pvcLoading"
+            :data="pvcData"
+            :columns="pvcVisibleColumns"
+            :pagination="pvcPagination"
+            :pagination-options="{ align: 'right' }"
+            @pagination:size-change="pvcHandleSizeChange"
+            @pagination:current-change="pvcHandleCurrentChange"
+            @sort-change="onPvcSortChange"
           />
         </ElTabPane>
 
@@ -205,7 +205,7 @@
   const router = useRouter()
   const tabFromQuery = String(route.query.tab ?? '').toLowerCase()
   const kind = ref<'pvc' | 'pv' | 'sc'>(
-    tabFromQuery === 'pv' || tabFromQuery === 'sc' ? (tabFromQuery as 'pv' | 'sc') : 'pvc'
+    tabFromQuery === 'pvc' || tabFromQuery === 'sc' ? (tabFromQuery as 'pvc' | 'sc') : 'pv'
   )
 
   // ── PVC tab state ──
@@ -237,7 +237,7 @@
   function renderNsCell(ns: string) {
     const isSystem = ns === 'default' || ns.startsWith('kube-')
     return h('div', { style: 'display:flex;align-items:center;gap:6px' }, [
-      h('span', { style: 'font-size:12px' }, ns),
+      h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, ns),
       isSystem
         ? h('span', {
             style:
@@ -249,7 +249,7 @@
 
   function renderNameCell(name: string) {
     return h('div', { style: 'display:flex;align-items:center;gap:8px' }, [
-      h('span', { style: 'font-size:14px;color:var(--el-text-color-primary)' }, name),
+      h('span', { style: 'font-size:12px;color:var(--el-text-color-primary)' }, name),
       h('span', {
         class: 'icon-action',
         style: 'cursor:pointer;color:var(--el-text-color-secondary);display:inline-flex;align-items:center',
@@ -342,7 +342,7 @@
     refreshData: refreshPvcData
   } = useTable({
     core: {
-      immediate: true,
+      immediate: false,
       apiFn: async (params: PvcParams) => {
         const cluster = String(route.query.cluster ?? '')
         if (!cluster) return { code: 200, data: { records: [] as (K8sPVC & { rowKey: string })[], total: 0, current: 1, size: params.size } }
@@ -362,7 +362,7 @@
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
       columnsFactory: () => [
-        { type: 'selection' },
+        { type: 'selection', width: 30 },
         {
           prop: 'metadata.name', label: '名称', minWidth: 200,
           formatter: (row: K8sPVC) => renderNameCell(row.metadata?.name ?? '—')
@@ -386,22 +386,22 @@
         {
           prop: 'capacity', label: '容量', width: 100,
           formatter: (row: K8sPVC) =>
-            h('span', { style: 'font-size:12px' }, row.status?.capacity?.storage ?? row.spec?.resources?.requests?.storage ?? '—')
+            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, row.status?.capacity?.storage ?? row.spec?.resources?.requests?.storage ?? '—')
         },
         {
           prop: 'accessModes', label: '访问模式', minWidth: 160,
           formatter: (row: K8sPVC) =>
-            h('span', { style: 'font-size:12px' }, (row.status?.accessModes ?? row.spec?.accessModes ?? []).join(', ') || '—')
+            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, (row.status?.accessModes ?? row.spec?.accessModes ?? []).join(', ') || '—')
         },
         {
           prop: 'spec.storageClassName', label: '存储类', minWidth: 160,
           formatter: (row: K8sPVC) =>
-            h('span', { style: 'font-size:12px' }, row.spec?.storageClassName ?? '—')
+            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, row.spec?.storageClassName ?? '—')
         },
         {
           prop: 'metadata.creationTimestamp', label: '创建时间', width: 168, sortable: 'custom',
           formatter: (row: K8sPVC) =>
-            h('span', { style: 'font-size:12px' }, formatNodeCreationTime(row.metadata?.creationTimestamp))
+            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, formatNodeCreationTime(row.metadata?.creationTimestamp))
         },
         {
           prop: 'operation', label: '操作', width: 160, fixed: 'right',
@@ -448,7 +448,7 @@
     refreshData: refreshPvData
   } = useTable({
     core: {
-      immediate: false,
+      immediate: true,
       apiFn: async (params: PvParams) => {
         const cluster = String(route.query.cluster ?? '')
         if (!cluster) return { code: 200, data: { records: [] as (K8sPV & { rowKey: string })[], total: 0, current: 1, size: params.size } }
@@ -467,7 +467,7 @@
       },
       apiParams: { current: 1, size: 10, name: undefined },
       columnsFactory: () => [
-        { type: 'selection' },
+        { type: 'selection', width: 30 },
         {
           prop: 'metadata.name', label: '名称', minWidth: 200,
           formatter: (row: K8sPV) => renderNameCell(row.metadata?.name ?? '—')
@@ -488,35 +488,35 @@
         {
           prop: 'spec.capacity.storage', label: '容量', width: 100,
           formatter: (row: K8sPV) =>
-            h('span', { style: 'font-size:12px' }, row.spec?.capacity?.storage ?? '—')
+            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, row.spec?.capacity?.storage ?? '—')
         },
         {
           prop: 'spec.accessModes', label: '访问模式', minWidth: 160,
           formatter: (row: K8sPV) =>
-            h('span', { style: 'font-size:12px' }, (row.spec?.accessModes ?? []).join(', ') || '—')
+            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, (row.spec?.accessModes ?? []).join(', ') || '—')
         },
         {
           prop: 'spec.persistentVolumeReclaimPolicy', label: '回收策略', width: 120,
           formatter: (row: K8sPV) =>
-            h('span', { style: 'font-size:12px' }, row.spec?.persistentVolumeReclaimPolicy ?? '—')
+            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, row.spec?.persistentVolumeReclaimPolicy ?? '—')
         },
         {
           prop: 'spec.storageClassName', label: '存储类', minWidth: 160,
           formatter: (row: K8sPV) =>
-            h('span', { style: 'font-size:12px' }, row.spec?.storageClassName ?? '—')
+            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, row.spec?.storageClassName ?? '—')
         },
         {
           prop: 'spec.claimRef', label: '绑定声明', minWidth: 200,
           formatter: (row: K8sPV) => {
             const claimRef = row.spec?.claimRef
             const text = claimRef?.namespace && claimRef?.name ? `${claimRef.namespace}/${claimRef.name}` : '—'
-            return h('span', { style: 'font-size:12px' }, text)
+            return h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, text)
           }
         },
         {
           prop: 'metadata.creationTimestamp', label: '创建时间', width: 168, sortable: 'custom',
           formatter: (row: K8sPV) =>
-            h('span', { style: 'font-size:12px' }, formatNodeCreationTime(row.metadata?.creationTimestamp))
+            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, formatNodeCreationTime(row.metadata?.creationTimestamp))
         },
         {
           prop: 'operation', label: '操作', width: 160, fixed: 'right',
@@ -579,7 +579,7 @@
       },
       apiParams: { current: 1, size: 10, name: undefined },
       columnsFactory: () => [
-        { type: 'selection' },
+        { type: 'selection', width: 30 },
         {
           prop: 'metadata.name', label: '名称', minWidth: 200,
           formatter: (row: K8sStorageClass) => renderNameCell(row.metadata?.name ?? '—')
@@ -587,22 +587,22 @@
         {
           prop: 'provisioner', label: '提供者', minWidth: 200,
           formatter: (row: K8sStorageClass) =>
-            h('span', { style: 'font-size:12px' }, row.provisioner ?? '—')
+            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, row.provisioner ?? '—')
         },
         {
           prop: 'reclaimPolicy', label: '回收策略', width: 120,
           formatter: (row: K8sStorageClass) =>
-            h('span', { style: 'font-size:12px' }, row.reclaimPolicy ?? 'Delete')
+            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, row.reclaimPolicy ?? 'Delete')
         },
         {
           prop: 'volumeBindingMode', label: '绑定模式', width: 160,
           formatter: (row: K8sStorageClass) =>
-            h('span', { style: 'font-size:12px' }, row.volumeBindingMode ?? '—')
+            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, row.volumeBindingMode ?? '—')
         },
         {
           prop: 'metadata.creationTimestamp', label: '创建时间', width: 168, sortable: 'custom',
           formatter: (row: K8sStorageClass) =>
-            h('span', { style: 'font-size:12px' }, formatNodeCreationTime(row.metadata?.creationTimestamp))
+            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, formatNodeCreationTime(row.metadata?.creationTimestamp))
         },
         {
           prop: 'operation', label: '操作', width: 160, fixed: 'right',
@@ -635,8 +635,22 @@
     router.push({ path: '/container/storageclass-create', query: { cluster: String(route.query.cluster ?? '') } })
   }
 
+  function goCreatePV() {
+    router.push({ path: '/container/pv-create', query: { cluster: String(route.query.cluster ?? '') } })
+  }
+
+  function goCreatePVC() {
+    router.push({
+      path: '/container/pvc-create',
+      query: {
+        cluster: String(route.query.cluster ?? ''),
+        namespace: selectedNamespace.value || ''
+      }
+    })
+  }
+
   // ── Tab lazy loading ──
-  const pvLoaded = ref(false)
+  const pvcLoaded = ref(false)
   const scLoaded = ref(false)
   watch(kind, (val) => {
     if (String(route.query.tab ?? '') !== val) {
@@ -649,7 +663,7 @@
     }
     const cluster = String(route.query.cluster ?? '')
     if (!cluster) return
-    if (val === 'pv' && !pvLoaded.value) { pvLoaded.value = true; getPvData() }
+    if (val === 'pvc' && !pvcLoaded.value) { pvcLoaded.value = true; getPvcData() }
     else if (val === 'sc' && !scLoaded.value) { scLoaded.value = true; getScData() }
   })
 
@@ -657,9 +671,9 @@
     () => String(route.query.cluster ?? ''),
     (cluster) => {
       if (!cluster) return
-      if (kind.value === 'pv' && !pvLoaded.value) {
-        pvLoaded.value = true
-        getPvData()
+      if (kind.value === 'pvc' && !pvcLoaded.value) {
+        pvcLoaded.value = true
+        getPvcData()
       } else if (kind.value === 'sc' && !scLoaded.value) {
         scLoaded.value = true
         getScData()

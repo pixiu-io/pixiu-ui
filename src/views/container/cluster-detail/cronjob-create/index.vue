@@ -7,7 +7,7 @@
       </ElButton>
       <ElDivider direction="vertical" class="deploy-create-header-divider" />
       <ElBreadcrumb separator="/">
-        <ElBreadcrumbItem :to="{ path: '/container/workloads', query: { cluster } }"
+        <ElBreadcrumbItem :to="{ path: '/container/workloads', query: { cluster, tab: 'cj' } }"
           >工作负载</ElBreadcrumbItem
         >
         <ElBreadcrumbItem>创建 CronJob</ElBreadcrumbItem>
@@ -26,7 +26,7 @@
           <ElDivider content-position="left" class="dc-section-divider-top">基础配置</ElDivider>
           <ElFormItem label="名称" prop="name">
             <div class="dc-field-col">
-              <ElInput v-model="form.name" placeholder="请输入 CronJob 名称" style="width: 280px" />
+              <ElInput v-model="form.name" placeholder="请输入 CronJob 名称" style="width: 200px" />
               <div class="dc-field-tip"
                 >最长 63
                 个字符，只能包含小写字母、数字及分隔符（-），且必须以小写字母开头，以数字或小写字母结尾</div
@@ -38,7 +38,7 @@
               v-model="form.namespace"
               filterable
               placeholder="请选择命名空间"
-              style="width: 280px"
+              style="width: 200px"
             >
               <ElOption v-for="ns in namespaces" :key="ns" :label="ns" :value="ns" />
             </ElSelect>
@@ -248,12 +248,7 @@
                     <ElIcon class="lifecycle-info-icon"><InfoFilled /></ElIcon>
                   </ElTooltip>
                 </span>
-                <ElInputNumber
-                  v-model="form.completions"
-                  :min="1"
-                  :precision="0"
-                  style="width: 130px"
-                />
+                <ElInputNumber v-model="form.completions" :min="1" :precision="0" style="width: 160px" />
                 <span class="dc-job-settings-tip">默认为 1</span>
               </div>
               <div class="dc-job-settings-row">
@@ -263,12 +258,7 @@
                     <ElIcon class="lifecycle-info-icon"><InfoFilled /></ElIcon>
                   </ElTooltip>
                 </span>
-                <ElInputNumber
-                  v-model="form.parallelism"
-                  :min="1"
-                  :precision="0"
-                  style="width: 130px"
-                />
+                <ElInputNumber v-model="form.parallelism" :min="1" :precision="0" style="width: 160px" />
                 <span class="dc-job-settings-tip">默认为 1</span>
               </div>
               <div class="dc-job-settings-row">
@@ -278,7 +268,12 @@
                     <ElIcon class="lifecycle-info-icon"><InfoFilled /></ElIcon>
                   </ElTooltip>
                 </span>
-                <ElSelect v-model="form.restartPolicy" style="width: 160px">
+                <ElSelect
+                  v-model="form.restartPolicy"
+                  style="width: 160px"
+                  class="restart-policy-select"
+                  popper-class="restart-policy-popper"
+                >
                   <ElOption label="OnFailure" value="OnFailure" />
                   <ElOption label="Never" value="Never" />
                 </ElSelect>
@@ -736,7 +731,7 @@
                               <ElInput
                                 v-model="form.containers[activeContainerIdx].liveness.host"
                                 placeholder="默认为 Pod IP，一般不需要修改"
-                                style="width: 280px"
+                                style="width: 200px"
                               />
                               <div class="dc-field-tip"
                                 >大多数情况下不需要填 host 字段，请谨慎填写防止探测失败</div
@@ -749,7 +744,7 @@
                               <ElInput
                                 v-model="form.containers[activeContainerIdx].liveness.port"
                                 placeholder="请输入检查端口"
-                                style="width: 280px"
+                                style="width: 200px"
                               />
                               <div class="dc-field-tip">端口范围：1~65535，支持使用端口名</div>
                             </div>
@@ -874,7 +869,7 @@
                               <ElInput
                                 v-model="form.containers[activeContainerIdx].readiness.host"
                                 placeholder="默认为 Pod IP，一般不需要修改"
-                                style="width: 280px"
+                                style="width: 200px"
                               />
                               <div class="dc-field-tip"
                                 >大多数情况下不需要填 host 字段，请谨慎填写防止探测失败</div
@@ -887,7 +882,7 @@
                               <ElInput
                                 v-model="form.containers[activeContainerIdx].readiness.port"
                                 placeholder="请输入检查端口"
-                                style="width: 280px"
+                                style="width: 200px"
                               />
                               <div class="dc-field-tip">端口范围：1~65535，支持使用端口名</div>
                             </div>
@@ -1008,7 +1003,7 @@
                 <ElSelect
                   v-model="form.imagePullSecret"
                   placeholder="不指定访问凭证"
-                  style="width: 280px"
+                  style="width: 200px"
                   filterable
                 >
                   <ElOption v-for="s in pullSecrets" :key="s" :label="s" :value="s" />
@@ -2170,7 +2165,7 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
-    width: 100%;
+    min-width: 560px;
     box-sizing: border-box;
   }
 
@@ -2342,8 +2337,8 @@
     width: 100%;
     box-sizing: border-box;
     text-align: center;
-    font-size: 13px;
-    padding: 6px 10px;
+    font-size: 12px;
+    padding: 2px 10px;
     font-weight: 400;
     color: var(--el-text-color-regular);
     background: transparent;
@@ -2464,7 +2459,7 @@
     align-items: stretch;
     min-width: 0;
     border: 1px solid var(--el-border-color);
-    border-radius: var(--el-border-radius-base);
+    border-radius: 0;
     overflow: hidden;
     background: var(--el-fill-color-blank);
     box-sizing: border-box;
@@ -2516,6 +2511,14 @@
     border: none !important;
     border-radius: 0 !important;
     background-color: transparent;
+    padding-top: 0;
+    padding-bottom: 0;
+    height: 28px;
+    align-items: center;
+  }
+
+  .resource-affix-input :deep(.el-input__inner) {
+    text-align: left;
   }
 
   .resource-unit-suffix {
@@ -2577,6 +2580,8 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
+    align-self: flex-start;
+    width: 500px;
   }
 
   .probe-field-row {
@@ -2613,12 +2618,17 @@
     color: var(--el-text-color-regular);
     white-space: nowrap;
   }
+  .health-check-panel .probe-input-unit :deep(.el-input) { width: 70px !important; }
+  .health-check-panel .probe-input-unit :deep(.el-input__inner) { font-size: 11px !important; }
 
   .health-check-panel :deep(.el-input__inner),
   .health-check-panel :deep(.el-textarea__inner),
   .health-check-panel :deep(.el-select__wrapper) {
     font-size: 12px;
   }
+
+  .health-check-panel :deep(.el-input__wrapper) { height: 28px; }
+  .health-check-panel :deep(.el-select__wrapper) { height: 28px !important; min-height: 28px !important; }
 
   .health-check-panel .dc-field-tip {
     font-size: 12px;
@@ -2931,5 +2941,14 @@
   .dc-job-settings-tip {
     font-size: 12px;
     color: var(--el-text-color-placeholder);
+  }
+
+  .restart-policy-select :deep(.el-select__wrapper) {
+    min-height: 28px !important;
+    height: 28px !important;
+    border-radius: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    font-size: 12px !important;
   }
 </style>

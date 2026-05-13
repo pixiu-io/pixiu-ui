@@ -547,7 +547,7 @@
   import { ArrowLeft, Loading } from '@element-plus/icons-vue'
   import { ElMessageBox } from 'element-plus'
   import { useRouter, useRoute } from 'vue-router'
-  import { inject } from 'vue'
+  import { inject, watch } from 'vue'
   import ArtButtonMore, {
     type ButtonMoreItem
   } from '@/components/core/forms/art-button-more/index.vue'
@@ -597,7 +597,17 @@
     if (path.includes('cronjob-detail')) return 'CronJob'
     return 'Deployment'
   })
-  const initialTab = computed(() => String(route.query.tab ?? ''))
+  const DETAIL_TAB_TO_KIND: Record<string, string> = {
+    events: 'job',
+    history: 'cj',
+    logs: 'ds',
+    services: 'sts',
+    pods: 'deploy'
+  }
+  const initialTab = computed(() => {
+    const tab = String(route.query.tab ?? '')
+    return DETAIL_TAB_TO_KIND[tab] ?? tab
+  })
   const isSystemNamespace = computed(() => namespace.value === 'default' || namespace.value.startsWith('kube-'))
 
   const clusterDetailCtx = inject(clusterDetailContextKey, undefined)
@@ -607,7 +617,18 @@
   const loading = ref(true)
   type WorkloadUnion = K8sDeployment | K8sStatefulSet | K8sDaemonSet | K8sJob | K8sCronJob
   const workload = ref<WorkloadUnion | null>(null)
-  const activeTab = ref('pods')
+
+  /** 详情页主 Tab（与 workloads 列表的 ?tab=deploy|sts|… 区分开） */
+  const DETAIL_MAIN_TAB_NAMES = new Set(['pods', 'services', 'containers', 'events', 'history', 'logs'])
+  const tabFromRoute = String(route.query.tab ?? '')
+  const activeTab = ref(DETAIL_MAIN_TAB_NAMES.has(tabFromRoute) ? tabFromRoute : 'pods')
+
+  watch(
+    () => String(route.query.tab ?? ''),
+    (t) => {
+      if (DETAIL_MAIN_TAB_NAMES.has(t)) activeTab.value = t
+    }
+  )
 
   // ── Computed ──
   const readyReplicas = computed(
@@ -1051,8 +1072,16 @@
   }
 
   // ── Navigation ──
+  const KIND_TO_TAB: Record<string, string> = {
+    Deployment: 'deploy',
+    StatefulSet: 'sts',
+    DaemonSet: 'ds',
+    Job: 'job',
+    CronJob: 'cj'
+  }
   function goBack() {
-    router.push({ path: '/container/workloads', query: { cluster: cluster.value } })
+    const tab = KIND_TO_TAB[workloadKind.value] ?? 'deploy'
+    router.push({ path: '/container/workloads', query: { cluster: cluster.value, tab } })
   }
 
   // ── Load data ──
@@ -1079,13 +1108,17 @@
   }
 
   // Tab change lazy loading
-  watch(activeTab, async (tab) => {
-    if (tab === 'pods' && pods.value.length === 0) await loadPods()
-    if (tab === 'services' && matchedServices.value.length === 0) await loadServices()
-    if (tab === 'events' && events.value.length === 0) await loadEvents()
-    if (tab === 'history' && replicaSets.value.length === 0) await loadHistory()
-    if (tab === 'logs' && pods.value.length === 0) await loadPods()
-  })
+  watch(
+    activeTab,
+    async (tab) => {
+      if (tab === 'pods' && pods.value.length === 0) await loadPods()
+      if (tab === 'services' && matchedServices.value.length === 0) await loadServices()
+      if (tab === 'events' && events.value.length === 0) await loadEvents()
+      if (tab === 'history' && replicaSets.value.length === 0) await loadHistory()
+      if (tab === 'logs' && pods.value.length === 0) await loadPods()
+    },
+    { immediate: true }
+  )
 
   onMounted(async () => {
     await loadWorkload()
@@ -1147,7 +1180,7 @@
     margin-left: 4px;
     font-size: var(--el-menu-item-font-size, 14px);
     font-weight: var(--el-menu-item-font-weight, 400);
-    color: #c7c7d1;
+    color: var(--el-text-color-regular);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1157,7 +1190,7 @@
   .dd-title__kind {
     font-size: var(--el-menu-item-font-size, 14px);
     font-weight: var(--el-menu-item-font-weight, 400);
-    color: #c7c7d1;
+    color: var(--el-text-color-regular);
   }
   .dd-title__value {
     font-size: 14px;
@@ -1177,7 +1210,7 @@
   .dd-cluster-label {
     font-size: var(--el-menu-item-font-size, 14px);
     font-weight: var(--el-menu-item-font-weight, 400);
-    color: #c7c7d1;
+    color: var(--el-text-color-regular);
     flex-shrink: 0;
   }
   .dd-cluster-value {
@@ -1226,7 +1259,7 @@
     padding: 4px 14px 2px 45px;
     font-size: 14px;
     font-weight: 500;
-    color: #c7c7d1;
+    color: var(--el-text-color-primary);
   }
 
   /* ── Info grid ── */
