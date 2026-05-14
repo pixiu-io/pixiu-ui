@@ -44,6 +44,25 @@ import { LocationQueryRaw, Router } from 'vue-router'
 import { WorkTab } from '@/types'
 import { useCommon } from '@/hooks/core/useCommon'
 
+/** 从 query 取 cluster 参数（单值） */
+function getClusterQueryValue(query: LocationQueryRaw | undefined): string | undefined {
+  if (!query) return undefined
+  const raw = query.cluster
+  const v = Array.isArray(raw) ? raw[0] : raw
+  if (v === null || v === undefined) return undefined
+  const s = String(v).trim()
+  return s || undefined
+}
+
+/** 集群详情子页 path（与 router modules/container 一致，不含 query） */
+const CLUSTER_DETAIL_SUBPATH_RE =
+  /^\/container\/(overview|nodes|namespaces|workloads|pods|services|config|storage|autoscaling|auth|addon-components|alert|logs|events|prometheus)(\/|$)/
+
+function isClusterDetailSubPath(path: string | undefined): boolean {
+  if (!path) return false
+  return CLUSTER_DETAIL_SUBPATH_RE.test(path.split('?')[0])
+}
+
 interface WorktabState {
   current: Partial<WorkTab>
   opened: WorkTab[]
@@ -122,9 +141,25 @@ export const useWorktabStore = defineStore(
         removeKeepAliveExclude(tab.name)
       }
 
-      // 优先按 tabGroup 查找（同组路由复用同一标签页，如集群详情各子页）
+      // 优先按 tabGroup 查找（同组路由复用同一标签页）
       let existingIndex = -1
-      if (tab.tabGroup) {
+      if (tab.tabGroup === 'clusterDetail') {
+        const clusterKey = getClusterQueryValue(tab.query as LocationQueryRaw | undefined)
+        existingIndex = opened.value.findIndex((t) => {
+          if (t.tabGroup === 'clusterDetail') {
+            if (!clusterKey) return !getClusterQueryValue(t.query as LocationQueryRaw | undefined)
+            return getClusterQueryValue(t.query as LocationQueryRaw | undefined) === clusterKey
+          }
+          // 持久化旧数据可能缺少 tabGroup：同集群 + 详情子路径，并入同一标签避免重复「集群详情」
+          if (!t.tabGroup && clusterKey) {
+            return (
+              getClusterQueryValue(t.query as LocationQueryRaw | undefined) === clusterKey &&
+              isClusterDetailSubPath(t.path)
+            )
+          }
+          return false
+        })
+      } else if (tab.tabGroup) {
         existingIndex = opened.value.findIndex((t) => t.tabGroup === tab.tabGroup)
       }
 
@@ -161,10 +196,30 @@ export const useWorktabStore = defineStore(
           fixedTab: tab.fixedTab ?? existingTab.fixedTab,
           keepAlive: tab.keepAlive ?? existingTab.keepAlive,
           name: tab.name || existingTab.name,
-          icon: tab.icon || existingTab.icon
+          icon: tab.icon || existingTab.icon,
+          tabGroup: tab.tabGroup ?? existingTab.tabGroup
         }
 
         current.value = opened.value[existingIndex]
+      }
+
+      // 集群详情：若历史数据里已存在多个同 cluster 的「集群详情」标签，只保留当前这一条
+      if (tab.tabGroup === 'clusterDetail') {
+        const clusterKey = getClusterQueryValue(tab.query as LocationQueryRaw | undefined)
+        const keepPath = current.value.path
+        if (keepPath && clusterKey) {
+          const dupes = opened.value.filter((t) => {
+            if (t.path === keepPath) return false
+            const tk = getClusterQueryValue(t.query as LocationQueryRaw | undefined)
+            if (tk !== clusterKey) return false
+            return t.tabGroup === 'clusterDetail' || (!t.tabGroup && isClusterDetailSubPath(t.path))
+          })
+          if (dupes.length) {
+            markTabsToRemove(dupes)
+            const rm = new Set(dupes.map((t) => t.path))
+            opened.value = opened.value.filter((t) => !rm.has(t.path))
+          }
+        }
       }
     }
 
@@ -529,6 +584,31 @@ export const useWorktabStore = defineStore(
       }
     }
 
+    /**
+     * 关闭所有「集群上下文」标签（详情子页、带 cluster 的创建/详情全屏页、新建集群向导等）。
+     * 在回到集群列表 /container/cluster 时调用，避免集群内切换资源后标签栏堆叠无效项。
+     */
+    const removeClusterContextTabs = (): void => {
+      const toRemove = opened.value.filter((tab) => {
+        if (!isTabClosable(tab)) return false
+        if (tab.path === '/container/cluster') return false
+        if (tab.tabGroup === 'clusterDetail') return true
+        if (getClusterQueryValue(tab.query as LocationQueryRaw | undefined)) return true
+        if (tab.path.startsWith('/container/cluster/deploy')) return true
+        return false
+      })
+      if (!toRemove.length) return
+
+      markTabsToRemove(toRemove)
+      const removePaths = new Set(toRemove.map((t) => t.path))
+      opened.value = opened.value.filter((t) => !removePaths.has(t.path))
+
+      if (current.value.path && removePaths.has(current.value.path)) {
+        const clusterListTab = opened.value.find((t) => t.path === '/container/cluster')
+        current.value = clusterListTab ?? opened.value[0] ?? {}
+      }
+    }
+
     return {
       // 状态
       current,
@@ -561,7 +641,8 @@ export const useWorktabStore = defineStore(
       markTabsToRemove,
       getTabTitle,
       updateTabTitle,
-      resetTabTitle
+      resetTabTitle,
+      removeClusterContextTabs
     }
   },
   {

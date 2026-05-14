@@ -7,8 +7,10 @@
       </ElButton>
       <ElDivider direction="vertical" class="deploy-create-header-divider" />
       <ElBreadcrumb separator="/">
-        <ElBreadcrumbItem>工作负载</ElBreadcrumbItem>
-        <ElBreadcrumbItem>更新Pod设置</ElBreadcrumbItem>
+        <ElBreadcrumbItem :to="{ path: '/container/workloads', query: { cluster, tab: kind === 'cj' ? 'cj' : kind } }">工作负载</ElBreadcrumbItem>
+        <ElBreadcrumbItem v-if="mode === 'schedule'">修改定时规则</ElBreadcrumbItem>
+        <ElBreadcrumbItem v-else-if="mode === 'strategy'">设置更新策略</ElBreadcrumbItem>
+        <ElBreadcrumbItem v-else>更新Pod设置</ElBreadcrumbItem>
       </ElBreadcrumb>
     </div>
 
@@ -22,7 +24,7 @@
           <ElFormItem label="资源名称">
             <span class="dc-readonly-value">{{ basicInfo.name }}（{{ kindLabel }}）</span>
           </ElFormItem>
-          <ElDivider content-position="left" style="margin: 4px 0 12px">Pod设置</ElDivider>
+          <template v-if="!mode">\n          <ElDivider content-position="left" style="margin: 4px 0 12px">Pod设置</ElDivider>
 
           <ElFormItem label="实例内容器" class="container-form-item" style="margin-top: 20px">
             <div class="container-pane">
@@ -35,7 +37,16 @@
                   @click="activeContainerIdx = idx"
                 >
                   <span class="container-tab-name">{{ c.name || `container-${idx + 1}` }}</span>
+                  <ElButton
+                    v-if="containers.length > 1"
+                    link
+                    class="container-tab-remove"
+                    @click.stop="removeContainer(idx)"
+                  ><ElIcon><Close /></ElIcon></ElButton>
                 </div>
+                <ElLink type="primary" :underline="false" class="add-container-btn" @click="addContainer">
+                  <ElIcon><Plus /></ElIcon>添加容器
+                </ElLink>
               </div>
 
               <div class="container-form-wrap">
@@ -501,12 +512,164 @@
               <div class="dc-field-tip">请指定镜像访问凭证以拉取私有镜像，实现免密拉取</div>
             </div>
           </ElFormItem>
+          </template>
+
+          <!-- CronJob 定时规则设置 -->
+          <template v-if="mode === 'schedule' && kind === 'cj'">
+            <ElDivider content-position="left" class="dc-section-divider-top">CronJob设置</ElDivider>
+            <ElFormItem label="定时规则">
+              <div class="dc-field-col">
+                <ElRadioGroup v-model="scheduleMode">
+                  <ElRadio value="daily">按天</ElRadio>
+                  <ElRadio value="weekly">按星期</ElRadio>
+                  <ElRadio value="monthly">按月</ElRadio>
+                  <ElRadio value="cron">Cron表达式</ElRadio>
+                </ElRadioGroup>
+                <div v-if="scheduleMode === 'daily'" class="schedule-daily-panel">
+                  <div class="schedule-builder schedule-builder--in-panel">
+                    <span class="schedule-text">每</span>
+                    <ElSelect v-model="scheduleParams.interval" style="width: 110px">
+                      <ElOption v-for="n in dailyIntervalOptions" :key="n" :label="String(n)" :value="n" />
+                    </ElSelect>
+                    <ElSelect v-model="scheduleParams.unit" style="width: 110px">
+                      <ElOption label="小时" value="hour" />
+                      <ElOption label="分钟" value="minute" />
+                    </ElSelect>
+                    <span class="schedule-text">执行一次</span>
+                  </div>
+                </div>
+                <div v-else-if="scheduleMode === 'weekly'" class="schedule-weekly-panel">
+                  <div class="schedule-builder schedule-builder--in-panel">
+                    <span class="schedule-text">每</span>
+                    <ElSelect v-model="scheduleParams.weekday" style="width: 104px">
+                      <ElOption v-for="opt in WEEKDAY_SELECT_OPTIONS" :key="opt.value" :label="opt.label" :value="opt.value" />
+                    </ElSelect>
+                    <ElSelect v-model="scheduleParams.hour" style="width: 88px">
+                      <ElOption v-for="h in CRON_HOUR_OPTIONS" :key="h" :label="String(h)" :value="h" />
+                    </ElSelect>
+                    <span class="schedule-text">时</span>
+                    <ElSelect v-model="scheduleParams.minute" style="width: 88px">
+                      <ElOption v-for="m in CRON_MINUTE_OPTIONS" :key="m" :label="String(m)" :value="m" />
+                    </ElSelect>
+                    <span class="schedule-text">分 执行一次</span>
+                  </div>
+                </div>
+                <div v-else-if="scheduleMode === 'monthly'" class="schedule-monthly-panel">
+                  <div class="schedule-builder schedule-builder--in-panel">
+                    <span class="schedule-text">每</span>
+                    <ElSelect v-model="scheduleParams.monthInterval" style="width: 88px">
+                      <ElOption v-for="n in MONTH_INTERVAL_OPTIONS" :key="n" :label="String(n)" :value="n" />
+                    </ElSelect>
+                    <span class="schedule-text">个月</span>
+                    <ElSelect v-model="scheduleParams.monthDay" style="width: 88px">
+                      <ElOption v-for="d in MONTH_DAY_OPTIONS" :key="d" :label="String(d)" :value="d" />
+                    </ElSelect>
+                    <span class="schedule-text">日</span>
+                    <ElSelect v-model="scheduleParams.hour" style="width: 88px">
+                      <ElOption v-for="h in CRON_HOUR_OPTIONS" :key="h" :label="String(h)" :value="h" />
+                    </ElSelect>
+                    <span class="schedule-text">时</span>
+                    <ElSelect v-model="scheduleParams.minute" style="width: 88px">
+                      <ElOption v-for="m in CRON_MINUTE_OPTIONS" :key="m" :label="String(m)" :value="m" />
+                    </ElSelect>
+                    <span class="schedule-text">分 执行一次</span>
+                  </div>
+                </div>
+                <div v-else class="schedule-cron-panel">
+                  <ElInput v-model="cjSchedule" class="schedule-cron-expr-input" clearable />
+                  <div class="dc-field-tip schedule-cron-format-hint">
+                    格式：分 时 日 月 周（如 <span class="schedule-cron-example">0 0 * * *</span> 表示每天 00:00 执行一次）
+                  </div>
+                </div>
+              </div>
+            </ElFormItem>
+            <ElFormItem label="保留成功Job数">
+              <div class="dc-field-col">
+                <ElInputNumber v-model="cjSuccessfulJobsHistoryLimit" :min="0" :precision="0" style="width: 160px" />
+                <div class="dc-field-tip">对应 spec.successfulJobsHistoryLimit，保留已完成 Job 的历史记录条数</div>
+              </div>
+            </ElFormItem>
+            <ElFormItem label="保留失败Job数">
+              <div class="dc-field-col">
+                <ElInputNumber v-model="cjFailedJobsHistoryLimit" :min="0" :precision="0" style="width: 160px" />
+                <div class="dc-field-tip">对应 spec.failedJobsHistoryLimit，保留失败 Job 的历史记录条数</div>
+              </div>
+            </ElFormItem>
+            <ElFormItem label="Job设置" class="dc-job-settings-form-item">
+              <div class="dc-job-settings">
+                <div class="dc-job-settings-row">
+                  <span class="dc-job-settings-label">
+                    重复次数
+                    <ElTooltip content="Pod 成功运行的次数，默认为 1" placement="top">
+                      <ElIcon class="lifecycle-info-icon"><InfoFilled /></ElIcon>
+                    </ElTooltip>
+                  </span>
+                  <ElInputNumber v-model="cjCompletions" :min="1" :precision="0" style="width: 160px" />
+                  <span class="dc-job-settings-tip">默认为 1</span>
+                </div>
+                <div class="dc-job-settings-row">
+                  <span class="dc-job-settings-label">
+                    并行度
+                    <ElTooltip content="同时运行的 Pod 数量，默认为 1" placement="top">
+                      <ElIcon class="lifecycle-info-icon"><InfoFilled /></ElIcon>
+                    </ElTooltip>
+                  </span>
+                  <ElInputNumber v-model="cjParallelism" :min="1" :precision="0" style="width: 160px" />
+                  <span class="dc-job-settings-tip">默认为 1</span>
+                </div>
+                <div class="dc-job-settings-row">
+                  <span class="dc-job-settings-label">
+                    失败重启策略
+                    <ElTooltip content="容器失败时的重启策略" placement="top">
+                      <ElIcon class="lifecycle-info-icon"><InfoFilled /></ElIcon>
+                    </ElTooltip>
+                  </span>
+                  <ElSelect v-model="cjRestartPolicy" style="width: 160px" class="restart-policy-select">
+                    <ElOption label="OnFailure" value="OnFailure" />
+                    <ElOption label="Never" value="Never" />
+                  </ElSelect>
+                  <span class="dc-job-settings-tip">容器失败时的重启策略</span>
+                </div>
+              </div>
+            </ElFormItem>
+          </template>
+
+          <!-- 更新策略设置 -->
+          <template v-if="mode === 'strategy'">
+            <ElDivider content-position="left" class="dc-section-divider-top">更新策略</ElDivider>
+            <ElFormItem label="更新方式">
+              <ElRadioGroup v-model="strategyType">
+                <ElRadio value="RollingUpdate">滚动更新</ElRadio>
+                <ElRadio value="Recreate">重建更新</ElRadio>
+              </ElRadioGroup>
+            </ElFormItem>
+            <ElFormItem label="最小就绪秒数">
+              <div class="dc-field-col">
+                <ElInputNumber v-model="minReadySeconds" :min="0" :precision="0" style="width: 160px" />
+                <div class="dc-field-tip">Pod 最少就绪秒数，默认为 0 秒（即可用即视为就绪）</div>
+              </div>
+            </ElFormItem>
+            <template v-if="strategyType === 'RollingUpdate'">
+              <ElFormItem label="最大不可用">
+                <div class="dc-field-col">
+                  <ElInput v-model="maxUnavailable" style="width: 160px" placeholder="25%" />
+                  <div class="dc-field-tip">滚动更新期间允许不可用的 Pod 最大数量或比例，默认 25%</div>
+                </div>
+              </ElFormItem>
+              <ElFormItem label="最大超出">
+                <div class="dc-field-col">
+                  <ElInput v-model="maxSurge" style="width: 160px" placeholder="25%" />
+                  <div class="dc-field-tip">滚动更新期间允许超出期望副本数的 Pod 最大数量或比例，默认 25%</div>
+                </div>
+              </ElFormItem>
+            </template>
+          </template>
         </ElForm>
       </div>
 
       <div class="deploy-create-footer">
         <ElButton @click="goBack">取消</ElButton>
-        <ElButton type="primary" :loading="submitting" @click="submit">更新Pod设置</ElButton>
+        <ElButton type="primary" :loading="submitting" @click="submit">{{ mode === 'schedule' ? '保存定时规则' : mode === 'strategy' ? '保存更新策略' : '更新Pod设置' }}</ElButton>
       </div>
     </ElCard>
   </div>
@@ -514,11 +677,12 @@
 
 <script setup lang="ts">
   import { ElMessage } from 'element-plus'
-  import { ArrowLeft, Close, Refresh, InfoFilled } from '@element-plus/icons-vue'
+  import { ArrowLeft, Close, InfoFilled, Plus, Refresh } from '@element-plus/icons-vue'
   import { useRoute, useRouter } from 'vue-router'
   import { fetchK8sDeployment, patchK8sDeployment } from '@/api/kubernetes/deployment'
   import { fetchK8sStatefulSet, patchK8sStatefulSet } from '@/api/kubernetes/statefulset'
   import { fetchK8sDaemonSet, patchK8sDaemonSet } from '@/api/kubernetes/daemonset'
+  import { fetchK8sCronJob, patchK8sCronJob } from '@/api/kubernetes/cronjob'
   import { fetchK8sSecretList } from '@/api/kubernetes/secret'
 
   defineOptions({ name: 'WorkloadUpdatePage' })
@@ -529,11 +693,14 @@
   const cluster = computed(() => String(route.query.cluster ?? ''))
   const namespace = computed(() => String(route.query.namespace ?? ''))
   const name = computed(() => String(route.query.name ?? ''))
-  const kind = computed(() => String(route.query.kind ?? 'deploy') as 'deploy' | 'sts' | 'ds')
+  const kind = computed(() => String(route.query.kind ?? 'deploy') as 'deploy' | 'sts' | 'ds' | 'cj' | 'job')
+  const mode = computed(() => String(route.query.mode ?? '') as 'schedule' | 'strategy' | '')
 
   const kindLabel = computed(() => {
     if (kind.value === 'sts') return 'StatefulSet'
     if (kind.value === 'ds') return 'DaemonSet'
+    if (kind.value === 'cj') return 'CronJob'
+    if (kind.value === 'job') return 'Job'
     return 'Deployment'
   })
 
@@ -544,6 +711,72 @@
   const showPullSecretSelect = ref(false)
   const pullSecrets = ref<string[]>([])
   const imagePullSecret = ref('')
+
+  // CronJob 设置
+  const cjSchedule = ref('')
+  const cjConcurrencyPolicy = ref<'Allow' | 'Forbid' | 'Replace'>('Allow')
+  const cjSuccessfulJobsHistoryLimit = ref(3)
+  const cjFailedJobsHistoryLimit = ref(1)
+  const cjSuspend = ref(false)
+  const cjStartingDeadlineSeconds = ref<number | null>(null)
+  const cjCompletions = ref(1)
+  const cjParallelism = ref(1)
+  const cjRestartPolicy = ref<'OnFailure' | 'Never'>('OnFailure')
+
+  // 更新策略
+  const strategyType = ref<'RollingUpdate' | 'Recreate'>('RollingUpdate')
+  const minReadySeconds = ref(0)
+  const maxUnavailable = ref('25%')
+  const maxSurge = ref('25%')
+
+  // 定时规则 builder
+  const WEEKDAY_SELECT_OPTIONS = [
+    { label: '星期日', value: 0 }, { label: '星期一', value: 1 }, { label: '星期二', value: 2 },
+    { label: '星期三', value: 3 }, { label: '星期四', value: 4 }, { label: '星期五', value: 5 }, { label: '星期六', value: 6 }
+  ]
+  const CRON_HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => i)
+  const CRON_MINUTE_OPTIONS = Array.from({ length: 60 }, (_, i) => i)
+  const MONTH_INTERVAL_OPTIONS = Array.from({ length: 12 }, (_, i) => i + 1)
+  const MONTH_DAY_OPTIONS = Array.from({ length: 31 }, (_, i) => i + 1)
+  const DAILY_HOUR_INTERVALS = Array.from({ length: 23 }, (_, i) => i + 1)
+  const DAILY_MINUTE_INTERVALS = Array.from({ length: 59 }, (_, i) => i + 1)
+
+  const scheduleMode = ref<'daily' | 'weekly' | 'monthly' | 'cron'>('cron')
+  const scheduleParams = reactive({
+    interval: 12, unit: 'hour' as 'hour' | 'minute',
+    weekday: 1, monthInterval: 1, monthDay: 1, hour: 0, minute: 0
+  })
+  const dailyIntervalOptions = computed(() =>
+    scheduleParams.unit === 'hour' ? DAILY_HOUR_INTERVALS : DAILY_MINUTE_INTERVALS
+  )
+
+  function computeCronSchedule(): string {
+    if (scheduleMode.value === 'daily') {
+      if (scheduleParams.unit === 'hour') {
+        const h = scheduleParams.interval >= 1 && scheduleParams.interval <= 23 ? scheduleParams.interval : 12
+        return `0 */${h} * * *`
+      }
+      const m = scheduleParams.interval >= 1 && scheduleParams.interval <= 59 ? scheduleParams.interval : 1
+      return `*/${m} * * * *`
+    } else if (scheduleMode.value === 'weekly') {
+      const dow = scheduleParams.weekday >= 0 && scheduleParams.weekday <= 6 ? scheduleParams.weekday : 1
+      const h = scheduleParams.hour >= 0 && scheduleParams.hour <= 23 ? scheduleParams.hour : 0
+      const min = scheduleParams.minute >= 0 && scheduleParams.minute <= 59 ? scheduleParams.minute : 0
+      return `${min} ${h} * * ${dow}`
+    } else if (scheduleMode.value === 'monthly') {
+      const mi = scheduleParams.monthInterval >= 1 && scheduleParams.monthInterval <= 12 ? scheduleParams.monthInterval : 1
+      const dom = scheduleParams.monthDay >= 1 && scheduleParams.monthDay <= 31 ? scheduleParams.monthDay : 1
+      const h = scheduleParams.hour >= 0 && scheduleParams.hour <= 23 ? scheduleParams.hour : 0
+      const min = scheduleParams.minute >= 0 && scheduleParams.minute <= 59 ? scheduleParams.minute : 0
+      const monthField = mi === 1 ? '*' : `*/${mi}`
+      return `${min} ${h} ${dom} ${monthField} *`
+    }
+    return cjSchedule.value
+  }
+
+  watch([scheduleMode, scheduleParams], () => {
+    if (scheduleMode.value !== 'cron') cjSchedule.value = computeCronSchedule()
+  })
 
   const basicInfo = ref({ name: '', namespace: '' })
 
@@ -686,6 +919,21 @@
         const data = await fetchK8sStatefulSet(cluster.value, namespace.value, name.value)
         basicInfo.value = { name: name.value, namespace: namespace.value }
         extractSpec(data.spec?.template?.spec as Parameters<typeof extractSpec>[0])
+      } else if (kind.value === 'cj' || kind.value === 'job') {
+        const data = await fetchK8sCronJob(cluster.value, namespace.value, name.value)
+        basicInfo.value = { name: name.value, namespace: namespace.value }
+        extractSpec((data.spec?.jobTemplate?.spec?.template?.spec ?? {}) as Parameters<typeof extractSpec>[0])
+        if (kind.value === 'cj') {
+          cjSchedule.value = data.spec?.schedule ?? ''
+          cjConcurrencyPolicy.value = (data.spec?.concurrencyPolicy as 'Allow' | 'Forbid' | 'Replace') ?? 'Allow'
+          cjSuccessfulJobsHistoryLimit.value = data.spec?.successfulJobsHistoryLimit ?? 3
+          cjFailedJobsHistoryLimit.value = data.spec?.failedJobsHistoryLimit ?? 1
+          cjSuspend.value = data.spec?.suspend ?? false
+          cjStartingDeadlineSeconds.value = data.spec?.startingDeadlineSeconds ?? null
+          cjCompletions.value = data.spec?.jobTemplate?.spec?.completions ?? 1
+          cjParallelism.value = data.spec?.jobTemplate?.spec?.parallelism ?? 1
+          cjRestartPolicy.value = (data.spec?.jobTemplate?.spec?.template?.spec?.restartPolicy as 'OnFailure' | 'Never') ?? 'OnFailure'
+        }
       } else {
         const data = await fetchK8sDaemonSet(cluster.value, namespace.value, name.value)
         basicInfo.value = { name: name.value, namespace: namespace.value }
@@ -785,19 +1033,67 @@
   }
 
   function buildPatch() {
+    if (mode.value === 'strategy') {
+      return {
+        spec: {
+          strategy: strategyType.value === 'RollingUpdate'
+            ? {
+                type: 'RollingUpdate',
+                rollingUpdate: { maxUnavailable: maxUnavailable.value || '25%', maxSurge: maxSurge.value || '25%' }
+              }
+            : { type: 'Recreate' },
+          minReadySeconds: minReadySeconds.value
+        }
+      }
+    }
     const regular = containers.value.filter((c) => !c.initContainer).map(buildContainerPatch)
     const init = containers.value.filter((c) => c.initContainer).map(buildContainerPatch)
     const pullSecretPatch = imagePullSecret.value
       ? [{ name: imagePullSecret.value }]
       : []
+    const specPatch = {
+      containers: regular,
+      ...(init.length ? { initContainers: init } : {}),
+      imagePullSecrets: pullSecretPatch
+    }
+    if (kind.value === 'cj' || kind.value === 'job') {
+      const cjPatch: Record<string, unknown> = {
+        spec: {
+          jobTemplate: {
+            spec: {
+              template: {
+                spec: specPatch
+              }
+            }
+          }
+        }
+      }
+      if (kind.value === 'cj') {
+        ;(cjPatch.spec as Record<string, unknown>).schedule = cjSchedule.value
+        ;(cjPatch.spec as Record<string, unknown>).successfulJobsHistoryLimit = cjSuccessfulJobsHistoryLimit.value
+        ;(cjPatch.spec as Record<string, unknown>).failedJobsHistoryLimit = cjFailedJobsHistoryLimit.value
+        ;((cjPatch.spec as Record<string, unknown>).jobTemplate as Record<string, unknown>).spec = {
+          ...((cjPatch.spec as Record<string, unknown>).jobTemplate as Record<string, unknown>)?.spec,
+          completions: cjCompletions.value,
+          parallelism: cjParallelism.value,
+          template: {
+            ...(((cjPatch.spec as Record<string, unknown>).jobTemplate as Record<string, unknown>)?.spec as Record<string, unknown>)?.template,
+            spec: {
+              ...(((cjPatch.spec as Record<string, unknown>).jobTemplate as Record<string, unknown>)?.spec as Record<string, unknown>)?.template?.spec,
+              restartPolicy: cjRestartPolicy.value
+            }
+          }
+        }
+        if (cjStartingDeadlineSeconds.value !== null) {
+          ;(cjPatch.spec as Record<string, unknown>).startingDeadlineSeconds = cjStartingDeadlineSeconds.value
+        }
+      }
+      return cjPatch
+    }
     return {
       spec: {
         template: {
-          spec: {
-            containers: regular,
-            ...(init.length ? { initContainers: init } : {}),
-            imagePullSecrets: pullSecretPatch
-          }
+          spec: specPatch
         }
       }
     }
@@ -815,6 +1111,8 @@
         await patchK8sDeployment(cluster.value, namespace.value, name.value, patch)
       } else if (kind.value === 'sts') {
         await patchK8sStatefulSet(cluster.value, namespace.value, name.value, patch)
+      } else if (kind.value === 'cj' || kind.value === 'job') {
+        await patchK8sCronJob(cluster.value, namespace.value, name.value, patch)
       } else {
         await patchK8sDaemonSet(cluster.value, namespace.value, name.value, patch)
       }
@@ -829,6 +1127,38 @@
 
   function goBack() {
     router.push({ path: '/container/workloads', query: { cluster: cluster.value, tab: kind.value } })
+  }
+
+  function addContainer() {
+    const newContainer: ContainerState = {
+      name: '',
+      image: '',
+      imageTag: '',
+      imagePullPolicy: 'IfNotPresent',
+      envs: [],
+      cpuRequest: '',
+      cpuLimit: '',
+      memoryRequest: '',
+      memoryLimit: '',
+      ports: [],
+      initContainer: false,
+      privileged: false,
+      commandText: '',
+      argsText: '',
+      postStartCommands: [],
+      preStopCommands: [],
+      liveness: { enabled: false, method: 'tcp', host: '', port: '', path: '', initialDelaySeconds: 0, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold: 3 },
+      readiness: { enabled: false, method: 'tcp', host: '', port: '', path: '', initialDelaySeconds: 0, timeoutSeconds: 1, periodSeconds: 10, successThreshold: 1, failureThreshold: 3 }
+    }
+    containers.value.push(newContainer)
+    activeContainerIdx.value = containers.value.length - 1
+  }
+  function removeContainer(idx: number) {
+    if (containers.value.length <= 1) return
+    containers.value.splice(idx, 1)
+    if (activeContainerIdx.value >= containers.value.length) {
+      activeContainerIdx.value = containers.value.length - 1
+    }
   }
 
   function addEnv(cidx: number) { containers.value[cidx].envs.push({ name: '', mode: 'value', value: '', sourceName: '', sourceKey: '' }) }
@@ -887,6 +1217,7 @@
   .dc-form { max-width: none; width: 100%; }
   .dc-form :deep(.el-form-item__label) { font-size: 12px; padding-right: 16px; }
   .dc-form :deep(.el-input__placeholder), .dc-form :deep(.el-textarea__placeholder) { font-size: 12px; }
+  .dc-form :deep(.el-radio__label) { font-size: 12px; }
   .dc-form :deep(.el-checkbox__label) { font-size: 12px; }
 
   .dc-section-divider-top { margin-top: 16px; }
@@ -897,7 +1228,7 @@
 
   .deploy-create-footer { margin-top: 10px; display: flex; justify-content: center; gap: 10px; }
 
-  .dc-readonly-value { font-size: 13px; color: var(--el-text-color-primary); line-height: 32px; }
+  .dc-readonly-value { font-size: 12px; color: var(--el-text-color-primary); line-height: 32px; }
 
   .kv-list { width: 100%; }
 
@@ -916,7 +1247,7 @@
   .container-tab-item {
     display: inline-flex; align-items: center; justify-content: center;
     position: relative; padding: 6px 10px; height: 35px; width: 110px;
-    border-radius: 4px; font-size: 13px; cursor: pointer; background: transparent;
+    border-radius: 4px; font-size: 12px; cursor: pointer; background: transparent;
     color: var(--el-text-color-regular); border: 1px solid var(--el-border-color);
     transition: border-color 0.15s; user-select: none; box-sizing: border-box;
   }
@@ -930,13 +1261,18 @@
     --el-radio-button-checked-border-color: var(--el-color-primary);
     --el-radio-button-checked-bg-color: var(--el-bg-color-overlay);
     --el-radio-button-checked-text-color: var(--el-color-primary);
-    display: inline-flex; flex-wrap: nowrap; width: fit-content; max-width: 100%; box-sizing: border-box; vertical-align: middle;
+    display: flex;
+    width: 320px;
+    min-width: 320px;
+    max-width: 320px;
+    overflow: hidden;
+    box-sizing: border-box;
   }
-  .pull-policy-group :deep(.el-radio-button) { flex: 0 0 auto; display: inline-flex; }
+  .pull-policy-group :deep(.el-radio-button) { flex: 1 1 0; min-width: 0; display: flex; }
   .pull-policy-group :deep(.el-radio-button__inner) {
-    display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box;
-    text-align: center; font-size: 12px; line-height: 1.2; padding: 2px 10px; min-height: 22px;
-    white-space: nowrap; font-weight: 400; color: var(--el-text-color-regular);
+    display: flex; flex: 1; align-items: center; justify-content: center;
+    width: 100%; box-sizing: border-box; text-align: center; font-size: 12px;
+    padding: 6px 10px; line-height: 1.25; min-height: 28px; font-weight: 400; color: var(--el-text-color-regular);
     background: transparent; border: 1px solid var(--el-border-color); border-radius: 0 !important;
     transition: border-color 0.15s, color 0.15s, background-color 0.15s;
   }
@@ -951,7 +1287,7 @@
 
   .container-form-wrap .dc-form { max-width: 920px; }
   .container-dc-form :deep(.el-form-item__label) { font-size: 12px; white-space: nowrap; }
-  .container-dc-form :deep(.el-input__inner), .container-dc-form :deep(.el-textarea__inner), .container-dc-form :deep(.el-select__wrapper) { font-size: 13px; }
+  .container-dc-form :deep(.el-input__inner), .container-dc-form :deep(.el-textarea__inner), .container-dc-form :deep(.el-select__wrapper) { font-size: 12px; }
   .container-dc-form :deep(.el-form-item) { margin-bottom: 18px; }
 
   .cpu-mem-limit-form-item.el-form-item { align-items: flex-start; }
@@ -965,14 +1301,14 @@
 
   .resource-affix-group { display: flex; flex-direction: row; align-items: stretch; min-width: 0; border: 1px solid var(--el-border-color); border-radius: 0; overflow: hidden; background: var(--el-fill-color-blank); box-sizing: border-box; }
   .resource-affix-group--grow { flex: 1 1 0; min-width: 0; }
-  .resource-affix-sep { flex-shrink: 0; color: var(--el-text-color-secondary); font-size: 13px; user-select: none; line-height: 1; }
+  .resource-affix-sep { flex-shrink: 0; color: var(--el-text-color-secondary); font-size: 12px; user-select: none; line-height: 1; }
   .resource-affix-group:focus-within { border-color: var(--el-color-primary); }
   .resource-affix-label { display: inline-flex; align-items: center; justify-content: center; width: 64px; flex-shrink: 0; padding: 0 6px; font-size: 12px; color: var(--el-text-color-secondary); background: var(--el-fill-color-light); border-right: 1px solid var(--el-border-color); box-sizing: border-box; }
   .resource-affix-input { flex: 1; min-width: 0; }
   .resource-affix-input :deep(.el-input) { width: 100%; min-width: 0; }
   .resource-affix-input :deep(.el-input__wrapper) { box-shadow: none !important; border: none !important; border-radius: 0 !important; background-color: transparent; padding-top: 0; padding-bottom: 0; height: 28px; align-items: center; }
   .resource-affix-input :deep(.el-input__inner) { text-align: left; }
-  .resource-unit-suffix { flex-shrink: 0; align-self: center; font-size: 13px; color: var(--el-text-color-regular); white-space: nowrap; }
+  .resource-unit-suffix { flex-shrink: 0; align-self: center; font-size: 12px; color: var(--el-text-color-regular); white-space: nowrap; }
 
   .cpu-mem-limit-tips { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; width: 100%; max-width: none; }
   .cpu-mem-tip-line { white-space: normal; line-height: 1.5; }
@@ -989,9 +1325,10 @@
 
   .dc-field-tip { font-size: 12px; color: var(--el-text-color-placeholder); line-height: 1.5; margin-top: 4px; white-space: nowrap; }
   .dc-form :deep(.el-form-item__content) { flex-wrap: wrap; align-items: flex-start; row-gap: 0; }
-  .dc-form :deep(.el-input__inner), .dc-form :deep(.el-textarea__inner), .dc-form :deep(.el-select__wrapper) { font-size: 13px; }
+  .dc-form :deep(.el-input__inner), .dc-form :deep(.el-textarea__inner), .dc-form :deep(.el-select__wrapper) { font-size: 12px; }
 
   .kv-add-btn { font-size: 12px; }
+  .add-container-btn { font-size: 12px; }
   .kv-del-btn { color: var(--el-text-color-primary); }
 
   .advanced-field-wrap { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
@@ -1030,4 +1367,27 @@
   .pull-secret-row { display: flex; align-items: center; gap: 6px; }
   .pull-secret-icon-btn { padding: 4px; font-size: 14px; color: var(--el-text-color-secondary); }
   .pull-secret-icon-btn:hover { color: var(--el-color-primary); }
+
+  /* ── 定时规则 builder（同 cronjob-create）── */
+  .schedule-builder { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+  .schedule-daily-panel, .schedule-weekly-panel, .schedule-monthly-panel, .schedule-cron-panel {
+    margin-top: 4px; background: var(--el-fill-color-light); border-radius: 6px;
+    padding: 12px 16px; width: 100%; box-sizing: border-box;
+  }
+  .schedule-daily-panel .dc-field-tip, .schedule-weekly-panel .dc-field-tip,
+  .schedule-monthly-panel .dc-field-tip, .schedule-cron-panel .dc-field-tip {
+    margin-top: 0; max-width: 100%; white-space: normal;
+  }
+  .schedule-cron-expr-input { width: 100%; min-width: min(100%, 420px); max-width: 100%; }
+  .schedule-cron-format-hint { color: var(--el-text-color-secondary); font-size: 12px; line-height: 1.55; margin-top: 4px; }
+  .schedule-cron-example { margin: 0 2px; font-family: ui-monospace, monospace; font-size: 12px; color: var(--el-text-color-primary); }
+  .schedule-builder--in-panel { margin-top: 0; }
+  .schedule-text { font-size: 12px; color: var(--el-text-color-regular); white-space: nowrap; }
+
+  /* ── Job 设置（同 cronjob-create）── */
+  .dc-job-settings-form-item :deep(.el-form-item__content) { flex: 1; }
+  .dc-job-settings { background: var(--el-fill-color-light); border-radius: 6px; padding: 14px 18px; display: flex; flex-direction: column; gap: 14px; }
+  .dc-job-settings-row { display: flex; align-items: center; gap: 16px; }
+  .dc-job-settings-label { display: inline-flex; align-items: center; gap: 4px; width: 96px; flex-shrink: 0; font-size: 12px; color: var(--el-text-color-regular); }
+  .dc-job-settings-tip { font-size: 12px; color: var(--el-text-color-placeholder); }
 </style>

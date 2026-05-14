@@ -13,7 +13,7 @@
     <template #header>
       <div class="host-ssh-drawer-header-inner">
         <span class="host-ssh-drawer-title">
-          主机远程登录 —
+          主机远程登录 -
           <span class="host-ssh-drawer-host">{{ sshForm.host }}</span>
         </span>
         <div class="host-ssh-header-toolbar">

@@ -97,7 +97,6 @@
             </template>
             <ElMenuItem index="autoscaling">弹性伸缩</ElMenuItem>
             <ElMenuItem index="auth">认证授权</ElMenuItem>
-            <ElMenuItem index="policy">策略管理</ElMenuItem>
             <ElMenuItem index="addon-components">组件管理</ElMenuItem>
           </ElSubMenu>
 
@@ -157,7 +156,6 @@
     'storage',
     'autoscaling',
     'auth',
-    'policy',
     'addon-components',
     'alert',
     'logs',

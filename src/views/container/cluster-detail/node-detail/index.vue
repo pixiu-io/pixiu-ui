@@ -44,7 +44,7 @@
               <ElTag size="small" :type="nodeTypeTagType" effect="light">{{ nodeTypeTagText }}</ElTag>
             </span>
           </div>
-          <div class="nd-info-cell"><span class="nd-k">操作系统</span><span class="nd-v">{{ node.status?.nodeInfo?.osImage || '—' }}</span></div>
+          <div class="nd-info-cell"><span class="nd-k">操作系统</span><span class="nd-v">{{ node.status?.nodeInfo?.osImage || '-' }}</span></div>
           <div class="nd-info-cell"><span class="nd-k">创建时间</span><span class="nd-v">{{ formatNodeCreationTime(node.metadata.creationTimestamp) }}</span></div>
           <div class="nd-info-cell"><span class="nd-k">运行状态</span><span class="nd-v">{{ runningStatusText }}</span></div>
           <div class="nd-info-cell"><span class="nd-k">容器运行时</span><span class="nd-v">{{ formatContainerRuntime(node) }}</span></div>
@@ -76,7 +76,7 @@
                   {{ showAllLabels ? '收起' : '更多' }}
                 </el-button>
               </template>
-              <span v-else class="nd-empty">—</span>
+              <span v-else class="nd-empty">-</span>
             </div>
           </div>
           <div class="nd-info-cell">
@@ -103,7 +103,7 @@
                   {{ showAllAnnotations ? '收起' : '更多' }}
                 </el-button>
               </template>
-              <span v-else class="nd-empty">—</span>
+              <span v-else class="nd-empty">-</span>
             </div>
           </div>
         </div>
@@ -216,9 +216,9 @@
   const podCidrsText = computed(() => {
     const values = node.value?.spec?.podCIDRs?.filter(Boolean) ?? []
     if (values.length) return values.join(', ')
-    return node.value?.spec?.podCIDR || '—'
+    return node.value?.spec?.podCIDR || '-'
   })
-  const kernelVersionText = computed(() => node.value?.status?.nodeInfo?.kernelVersion || '—')
+  const kernelVersionText = computed(() => node.value?.status?.nodeInfo?.kernelVersion || '-')
   const nodeRole = computed(() => {
     const labels = node.value?.metadata?.labels ?? {}
     if ('node-role.kubernetes.io/control-plane' in labels || 'node-role.kubernetes.io/master' in labels)
@@ -270,17 +270,17 @@
       message?: string
     }>
     return rows.map((r) => ({
-      type: r.type || '—',
-      status: r.status || '—',
+      type: r.type || '-',
+      status: r.status || '-',
       lastHeartbeatTime: formatDateTime(r.lastHeartbeatTime),
       lastTransitionTime: formatDateTime(r.lastTransitionTime),
-      reason: r.reason || '—',
-      message: r.message || '—'
+      reason: r.reason || '-',
+      message: r.message || '-'
     }))
   })
 
   function formatDateTime(ts?: string): string {
-    if (!ts) return '—'
+    if (!ts) return '-'
     const d = new Date(ts)
     if (Number.isNaN(d.getTime())) return ts
     const pad = (n: number) => String(n).padStart(2, '0')
@@ -552,7 +552,7 @@
   function openRemoteLoginSameAsHost() {
     if (!node.value) return
     const ip = formatNodeInternalIp(node.value).trim()
-    if (!ip || ip === '—') {
+    if (!ip || ip === '-') {
       ElMessage.warning('该节点暂无 IP，无法远程登录')
       return
     }

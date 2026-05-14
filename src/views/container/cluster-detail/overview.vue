@@ -128,7 +128,7 @@
             <ElDescriptionsItem label="集群名称">{{ ctx.aliasName }}</ElDescriptionsItem>
             <ElDescriptionsItem label="集群标识">{{ ctx.name }}</ElDescriptionsItem>
             <ElDescriptionsItem label="Kubernetes 版本">{{ ctx.version }}</ElDescriptionsItem>
-            <ElDescriptionsItem label="节点数">{{ ctx.nodeCount || '—' }}</ElDescriptionsItem>
+            <ElDescriptionsItem label="节点数">{{ ctx.nodeCount || '-' }}</ElDescriptionsItem>
           </ElDescriptions>
         </ElCard>
         <ElCard shadow="never" class="art-table-card mt-4">

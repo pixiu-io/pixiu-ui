@@ -61,7 +61,6 @@
     ClusterDetailStorage: '存储',
     ClusterDetailAutoscaling: '弹性伸缩',
     ClusterDetailAuth: '认证配置',
-    ClusterDetailPolicy: '策略',
     ClusterDetailAddonComponents: '扩展组件',
     ClusterDetailAlert: '告警',
     ClusterDetailLogs: '日志',
@@ -123,7 +122,7 @@
         // 已知子页（如 ClusterDetailWorkloads → "工作负载"）
         mappedTitle = CLUSTER_DETAIL_TITLE_MAP[routeName]
       } else {
-        // 父级布局路由——显示集群别名（route 来自外层 useRoute()）
+        // 父级布局路由--显示集群别名（route 来自外层 useRoute()）
         const alias = String(route.query.aliasName || route.query.cluster || '')
         mappedTitle = alias || rawTitle
       }

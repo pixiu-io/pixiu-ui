@@ -141,10 +141,10 @@
         </ElTableColumn>
         <ElTableColumn prop="type" label="级别" width="90" />
         <ElTableColumn label="资源类型" width="120">
-          <template #default="{ row }">{{ row.involvedObject?.kind ?? '—' }}</template>
+          <template #default="{ row }">{{ row.involvedObject?.kind ?? '-' }}</template>
         </ElTableColumn>
         <ElTableColumn label="资源名称" min-width="140">
-          <template #default="{ row }">{{ row.involvedObject?.name ?? '—' }}</template>
+          <template #default="{ row }">{{ row.involvedObject?.name ?? '-' }}</template>
         </ElTableColumn>
         <ElTableColumn prop="count" label="出现次数" width="90" />
         <ElTableColumn prop="message" label="内容" min-width="220" show-overflow-tooltip />
@@ -315,7 +315,7 @@
   }
 
   function formatNodeCpu(raw: string): string {
-    if (!raw || raw === '—') return raw
+    if (!raw || raw === '-') return raw
     if (raw.endsWith('m')) {
       const m = parseInt(raw, 10)
       if (!isNaN(m)) return `${m} m`
@@ -348,7 +348,7 @@
           class: 'node-labels-empty',
           style: 'font-size:12px;color:var(--el-text-color-regular)'
         },
-        '—'
+        '-'
       )
     }
     const preview = lines.slice(0, 2)
@@ -436,7 +436,7 @@
             label: '节点名称',
             minWidth: 200,
             formatter: (row: K8sNode & { rowKey?: string }) => {
-              const name = row.metadata?.name ?? '—'
+              const name = row.metadata?.name ?? '-'
               const labels = row.metadata?.labels ?? {}
               const isControlPlane =
                 'node-role.kubernetes.io/control-plane' in labels ||
@@ -539,7 +539,7 @@
             minWidth: 150,
             formatter: (row: K8sNode) => {
               const internalIp =
-                row.status?.addresses?.find((a) => a.type === 'InternalIP')?.address ?? '—'
+                row.status?.addresses?.find((a) => a.type === 'InternalIP')?.address ?? '-'
               return h('span', internalIp)
             }
           },
@@ -547,7 +547,7 @@
             prop: 'authType',
             label: '认证方式',
             minWidth: 100,
-            formatter: () => '—'
+            formatter: () => '-'
           }
         ]
 
@@ -566,7 +566,7 @@
             minWidth: 160,
             showOverflowTooltip: true,
             formatter: (row: K8sNode) => {
-              const os = row.status?.nodeInfo?.osImage ?? '—'
+              const os = row.status?.nodeInfo?.osImage ?? '-'
               return h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, os)
             }
           },
@@ -575,10 +575,10 @@
             label: '节点规格',
             minWidth: 140,
             formatter: (row: K8sNode) => {
-              const cpuRaw = row.status?.allocatable?.cpu ?? row.status?.capacity?.cpu ?? '—'
+              const cpuRaw = row.status?.allocatable?.cpu ?? row.status?.capacity?.cpu ?? '-'
               const cpu = formatNodeCpu(cpuRaw)
               const memRaw = row.status?.allocatable?.memory ?? row.status?.capacity?.memory ?? ''
-              const mem = memRaw ? formatNodeMemory(memRaw) : '—'
+              const mem = memRaw ? formatNodeMemory(memRaw) : '-'
               const s = 'font-size:11px;white-space:nowrap'
               return h('div', { style: 'line-height:1.8' }, [
                 h('div', { style: s }, `CPU: ${cpu}`),
@@ -702,7 +702,7 @@
     refreshData()
   }
 
-  // —— YAML ——
+  // -- YAML --
   const addNodeDialogVisible = ref(false)
   const editNodeIndex = ref(-1)
 
@@ -850,7 +850,7 @@
     }
   }
 
-  // —— 标签 ——
+  // -- 标签 --
   const labelVisible = ref(false)
   const labelNodeName = ref('')
   const labelRows = ref<{ key: string; value: string }[]>([])
@@ -901,7 +901,7 @@
     }
   }
 
-  // —— 调度 ——
+  // -- 调度 --
   async function toggleSchedule(row: K8sNode) {
     const cluster = String(route.query.cluster ?? '')
     const name = row.metadata!.name
@@ -916,7 +916,7 @@
     }
   }
 
-  // —— 清空节点（dashboard：GET node） ——
+  // -- 清空节点（dashboard：GET node） --
   const drainVisible = ref(false)
   const drainName = ref('')
   const drainLoading = ref(false)
@@ -941,7 +941,7 @@
     }
   }
 
-  // —— 删除节点 ——
+  // -- 删除节点 --
   async function deleteNode(row: K8sNode) {
     const name = row.metadata!.name
     try {
@@ -980,7 +980,7 @@
     }
   }
 
-  // —— 监控 ——
+  // -- 监控 --
   const monitorVisible = ref(false)
   let monitorTimer: ReturnType<typeof setInterval> | null = null
   const monitorNode = ref<K8sNode | null>(null)
@@ -1071,7 +1071,7 @@
 
   onUnmounted(stopMonitorTimer)
 
-  // —— 事件 ——
+  // -- 事件 --
   interface K8sEventRow {
     metadata?: { name?: string; namespace?: string; uid?: string }
     lastTimestamp?: string

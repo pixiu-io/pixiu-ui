@@ -149,13 +149,22 @@ textarea::placeholder,
 }
 
 // 创建/编辑 workload「拉取策略」：与上方规则同级带 !important，需更高选择器才能覆盖
-.pull-policy-group.el-radio-group .el-radio-button--default .el-radio-button__inner {
-  padding: 8px 10px !important;
-  min-height: 0 !important;
+.pull-policy-group.el-radio-group .el-radio-button--default .el-radio-button__inner,
+.sc-radio-group.el-radio-group .el-radio-button--default .el-radio-button__inner {
+  padding: 6px 10px !important;
+  min-height: 28px !important;
+  height: auto !important;
+  line-height: 1.25 !important;
+  box-sizing: border-box !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 12px !important;
 }
 
 // 拉取策略：右侧为分段按钮 + 下方说明，整块垂直居中会导致标签与第一行按钮错位，改为顶对齐
-.el-form-item:has(.pull-policy-group) {
+.el-form-item:has(.pull-policy-group),
+.el-form-item:has(.sc-radio-group) {
   align-items: flex-start;
 
   // 与左侧标签视觉中线略对齐，整体略下移

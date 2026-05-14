@@ -113,10 +113,10 @@
         </ElTableColumn>
         <ElTableColumn prop="type" label="级别" width="90" />
         <ElTableColumn label="资源类型" width="120">
-          <template #default="{ row }">{{ row.involvedObject?.kind ?? '—' }}</template>
+          <template #default="{ row }">{{ row.involvedObject?.kind ?? '-' }}</template>
         </ElTableColumn>
         <ElTableColumn label="资源名称" min-width="140">
-          <template #default="{ row }">{{ row.involvedObject?.name ?? '—' }}</template>
+          <template #default="{ row }">{{ row.involvedObject?.name ?? '-' }}</template>
         </ElTableColumn>
         <ElTableColumn prop="count" label="出现次数" width="90" />
         <ElTableColumn prop="message" label="内容" min-width="220" show-overflow-tooltip />
@@ -149,7 +149,7 @@
     >
       <template #header>
         <div class="pod-log-drawer-header">
-          <span class="pod-log-title">Pod 日志 — <span class="pod-log-pod-name">{{ logPod?.metadata?.name }}</span></span>
+          <span class="pod-log-title">Pod 日志 - <span class="pod-log-pod-name">{{ logPod?.metadata?.name }}</span></span>
           <div class="pod-log-toolbar">
             <ElSelect v-model="logContainer" size="small" style="width:160px" placeholder="选择容器" @change="reconnectLogWs">
               <ElOption v-for="c in logContainers" :key="c" :value="c" :label="c" />
@@ -277,7 +277,7 @@
   }
 
   function renderNsCell(ns?: string) {
-    const namespace = ns || '—'
+    const namespace = ns || '-'
     const isSystem = namespace === 'default' || namespace.startsWith('kube-')
     return h('div', { style: 'display:flex;align-items:center;gap:6px' }, [
       h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, namespace),
@@ -360,7 +360,7 @@
                           router.push({ path: '/container/pod-detail', query: { cluster, namespace: ns, pod: name } })
                         }
                       },
-                      () => row.metadata?.name ?? '—'
+                      () => row.metadata?.name ?? '-'
                     )
                 }
               ),
@@ -462,11 +462,11 @@
               )
             return h('div', { style: 'line-height:1.8' }, [
               h('div', { style: lineStyle }, [
-                h('span', { style: textStyle }, `节点: ${hostname || '—'}`),
+                h('span', { style: textStyle }, `节点: ${hostname || '-'}`),
                 hostname ? copyIcon(hostname) : null
               ]),
               h('div', { style: lineStyle }, [
-                h('span', { style: subStyle }, `IP: ${ip || '—'}`),
+                h('span', { style: subStyle }, `IP: ${ip || '-'}`),
                 ip ? copyIcon(ip) : null
               ])
             ])
@@ -479,7 +479,7 @@
           formatter: (row: K8sPod) => {
             const ip = row.status?.podIP ?? ''
             return h('div', { style: 'display:flex;align-items:center;gap:4px' }, [
-              h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, ip || '—'),
+              h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, ip || '-'),
               ip
                 ? h(
                     'span',

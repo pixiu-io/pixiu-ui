@@ -10,7 +10,7 @@
           <span class="dd-title__value">Pod</span>
         </span>
         <ElTag :type="phaseTagType" effect="light" class="dd-title-status">
-          {{ pod?.status?.phase || '—' }}
+          {{ pod?.status?.phase || '-' }}
         </ElTag>
         <el-divider direction="vertical" class="dd-vdv" />
         <div class="dd-cluster-wrap">
@@ -48,15 +48,15 @@
           </div>
           <div class="dd-info-cell">
             <span class="dd-k">所在节点</span>
-            <span class="dd-v">{{ pod.spec?.nodeName || '—' }}</span>
+            <span class="dd-v">{{ pod.spec?.nodeName || '-' }}</span>
           </div>
           <div class="dd-info-cell">
             <span class="dd-k">Pod IP</span>
-            <span class="dd-v">{{ pod.status?.podIP || '—' }}</span>
+            <span class="dd-v">{{ pod.status?.podIP || '-' }}</span>
           </div>
           <div class="dd-info-cell">
             <span class="dd-k">宿主机 IP</span>
-            <span class="dd-v">{{ pod.status?.hostIP || '—' }}</span>
+            <span class="dd-v">{{ pod.status?.hostIP || '-' }}</span>
           </div>
           <div class="dd-info-cell">
             <span class="dd-k">Ready</span>
@@ -86,7 +86,7 @@
                   @click="showAllAnnotations = !showAllAnnotations"
                 >{{ showAllAnnotations ? '收起' : '更多' }}</el-button>
               </template>
-              <span v-else class="dd-empty">—</span>
+              <span v-else class="dd-empty">-</span>
             </div>
           </div>
           <div class="dd-info-cell">
@@ -109,7 +109,7 @@
                   @click="showAllLabels = !showAllLabels"
                 >{{ showAllLabels ? '收起' : '更多' }}</el-button>
               </template>
-              <span v-else class="dd-empty">—</span>
+              <span v-else class="dd-empty">-</span>
             </div>
           </div>
         </div>
@@ -404,7 +404,7 @@
 
   // ── Time ──
   function formatTime(ts?: string): string {
-    if (!ts) return '—'
+    if (!ts) return '-'
     const d = new Date(ts)
     const pad = (n: number) => String(n).padStart(2, '0')
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`

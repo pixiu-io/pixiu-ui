@@ -176,7 +176,7 @@
       const o = JSON.parse(authStr) as { type?: string }
       return authTypeLabel(o?.type)
     } catch {
-      return '—'
+      return '-'
     }
   }
 
@@ -184,7 +184,7 @@
     if (t === 'password') return '密码'
     if (t === 'key') return '密钥'
     if (t === 'none') return '无'
-    return t?.trim() ? String(t) : '—'
+    return t?.trim() ? String(t) : '-'
   }
 
   function authTagType(t?: string): 'success' | 'warning' | 'info' {
@@ -232,7 +232,7 @@
     return null
   }
 
-  /** —— 新增节点 —— */
+  /** -- 新增节点 -- */
   const addNodeVisible = ref(false)
   const addNodeFormRef = ref<FormInstance>()
   const addNodeSubmitting = ref(false)
@@ -344,7 +344,7 @@
     }
   }
 
-  /** —— 编辑节点 —— */
+  /** -- 编辑节点 -- */
   const editNodeVisible = ref(false)
   const editNodeFormRef = ref<FormInstance>()
   const editNodeSubmitting = ref(false)
@@ -555,7 +555,7 @@
               h(
                 'span',
                 { style: 'font-size:13px;font-family:var(--el-font-family-mono,monospace)' },
-                row.ip || '—'
+                row.ip || '-'
               ),
               ...(row.ip
                 ? [

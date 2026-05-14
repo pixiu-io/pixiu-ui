@@ -132,7 +132,7 @@
     <!-- 日志流抽屉 -->
     <ElDrawer
       v-model="logDialogVisible"
-      :title="`日志查询 — ${logTask?.name || ''}`"
+      :title="`日志查询 - ${logTask?.name || ''}`"
       size="48%"
       destroy-on-close
       class="task-log-drawer"

@@ -230,7 +230,7 @@
 
   /** ConfigMap 名称：可点击打开 YAML（与「查看YAML」一致，当前无独立详情页） */
   function renderConfigMapNameCell(row: K8sConfigMap) {
-    const name = row.metadata?.name ?? '—'
+    const name = row.metadata?.name ?? '-'
     const ns = row.metadata?.namespace ?? ''
     return h('div', { style: 'display:flex;align-items:center;min-width:0;gap:8px' }, [
       h(
@@ -267,7 +267,7 @@
 
   /** Secret 名称：可点击打开 YAML */
   function renderSecretNameCell(row: K8sSecret) {
-    const name = row.metadata?.name ?? '—'
+    const name = row.metadata?.name ?? '-'
     const ns = row.metadata?.namespace ?? ''
     return h('div', { style: 'display:flex;align-items:center;min-width:0;gap:8px' }, [
       h(
@@ -392,7 +392,7 @@
           prop: 'metadata.namespace',
           label: '命名空间',
           width: 160,
-          formatter: (row: K8sConfigMap) => renderNsCell(row.metadata?.namespace ?? '—')
+          formatter: (row: K8sConfigMap) => renderNsCell(row.metadata?.namespace ?? '-')
         },
         {
           prop: 'metadata.creationTimestamp',
@@ -489,7 +489,7 @@
           prop: 'metadata.namespace',
           label: '命名空间',
           width: 160,
-          formatter: (row: K8sSecret) => renderNsCell(row.metadata?.namespace ?? '—')
+          formatter: (row: K8sSecret) => renderNsCell(row.metadata?.namespace ?? '-')
         },
         {
           prop: 'metadata.creationTimestamp',

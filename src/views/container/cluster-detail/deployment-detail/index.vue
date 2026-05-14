@@ -78,7 +78,7 @@
                   {{ item.key }}:{{ item.value }}
                 </el-tag>
               </template>
-              <span v-else class="dd-empty">—</span>
+              <span v-else class="dd-empty">-</span>
             </div>
           </div>
           <div class="dd-info-cell">
@@ -87,7 +87,7 @@
               <div>超过期望的Pod数量:{{ rollingUpdateValues.maxSurge }}</div>
               <div>不可用Pod最大数量:{{ rollingUpdateValues.maxUnavailable }}</div>
             </div>
-            <span v-else class="dd-v">—</span>
+            <span v-else class="dd-v">-</span>
           </div>
           <div class="dd-info-cell">
             <span class="dd-k">注释</span>
@@ -113,7 +113,7 @@
                   {{ showAllAnnotations ? '收起' : '更多' }}
                 </el-button>
               </template>
-              <span v-else class="dd-empty">—</span>
+              <span v-else class="dd-empty">-</span>
             </div>
           </div>
           <div class="dd-info-cell">
@@ -140,7 +140,7 @@
                   {{ showAllLabels ? '收起' : '更多' }}
                 </el-button>
               </template>
-              <span v-else class="dd-empty">—</span>
+              <span v-else class="dd-empty">-</span>
             </div>
           </div>
         </div>
@@ -201,12 +201,12 @@
             </el-table-column>
             <el-table-column label="所在节点" min-width="140">
               <template #default="{ row }"
-                ><span class="mono">{{ row.spec?.nodeName || '—' }}</span></template
+                ><span class="mono">{{ row.spec?.nodeName || '-' }}</span></template
               >
             </el-table-column>
             <el-table-column label="Pod IP" width="130">
               <template #default="{ row }"
-                ><span class="mono">{{ row.status?.podIP || '—' }}</span></template
+                ><span class="mono">{{ row.status?.podIP || '-' }}</span></template
               >
             </el-table-column>
             <el-table-column label="创建时间" width="160">
@@ -247,7 +247,7 @@
             </el-table-column>
             <el-table-column label="Cluster IP" width="140">
               <template #default="{ row }"
-                ><span class="mono">{{ row.spec?.clusterIP || '—' }}</span></template
+                ><span class="mono">{{ row.spec?.clusterIP || '-' }}</span></template
               >
             </el-table-column>
             <el-table-column label="端口" min-width="200">
@@ -408,7 +408,7 @@
             <el-table-column label="版本号" width="90">
               <template #default="{ row }">
                 <el-tag size="small" effect="plain">{{
-                  row.metadata?.annotations?.['deployment.kubernetes.io/revision'] || '—'
+                  row.metadata?.annotations?.['deployment.kubernetes.io/revision'] || '-'
                 }}</el-tag>
               </template>
             </el-table-column>
@@ -648,7 +648,7 @@
     if (workloadKind.value === 'DaemonSet') return 'RollingUpdate'
     if (workloadKind.value === 'Job') return 'OneTime'
     if (workloadKind.value === 'CronJob') return 'Cron'
-    return '—'
+    return '-'
   })
   const isReady = computed(
     () => readyReplicas.value === desiredReplicas.value && desiredReplicas.value > 0
@@ -808,7 +808,7 @@
 
   // ── Time format ──
   function formatTime(ts?: string): string {
-    if (!ts) return '—'
+    if (!ts) return '-'
     const d = new Date(ts)
     const pad = (n: number) => String(n).padStart(2, '0')
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`

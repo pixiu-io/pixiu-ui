@@ -364,17 +364,17 @@
       columnsFactory: () => [
         { type: 'selection', width: 30 },
         {
-          prop: 'metadata.name', label: '名称', minWidth: 200,
-          formatter: (row: K8sPVC) => renderNameCell(row.metadata?.name ?? '—')
+          prop: 'metadata.name', label: '名称', minWidth: 160,
+          formatter: (row: K8sPVC) => renderNameCell(row.metadata?.name ?? '-')
         },
         {
           prop: 'metadata.namespace', label: '命名空间', width: 160,
-          formatter: (row: K8sPVC) => renderNsCell(row.metadata?.namespace ?? '—')
+          formatter: (row: K8sPVC) => renderNsCell(row.metadata?.namespace ?? '-')
         },
         {
           prop: 'status.phase', label: '状态', width: 100,
           formatter: (row: K8sPVC) => {
-            const phase = row.status?.phase ?? '—'
+            const phase = row.status?.phase ?? '-'
             const typeMap: Record<string, 'success' | 'warning' | 'danger' | 'info'> = {
               Bound: 'success',
               Pending: 'warning',
@@ -386,17 +386,17 @@
         {
           prop: 'capacity', label: '容量', width: 100,
           formatter: (row: K8sPVC) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, row.status?.capacity?.storage ?? row.spec?.resources?.requests?.storage ?? '—')
+            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, row.status?.capacity?.storage ?? row.spec?.resources?.requests?.storage ?? '-')
         },
         {
           prop: 'accessModes', label: '访问模式', minWidth: 160,
           formatter: (row: K8sPVC) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, (row.status?.accessModes ?? row.spec?.accessModes ?? []).join(', ') || '—')
+            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, (row.status?.accessModes ?? row.spec?.accessModes ?? []).join(', ') || '-')
         },
         {
           prop: 'spec.storageClassName', label: '存储类', minWidth: 160,
           formatter: (row: K8sPVC) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, row.spec?.storageClassName ?? '—')
+            h('span', { style: 'font-size:12px;font-weight:400;color:var(--el-text-color-regular)' }, row.spec?.storageClassName ?? '-')
         },
         {
           prop: 'metadata.creationTimestamp', label: '创建时间', width: 168, sortable: 'custom',
@@ -407,7 +407,7 @@
           prop: 'operation', label: '操作', width: 160, fixed: 'right',
           formatter: (row: K8sPVC) =>
             h('div', { style: 'display:flex;align-items:center;gap:12px' }, [
-              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void openYamlDialog('pvc', row.metadata?.namespace ?? '', row.metadata?.name ?? '') }, () => '查看YAML'),
+              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void openYamlDialog('pvc', row.metadata?.namespace ?? '', row.metadata?.name ?? '') }, () => '编辑YAML'),
               h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void deleteResource('pvc', row.metadata?.namespace ?? '', row.metadata?.name ?? '', onPvcRefresh) }, () => '删除')
             ])
         }
@@ -469,13 +469,13 @@
       columnsFactory: () => [
         { type: 'selection', width: 30 },
         {
-          prop: 'metadata.name', label: '名称', minWidth: 200,
-          formatter: (row: K8sPV) => renderNameCell(row.metadata?.name ?? '—')
+          prop: 'metadata.name', label: '名称', minWidth: 160,
+          formatter: (row: K8sPV) => renderNameCell(row.metadata?.name ?? '-')
         },
         {
           prop: 'status.phase', label: '状态', width: 100,
           formatter: (row: K8sPV) => {
-            const phase = row.status?.phase ?? '—'
+            const phase = row.status?.phase ?? '-'
             const typeMap: Record<string, 'success' | 'warning' | 'danger' | 'primary' | 'info'> = {
               Available: 'primary',
               Bound: 'success',
@@ -488,30 +488,27 @@
         {
           prop: 'spec.capacity.storage', label: '容量', width: 100,
           formatter: (row: K8sPV) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, row.spec?.capacity?.storage ?? '—')
+            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, row.spec?.capacity?.storage ?? '-')
         },
         {
-          prop: 'spec.accessModes', label: '访问模式', minWidth: 160,
+          prop: 'spec.accessModes', label: '访问模式', minWidth: 150,
           formatter: (row: K8sPV) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, (row.spec?.accessModes ?? []).join(', ') || '—')
+            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, (row.spec?.accessModes ?? []).join(', ') || '-')
         },
         {
           prop: 'spec.persistentVolumeReclaimPolicy', label: '回收策略', width: 120,
           formatter: (row: K8sPV) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, row.spec?.persistentVolumeReclaimPolicy ?? '—')
+            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, row.spec?.persistentVolumeReclaimPolicy ?? '-')
         },
         {
-          prop: 'spec.storageClassName', label: '存储类', minWidth: 160,
+          prop: 'spec.claimRef', label: 'PVC', minWidth: 150,
           formatter: (row: K8sPV) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, row.spec?.storageClassName ?? '—')
+            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, row.spec?.claimRef?.name ?? '-')
         },
         {
-          prop: 'spec.claimRef', label: '绑定声明', minWidth: 200,
-          formatter: (row: K8sPV) => {
-            const claimRef = row.spec?.claimRef
-            const text = claimRef?.namespace && claimRef?.name ? `${claimRef.namespace}/${claimRef.name}` : '—'
-            return h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, text)
-          }
+          prop: 'spec.storageClassName', label: '存储类', minWidth: 150,
+          formatter: (row: K8sPV) =>
+            h('span', { style: 'font-size:12px;font-weight:400;color:var(--el-text-color-regular)' }, row.spec?.storageClassName ?? '-')
         },
         {
           prop: 'metadata.creationTimestamp', label: '创建时间', width: 168, sortable: 'custom',
@@ -522,7 +519,7 @@
           prop: 'operation', label: '操作', width: 160, fixed: 'right',
           formatter: (row: K8sPV) =>
             h('div', { style: 'display:flex;align-items:center;gap:12px' }, [
-              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void openYamlDialog('pv', '', row.metadata?.name ?? '') }, () => '查看YAML'),
+              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void openYamlDialog('pv', '', row.metadata?.name ?? '') }, () => '编辑YAML'),
               h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void deleteResource('pv', '', row.metadata?.name ?? '', onPvRefresh) }, () => '删除')
             ])
         }
@@ -581,13 +578,13 @@
       columnsFactory: () => [
         { type: 'selection', width: 30 },
         {
-          prop: 'metadata.name', label: '名称', minWidth: 200,
-          formatter: (row: K8sStorageClass) => renderNameCell(row.metadata?.name ?? '—')
+          prop: 'metadata.name', label: '名称', minWidth: 160,
+          formatter: (row: K8sStorageClass) => renderNameCell(row.metadata?.name ?? '-')
         },
         {
           prop: 'provisioner', label: '提供者', minWidth: 200,
           formatter: (row: K8sStorageClass) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, row.provisioner ?? '—')
+            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, row.provisioner ?? '-')
         },
         {
           prop: 'reclaimPolicy', label: '回收策略', width: 120,
@@ -597,7 +594,7 @@
         {
           prop: 'volumeBindingMode', label: '绑定模式', width: 160,
           formatter: (row: K8sStorageClass) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, row.volumeBindingMode ?? '—')
+            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, row.volumeBindingMode ?? '-')
         },
         {
           prop: 'metadata.creationTimestamp', label: '创建时间', width: 168, sortable: 'custom',
