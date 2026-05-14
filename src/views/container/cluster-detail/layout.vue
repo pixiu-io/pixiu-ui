@@ -43,13 +43,15 @@
             popper-class="cluster-detail-ns-select-popper"
           >
             <template #label="{ label, value }">
-              <span style="display:inline-flex;align-items:center;gap:4px">
+              <span style="display: inline-flex; align-items: center; gap: 4px">
                 <span class="ns-selected-label">{{ label }}</span>
-                <span v-if="isSystemNamespace(String(value || ''))" class="ns-system-tag">系统</span>
+                <span v-if="isSystemNamespace(String(value || ''))" class="ns-system-tag"
+                  >系统</span
+                >
               </span>
             </template>
             <ElOption v-for="ns in namespaceOptions" :key="ns" :value="ns" :label="ns">
-              <span style="display:inline-flex;align-items:center;gap:0">
+              <span style="display: inline-flex; align-items: center; gap: 0">
                 <span class="ns-option-name">{{ ns }}</span>
                 <span v-if="isSystemNamespace(ns)" class="ns-system-tag">系统</span>
               </span>
@@ -58,7 +60,9 @@
         </div>
       </div>
       <div class="cluster-detail-header__right">
-        <ElButton v-ripple :disabled="!ctx.name" @click="yamlCreateVisible = true">YAML创建</ElButton>
+        <ElButton v-ripple :disabled="!ctx.name" @click="yamlCreateVisible = true"
+          >YAML创建资源</ElButton
+        >
       </div>
     </header>
 
@@ -132,7 +136,12 @@
   import type { ClusterItem } from '@/api/container'
   import { fetchK8sNamespaceList } from '@/api/kubernetes/namespace'
   import ClusterYamlCreateDialog from './modules/cluster-yaml-create-dialog.vue'
-  import { clusterDetailContextKey, clusterDetailNamespaceKey, clusterNameSeed, type ClusterDetailContext } from './context'
+  import {
+    clusterDetailContextKey,
+    clusterDetailNamespaceKey,
+    clusterNameSeed,
+    type ClusterDetailContext
+  } from './context'
   import { useSettingStore } from '@/store/modules/setting'
   import { storeToRefs } from 'pinia'
 
@@ -176,7 +185,10 @@
   const nsLoading = ref(false)
 
   async function loadNamespaceOptions(clusterName: string) {
-    if (!clusterName) { namespaceOptions.value = []; return }
+    if (!clusterName) {
+      namespaceOptions.value = []
+      return
+    }
     nsLoading.value = true
     try {
       const { items } = await fetchK8sNamespaceList(clusterName, { page: 1, limit: 500 })
@@ -549,7 +561,9 @@
     cursor: pointer;
     color: var(--el-text-color-secondary);
     border-radius: 4px;
-    transition: color 0.15s, background-color 0.15s;
+    transition:
+      color 0.15s,
+      background-color 0.15s;
   }
 
   .ns-refresh-btn:hover {
@@ -564,8 +578,12 @@
   }
 
   @keyframes ns-refresh-spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   .ns-option-name {

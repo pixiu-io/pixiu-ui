@@ -446,18 +446,10 @@
               <span class="workloads-log-suffix">行</span>
             </div>
             <div class="workloads-log-actions">
-              <ElButton
-                :type="dsLogMode === 'history' ? 'primary' : 'default'"
-                plain
-                @click="dsLogMode = 'history'"
-                >历史日志</ElButton
-              >
-              <ElButton
-                :type="dsLogMode === 'realtime' ? 'primary' : 'default'"
-                plain
-                @click="dsLogMode = 'realtime'"
-                >实时日志</ElButton
-              >
+              <ElRadioGroup v-model="dsLogMode" class="sc-radio-group sc-radio-group--fit">
+                <ElRadioButton value="realtime">实时日志</ElRadioButton>
+                <ElRadioButton value="history">历史日志</ElRadioButton>
+              </ElRadioGroup>
               <div class="workloads-log-search">
                 <ElInput v-model="dsLogKeyword" placeholder="名称搜索关键字" clearable />
                 <ElButton type="primary" :loading="dsLogLoading" @click="fetchDsLogs"
@@ -607,6 +599,8 @@
     ElMessageBox,
     ElOption,
     ElPopover,
+    ElRadioButton,
+    ElRadioGroup,
     ElSelect,
     ElTag,
     ElTooltip,
@@ -867,7 +861,8 @@
   const dsLogContainer = ref('')
   const dsLogTailLines = ref(10)
   const dsLogKeyword = ref('')
-  const dsLogMode = ref<'history' | 'realtime'>('history')
+  /** 实时：当前容器日志；历史：上一实例容器日志（kubectl logs --previous） */
+  const dsLogMode = ref<'history' | 'realtime'>('realtime')
   const dsLogLoading = ref(false)
   const dsLogRefreshing = ref(false)
   const dsLogRows = ref<Array<{ lineContent: string }>>([])
@@ -1879,7 +1874,8 @@
         params: {
           container: dsLogContainer.value,
           tailLines: dsLogTailLines.value,
-          follow: dsLogMode.value === 'realtime'
+          follow: false,
+          previous: dsLogMode.value === 'history'
         },
         responseType: 'text'
       })
