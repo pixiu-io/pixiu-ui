@@ -12,10 +12,7 @@
           >
             <template #left>
               <div class="workloads-toolbar">
-                <ElButton v-ripple @click="onRbacGenerator">RBAC策略生成器</ElButton>
-                <ElButton v-ripple plain @click="onClusterAdminHint"
-                  >获取集群Admin角色</ElButton
-                >
+                <ElButton v-ripple @click="onRbacGenerator">新建策略</ElButton>
                 <div class="workloads-toolbar__filters">
                   <ElInput
                     v-model="crSearchForm.name"
@@ -61,10 +58,7 @@
           >
             <template #left>
               <div class="workloads-toolbar">
-                <ElButton v-ripple @click="onRbacGenerator">RBAC策略生成器</ElButton>
-                <ElButton v-ripple plain @click="onClusterAdminHint"
-                  >获取集群Admin角色</ElButton
-                >
+                <ElButton v-ripple @click="onRbacGenerator">新建策略</ElButton>
                 <div class="workloads-toolbar__filters">
                   <ElInput
                     v-model="crbSearchForm.name"
@@ -110,10 +104,7 @@
           >
             <template #left>
               <div class="workloads-toolbar">
-                <ElButton v-ripple @click="onRbacGenerator">RBAC策略生成器</ElButton>
-                <ElButton v-ripple plain @click="onClusterAdminHint"
-                  >获取集群Admin角色</ElButton
-                >
+                <ElButton v-ripple @click="onRbacGenerator">新建策略</ElButton>
                 <div class="workloads-toolbar__filters">
                   <ElInput
                     v-model="roleSearchForm.name"
@@ -159,10 +150,7 @@
           >
             <template #left>
               <div class="workloads-toolbar">
-                <ElButton v-ripple @click="onRbacGenerator">RBAC策略生成器</ElButton>
-                <ElButton v-ripple plain @click="onClusterAdminHint"
-                  >获取集群Admin角色</ElButton
-                >
+                <ElButton v-ripple @click="onRbacGenerator">新建策略</ElButton>
                 <div class="workloads-toolbar__filters">
                   <ElInput
                     v-model="rbSearchForm.name"
@@ -208,10 +196,7 @@
           >
             <template #left>
               <div class="workloads-toolbar">
-                <ElButton v-ripple @click="onRbacGenerator">RBAC策略生成器</ElButton>
-                <ElButton v-ripple plain @click="onClusterAdminHint"
-                  >获取集群Admin角色</ElButton
-                >
+                <ElButton v-ripple @click="onRbacGenerator">新建策略</ElButton>
                 <div class="workloads-toolbar__filters">
                   <ElInput
                     v-model="saSearchForm.name"
@@ -302,6 +287,14 @@
 
   type AuthTab = 'clusterrole' | 'clusterrolebinding' | 'role' | 'rolebinding' | 'serviceaccount'
 
+  /** RBAC 列表：名称短、Labels 长，提高 Labels 的 minWidth 占比，避免名称列吃掉过多横向空间 */
+  const RBAC_COL = {
+    nameMin: 132,
+    labelsMin: 380,
+    nsWidth: 148,
+    opWidth: 148
+  } as const
+
   const route = useRoute()
   const kind = ref<AuthTab>('clusterrole')
   const globalNs = inject(clusterDetailNamespaceKey)
@@ -371,14 +364,24 @@
   ) {
     const name = row.metadata?.name ?? '-'
     return h(
-      ElLink,
+      'div',
       {
-        type: 'primary',
-        underline: 'never',
-        style: 'font-size:12px',
-        onClick: () => onOpen(tab, row)
+        style:
+          'min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'
       },
-      () => name
+      [
+        h(
+          ElLink,
+          {
+            type: 'primary',
+            underline: 'never',
+            style: 'font-size:12px',
+            title: name,
+            onClick: () => onOpen(tab, row)
+          },
+          () => name
+        )
+      ]
     )
   }
 
@@ -488,13 +491,7 @@
   }
 
   function onRbacGenerator() {
-    ElMessage.info('RBAC 策略生成器：可结合「YAML创建」或 kubectl 生成 Role/ClusterRole 清单。')
-  }
-
-  function onClusterAdminHint() {
-    ElMessage.info(
-      '集群管理员通常对应 ClusterRole「cluster-admin」及绑定到用户/组的 ClusterRoleBinding，请在 ClusterRole / ClusterRoleBinding 列表中查看。'
-    )
+    ElMessage.info('新建策略：可结合「YAML创建」或 kubectl 生成 Role/ClusterRole 清单。')
   }
 
   type PagedParams = { current: number; size: number; name?: string }
@@ -537,20 +534,21 @@
         {
           prop: 'metadata.name',
           label: '名称',
-          minWidth: 220,
+          minWidth: RBAC_COL.nameMin,
           formatter: (row: K8sRbacObject) => nameLinkYaml(row, 'clusterrole', openYaml)
         },
         {
           prop: 'metadata.labels',
           label: 'Labels',
-          minWidth: 200,
+          minWidth: RBAC_COL.labelsMin,
           formatter: (row: K8sRbacObject) => labelsCell(row)
         },
         {
           prop: 'operation',
           label: '操作',
-          width: 160,
+          width: RBAC_COL.opWidth,
           fixed: 'right',
+          align: 'right',
           formatter: (row: K8sRbacObject) =>
             opCell(row, 'clusterrole', openYaml, (t, r) => void deleteRow(t, r, onCrRefresh))
         }
@@ -591,20 +589,21 @@
         {
           prop: 'metadata.name',
           label: '名称',
-          minWidth: 220,
+          minWidth: RBAC_COL.nameMin,
           formatter: (row: K8sRbacObject) => nameLinkYaml(row, 'clusterrolebinding', openYaml)
         },
         {
           prop: 'metadata.labels',
           label: 'Labels',
-          minWidth: 200,
+          minWidth: RBAC_COL.labelsMin,
           formatter: (row: K8sRbacObject) => labelsCell(row)
         },
         {
           prop: 'operation',
           label: '操作',
-          width: 160,
+          width: RBAC_COL.opWidth,
           fixed: 'right',
+          align: 'right',
           formatter: (row: K8sRbacObject) =>
             opCell(
               row,
@@ -651,26 +650,27 @@
         {
           prop: 'metadata.name',
           label: '名称',
-          minWidth: 200,
+          minWidth: RBAC_COL.nameMin,
           formatter: (row: K8sRbacObject) => nameLinkYaml(row, 'role', openYaml)
         },
         {
           prop: 'metadata.namespace',
           label: '命名空间',
-          width: 160,
+          width: RBAC_COL.nsWidth,
           formatter: (row: K8sRbacObject) => nsCell(row)
         },
         {
           prop: 'metadata.labels',
           label: 'Labels',
-          minWidth: 200,
+          minWidth: RBAC_COL.labelsMin,
           formatter: (row: K8sRbacObject) => labelsCell(row)
         },
         {
           prop: 'operation',
           label: '操作',
-          width: 160,
+          width: RBAC_COL.opWidth,
           fixed: 'right',
+          align: 'right',
           formatter: (row: K8sRbacObject) =>
             opCell(row, 'role', openYaml, (t, r) => void deleteRow(t, r, onRoleRefresh))
         }
@@ -718,26 +718,27 @@
         {
           prop: 'metadata.name',
           label: '名称',
-          minWidth: 200,
+          minWidth: RBAC_COL.nameMin,
           formatter: (row: K8sRbacObject) => nameLinkYaml(row, 'rolebinding', openYaml)
         },
         {
           prop: 'metadata.namespace',
           label: '命名空间',
-          width: 160,
+          width: RBAC_COL.nsWidth,
           formatter: (row: K8sRbacObject) => nsCell(row)
         },
         {
           prop: 'metadata.labels',
           label: 'Labels',
-          minWidth: 200,
+          minWidth: RBAC_COL.labelsMin,
           formatter: (row: K8sRbacObject) => labelsCell(row)
         },
         {
           prop: 'operation',
           label: '操作',
-          width: 160,
+          width: RBAC_COL.opWidth,
           fixed: 'right',
+          align: 'right',
           formatter: (row: K8sRbacObject) =>
             opCell(row, 'rolebinding', openYaml, (t, r) => void deleteRow(t, r, onRbRefresh))
         }
@@ -785,26 +786,27 @@
         {
           prop: 'metadata.name',
           label: '名称',
-          minWidth: 200,
+          minWidth: RBAC_COL.nameMin,
           formatter: (row: K8sRbacObject) => nameLinkYaml(row, 'serviceaccount', openYaml)
         },
         {
           prop: 'metadata.namespace',
           label: '命名空间',
-          width: 160,
+          width: RBAC_COL.nsWidth,
           formatter: (row: K8sRbacObject) => nsCell(row)
         },
         {
           prop: 'metadata.labels',
           label: 'Labels',
-          minWidth: 200,
+          minWidth: RBAC_COL.labelsMin,
           formatter: (row: K8sRbacObject) => labelsCell(row)
         },
         {
           prop: 'operation',
           label: '操作',
-          width: 160,
+          width: RBAC_COL.opWidth,
           fixed: 'right',
+          align: 'right',
           formatter: (row: K8sRbacObject) =>
             opCell(row, 'serviceaccount', openYaml, (t, r) => void deleteRow(t, r, onSaRefresh))
         }
@@ -938,6 +940,10 @@
   }
   .services-page .art-table .el-table th.el-table__cell {
     font-size: 13px;
+  }
+  /* 名称列 ellipsis：让单元格在 flex 布局下可被压缩 */
+  .services-page .art-table .el-table .el-table__cell > .cell {
+    min-width: 0;
   }
   .services-page .el-tabs__header {
     margin-top: -6px;

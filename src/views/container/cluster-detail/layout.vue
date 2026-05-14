@@ -98,6 +98,7 @@
             <ElMenuItem index="autoscaling">弹性伸缩</ElMenuItem>
             <ElMenuItem index="auth">认证授权</ElMenuItem>
             <ElMenuItem index="addon-components">组件管理</ElMenuItem>
+            <ElMenuItem index="crds">自定义资源</ElMenuItem>
           </ElSubMenu>
 
           <ElSubMenu index="group-monitor">
@@ -142,8 +143,8 @@
   const settingStore = useSettingStore()
   const { getMenuTheme } = storeToRefs(settingStore)
 
-  /** 默认展开「资源对象」「运维中心」；「监控告警」默认折叠 */
-  const DEFAULT_SUBMENU_OPENEDS: string[] = ['group-resource', 'group-monitor']
+  /** 默认展开「资源对象」「运维中心」「监控告警」 */
+  const DEFAULT_SUBMENU_OPENEDS: string[] = ['group-resource', 'group-ops', 'group-monitor']
 
   const DETAIL_SEGMENTS = new Set([
     'overview',
@@ -157,6 +158,7 @@
     'autoscaling',
     'auth',
     'addon-components',
+    'crds',
     'alert',
     'logs',
     'events',
