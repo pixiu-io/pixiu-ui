@@ -180,6 +180,8 @@
     apiServerAddress: '',
     apiServerPort: 6443,
     kubeProxyMode: 'iptables',
+    metricsServer: true,
+    ingressNginx: false,
     nodes: [] as NodeConfig[],
     enablePrometheus: false,
     enableLogging: false
@@ -245,6 +247,8 @@
         ),
         apiServerPort,
         kubeProxyMode: 'iptables',
+        metricsServer: Boolean(cfg.component?.metric_server?.enable),
+        ingressNginx: Boolean(cfg.component?.ingress_nginx?.enable),
         nodes: (detail.nodes ?? []).map(mapNodeFromApi),
         enablePrometheus: Boolean(cfg.component?.prometheus?.enabled),
         enableLogging: Boolean(cfg.component?.logging?.enabled)
@@ -388,7 +392,9 @@
         runtime: { runtime: f.runtime },
         component: {
           ...(f.enablePrometheus ? { prometheus: { enabled: true } } : {}),
-          ...(f.enableLogging ? { logging: { enabled: true } } : {})
+          ...(f.enableLogging ? { logging: { enabled: true } } : {}),
+          metric_server: { enable: f.metricsServer },
+          ingress_nginx: { enable: f.ingressNginx }
         }
       },
       nodes
