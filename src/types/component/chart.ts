@@ -206,6 +206,8 @@ export interface RingChartProps extends BaseChartProps, InteractionProps {
   borderRadius?: number
   /** 中心文本 */
   centerText?: string
+  /** 中心文字字号 */
+  centerTextFontSize?: number
   /** 是否显示标签 */
   showLabel?: boolean
 }

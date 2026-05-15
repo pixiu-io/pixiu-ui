@@ -43,7 +43,7 @@
             :data="data"
             :columns="columns"
             :pagination="pagination"
-            :pagination-options="{ align: 'right' }"
+            :pagination-options="{ align: 'right', hideOnEmpty: false }"
             @pagination:size-change="handleSizeChange"
             @pagination:current-change="handleCurrentChange"
             @sort-change="onSortChange"
@@ -430,10 +430,17 @@
   }
 
   .crds-table-empty {
-    padding: 28px 20px;
-    font-size: 13px;
-    line-height: 1.65;
+    padding: 0 20px;
+    line-height: 40px;
+    font-size: 11px;
     color: var(--el-text-color-secondary);
     text-align: center;
+  }
+  .services-page :deep(.el-table__empty-block) {
+    min-height: 40px;
+  }
+  .services-page :deep(.el-table__empty-text) {
+    line-height: 40px;
+    padding: 0;
   }
 </style>

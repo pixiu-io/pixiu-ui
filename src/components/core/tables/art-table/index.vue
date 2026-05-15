@@ -114,6 +114,8 @@
     background?: boolean
     /** 只有一页时是否隐藏分页器 */
     hideOnSinglePage?: boolean
+    /** 数据为空时是否隐藏分页器，默认 true */
+    hideOnEmpty?: boolean
     /** 分页器的大小 */
     size?: 'small' | 'default' | 'large'
     /** 分页器的页码数量 */
@@ -175,6 +177,7 @@
     background: true,
     layout: layout.value,
     hideOnSinglePage: false,
+    hideOnEmpty: true,
     size: 'default',
     pagerCount: width.value > 1200 ? 7 : 5
   }
@@ -272,7 +275,7 @@
   }))
 
   // 是否显示分页器
-  const showPagination = computed(() => props.pagination && !isEmpty.value)
+  const showPagination = computed(() => props.pagination && (!isEmpty.value || !(mergedPaginationOptions.value?.hideOnEmpty ?? true)))
 
   // Element Plus 在部分场景会先用 $index = -1 进行预渲染。
   // 这对普通展示无影响，但会让 ElForm 错误注册出 lineList.-1.xxx 这类字段。

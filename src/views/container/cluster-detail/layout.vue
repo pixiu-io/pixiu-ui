@@ -139,6 +139,7 @@
   import {
     clusterDetailContextKey,
     clusterDetailNamespaceKey,
+    clusterDetailRefreshKey,
     clusterNameSeed,
     type ClusterDetailContext
   } from './context'
@@ -283,9 +284,17 @@
     return {
       name,
       aliasName: row?.aliasName ?? name,
+      id: row?.id ?? 0,
+      resourceVersion: row?.resourceVersion ?? 0,
       status: row?.status ?? 0,
       version: row?.version ?? '-',
+      clusterType: row?.clusterType ?? 0,
+      planId: row?.planId ?? 0,
+      isProtected: row?.isProtected ?? false,
+      createTime: row?.createTime ?? '-',
       nodeCount: row?.nodeCount ?? 0,
+      nodeReady: row?.nodeReady ?? 0,
+      nodeNotReady: row?.nodeNotReady ?? 0,
       seed: clusterNameSeed(name)
     }
   })
@@ -323,8 +332,22 @@
     return [stubClusterRow(currentName), ...list]
   })
 
+  async function refreshClusterRow() {
+    const name = String(route.query.cluster ?? '')
+    if (!name) {
+      clusterRow.value = null
+      return
+    }
+    try {
+      clusterRow.value = await fetchClusterByName(name)
+    } catch {
+      clusterRow.value = null
+    }
+  }
+
   provide(clusterDetailContextKey, ctx)
   provide(clusterDetailNamespaceKey, { namespace: selectedNamespace, namespaceOptions })
+  provide(clusterDetailRefreshKey, refreshClusterRow)
 
   const STATUS_CONFIG = {
     0: { type: 'success' as const, text: '运行中' },

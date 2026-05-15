@@ -6,60 +6,82 @@
         <section class="section-title">资源概览</section>
         <ElRow :gutter="16">
           <ElCol :xs="24" :lg="12">
-            <ElCard shadow="never" class="resource-card">
+            <ElCard shadow="never" class="resource-card" v-loading="resourceOverviewLoading">
               <div class="resource-card__head">
                 <span class="resource-card__title">节点</span>
-                <ElLink type="primary" underline="never" @click="go('nodes')">查看节点列表</ElLink>
+                <ElLink
+                  type="primary"
+                  underline="never"
+                  style="font-size: 12px"
+                  @click="go('nodes')"
+                  >查看节点列表</ElLink
+                >
               </div>
               <div class="resource-card__body">
                 <div class="resource-card__chart">
                   <ArtRingChart
-                    height="180px"
+                    height="152px"
                     :data="nodeRingData"
-                    :radius="['52%', '72%']"
-                    center-text="总数"
-                    :show-label="true"
+                    :radius="['48%', '66%']"
+                    :border-radius="7"
+                    :center-text="nodeCenterText"
+                    :center-text-font-size="14"
+                    :show-label="false"
                   />
                 </div>
                 <ul class="resource-card__stats">
                   <li v-for="n in nodeStats" :key="n.label">
                     <span class="dot" :style="{ background: n.color }" />
                     <span>{{ n.label }}</span>
-                    <strong>{{ n.value }}</strong>
+                    <strong
+                      >{{ n.value
+                      }}<span class="resource-card__pct">（{{ n.percent }}%）</span></strong
+                    >
                   </li>
                 </ul>
               </div>
               <div class="resource-card__foot">
-                <ElButton text type="primary" size="small" @click="go('nodes')">创建节点</ElButton>
+                <ElButton text size="small" @click="go('nodes')">创建节点</ElButton>
               </div>
             </ElCard>
           </ElCol>
           <ElCol :xs="24" :lg="12">
-            <ElCard shadow="never" class="resource-card">
+            <ElCard shadow="never" class="resource-card" v-loading="resourceOverviewLoading">
               <div class="resource-card__head">
                 <span class="resource-card__title">工作负载</span>
-                <ElLink type="primary" underline="never" @click="go('workloads')">查看列表</ElLink>
+                <ElLink
+                  type="primary"
+                  underline="never"
+                  style="font-size: 12px"
+                  @click="go('workloads')"
+                  >查看列表</ElLink
+                >
               </div>
               <div class="resource-card__body">
                 <div class="resource-card__chart">
                   <ArtRingChart
-                    height="180px"
+                    height="152px"
                     :data="wlRingData"
-                    :radius="['52%', '72%']"
-                    center-text="实例"
-                    :show-label="true"
+                    :radius="['48%', '66%']"
+                    :border-radius="7"
+                    :center-text="wlCenterText"
+                    :center-text-font-size="14"
+                    :show-label="false"
                   />
                 </div>
                 <ul class="resource-card__stats">
                   <li v-for="w in wlStats" :key="w.label">
                     <span class="dot" :style="{ background: w.color }" />
                     <span>{{ w.label }}</span>
-                    <strong>{{ w.value }}</strong>
+                    <strong
+                      >{{ w.value
+                      }}<span class="resource-card__pct">（{{ w.percent }}%）</span></strong
+                    >
                   </li>
                 </ul>
               </div>
               <div class="resource-card__foot">
-                <ElButton text type="primary" size="small" @click="go('workloads')">创建工作负载</ElButton>
+                <ElButton text size="small" @click="go('workloads')">创建工作负载</ElButton>
               </div>
             </ElCard>
           </ElCol>
@@ -123,49 +145,223 @@
       </ElTabPane>
 
       <ElTabPane label="基本信息" name="basic">
-        <ElCard shadow="never" class="mt-2">
-          <ElDescriptions :column="2" border>
-            <ElDescriptionsItem label="集群名称">{{ ctx.aliasName }}</ElDescriptionsItem>
-            <ElDescriptionsItem label="集群标识">{{ ctx.name }}</ElDescriptionsItem>
-            <ElDescriptionsItem label="Kubernetes 版本">{{ ctx.version }}</ElDescriptionsItem>
-            <ElDescriptionsItem label="节点数">{{ ctx.nodeCount || '-' }}</ElDescriptionsItem>
-          </ElDescriptions>
-        </ElCard>
-        <ElCard shadow="never" class="art-table-card mt-4">
-          <template #header>
-            <span class="card-title">节点列表</span>
+        <div class="basic-panel">
+          <ElCard shadow="never" class="basic-info-card">
+            <template #header>
+              <span class="basic-info-card__title">集群信息</span>
+            </template>
+            <ElRow :gutter="48">
+              <ElCol :xs="24" :md="12">
+                <dl class="info-dl">
+                  <div class="info-dl__row">
+                    <dt>集群名称</dt>
+                    <dd>
+                      <span>{{ ctx.aliasName }}</span>
+                      <ElButton
+                        v-if="ctx.id"
+                        link
+                        type="primary"
+                        class="info-dl__edit"
+                        @click="openAliasDialog"
+                      >
+                        <ArtSvgIcon icon="ri:edit-line" />
+                      </ElButton>
+                    </dd>
+                  </div>
+                  <div class="info-dl__row">
+                    <dt>集群 ID</dt>
+                    <dd>{{ ctx.name }}</dd>
+                  </div>
+                  <div class="info-dl__row">
+                    <dt>Kubernetes 版本</dt>
+                    <dd>{{ ctx.version || '-' }}</dd>
+                  </div>
+                  <div class="info-dl__row">
+                    <dt>部署类型</dt>
+                    <dd>{{ clusterTypeLabel }}</dd>
+                  </div>
+                  <div class="info-dl__row">
+                    <dt>状态</dt>
+                    <dd>{{ statusTag.text }}</dd>
+                  </div>
+                  <div v-if="ctx.clusterType === 1" class="info-dl__row">
+                    <dt>部署计划 ID</dt>
+                    <dd>{{ ctx.planId || '-' }}</dd>
+                  </div>
+                </dl>
+              </ElCol>
+              <ElCol :xs="24" :md="12">
+                <dl class="info-dl">
+                  <div class="info-dl__row">
+                    <dt>高可用</dt>
+                    <dd class="info-dl__switch">
+                      <ElSwitch
+                        :model-value="clusterDetail.haMode === 'ha'"
+                        disabled
+                        size="small"
+                      />
+                      <span class="info-dl__switch-text">{{ clusterDetail.haMode === 'ha' ? '已开启' : '未开启' }}</span>
+                    </dd>
+                  </div>
+                  <div class="info-dl__row">
+                    <dt>删除保护</dt>
+                    <dd class="info-dl__switch">
+                      <ElSwitch
+                        :model-value="ctx.isProtected"
+                        :disabled="!ctx.id || protectSaving"
+                        size="small"
+                        @change="onProtectChange"
+                      />
+                      <span class="info-dl__switch-text">{{
+                        ctx.isProtected ? '已开启' : '未开启'
+                      }}</span>
+                    </dd>
+                  </div>
+                  <div class="info-dl__row">
+                    <dt>创建时间</dt>
+                    <dd>{{ ctx.createTime || '-' }}</dd>
+                  </div>
+                  <div class="info-dl__row">
+                    <dt>容器运行时</dt>
+                    <dd>{{ planDetail?.config?.runtime?.runtime || clusterDetail.containerRuntime }}</dd>
+                  </div>
+                  <div class="info-dl__row">
+                    <dt>集群描述</dt>
+                    <dd>{{ planDetail?.description || ctx.description || '-' }}</dd>
+                  </div>
+                </dl>
+              </ElCol>
+            </ElRow>
+          </ElCard>
+
+          <ElCard shadow="never" class="basic-info-card">
+            <template #header>
+              <span class="basic-info-card__title">节点和网络信息</span>
+            </template>
+            <ElRow :gutter="48">
+              <ElCol :xs="24" :md="12">
+                <dl class="info-dl">
+                  <div class="info-dl__row">
+                    <dt>节点规模</dt>
+                    <dd>
+                      <span>{{ basicNodeTotal }} 个</span>
+                      <ElLink
+                        type="primary"
+                        underline="never"
+                        class="info-dl__link"
+                        @click="go('nodes')"
+                        >查看节点列表</ElLink
+                      >
+                    </dd>
+                  </div>
+                  <div class="info-dl__row">
+                    <dt>Service IP 段</dt>
+                    <dd>{{ planDetail?.config?.network?.service_network || basicNetwork.serviceCidr }}</dd>
+                  </div>
+                  <div class="info-dl__row">
+                    <dt>容器网络</dt>
+                    <dd>{{ planDetail?.config?.network?.pod_network || basicNetwork.podCidr }}</dd>
+                  </div>
+                  <div class="info-dl__row">
+                    <dt>kube-proxy 转发模式</dt>
+                    <dd>{{ planDetail?.config?.network?.network_interface || clusterDetail.kubeProxyMode }}</dd>
+                  </div>
+                </dl>
+              </ElCol>
+              <ElCol :xs="24" :md="12">
+                <dl class="info-dl">
+                  <div class="info-dl__row">
+                    <dt>操作系统</dt>
+                    <dd>{{ planDetail?.config?.os_image || clusterDetail.osImage }}</dd>
+                  </div>
+                  <div class="info-dl__row">
+                    <dt>CNI</dt>
+                    <dd>{{ planDetail?.config?.network?.cni || clusterDetail.cni }}</dd>
+                  </div>
+                  <div class="info-dl__row">
+                    <dt>DNS域</dt>
+                    <dd>
+                      <span>{{ basicNetwork.clusterDns }}</span>
+                      <ElButton
+                        link
+                        class="info-dl__copy"
+                        @click="navigator.clipboard.writeText(basicNetwork.clusterDns); ElMessage.success('已复制')"
+                      >
+                        <ArtSvgIcon icon="ri:file-copy-line" style="font-size:13px" />
+                      </ElButton>
+                    </dd>
+                  </div>
+                  <div class="info-dl__row">
+                    <dt>监听端口</dt>
+                    <dd>{{ clusterDetail.apiServerPort }}</dd>
+                  </div>
+                </dl>
+              </ElCol>
+            </ElRow>
+          </ElCard>
+        </div>
+
+        <ElDialog v-model="aliasDialogVisible" title="修改集群名称" width="420px" destroy-on-close>
+          <ElForm label-width="88px" @submit.prevent>
+            <ElFormItem label="集群名称">
+              <ElInput v-model="aliasEditValue" maxlength="64" show-word-limit />
+            </ElFormItem>
+          </ElForm>
+          <template #footer>
+            <ElButton @click="aliasDialogVisible = false">取消</ElButton>
+            <ElButton type="primary" :loading="aliasSaving" @click="saveAlias">确定</ElButton>
           </template>
-          <ElTable :data="nodeRows" stripe>
-            <ElTableColumn prop="name" label="节点名称" min-width="200" />
-            <ElTableColumn prop="role" label="角色" width="100">
-              <template #default="{ row }">
-                <ElTag :type="row.role === 'Master' ? 'primary' : 'info'" size="small">
-                  {{ row.role }}
-                </ElTag>
-              </template>
-            </ElTableColumn>
-            <ElTableColumn prop="status" label="状态" width="100">
-              <template #default="{ row }">
-                <ElTag :type="row.status === 'Ready' ? 'success' : 'danger'" size="small">
-                  {{ row.status }}
-                </ElTag>
-              </template>
-            </ElTableColumn>
-            <ElTableColumn prop="ip" label="IP 地址" width="130" />
-            <ElTableColumn prop="cpu" label="CPU（核）" width="100" />
-            <ElTableColumn prop="memory" label="内存（GB）" width="110" />
-          </ElTable>
-        </ElCard>
+        </ElDialog>
       </ElTabPane>
 
       <ElTabPane label="API Server" name="api">
-        <ElCard shadow="never" class="mt-2">
-          <ElDescriptions :column="1" border>
-            <ElDescriptionsItem label="访问地址">https://{{ ctx.name }}.apiserver.pixiu.local:6443</ElDescriptionsItem>
-            <ElDescriptionsItem label="证书认证">已启用</ElDescriptionsItem>
-            <ElDescriptionsItem label="备注">以下为演示数据，实际以集群接入配置为准。</ElDescriptionsItem>
-          </ElDescriptions>
-        </ElCard>
+        <div class="basic-panel">
+          <ElCard shadow="never" class="basic-info-card">
+            <template #header>
+              <span class="basic-info-card__title">集群 APIServer 信息</span>
+            </template>
+            <div class="info-dl">
+              <div class="info-dl__row">
+                <dt>访问地址</dt>
+                <dd>
+                  <span>{{ apiServerAddr }}</span>
+                  <ElButton
+                    link
+                    class="info-dl__copy"
+                    @click="navigator.clipboard.writeText(apiServerAddr); ElMessage.success('已复制')"
+                  >
+                    <ArtSvgIcon icon="ri:file-copy-line" style="font-size:13px" />
+                  </ElButton>
+                </dd>
+              </div>
+            </div>
+          </ElCard>
+
+          <ElCard shadow="never" class="basic-info-card mt-2">
+            <template #header>
+              <span class="basic-info-card__title">用户说明</span>
+            </template>
+            <div class="info-dl">
+              <div class="info-dl__row">
+                <dt>连接方式</dt>
+                <dd>通过 Kubectl 连接 Kubernetes 集群</dd>
+              </div>
+              <div class="info-dl__row">
+                <dt>操作指引</dt>
+                <dd>
+                  <span>请将 Kubeconfig 文件放置于本地 {{ kubeconfigPath }}，或通过环境变量 export KUBECONFIG 指定路径。</span>
+                  <ElButton
+                    link
+                    class="info-dl__copy"
+                    @click="navigator.clipboard.writeText(kubeconfigPath); ElMessage.success('已复制')"
+                  >
+                    <ArtSvgIcon icon="ri:file-copy-line" style="font-size:13px" />
+                  </ElButton>
+                </dd>
+              </div>
+            </div>
+          </ElCard>
+        </div>
       </ElTabPane>
 
       <ElTabPane label="监控" name="monitor">
@@ -189,17 +385,29 @@
 </template>
 
 <script setup lang="ts">
+  import { ElMessage } from 'element-plus'
   import { inject, computed, ref, watch } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
+  import { fetchProtectCluster, fetchUpdateClusterAlias, fetchGetCluster } from '@/api/container'
+  import { fetchPlanWithResources, type PlanResourcesDetail } from '@/api/plan'
+  import {
+    fetchClusterBasicNetwork,
+    fetchClusterDetailInfo,
+    fetchClusterOverviewK8sStats,
+    type ClusterBasicNetwork,
+    type ClusterDetailInfo,
+    type ClusterOverviewK8sStats
+  } from '@/api/kubernetes/cluster-overview-stats'
   import ArtLineChart from '@/components/core/charts/art-line-chart/index.vue'
   import ArtRingChart from '@/components/core/charts/art-ring-chart/index.vue'
-  import { clusterDetailContextKey } from './context'
+  import { clusterDetailContextKey, clusterDetailRefreshKey } from './context'
 
   defineOptions({ name: 'ClusterDetailOverview' })
 
   const router = useRouter()
   const route = useRoute()
   const ctxRef = inject(clusterDetailContextKey)
+  const refreshCluster = inject(clusterDetailRefreshKey)
   const ctx = computed(() => ctxRef!.value)
 
   const innerTab = ref('main')
@@ -215,35 +423,226 @@
     { immediate: true }
   )
 
+  const resourceOverviewLoading = ref(false)
+  const k8sOverview = ref<ClusterOverviewK8sStats>({
+    nodes: { controlPlane: 0, worker: 0, total: 0 },
+    workloads: {
+      deployment: 0,
+      statefulSet: 0,
+      daemonSet: 0,
+      cronJob: 0,
+      job: 0
+    }
+  })
+
+  async function loadClusterResourceOverview() {
+    const cluster = String(route.query.cluster ?? '')
+    if (!cluster || innerTab.value !== 'main') return
+    resourceOverviewLoading.value = true
+    fetchClusterOverviewK8sStats(cluster).then(stats => {
+      k8sOverview.value = stats
+    }).catch(() => {
+      k8sOverview.value = {
+        nodes: { controlPlane: 0, worker: 0, total: 0 },
+        workloads: { deployment: 0, statefulSet: 0, daemonSet: 0, cronJob: 0, job: 0 }
+      }
+    }).finally(() => {
+      resourceOverviewLoading.value = false
+    })
+  }
+
+  const basicLoading = ref(false)
+  const basicNetwork = ref<ClusterBasicNetwork>({
+    serviceCidr: '-',
+    clusterDns: '-',
+    podCidr: '-'
+  })
+  const planDetail = ref<PlanResourcesDetail | null>(null)
+  const planLoading = ref(false)
+  const clusterDetail = ref<ClusterDetailInfo>({
+    osImage: '-',
+    containerRuntime: '-',
+    kubeProxyMode: '-',
+    apiServerPort: '-',
+    haMode: '-',
+    cni: '-'
+  })
+  const aliasDialogVisible = ref(false)
+  const aliasEditValue = ref('')
+  const aliasSaving = ref(false)
+  const protectSaving = ref(false)
+
+  const kubeconfigPath = computed(() => `~/.kube/${ctx.value.name || 'config'}`)
+  const apiServerAddr = ref('加载中...')
+
+  function parseKubeConfigServer(kcText: string): string {
+    const match = kcText.match(/server:\s*(\S+)/)
+    return match?.[1] ?? ''
+  }
+
+  async function loadApiServerInfo() {
+    if (!ctx.value.id) return
+    try {
+      const cluster = await fetchGetCluster(ctx.value.id)
+      const kcText = (cluster as { kube_config?: string }).kube_config ?? ''
+      const server = parseKubeConfigServer(kcText)
+      if (server) apiServerAddr.value = server
+    } catch {
+      // keep default
+    }
+  }
+
+  const STATUS_MAP = {
+    0: { type: 'success' as const, text: '运行中' },
+    1: { type: 'primary' as const, text: '部署中' },
+    2: { type: 'info' as const, text: '等待部署' },
+    3: { type: 'danger' as const, text: '部署失败' },
+    4: { type: 'warning' as const, text: '集群失联' }
+  }
+
+  const statusTag = computed(() => {
+    const s = ctx.value.status
+    return STATUS_MAP[s as keyof typeof STATUS_MAP] ?? { type: 'info' as const, text: '未知' }
+  })
+
+  const clusterTypeLabel = computed(() => (ctx.value.clusterType === 1 ? '自建集群' : '标准集群'))
+
+  const basicNodeTotal = computed(() =>
+    Math.max(ctx.value.nodeCount, k8sOverview.value.nodes.total)
+  )
+
+  async function loadBasicInfo() {
+    const cluster = String(route.query.cluster ?? '')
+    if (!cluster || innerTab.value !== 'basic') return
+    basicLoading.value = true
+    // 并行发起所有请求，不互相阻塞
+    Promise.all([
+      fetchClusterOverviewK8sStats(cluster),
+      fetchClusterBasicNetwork(cluster)
+    ]).then(([stats, network]) => {
+      k8sOverview.value = stats
+      basicNetwork.value = network
+    }).catch(() => {}).finally(() => { basicLoading.value = false })
+
+    fetchClusterDetailInfo(cluster, undefined).then(detail => {
+      clusterDetail.value = detail
+    }).catch(() => {})
+
+    if (ctx.value.clusterType === 1 && ctx.value.planId) {
+      planLoading.value = true
+      fetchPlanWithResources(ctx.value.planId).then(plan => {
+        planDetail.value = plan
+      }).catch(() => {
+        planDetail.value = null
+      }).finally(() => {
+        planLoading.value = false
+      })
+    }
+  }
+
+  watch(
+    () => [String(route.query.cluster ?? ''), innerTab.value] as const,
+    ([cluster, tab]) => {
+      if (tab === 'main' && cluster) void loadClusterResourceOverview()
+      if (tab === 'basic' && cluster) void loadBasicInfo()
+      if (tab === 'api' && cluster) void loadApiServerInfo()
+    },
+    { immediate: true }
+  )
+
+  function openAliasDialog() {
+    aliasEditValue.value = ctx.value.aliasName
+    aliasDialogVisible.value = true
+  }
+
+  async function saveAlias() {
+    const name = aliasEditValue.value.trim()
+    if (!name) {
+      ElMessage.warning('请输入集群名称')
+      return
+    }
+    if (!ctx.value.id) return
+    aliasSaving.value = true
+    try {
+      await fetchUpdateClusterAlias(ctx.value.id, ctx.value.resourceVersion, name)
+      ElMessage.success('集群名称已更新')
+      aliasDialogVisible.value = false
+      await refreshCluster?.()
+      const q = { ...route.query, aliasName: name }
+      router.replace({ path: route.path, query: q })
+    } catch (e: unknown) {
+      ElMessage.error(e instanceof Error ? e.message : '更新失败')
+    } finally {
+      aliasSaving.value = false
+    }
+  }
+
+  async function onProtectChange(val: string | number | boolean) {
+    if (!ctx.value.id) return
+    const next = Boolean(val)
+    protectSaving.value = true
+    try {
+      await fetchProtectCluster(ctx.value.id, ctx.value.resourceVersion, next)
+      ElMessage.success(next ? '已开启删除保护' : '已关闭删除保护')
+      await refreshCluster?.()
+    } catch (e: unknown) {
+      ElMessage.error(e instanceof Error ? e.message : '操作失败')
+    } finally {
+      protectSaving.value = false
+    }
+  }
+
   const seed = computed(() => ctx.value.seed)
 
-  const nodeRingData = computed(() => [
-    { name: '原生节点', value: 3 + (seed.value % 3) },
-    { name: '超级节点', value: 1 },
-    { name: '普通节点', value: 2 },
-    { name: '已注册', value: seed.value % 2 }
-  ])
+  const nodeRingData = computed(() => {
+    const { controlPlane, worker } = k8sOverview.value.nodes
+    return [
+      { name: '管控节点', value: controlPlane },
+      { name: '工作节点', value: worker }
+    ]
+  })
 
-  const nodeStats = computed(() => [
-    { label: '原生节点', value: nodeRingData.value[0].value, color: 'var(--el-color-primary)' },
-    { label: '超级节点', value: nodeRingData.value[1].value, color: 'var(--el-color-success)' },
-    { label: '普通节点', value: nodeRingData.value[2].value, color: 'var(--el-color-warning)' },
-    { label: '已注册', value: nodeRingData.value[3].value, color: 'var(--el-text-color-secondary)' }
-  ])
+  const nodeTotal = computed(() => k8sOverview.value.nodes.total)
+  const nodeCenterText = computed(() => String(nodeTotal.value))
 
-  const wlRingData = computed(() => [
-    { name: 'Deployment', value: 12 + (seed.value % 5) },
-    { name: 'StatefulSet', value: 4 },
-    { name: 'DaemonSet', value: 3 },
-    { name: 'Job', value: 2 }
-  ])
+  function buildRingStats(data: { name: string; value: number }[], colors: string[]) {
+    const total = data.reduce((sum, item) => sum + item.value, 0) || 1
+    return data.map((item, i) => ({
+      label: item.name,
+      value: item.value,
+      percent: Math.round((item.value / total) * 100),
+      color: colors[i]
+    }))
+  }
+
+  const nodeStats = computed(() =>
+    buildRingStats(nodeRingData.value, ['var(--el-color-primary)', 'var(--el-color-success)'])
+  )
+
+  const wlRingData = computed(() => {
+    const w = k8sOverview.value.workloads
+    return [
+      { name: 'Deployment', value: w.deployment },
+      { name: 'StatefulSet', value: w.statefulSet },
+      { name: 'DaemonSet', value: w.daemonSet },
+      { name: 'CronJob', value: w.cronJob },
+      { name: 'Job', value: w.job }
+    ]
+  })
+
+  const wlTotal = computed(() =>
+    Object.values(k8sOverview.value.workloads).reduce((a, b) => a + b, 0)
+  )
+  const wlCenterText = computed(() => String(wlTotal.value))
 
   const wlStats = computed(() =>
-    wlRingData.value.map((x, i) => ({
-      label: x.name,
-      value: x.value,
-      color: ['var(--el-color-primary)', 'var(--el-color-success)', 'var(--el-color-warning)', 'var(--el-color-info)'][i]
-    }))
+    buildRingStats(wlRingData.value, [
+      'var(--el-color-primary)',
+      'var(--el-color-success)',
+      'var(--el-color-warning)',
+      'var(--el-color-info)',
+      'var(--el-color-danger)'
+    ])
   )
 
   const hourLabels = computed(() =>
@@ -268,19 +667,6 @@
     upgradable: 2
   }))
 
-  const nodeRows = computed(() => {
-    const n =
-      ctx.value.nodeCount > 0 ? ctx.value.nodeCount : Math.max(1, (seed.value % 4) + 1)
-    return Array.from({ length: n }, (_, i) => ({
-      name: `node-${String(i + 1).padStart(2, '0')}.${ctx.value.aliasName}`,
-      role: i === 0 ? 'Master' : 'Worker',
-      status: i === 1 && ctx.value.status === 4 ? 'NotReady' : 'Ready',
-      ip: `192.168.${seed.value % 200}.${10 + i}`,
-      cpu: [4, 8, 16][i % 3],
-      memory: [8, 16, 32][i % 3]
-    }))
-  })
-
   function go(path: string) {
     router.push({ path: `/container/${path}`, query: { ...route.query } })
   }
@@ -300,6 +686,11 @@
 
   .resource-card {
     border-radius: 8px;
+    overflow: visible;
+  }
+
+  .resource-card :deep(.el-card__body) {
+    overflow: visible;
   }
 
   .resource-card__head {
@@ -310,29 +701,32 @@
   }
 
   .resource-card__title {
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 600;
   }
 
   .resource-card__body {
     display: flex;
-    gap: 16px;
+    flex-direction: row;
+    gap: 12px;
     align-items: center;
-    flex-wrap: wrap;
+    overflow: visible;
   }
 
   .resource-card__chart {
-    flex: 0 0 200px;
-    max-width: 100%;
+    flex: 0 0 152px;
+    width: 152px;
+    margin-left: 12px;
+    overflow: visible;
   }
 
   .resource-card__stats {
     flex: 1;
-    min-width: 160px;
+    min-width: 0;
     margin: 0;
     padding: 0;
     list-style: none;
-    font-size: 13px;
+    font-size: 12px;
     color: var(--el-text-color-regular);
   }
 
@@ -340,12 +734,24 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
+  }
+
+  .resource-card__stats li:last-child {
+    margin-bottom: 0;
   }
 
   .resource-card__stats strong {
     margin-left: auto;
-    color: var(--el-text-color-primary);
+    color: var(--el-text-color-regular);
+    font-weight: 400;
+    white-space: nowrap;
+  }
+
+  .resource-card__pct {
+    margin-left: 2px;
+    font-weight: 400;
+    color: var(--el-text-color-secondary);
   }
 
   .dot {
@@ -402,5 +808,98 @@
 
   .mt-6 {
     margin-top: 24px;
+  }
+
+  .basic-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 4px 0 16px;
+  }
+
+  .basic-info-card {
+    border-radius: 8px;
+    border: 1px solid var(--el-border-color-lighter);
+    background: var(--el-bg-color);
+  }
+
+  .basic-info-card :deep(.el-card__header) {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+  }
+
+  .basic-info-card :deep(.el-card__body) {
+    padding: 20px 20px 24px;
+  }
+
+  .basic-info-card__title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--el-text-color-primary);
+  }
+
+  .info-dl {
+    margin: 0;
+  }
+
+  .info-dl__row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0;
+    height: 38px;
+    font-size: 12px;
+    line-height: 20px;
+  }
+
+  .info-dl__row:last-child {
+    margin-bottom: 0;
+  }
+
+  .info-dl__row dt {
+    flex: 0 0 150px;
+    margin: 0;
+    padding-left: 8px;
+    color: var(--el-text-color-regular);
+    font-weight: 400;
+  }
+
+  .info-dl__row dd {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    color: var(--el-text-color-primary);
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .info-dl__edit {
+    padding: 0;
+    height: auto;
+    font-size: 14px;
+  }
+
+  .info-dl__copy {
+    padding: 0;
+    height: auto;
+    color: var(--el-text-color-secondary);
+  }
+
+  .info-dl__copy:hover {
+    color: var(--el-color-primary);
+  }
+
+  .info-dl__link {
+    font-size: 12px;
+  }
+
+  .info-dl__switch {
+    gap: 10px;
+  }
+
+  .info-dl__switch-text {
+    color: var(--el-text-color-regular);
+    font-size: 12px;
   }
 </style>
