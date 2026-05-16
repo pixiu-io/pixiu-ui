@@ -88,7 +88,11 @@
         </ElRow>
 
         <section class="section-title mt-6">用量概览（近 24 小时）</section>
-        <div v-loading="usageOverviewInitialLoading" class="usage-overview-pane">
+        <ElCard
+          v-loading="usageOverviewInitialLoading"
+          shadow="never"
+          class="usage-overview-card"
+        >
           <div class="usage-overview-grid">
             <MetricChartPanel
               title="CPU 利用率（%）"
@@ -96,13 +100,8 @@
               :x-axis-data="cpuUtilLabels"
               :is-empty="!cpuUtilPercent.length"
               :silent-update="usageChartSilentUpdate"
-            />
-            <MetricChartPanel
-              title="CPU 使用量（核）"
-              :data="cpuUsageCores"
-              :x-axis-data="cpuUtilLabels"
-              :is-empty="!cpuUsageCores.length"
-              :silent-update="usageChartSilentUpdate"
+              height="160px"
+              plain
             />
             <MetricChartPanel
               title="内存利用率（%）"
@@ -110,6 +109,17 @@
               :x-axis-data="memUtilLabels"
               :is-empty="!memUtilPercent.length"
               :silent-update="usageChartSilentUpdate"
+              height="160px"
+              plain
+            />
+            <MetricChartPanel
+              title="CPU 使用量（核）"
+              :data="cpuUsageCores"
+              :x-axis-data="cpuUtilLabels"
+              :is-empty="!cpuUsageCores.length"
+              :silent-update="usageChartSilentUpdate"
+              height="160px"
+              plain
             />
             <MetricChartPanel
               title="内存使用量（GB）"
@@ -117,9 +127,11 @@
               :x-axis-data="memUtilLabels"
               :is-empty="!memUsageGib.length"
               :silent-update="usageChartSilentUpdate"
+              height="160px"
+              plain
             />
           </div>
-        </div>
+        </ElCard>
 
         <section class="section-title mt-6">已安装组件</section>
         <ElCard shadow="never" class="components-card">
@@ -824,8 +836,14 @@
     font-weight: 600;
   }
 
-  .usage-overview-pane {
-    min-height: 120px;
+  .usage-overview-card {
+    border-radius: 8px;
+    border: 1px solid var(--el-border-color-light);
+    background: var(--el-bg-color);
+  }
+
+  .usage-overview-card :deep(.el-card__body) {
+    padding: 16px;
   }
 
   .usage-overview-grid {
@@ -836,7 +854,6 @@
 
   .usage-overview-grid > :deep(.metric-chart-panel) {
     min-width: 0;
-    padding: 10px 12px 8px;
   }
 
   .usage-overview-grid > :deep(.metric-chart-panel__header) {
@@ -844,6 +861,8 @@
   }
 
   .usage-overview-grid > :deep(.metric-chart-panel__title) {
+    font-size: 12px;
+    font-weight: 500;
     line-height: 1.2;
   }
 
