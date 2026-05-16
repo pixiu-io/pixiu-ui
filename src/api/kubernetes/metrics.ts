@@ -1,9 +1,32 @@
 import { kubeProxyAxios } from '@/api/kubeProxy'
+import type { LineDataItem } from '@/types/component/chart'
 
 export type DashboardMetricPoint = { timestamp: string; value: number }
 
 export type DashboardNodeMetricsResponse = {
   items?: Array<{ metricPoints?: DashboardMetricPoint[] }>
+}
+
+export type DashboardPodMetricItem = {
+  metricPoints?: DashboardMetricPoint[]
+  /** 后端将 Pod 名称存放在 uids[0] */
+  uids?: string[]
+}
+
+export type DashboardPodMetricsResponse = {
+  items?: DashboardPodMetricItem[]
+}
+
+type PodContainerResources = {
+  resources?: {
+    requests?: { cpu?: string; memory?: string }
+    limits?: { cpu?: string; memory?: string }
+  }
+}
+
+export type MetricsPodSpec = {
+  metadata?: { name?: string }
+  spec?: { containers?: PodContainerResources[] }
 }
 
 /** 与 dashboard getNodeUsageMetrics 路径一致 */
@@ -29,6 +52,95 @@ export async function fetchNodesUsageMetrics(
     `/pixiu/proxy/${encodeURIComponent(cluster)}/apis/metrics.pixiu.io/v1beta1/api/v1/dashboard/nodes/${names}/metrics/${metricsName}/${subPath}`
   )
   return data
+}
+
+/** 多 Pod 逗号拼接，与 dashboard-metrics-scraper pod-list API 一致 */
+export async function fetchPodsUsageMetrics(
+  cluster: string,
+  namespace: string,
+  podNames: string[],
+  metricsName: 'cpu' | 'memory',
+  subPath: 'usage' | 'usage_rate' = 'usage'
+): Promise<DashboardPodMetricsResponse> {
+  if (!podNames.length || !namespace) return { items: [] }
+  const names = podNames.map((n) => encodeURIComponent(n)).join(',')
+  const { data } = await kubeProxyAxios.get<DashboardPodMetricsResponse>(
+    `/pixiu/proxy/${encodeURIComponent(cluster)}/apis/metrics.pixiu.io/v1beta1/api/v1/dashboard/namespaces/${encodeURIComponent(namespace)}/pod-list/${names}/metrics/${metricsName}/${subPath}`
+  )
+  return data
+}
+
+/** 从 Pod metrics 响应项解析 Pod 名称 */
+export function getPodNameFromMetricItem(item: DashboardPodMetricItem): string {
+  const id = item.uids?.[0]
+  return id ? String(id) : ''
+}
+
+/** 按 Pod 拆分 metricPoints，key 为 Pod 名称 */
+export function splitDashboardPodMetricPoints(
+  items: DashboardPodMetricItem[] | undefined
+): Map<string, Map<number, number>> {
+  const result = new Map<string, Map<number, number>>()
+  for (const item of items ?? []) {
+    const podName = getPodNameFromMetricItem(item)
+    if (!podName) continue
+    const byTime = result.get(podName) ?? new Map<number, number>()
+    for (const p of item.metricPoints ?? []) {
+      const t = new Date(p.timestamp).getTime()
+      if (!Number.isFinite(t)) continue
+      byTime.set(t, Number(p.value))
+    }
+    result.set(podName, byTime)
+  }
+  return result
+}
+
+/** 多 Pod 时序对齐为折线系列（tooltip 展示 Pod 名称） */
+export function alignPodMetricSeries(
+  podMaps: Map<string, Map<number, number>>,
+  podOrder: string[]
+): { labels: string[]; series: LineDataItem[] } {
+  const timeSet = new Set<number>()
+  for (const name of podOrder) {
+    const m = podMaps.get(name)
+    if (!m) continue
+    for (const t of m.keys()) timeSet.add(t)
+  }
+  const sortedTimes = [...timeSet].sort((a, b) => a - b)
+  const labels = sortedTimes.map((t) => formatMetricTimeLabel(new Date(t)))
+  const series: LineDataItem[] = []
+  for (const podName of podOrder) {
+    const m = podMaps.get(podName)
+    if (!m) continue
+    series.push({
+      name: podName,
+      data: sortedTimes.map((t) => {
+        const v = m.get(t)
+        return v === undefined ? (null as unknown as number) : v
+      })
+    })
+  }
+  return { labels, series }
+}
+
+/** Pod 容器 requests/limits 汇总 CPU 毫核（limits 优先，其次 requests） */
+export function getPodCpuQuotaMillicores(pod: MetricsPodSpec): number {
+  let total = 0
+  for (const c of pod.spec?.containers ?? []) {
+    const cpu = c.resources?.limits?.cpu ?? c.resources?.requests?.cpu
+    if (cpu) total += parseNodeCpuMillicores(cpu)
+  }
+  return total
+}
+
+/** Pod 容器 requests/limits 汇总内存字节 */
+export function getPodMemoryQuotaBytes(pod: MetricsPodSpec): number {
+  let total = 0
+  for (const c of pod.spec?.containers ?? []) {
+    const mem = c.resources?.limits?.memory ?? c.resources?.requests?.memory
+    if (mem) total += parseNodeMemoryBytes(mem)
+  }
+  return total
 }
 
 /** 节点 capacity/allocatable 内存转字节 */

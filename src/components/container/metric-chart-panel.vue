@@ -52,11 +52,12 @@
 <script setup lang="ts">
   import { FullScreen } from '@element-plus/icons-vue'
   import ArtLineChart from '@/components/core/charts/art-line-chart/index.vue'
+  import type { LineDataItem } from '@/types/component/chart'
 
   withDefaults(
     defineProps<{
       title: string
-      data: number[]
+      data: number[] | LineDataItem[]
       xAxisData: string[]
       height?: string
       expandedHeight?: string

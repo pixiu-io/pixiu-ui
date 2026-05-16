@@ -400,7 +400,7 @@
 
 <script setup lang="ts">
   import { ElMessage } from 'element-plus'
-  import { inject, computed, ref, watch } from 'vue'
+  import { inject, computed, onUnmounted, ref, watch } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { fetchProtectCluster, fetchUpdateClusterAlias, fetchGetCluster } from '@/api/container'
   import { fetchPlanWithResources, type PlanResourcesDetail } from '@/api/plan'
@@ -556,32 +556,6 @@
     }
   }
 
-  watch(
-    () => [ctx.value.name, innerTab.value] as const,
-    ([cluster, tab]) => {
-      if (tab === 'main' && cluster) {
-        void loadClusterResourceOverview()
-        startUsageOverviewRefresh()
-      } else {
-        stopUsageOverviewRefresh()
-        resetUsageOverviewCharts()
-        usageChartSilentUpdate.value = false
-        if (usageChartAnimateTimer) {
-          clearTimeout(usageChartAnimateTimer)
-          usageChartAnimateTimer = null
-        }
-      }
-      if (tab === 'basic' && cluster) void loadBasicInfo()
-      if (tab === 'api' && cluster) void loadApiServerInfo()
-    },
-    { immediate: true }
-  )
-
-  onUnmounted(() => {
-    stopUsageOverviewRefresh()
-    if (usageChartAnimateTimer) clearTimeout(usageChartAnimateTimer)
-  })
-
   function openAliasDialog() {
     aliasEditValue.value = ctx.value.aliasName
     aliasDialogVisible.value = true
@@ -721,6 +695,32 @@
 
   watch(usageChartReady, (ready) => {
     if (ready && !usageChartSilentUpdate.value) scheduleUsageChartSilentUpdate()
+  })
+
+  watch(
+    () => [ctx.value.name, innerTab.value] as const,
+    ([cluster, tab]) => {
+      if (tab === 'main' && cluster) {
+        void loadClusterResourceOverview()
+        startUsageOverviewRefresh()
+      } else {
+        stopUsageOverviewRefresh()
+        resetUsageOverviewCharts()
+        usageChartSilentUpdate.value = false
+        if (usageChartAnimateTimer) {
+          clearTimeout(usageChartAnimateTimer)
+          usageChartAnimateTimer = null
+        }
+      }
+      if (tab === 'basic' && cluster) void loadBasicInfo()
+      if (tab === 'api' && cluster) void loadApiServerInfo()
+    },
+    { immediate: true }
+  )
+
+  onUnmounted(() => {
+    stopUsageOverviewRefresh()
+    if (usageChartAnimateTimer) clearTimeout(usageChartAnimateTimer)
   })
 
   const qpsSeries = computed(() => wave(seed.value + 1, 24).map((n) => n * 8))

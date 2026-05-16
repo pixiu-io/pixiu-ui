@@ -369,40 +369,26 @@
         </ElTabPane>
 
         <ElTabPane v-if="props.showNodeMetricsTab" label="监控指标" name="nodeMetrics">
-          <div class="workloads-node-metrics">
-            <div class="workloads-node-metrics__grid">
-              <div class="workloads-node-metrics__item">
-                <div class="workloads-node-metrics__title">CPU 使用量</div>
-                <div class="workloads-node-metrics__value">{{
-                  props.nodeMetrics.cpuUsageText
-                }}</div>
-              </div>
-              <div class="workloads-node-metrics__item">
-                <div class="workloads-node-metrics__title">内存使用量</div>
-                <div class="workloads-node-metrics__value">{{
-                  props.nodeMetrics.memoryUsageText
-                }}</div>
-              </div>
-              <div class="workloads-node-metrics__item">
-                <div class="workloads-node-metrics__title">分配情况</div>
-                <div class="workloads-node-metrics__alloc">
-                  <div class="workloads-node-metrics__row">
-                    <span>CPU</span>
-                    <span>{{ props.nodeMetrics.cpuUsageAllocText }}</span>
-                  </div>
-                  <ElProgress :percentage="props.nodeMetrics.cpuUsagePercent" :stroke-width="8" />
-                  <div class="workloads-node-metrics__row">
-                    <span>内存</span>
-                    <span>{{ props.nodeMetrics.memoryUsageAllocText }}</span>
-                  </div>
-                  <ElProgress
-                    :percentage="props.nodeMetrics.memoryUsagePercent"
-                    :stroke-width="8"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
+          <NodeMetricsPane
+            :cluster="String(route.query.cluster ?? '')"
+            :node-name="props.deployNodeName || props.mirrorResourceName || ''"
+            :node="props.metricsNode"
+            :active="kind === 'nodeMetrics'"
+          />
+        </ElTabPane>
+
+        <ElTabPane
+          v-if="props.showWorkloadMetricsTab"
+          label="监控指标"
+          name="workloadMetrics"
+        >
+          <WorkloadMetricsPane
+            :cluster="String(route.query.cluster ?? '')"
+            :namespace="props.metricsNamespace || props.deployNamespace || ''"
+            :label-selector="props.metricsLabelSelector || props.deployLabelSelector || ''"
+            :pod-names="props.metricsPodNames"
+            :active="kind === 'workloadMetrics'"
+          />
         </ElTabPane>
 
         <ElTabPane
@@ -585,6 +571,8 @@
 </template>
 
 <script setup lang="ts">
+  import NodeMetricsPane from './components/node-metrics-pane.vue'
+  import WorkloadMetricsPane from './components/workload-metrics-pane.vue'
   import {
     ElAlert,
     ElButton,
@@ -682,6 +670,11 @@
       showNodeStatusTab?: boolean
       showNodeResourceTab?: boolean
       showNodeMetricsTab?: boolean
+      showWorkloadMetricsTab?: boolean
+      metricsNamespace?: string
+      metricsLabelSelector?: string
+      metricsPodNames?: string[]
+      metricsNode?: import('@/api/kubernetes/node').K8sNode | null
       nodeStatusRows?: Array<{
         type?: string
         status?: string
@@ -690,14 +683,6 @@
         reason?: string
         message?: string
       }>
-      nodeMetrics?: {
-        cpuUsageText?: string
-        memoryUsageText?: string
-        cpuUsageAllocText?: string
-        memoryUsageAllocText?: string
-        cpuUsagePercent?: number
-        memoryUsagePercent?: number
-      }
       nodeResource?: {
         cpuPercent?: number
         memoryPercent?: number
@@ -750,15 +735,12 @@
       showNodeStatusTab: false,
       showNodeResourceTab: false,
       showNodeMetricsTab: false,
+      showWorkloadMetricsTab: false,
+      metricsNamespace: '',
+      metricsLabelSelector: '',
+      metricsPodNames: () => [],
+      metricsNode: null,
       nodeStatusRows: () => [],
-      nodeMetrics: () => ({
-        cpuUsageText: '0m',
-        memoryUsageText: '0 B',
-        cpuUsageAllocText: '0m / 0m (0%)',
-        memoryUsageAllocText: '0 B / 0 B (0%)',
-        cpuUsagePercent: 0,
-        memoryUsagePercent: 0
-      }),
       nodeResource: () => ({
         cpuPercent: 0,
         memoryPercent: 0,
@@ -3943,7 +3925,8 @@
     'containers',
     'events',
     'history',
-    'logs'
+    'logs',
+    'workloadMetrics'
   ])
 
   // ── Tab lazy loading（含 immediate：从创建页带 ?tab= 返回时 kind 已正确，须挂载即拉取） ──

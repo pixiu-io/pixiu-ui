@@ -490,6 +490,9 @@
         deploy-data-mode="pod"
         :deploy-namespace="namespace"
         :deploy-label-selector="podSelector"
+        show-workload-metrics-tab
+        :metrics-namespace="namespace"
+        :metrics-label-selector="podSelector"
         :show-deploy-create="false"
         sts-tab-label="访问方式"
         ds-tab-label="日志"
