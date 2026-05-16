@@ -56,7 +56,7 @@ function getClusterQueryValue(query: LocationQueryRaw | undefined): string | und
 
 /** 集群详情子页 path（与 router modules/container 一致，不含 query） */
 const CLUSTER_DETAIL_SUBPATH_RE =
-  /^\/container\/(overview|nodes|namespaces|workloads|pods|services|config|storage|autoscaling|auth|addon-components|alert|logs|events|prometheus)(\/|$)/
+  /^\/container\/(overview|nodes|namespaces|workloads|pods|services|config|storage|autoscaling|auth|addon-components|crds|apiservices|alert|logs|events|prometheus)(\/|$)/
 
 function isClusterDetailSubPath(path: string | undefined): boolean {
   if (!path) return false
