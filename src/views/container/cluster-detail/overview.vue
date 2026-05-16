@@ -88,36 +88,38 @@
         </ElRow>
 
         <section class="section-title mt-6">用量概览（近 24 小时）</section>
-        <ElRow :gutter="16">
-          <ElCol :xs="24" :md="12">
-            <ElCard shadow="never" class="chart-card">
-              <template #header>
-                <span class="chart-card__title">CPU 利用率</span>
-              </template>
-              <ArtLineChart
-                height="220px"
-                :data="cpuSeries"
-                :x-axis-data="hourLabels"
-                :show-area-color="true"
-                :show-legend="false"
-              />
-            </ElCard>
-          </ElCol>
-          <ElCol :xs="24" :md="12">
-            <ElCard shadow="never" class="chart-card">
-              <template #header>
-                <span class="chart-card__title">内存利用率</span>
-              </template>
-              <ArtLineChart
-                height="220px"
-                :data="memSeries"
-                :x-axis-data="hourLabels"
-                :show-area-color="true"
-                :show-legend="false"
-              />
-            </ElCard>
-          </ElCol>
-        </ElRow>
+        <div v-loading="usageOverviewInitialLoading" class="usage-overview-pane">
+          <div class="usage-overview-grid">
+            <MetricChartPanel
+              title="CPU 利用率（%）"
+              :data="cpuUtilPercent"
+              :x-axis-data="cpuUtilLabels"
+              :is-empty="!cpuUtilPercent.length"
+              :silent-update="usageChartSilentUpdate"
+            />
+            <MetricChartPanel
+              title="CPU 使用量（核）"
+              :data="cpuUsageCores"
+              :x-axis-data="cpuUtilLabels"
+              :is-empty="!cpuUsageCores.length"
+              :silent-update="usageChartSilentUpdate"
+            />
+            <MetricChartPanel
+              title="内存利用率（%）"
+              :data="memUtilPercent"
+              :x-axis-data="memUtilLabels"
+              :is-empty="!memUtilPercent.length"
+              :silent-update="usageChartSilentUpdate"
+            />
+            <MetricChartPanel
+              title="内存使用量（GB）"
+              :data="memUsageGib"
+              :x-axis-data="memUtilLabels"
+              :is-empty="!memUsageGib.length"
+              :silent-update="usageChartSilentUpdate"
+            />
+          </div>
+        </div>
 
         <section class="section-title mt-6">已安装组件</section>
         <ElCard shadow="never" class="components-card">
@@ -398,7 +400,9 @@
     type ClusterDetailInfo,
     type ClusterOverviewK8sStats
   } from '@/api/kubernetes/cluster-overview-stats'
+  import { useClusterNodesUsageMetrics } from '@/hooks/kubernetes/useClusterNodesUsageMetrics'
   import ArtLineChart from '@/components/core/charts/art-line-chart/index.vue'
+  import MetricChartPanel from '@/components/container/metric-chart-panel.vue'
   import ArtRingChart from '@/components/core/charts/art-ring-chart/index.vue'
   import { clusterDetailContextKey, clusterDetailRefreshKey } from './context'
 
@@ -541,14 +545,30 @@
   }
 
   watch(
-    () => [String(route.query.cluster ?? ''), innerTab.value] as const,
+    () => [ctx.value.name, innerTab.value] as const,
     ([cluster, tab]) => {
-      if (tab === 'main' && cluster) void loadClusterResourceOverview()
+      if (tab === 'main' && cluster) {
+        void loadClusterResourceOverview()
+        startUsageOverviewRefresh()
+      } else {
+        stopUsageOverviewRefresh()
+        resetUsageOverviewCharts()
+        usageChartSilentUpdate.value = false
+        if (usageChartAnimateTimer) {
+          clearTimeout(usageChartAnimateTimer)
+          usageChartAnimateTimer = null
+        }
+      }
       if (tab === 'basic' && cluster) void loadBasicInfo()
       if (tab === 'api' && cluster) void loadApiServerInfo()
     },
     { immediate: true }
   )
+
+  onUnmounted(() => {
+    stopUsageOverviewRefresh()
+    if (usageChartAnimateTimer) clearTimeout(usageChartAnimateTimer)
+  })
 
   function openAliasDialog() {
     aliasEditValue.value = ctx.value.aliasName
@@ -656,8 +676,41 @@
     })
   }
 
-  const cpuSeries = computed(() => wave(seed.value, 24))
-  const memSeries = computed(() => wave(seed.value + 2, 24))
+  const clusterName = computed(() => ctx.value.name)
+
+  const {
+    loading: usageOverviewLoading,
+    chartReady: usageChartReady,
+    cpuTimeLabels: cpuUtilLabels,
+    memoryTimeLabels: memUtilLabels,
+    cpuUtilPercent,
+    cpuUsageCores,
+    memUtilPercent,
+    memUsageGib,
+    startRefresh: startUsageOverviewRefresh,
+    stopRefresh: stopUsageOverviewRefresh,
+    resetCharts: resetUsageOverviewCharts
+  } = useClusterNodesUsageMetrics(clusterName)
+
+  const usageOverviewInitialLoading = computed(
+    () => usageOverviewLoading.value && !usageChartReady.value
+  )
+
+  const usageChartSilentUpdate = ref(false)
+  let usageChartAnimateTimer: ReturnType<typeof setTimeout> | null = null
+
+  function scheduleUsageChartSilentUpdate() {
+    if (usageChartAnimateTimer) clearTimeout(usageChartAnimateTimer)
+    usageChartAnimateTimer = setTimeout(() => {
+      usageChartSilentUpdate.value = true
+      usageChartAnimateTimer = null
+    }, 1500)
+  }
+
+  watch(usageChartReady, (ready) => {
+    if (ready && !usageChartSilentUpdate.value) scheduleUsageChartSilentUpdate()
+  })
+
   const qpsSeries = computed(() => wave(seed.value + 1, 24).map((n) => n * 8))
   const etcdSeries = computed(() => wave(seed.value + 3, 24).map((n) => n / 10))
 
@@ -769,6 +822,33 @@
   .chart-card__title {
     font-size: 14px;
     font-weight: 600;
+  }
+
+  .usage-overview-pane {
+    min-height: 120px;
+  }
+
+  .usage-overview-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .usage-overview-grid > :deep(.metric-chart-panel) {
+    min-width: 0;
+    padding: 10px 12px 8px;
+  }
+
+  .usage-overview-grid > :deep(.metric-chart-panel__header) {
+    margin-bottom: 4px;
+  }
+
+  .usage-overview-grid > :deep(.metric-chart-panel__title) {
+    line-height: 1.2;
+  }
+
+  .usage-overview-grid > :deep(.metric-chart-panel__maximize) {
+    margin-top: -2px;
   }
 
   .components-card {

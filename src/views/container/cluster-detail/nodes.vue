@@ -93,26 +93,22 @@
         >查看 Node 的资源指标（与 dashboard 相同 metrics 接口）。</ElAlert
       >
       <div class="monitor-charts">
-        <div class="monitor-chart-block">
-          <div class="monitor-chart-title">CPU 使用率（%）</div>
-          <ArtLineChart
-            height="240px"
-            :data="cpuChartData"
-            :x-axis-data="cpuChartLabels"
-            :show-area-color="true"
-            :show-legend="false"
-          />
-        </div>
-        <div class="monitor-chart-block">
-          <div class="monitor-chart-title">内存使用量</div>
-          <ArtLineChart
-            height="240px"
-            :data="memChartData"
-            :x-axis-data="memChartLabels"
-            :show-area-color="true"
-            :show-legend="false"
-          />
-        </div>
+        <MetricChartPanel
+          title="CPU 使用率（%）"
+          :data="cpuChartData"
+          :x-axis-data="cpuChartLabels"
+          :is-empty="!cpuChartData.length"
+          height="240px"
+          plain
+        />
+        <MetricChartPanel
+          title="内存使用量"
+          :data="memChartData"
+          :x-axis-data="memChartLabels"
+          :is-empty="!memChartData.length"
+          height="240px"
+          plain
+        />
       </div>
     </ElDrawer>
 
@@ -233,6 +229,7 @@
 </template>
 
 <script setup lang="ts">
+  import MetricChartPanel from '@/components/container/metric-chart-panel.vue'
   import {
     ElAlert,
     ElButton,

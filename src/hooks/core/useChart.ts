@@ -739,6 +739,7 @@ export function useChartComponent<T extends BaseChartProps>(options: UseChartCom
     ...chart,
     isEmpty,
     updateChart,
-    handleChartVisible
+    handleChartVisible,
+    emptyStateManager
   }
 }
