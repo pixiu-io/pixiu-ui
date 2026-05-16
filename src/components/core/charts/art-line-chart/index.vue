@@ -33,6 +33,7 @@
     symbol: 'none',
     symbolSize: 6,
     animationDelay: 200,
+    silentUpdate: false,
 
     // 轴线显示配置
     showAxisLabel: true,
@@ -352,7 +353,17 @@
 
   // 图表渲染函数（优化：防止动画期间重复触发）
   const renderChart = () => {
-    if (!isAnimating.value && !isEmpty.value) {
+    if (isEmpty.value) return
+
+    if (props.silentUpdate) {
+      clearAnimationTimers()
+      isAnimating.value = false
+      animatedData.value = copyRealData()
+      updateChartOptions(generateChartOptions(false))
+      return
+    }
+
+    if (!isAnimating.value) {
       initChartWithAnimation()
     }
   }
