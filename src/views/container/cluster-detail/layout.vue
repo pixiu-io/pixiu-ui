@@ -103,6 +103,7 @@
             <ElMenuItem index="auth">认证授权</ElMenuItem>
             <ElMenuItem index="addon-components">组件管理</ElMenuItem>
             <ElMenuItem index="crds">自定义资源</ElMenuItem>
+            <ElMenuItem index="apiservices">APIService</ElMenuItem>
           </ElSubMenu>
 
           <ElSubMenu index="group-monitor">
@@ -169,6 +170,7 @@
     'auth',
     'addon-components',
     'crds',
+    'apiservices',
     'alert',
     'logs',
     'events',

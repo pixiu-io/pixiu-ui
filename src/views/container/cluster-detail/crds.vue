@@ -1,8 +1,6 @@
 <template>
   <div class="services-page">
     <ElCard class="art-table-card">
-      <ElTabs v-model="activeTab">
-        <ElTabPane label="自定义资源" name="crd">
           <ArtTableHeader
             v-model:columns="columnChecks"
             :loading="loading"
@@ -54,8 +52,6 @@
               </div>
             </template>
           </ArtTable>
-        </ElTabPane>
-      </ElTabs>
     </ElCard>
 
     <K8sYamlDialog
@@ -104,7 +100,6 @@
   defineOptions({ name: 'ClusterDetailCrds' })
 
   const route = useRoute()
-  const activeTab = ref('crd')
   const searchForm = ref<{ name?: string }>({})
   const yamlVisible = ref(false)
   const yamlText = ref('')

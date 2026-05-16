@@ -61,6 +61,7 @@
     ClusterDetailStorage: '存储',
     ClusterDetailAutoscaling: '弹性伸缩',
     ClusterDetailAuth: '认证配置',
+    ClusterDetailApiservices: 'APIService',
     ClusterDetailAddonComponents: '扩展组件',
     ClusterDetailAlert: '告警',
     ClusterDetailLogs: '日志',
