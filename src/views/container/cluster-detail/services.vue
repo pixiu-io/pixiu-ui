@@ -224,7 +224,7 @@
   }
 
   function formatSvcPorts(ports: K8sService['spec']['ports']): string {
-    if (!ports?.length) return '—'
+    if (!ports?.length) return '-'
     return ports
       .map((p) => {
         const proto = p.protocol ?? 'TCP'
@@ -251,7 +251,7 @@
         })
       }
     }
-    if (!lines.length) return h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, '—')
+    if (!lines.length) return h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, '-')
 
     const renderLine = (line: LineMeta) =>
       h(
@@ -364,7 +364,7 @@
           prop: 'metadata.name',
           label: '名称',
           minWidth: 200,
-          formatter: (row: K8sService) => renderNameCell(row.metadata?.name ?? '—')
+          formatter: (row: K8sService) => renderNameCell(row.metadata?.name ?? '-')
         },
         {
           prop: 'spec.type',
@@ -377,17 +377,17 @@
           prop: 'metadata.namespace',
           label: '命名空间',
           width: 160,
-          formatter: (row: K8sService) => renderNsCell(row.metadata?.namespace ?? '—')
+          formatter: (row: K8sService) => renderNsCell(row.metadata?.namespace ?? '-')
         },
         {
           prop: 'spec.clusterIP',
           label: 'Cluster IP',
           width: 150,
           formatter: (row: K8sService) => {
-            const ip = row.spec?.clusterIP ?? '—'
+            const ip = row.spec?.clusterIP ?? '-'
             return h('div', { style: 'display:flex;align-items:center;gap:6px' }, [
               h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, ip),
-              ip !== '—'
+              ip !== '-'
                 ? h(
                     'span',
                     {
@@ -551,7 +551,7 @@
           prop: 'metadata.name',
           label: '名称',
           minWidth: 200,
-          formatter: (row: K8sIngress) => renderNameCell(row.metadata?.name ?? '—')
+          formatter: (row: K8sIngress) => renderNameCell(row.metadata?.name ?? '-')
         },
         {
           prop: 'spec.ingressClassName',
@@ -564,7 +564,7 @@
           prop: 'metadata.namespace',
           label: '命名空间',
           width: 160,
-          formatter: (row: K8sIngress) => renderNsCell(row.metadata?.namespace ?? '—')
+          formatter: (row: K8sIngress) => renderNsCell(row.metadata?.namespace ?? '-')
         },
         {
           prop: 'spec.rules',

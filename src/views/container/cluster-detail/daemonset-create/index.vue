@@ -1779,8 +1779,6 @@
     (name, oldName) => {
       const n = name.trim()
       const o = (oldName ?? '').trim()
-      const c0 = form.value.containers[0]
-      if (c0 && (!c0.name.trim() || c0.name.trim() === o)) c0.name = n
       const appLabel = form.value.labels.find((item) => item.key.trim() === 'app')
       if (appLabel && (!appLabel.value.trim() || appLabel.value.trim() === o)) appLabel.value = n
     }
@@ -1856,11 +1854,11 @@
   .container-tab-item.is-active { background: var(--el-bg-color-overlay); color: var(--el-color-primary); font-weight: 500; border-color: var(--el-color-primary); }
   .container-tab-close { position: absolute; top: -7px; right: -7px; width: 14px; height: 14px; font-size: 10px; color: #fff; background: var(--el-text-color-placeholder); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   .container-tab-close:hover { background: var(--el-color-danger); color: #fff; }
-  .add-container-btn { font-size: 13px; padding: 4px 8px; display: inline-flex; align-items: center; gap: 2px; }
+  .add-container-btn { font-size: 12px; padding: 4px 8px; display: inline-flex; align-items: center; gap: 2px; }
   .container-form-wrap { background: var(--el-fill-color-light, #f5f7fa); border-radius: 6px; padding: 16px 12px 8px; }
   .pull-policy-group { --el-radio-button-checked-border-color: var(--el-color-primary); --el-radio-button-checked-bg-color: var(--el-bg-color-overlay); --el-radio-button-checked-text-color: var(--el-color-primary); display: flex; width: 320px; min-width: 320px; max-width: 320px; overflow: hidden; box-sizing: border-box; }
   .pull-policy-group :deep(.el-radio-button) { flex: 1 1 0; min-width: 0; display: flex; }
-  .pull-policy-group :deep(.el-radio-button__inner) { display: flex; flex: 1; align-items: center; justify-content: center; width: 100%; box-sizing: border-box; text-align: center; font-size: 12px; padding: 2px 10px; font-weight: 400; color: var(--el-text-color-regular); background: transparent; border: 1px solid var(--el-border-color); border-radius: 0 !important; transition: border-color 0.15s, color 0.15s, background-color 0.15s; }
+  .pull-policy-group :deep(.el-radio-button__inner) { display: flex; flex: 1; align-items: center; justify-content: center; width: 100%; box-sizing: border-box; text-align: center; font-size: 12px; padding: 6px 10px; line-height: 1.25; min-height: 28px; font-weight: 400; color: var(--el-text-color-regular); background: transparent; border: 1px solid var(--el-border-color); border-radius: 0 !important; transition: border-color 0.15s, color 0.15s, background-color 0.15s; }
   .pull-policy-group :deep(.el-radio-button:first-child .el-radio-button__inner), .pull-policy-group :deep(.el-radio-button:last-child .el-radio-button__inner) { border-radius: 0 !important; }
   .pull-policy-group :deep(.el-radio-button__inner:hover) { border-color: var(--el-color-primary); color: var(--el-color-primary); }
   .pull-policy-group :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) { background-color: var(--el-bg-color-overlay) !important; color: var(--el-color-primary) !important; font-weight: 500 !important; border-color: var(--el-color-primary) !important; box-shadow: none !important; position: relative; z-index: 1; }

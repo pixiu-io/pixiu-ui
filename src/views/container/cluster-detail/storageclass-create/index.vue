@@ -324,60 +324,6 @@
     gap: 12px;
   }
 
-  /* ── Radio 按钮组（同 Secret 类型风格）── */
-  .sc-radio-group {
-    display: inline-flex;
-  }
-
-  .sc-radio-group :deep(.el-radio-button) {
-    display: flex;
-  }
-
-  .sc-radio-group :deep(.el-radio-button__inner) {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    white-space: nowrap;
-    box-sizing: border-box;
-    font-size: 13px;
-    padding: 0 14px;
-    height: 32px;
-    line-height: 30px;
-    font-weight: 400;
-    color: var(--el-text-color-regular);
-    background: transparent;
-    border: 1px solid var(--el-border-color);
-    border-left: 1px solid var(--el-border-color);
-    border-radius: 0 !important;
-    box-shadow: none !important;
-    transition:
-      border-color 0.15s,
-      color 0.15s;
-  }
-
-  .sc-radio-group :deep(.el-radio-button:first-child .el-radio-button__inner) {
-    border-radius: 4px 0 0 4px !important;
-  }
-
-  .sc-radio-group :deep(.el-radio-button:last-child .el-radio-button__inner) {
-    border-radius: 0 4px 4px 0 !important;
-  }
-
-  .sc-radio-group :deep(.el-radio-button__inner:hover) {
-    border-color: var(--el-color-primary);
-    color: var(--el-color-primary);
-  }
-
-  .sc-radio-group :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
-    background-color: var(--el-bg-color) !important;
-    color: var(--el-color-primary) !important;
-    font-weight: 500 !important;
-    border-color: var(--el-color-primary) !important;
-    box-shadow: none !important;
-    position: relative;
-    z-index: 1;
-  }
-
   /* ── 参数/挂载配置表格 ── */
   .cm-data-table {
     width: 100%;

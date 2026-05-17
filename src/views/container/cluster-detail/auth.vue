@@ -1,25 +1,1000 @@
-<!-- 认证授权（Mock） -->
 <template>
-  <ElCard shadow="never">
-    <template #header>
-      <span class="page-hd">认证授权</span>
-    </template>
-    <ElDescriptions :column="1" border>
-      <ElDescriptionsItem label="RBAC">已启用</ElDescriptionsItem>
-      <ElDescriptionsItem label="ServiceAccount 数量">12（演示）</ElDescriptionsItem>
-      <ElDescriptionsItem label="ClusterRole 绑定">3 条（演示）</ElDescriptionsItem>
-      <ElDescriptionsItem label="说明">对接 OIDC / Webhook 等能力可在此扩展。</ElDescriptionsItem>
-    </ElDescriptions>
-  </ElCard>
+  <div class="services-page">
+    <ElCard class="art-table-card">
+      <ElTabs v-model="kind">
+        <ElTabPane label="ClusterRole" name="clusterrole">
+          <ArtTableHeader
+            v-model:columns="crColumnChecks"
+            :loading="crLoading"
+            layout="size,fullscreen,columns,settings"
+            style="margin-top: 15px"
+            @refresh="onCrRefresh"
+          >
+            <template #left>
+              <div class="workloads-toolbar">
+                <ElButton v-ripple @click="onRbacGenerator">新建策略</ElButton>
+                <div class="workloads-toolbar__filters">
+                  <ElInput
+                    v-model="crSearchForm.name"
+                    clearable
+                    placeholder="名称只能搜索一个关键字，Label格式要求：name=value"
+                    class="workloads-toolbar__search"
+                    @keyup.enter="runCrSearch"
+                    @clear="runCrSearch"
+                  />
+                  <div
+                    class="workloads-toolbar-search-btn"
+                    role="button"
+                    tabindex="0"
+                    title="搜索"
+                    @click="forceCrSearch"
+                    @keyup.enter="forceCrSearch"
+                  >
+                    <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
+                  </div>
+                </div>
+              </div>
+            </template>
+          </ArtTableHeader>
+          <ArtTable
+            row-key="rowKey"
+            :loading="crLoading"
+            :data="crData"
+            :columns="crColumns"
+            :pagination="crPagination"
+            :pagination-options="{ align: 'right' }"
+            @pagination:size-change="crHandleSizeChange"
+            @pagination:current-change="crHandleCurrentChange"
+          />
+        </ElTabPane>
+
+        <ElTabPane label="ClusterRoleBinding" name="clusterrolebinding">
+          <ArtTableHeader
+            v-model:columns="crbColumnChecks"
+            :loading="crbLoading"
+            layout="size,fullscreen,columns,settings"
+            style="margin-top: 15px"
+            @refresh="onCrbRefresh"
+          >
+            <template #left>
+              <div class="workloads-toolbar">
+                <ElButton v-ripple @click="onRbacGenerator">新建策略</ElButton>
+                <div class="workloads-toolbar__filters">
+                  <ElInput
+                    v-model="crbSearchForm.name"
+                    clearable
+                    placeholder="名称只能搜索一个关键字，Label格式要求：name=value"
+                    class="workloads-toolbar__search"
+                    @keyup.enter="runCrbSearch"
+                    @clear="runCrbSearch"
+                  />
+                  <div
+                    class="workloads-toolbar-search-btn"
+                    role="button"
+                    tabindex="0"
+                    title="搜索"
+                    @click="forceCrbSearch"
+                    @keyup.enter="forceCrbSearch"
+                  >
+                    <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
+                  </div>
+                </div>
+              </div>
+            </template>
+          </ArtTableHeader>
+          <ArtTable
+            row-key="rowKey"
+            :loading="crbLoading"
+            :data="crbData"
+            :columns="crbColumns"
+            :pagination="crbPagination"
+            :pagination-options="{ align: 'right' }"
+            @pagination:size-change="crbHandleSizeChange"
+            @pagination:current-change="crbHandleCurrentChange"
+          />
+        </ElTabPane>
+
+        <ElTabPane label="Role" name="role">
+          <ArtTableHeader
+            v-model:columns="roleColumnChecks"
+            :loading="roleLoading"
+            layout="size,fullscreen,columns,settings"
+            style="margin-top: 15px"
+            @refresh="onRoleRefresh"
+          >
+            <template #left>
+              <div class="workloads-toolbar">
+                <ElButton v-ripple @click="onRbacGenerator">新建策略</ElButton>
+                <div class="workloads-toolbar__filters">
+                  <ElInput
+                    v-model="roleSearchForm.name"
+                    clearable
+                    placeholder="名称只能搜索一个关键字，Label格式要求：name=value"
+                    class="workloads-toolbar__search"
+                    @keyup.enter="runRoleSearch"
+                    @clear="runRoleSearch"
+                  />
+                  <div
+                    class="workloads-toolbar-search-btn"
+                    role="button"
+                    tabindex="0"
+                    title="搜索"
+                    @click="forceRoleSearch"
+                    @keyup.enter="forceRoleSearch"
+                  >
+                    <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
+                  </div>
+                </div>
+              </div>
+            </template>
+          </ArtTableHeader>
+          <ArtTable
+            row-key="rowKey"
+            :loading="roleLoading"
+            :data="roleData"
+            :columns="roleVisibleColumns"
+            :pagination="rolePagination"
+            :pagination-options="{ align: 'right' }"
+            @pagination:size-change="roleHandleSizeChange"
+            @pagination:current-change="roleHandleCurrentChange"
+          />
+        </ElTabPane>
+
+        <ElTabPane label="RoleBinding" name="rolebinding">
+          <ArtTableHeader
+            v-model:columns="rbColumnChecks"
+            :loading="rbLoading"
+            layout="size,fullscreen,columns,settings"
+            style="margin-top: 15px"
+            @refresh="onRbRefresh"
+          >
+            <template #left>
+              <div class="workloads-toolbar">
+                <ElButton v-ripple @click="onRbacGenerator">新建策略</ElButton>
+                <div class="workloads-toolbar__filters">
+                  <ElInput
+                    v-model="rbSearchForm.name"
+                    clearable
+                    placeholder="名称只能搜索一个关键字，Label格式要求：name=value"
+                    class="workloads-toolbar__search"
+                    @keyup.enter="runRbSearch"
+                    @clear="runRbSearch"
+                  />
+                  <div
+                    class="workloads-toolbar-search-btn"
+                    role="button"
+                    tabindex="0"
+                    title="搜索"
+                    @click="forceRbSearch"
+                    @keyup.enter="forceRbSearch"
+                  >
+                    <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
+                  </div>
+                </div>
+              </div>
+            </template>
+          </ArtTableHeader>
+          <ArtTable
+            row-key="rowKey"
+            :loading="rbLoading"
+            :data="rbData"
+            :columns="rbVisibleColumns"
+            :pagination="rbPagination"
+            :pagination-options="{ align: 'right' }"
+            @pagination:size-change="rbHandleSizeChange"
+            @pagination:current-change="rbHandleCurrentChange"
+          />
+        </ElTabPane>
+
+        <ElTabPane label="ServiceAccount" name="serviceaccount">
+          <ArtTableHeader
+            v-model:columns="saColumnChecks"
+            :loading="saLoading"
+            layout="size,fullscreen,columns,settings"
+            style="margin-top: 15px"
+            @refresh="onSaRefresh"
+          >
+            <template #left>
+              <div class="workloads-toolbar">
+                <ElButton v-ripple @click="onRbacGenerator">新建策略</ElButton>
+                <div class="workloads-toolbar__filters">
+                  <ElInput
+                    v-model="saSearchForm.name"
+                    clearable
+                    placeholder="名称只能搜索一个关键字，Label格式要求：name=value"
+                    class="workloads-toolbar__search"
+                    @keyup.enter="runSaSearch"
+                    @clear="runSaSearch"
+                  />
+                  <div
+                    class="workloads-toolbar-search-btn"
+                    role="button"
+                    tabindex="0"
+                    title="搜索"
+                    @click="forceSaSearch"
+                    @keyup.enter="forceSaSearch"
+                  >
+                    <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
+                  </div>
+                </div>
+              </div>
+            </template>
+          </ArtTableHeader>
+          <ArtTable
+            row-key="rowKey"
+            :loading="saLoading"
+            :data="saData"
+            :columns="saVisibleColumns"
+            :pagination="saPagination"
+            :pagination-options="{ align: 'right' }"
+            @pagination:size-change="saHandleSizeChange"
+            @pagination:current-change="saHandleCurrentChange"
+          />
+        </ElTabPane>
+      </ElTabs>
+    </ElCard>
+
+    <K8sYamlDialog
+      v-model="yamlVisible"
+      title="查看 YAML"
+      :yaml="yamlText"
+      read-only
+      show-copy
+      width="900px"
+      :editor-height="480"
+    />
+  </div>
 </template>
 
 <script setup lang="ts">
+  import {
+    ElButton,
+    ElCard,
+    ElInput,
+    ElLink,
+    ElMessage,
+    ElMessageBox,
+    ElPopover,
+    ElTabPane,
+    ElTabs
+  } from 'element-plus'
+  import { h, computed, inject, ref, watch } from 'vue'
+  import { useRoute } from 'vue-router'
+  import { useTable } from '@/hooks/core/useTable'
+  import yaml from 'js-yaml'
+  import {
+    deleteK8sClusterRole,
+    deleteK8sClusterRoleBinding,
+    deleteK8sRole,
+    deleteK8sRoleBinding,
+    deleteK8sServiceAccount,
+    fetchK8sClusterRole,
+    fetchK8sClusterRoleBinding,
+    fetchK8sClusterRoleBindingList,
+    fetchK8sClusterRoleList,
+    fetchK8sRole,
+    fetchK8sRoleBinding,
+    fetchK8sRoleBindingList,
+    fetchK8sRoleList,
+    fetchK8sServiceAccount,
+    fetchK8sServiceAccountList,
+    type K8sRbacObject
+  } from '@/api/kubernetes/rbac'
+  import { clusterDetailNamespaceKey } from './context'
+  import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
+
   defineOptions({ name: 'ClusterDetailAuth' })
+
+  type AuthTab = 'clusterrole' | 'clusterrolebinding' | 'role' | 'rolebinding' | 'serviceaccount'
+
+  /** RBAC 列表：名称短、Labels 长，提高 Labels 的 minWidth 占比，避免名称列吃掉过多横向空间 */
+  const RBAC_COL = {
+    nameMin: 132,
+    labelsMin: 380,
+    nsWidth: 148,
+    opWidth: 148
+  } as const
+
+  const route = useRoute()
+  const kind = ref<AuthTab>('clusterrole')
+  const globalNs = inject(clusterDetailNamespaceKey)
+  const selectedNamespace = computed(() => globalNs?.namespace.value ?? '')
+
+  const crSearchForm = ref<{ name?: string }>({})
+  const crbSearchForm = ref<{ name?: string }>({})
+  const roleSearchForm = ref<{ name?: string }>({})
+  const rbSearchForm = ref<{ name?: string }>({})
+  const saSearchForm = ref<{ name?: string }>({})
+
+  const yamlVisible = ref(false)
+  const yamlText = ref('')
+
+  function renderKvCell(lines: string[]) {
+    const lineStyle =
+      'box-sizing:border-box;width:100%;min-width:0;max-width:100%;font-size:12px;line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--el-text-color-regular)'
+    const triggerStyle =
+      'box-sizing:border-box;width:100%;min-width:0;max-width:100%;cursor:default'
+    const moreStyle = 'font-size:12px;line-height:1.5;color:var(--el-text-color-placeholder)'
+    if (!lines.length) return h('span', { style: lineStyle }, '-')
+    const preview = lines.slice(0, 2)
+    const hasMore = lines.length > 2
+    const trigger = h('div', { style: triggerStyle }, [
+      ...preview.map((t, i) => h('div', { key: `p${i}`, style: lineStyle }, t)),
+      ...(hasMore ? [h('div', { style: moreStyle }, '...')] : [])
+    ])
+    const body = h(
+      'div',
+      { style: 'max-height:300px;overflow-x:hidden;overflow-y:auto;padding:4px 0' },
+      lines.map((t, i) =>
+        h(
+          'div',
+          {
+            key: `f${i}`,
+            style:
+              'padding:2px 0;font-size:12px;line-height:1.5;color:var(--el-text-color-regular);word-break:break-all'
+          },
+          t
+        )
+      )
+    )
+    return h(
+      ElPopover,
+      {
+        placement: 'top-start',
+        width: 'auto',
+        popperStyle: 'max-width:min(440px,90vw);padding:8px 12px;box-sizing:border-box',
+        trigger: 'hover',
+        showAfter: 200,
+        teleported: true
+      },
+      { reference: () => trigger, default: () => body }
+    )
+  }
+
+  function labelsCell(row: K8sRbacObject) {
+    const labels = row.metadata?.labels ?? {}
+    const lines = Object.entries(labels).map(([k, v]) => `${k}: ${v}`)
+    return renderKvCell(lines)
+  }
+
+  function nameLinkYaml(
+    row: K8sRbacObject,
+    tab: AuthTab,
+    onOpen: (t: AuthTab, row: K8sRbacObject) => void
+  ) {
+    const name = row.metadata?.name ?? '-'
+    return h(
+      'div',
+      {
+        style:
+          'min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'
+      },
+      [
+        h(
+          ElLink,
+          {
+            type: 'primary',
+            underline: 'never',
+            style: 'font-size:12px',
+            title: name,
+            onClick: () => onOpen(tab, row)
+          },
+          () => name
+        )
+      ]
+    )
+  }
+
+  function opCell(
+    row: K8sRbacObject,
+    tab: AuthTab,
+    onOpen: (t: AuthTab, row: K8sRbacObject) => void,
+    onDel: (t: AuthTab, row: K8sRbacObject) => void
+  ) {
+    return h('div', { style: 'display:flex;align-items:center;gap:12px' }, [
+      h(
+        ElLink,
+        {
+          type: 'primary',
+          underline: 'never',
+          style: 'font-size:12px',
+          onClick: () => onOpen(tab, row)
+        },
+        () => '查看YAML'
+      ),
+      h(
+        ElLink,
+        {
+          type: 'primary',
+          underline: 'never',
+          style: 'font-size:12px',
+          onClick: () => onDel(tab, row)
+        },
+        () => '删除'
+      )
+    ])
+  }
+
+  function nsCell(row: K8sRbacObject) {
+    const ns = row.metadata?.namespace ?? '-'
+    const isSystem = ns === 'default' || ns.startsWith('kube-')
+    return h('div', { style: 'display:flex;align-items:center;gap:6px' }, [
+      h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, ns),
+      isSystem
+        ? h(
+            'span',
+            {
+              style:
+                'font-size:11px;padding:0 4px;line-height:16px;border-radius:3px;background:var(--el-color-primary-light-9);color:var(--el-color-primary);border:1px solid var(--el-color-primary-light-7);flex-shrink:0'
+            },
+            '系统'
+          )
+        : null
+    ])
+  }
+
+  async function openYaml(tab: AuthTab, row: K8sRbacObject) {
+    const cluster = String(route.query.cluster ?? '')
+    const ns = row.metadata?.namespace ?? ''
+    const name = row.metadata?.name ?? ''
+    if (!cluster || !name) return
+    try {
+      let obj: unknown
+      if (tab === 'clusterrole') obj = await fetchK8sClusterRole(cluster, name)
+      else if (tab === 'clusterrolebinding') obj = await fetchK8sClusterRoleBinding(cluster, name)
+      else if (tab === 'role') {
+        if (!ns) return
+        obj = await fetchK8sRole(cluster, ns, name)
+      } else if (tab === 'rolebinding') {
+        if (!ns) return
+        obj = await fetchK8sRoleBinding(cluster, ns, name)
+      } else {
+        if (!ns) return
+        obj = await fetchK8sServiceAccount(cluster, ns, name)
+      }
+      yamlText.value = yaml.dump(obj, { quotingType: '"' })
+      yamlVisible.value = true
+    } catch (e: unknown) {
+      ElMessage.error(e instanceof Error ? e.message : '加载失败')
+    }
+  }
+
+  async function deleteRow(tab: AuthTab, row: K8sRbacObject, refresh: () => void) {
+    const cluster = String(route.query.cluster ?? '')
+    const ns = row.metadata?.namespace ?? ''
+    const name = row.metadata?.name ?? ''
+    if (!cluster || !name) return
+    try {
+      await ElMessageBox.confirm(`确定删除「${name}」吗？此操作不可恢复。`, '删除确认', {
+        type: 'warning',
+        confirmButtonText: '删除',
+        cancelButtonText: '取消'
+      })
+      if (tab === 'clusterrole') await deleteK8sClusterRole(cluster, name)
+      else if (tab === 'clusterrolebinding') await deleteK8sClusterRoleBinding(cluster, name)
+      else if (tab === 'role') {
+        if (!ns) return
+        await deleteK8sRole(cluster, ns, name)
+      } else if (tab === 'rolebinding') {
+        if (!ns) return
+        await deleteK8sRoleBinding(cluster, ns, name)
+      } else {
+        if (!ns) return
+        await deleteK8sServiceAccount(cluster, ns, name)
+      }
+      ElMessage.success('删除成功')
+      refresh()
+    } catch (e: unknown) {
+      if (e === 'cancel') return
+      ElMessage.error(e instanceof Error ? e.message : '删除失败')
+    }
+  }
+
+  function onRbacGenerator() {
+    ElMessage.info('新建策略：可结合「YAML创建」或 kubectl 生成 Role/ClusterRole 清单。')
+  }
+
+  type PagedParams = { current: number; size: number; name?: string }
+
+  const emptyRecords = (size: number) => ({
+    code: 200 as const,
+    data: { records: [] as (K8sRbacObject & { rowKey: string })[], total: 0, current: 1, size }
+  })
+
+  const {
+    columns: crColumns,
+    columnChecks: crColumnChecks,
+    data: crData,
+    loading: crLoading,
+    pagination: crPagination,
+    getData: getCrData,
+    replaceSearchParams: replaceCrSearchParams,
+    handleSizeChange: crHandleSizeChange,
+    handleCurrentChange: crHandleCurrentChange,
+    refreshData: refreshCrData
+  } = useTable({
+    core: {
+      immediate: false,
+      apiFn: async (params: PagedParams) => {
+        const cluster = String(route.query.cluster ?? '')
+        if (!cluster) return emptyRecords(params.size)
+        const { items, total } = await fetchK8sClusterRoleList(cluster, {
+          page: params.current,
+          limit: params.size,
+          name: (params.name ?? '').trim() || undefined
+        })
+        const records = items.map((row, i) => ({
+          ...row,
+          rowKey: row.metadata?.uid ?? row.metadata?.name ?? `cr-${i}`
+        }))
+        return { code: 200, data: { records, total, current: params.current, size: params.size } }
+      },
+      apiParams: { current: 1, size: 10, name: undefined },
+      columnsFactory: () => [
+        {
+          prop: 'metadata.name',
+          label: '名称',
+          minWidth: RBAC_COL.nameMin,
+          formatter: (row: K8sRbacObject) => nameLinkYaml(row, 'clusterrole', openYaml)
+        },
+        {
+          prop: 'metadata.labels',
+          label: 'Labels',
+          minWidth: RBAC_COL.labelsMin,
+          formatter: (row: K8sRbacObject) => labelsCell(row)
+        },
+        {
+          prop: 'operation',
+          label: '操作',
+          width: RBAC_COL.opWidth,
+          fixed: 'right',
+          align: 'right',
+          formatter: (row: K8sRbacObject) =>
+            opCell(row, 'clusterrole', openYaml, (t, r) => void deleteRow(t, r, onCrRefresh))
+        }
+      ]
+    }
+  })
+
+  const {
+    columns: crbColumns,
+    columnChecks: crbColumnChecks,
+    data: crbData,
+    loading: crbLoading,
+    pagination: crbPagination,
+    getData: getCrbData,
+    replaceSearchParams: replaceCrbSearchParams,
+    handleSizeChange: crbHandleSizeChange,
+    handleCurrentChange: crbHandleCurrentChange,
+    refreshData: refreshCrbData
+  } = useTable({
+    core: {
+      immediate: false,
+      apiFn: async (params: PagedParams) => {
+        const cluster = String(route.query.cluster ?? '')
+        if (!cluster) return emptyRecords(params.size)
+        const { items, total } = await fetchK8sClusterRoleBindingList(cluster, {
+          page: params.current,
+          limit: params.size,
+          name: (params.name ?? '').trim() || undefined
+        })
+        const records = items.map((row, i) => ({
+          ...row,
+          rowKey: row.metadata?.uid ?? row.metadata?.name ?? `crb-${i}`
+        }))
+        return { code: 200, data: { records, total, current: params.current, size: params.size } }
+      },
+      apiParams: { current: 1, size: 10, name: undefined },
+      columnsFactory: () => [
+        {
+          prop: 'metadata.name',
+          label: '名称',
+          minWidth: RBAC_COL.nameMin,
+          formatter: (row: K8sRbacObject) => nameLinkYaml(row, 'clusterrolebinding', openYaml)
+        },
+        {
+          prop: 'metadata.labels',
+          label: 'Labels',
+          minWidth: RBAC_COL.labelsMin,
+          formatter: (row: K8sRbacObject) => labelsCell(row)
+        },
+        {
+          prop: 'operation',
+          label: '操作',
+          width: RBAC_COL.opWidth,
+          fixed: 'right',
+          align: 'right',
+          formatter: (row: K8sRbacObject) =>
+            opCell(
+              row,
+              'clusterrolebinding',
+              openYaml,
+              (t, r) => void deleteRow(t, r, onCrbRefresh)
+            )
+        }
+      ]
+    }
+  })
+
+  const {
+    columns: roleColumns,
+    columnChecks: roleColumnChecks,
+    data: roleData,
+    loading: roleLoading,
+    pagination: rolePagination,
+    getData: getRoleData,
+    replaceSearchParams: replaceRoleSearchParams,
+    handleSizeChange: roleHandleSizeChange,
+    handleCurrentChange: roleHandleCurrentChange,
+    refreshData: refreshRoleData
+  } = useTable({
+    core: {
+      immediate: false,
+      apiFn: async (params: PagedParams) => {
+        const cluster = String(route.query.cluster ?? '')
+        if (!cluster) return emptyRecords(params.size)
+        const { items, total } = await fetchK8sRoleList(cluster, {
+          page: params.current,
+          limit: params.size,
+          namespace: selectedNamespace.value || undefined,
+          name: (params.name ?? '').trim() || undefined
+        })
+        const records = items.map((row, i) => ({
+          ...row,
+          rowKey: `${row.metadata?.namespace ?? ''}:${row.metadata?.name ?? `role-${i}`}`
+        }))
+        return { code: 200, data: { records, total, current: params.current, size: params.size } }
+      },
+      apiParams: { current: 1, size: 10, name: undefined },
+      columnsFactory: () => [
+        {
+          prop: 'metadata.name',
+          label: '名称',
+          minWidth: RBAC_COL.nameMin,
+          formatter: (row: K8sRbacObject) => nameLinkYaml(row, 'role', openYaml)
+        },
+        {
+          prop: 'metadata.namespace',
+          label: '命名空间',
+          width: RBAC_COL.nsWidth,
+          formatter: (row: K8sRbacObject) => nsCell(row)
+        },
+        {
+          prop: 'metadata.labels',
+          label: 'Labels',
+          minWidth: RBAC_COL.labelsMin,
+          formatter: (row: K8sRbacObject) => labelsCell(row)
+        },
+        {
+          prop: 'operation',
+          label: '操作',
+          width: RBAC_COL.opWidth,
+          fixed: 'right',
+          align: 'right',
+          formatter: (row: K8sRbacObject) =>
+            opCell(row, 'role', openYaml, (t, r) => void deleteRow(t, r, onRoleRefresh))
+        }
+      ]
+    }
+  })
+
+  const roleVisibleColumns = computed(() =>
+    roleColumns.value.filter(
+      (c: { prop?: string }) => !(selectedNamespace.value && c.prop === 'metadata.namespace')
+    )
+  )
+
+  const {
+    columns: rbColumns,
+    columnChecks: rbColumnChecks,
+    data: rbData,
+    loading: rbLoading,
+    pagination: rbPagination,
+    getData: getRbData,
+    replaceSearchParams: replaceRbSearchParams,
+    handleSizeChange: rbHandleSizeChange,
+    handleCurrentChange: rbHandleCurrentChange,
+    refreshData: refreshRbData
+  } = useTable({
+    core: {
+      immediate: false,
+      apiFn: async (params: PagedParams) => {
+        const cluster = String(route.query.cluster ?? '')
+        if (!cluster) return emptyRecords(params.size)
+        const { items, total } = await fetchK8sRoleBindingList(cluster, {
+          page: params.current,
+          limit: params.size,
+          namespace: selectedNamespace.value || undefined,
+          name: (params.name ?? '').trim() || undefined
+        })
+        const records = items.map((row, i) => ({
+          ...row,
+          rowKey: `${row.metadata?.namespace ?? ''}:${row.metadata?.name ?? `rb-${i}`}`
+        }))
+        return { code: 200, data: { records, total, current: params.current, size: params.size } }
+      },
+      apiParams: { current: 1, size: 10, name: undefined },
+      columnsFactory: () => [
+        {
+          prop: 'metadata.name',
+          label: '名称',
+          minWidth: RBAC_COL.nameMin,
+          formatter: (row: K8sRbacObject) => nameLinkYaml(row, 'rolebinding', openYaml)
+        },
+        {
+          prop: 'metadata.namespace',
+          label: '命名空间',
+          width: RBAC_COL.nsWidth,
+          formatter: (row: K8sRbacObject) => nsCell(row)
+        },
+        {
+          prop: 'metadata.labels',
+          label: 'Labels',
+          minWidth: RBAC_COL.labelsMin,
+          formatter: (row: K8sRbacObject) => labelsCell(row)
+        },
+        {
+          prop: 'operation',
+          label: '操作',
+          width: RBAC_COL.opWidth,
+          fixed: 'right',
+          align: 'right',
+          formatter: (row: K8sRbacObject) =>
+            opCell(row, 'rolebinding', openYaml, (t, r) => void deleteRow(t, r, onRbRefresh))
+        }
+      ]
+    }
+  })
+
+  const rbVisibleColumns = computed(() =>
+    rbColumns.value.filter(
+      (c: { prop?: string }) => !(selectedNamespace.value && c.prop === 'metadata.namespace')
+    )
+  )
+
+  const {
+    columns: saColumns,
+    columnChecks: saColumnChecks,
+    data: saData,
+    loading: saLoading,
+    pagination: saPagination,
+    getData: getSaData,
+    replaceSearchParams: replaceSaSearchParams,
+    handleSizeChange: saHandleSizeChange,
+    handleCurrentChange: saHandleCurrentChange,
+    refreshData: refreshSaData
+  } = useTable({
+    core: {
+      immediate: false,
+      apiFn: async (params: PagedParams) => {
+        const cluster = String(route.query.cluster ?? '')
+        if (!cluster) return emptyRecords(params.size)
+        const { items, total } = await fetchK8sServiceAccountList(cluster, {
+          page: params.current,
+          limit: params.size,
+          namespace: selectedNamespace.value || undefined,
+          name: (params.name ?? '').trim() || undefined
+        })
+        const records = items.map((row, i) => ({
+          ...row,
+          rowKey: `${row.metadata?.namespace ?? ''}:${row.metadata?.name ?? `sa-${i}`}`
+        }))
+        return { code: 200, data: { records, total, current: params.current, size: params.size } }
+      },
+      apiParams: { current: 1, size: 10, name: undefined },
+      columnsFactory: () => [
+        {
+          prop: 'metadata.name',
+          label: '名称',
+          minWidth: RBAC_COL.nameMin,
+          formatter: (row: K8sRbacObject) => nameLinkYaml(row, 'serviceaccount', openYaml)
+        },
+        {
+          prop: 'metadata.namespace',
+          label: '命名空间',
+          width: RBAC_COL.nsWidth,
+          formatter: (row: K8sRbacObject) => nsCell(row)
+        },
+        {
+          prop: 'metadata.labels',
+          label: 'Labels',
+          minWidth: RBAC_COL.labelsMin,
+          formatter: (row: K8sRbacObject) => labelsCell(row)
+        },
+        {
+          prop: 'operation',
+          label: '操作',
+          width: RBAC_COL.opWidth,
+          fixed: 'right',
+          align: 'right',
+          formatter: (row: K8sRbacObject) =>
+            opCell(row, 'serviceaccount', openYaml, (t, r) => void deleteRow(t, r, onSaRefresh))
+        }
+      ]
+    }
+  })
+
+  const saVisibleColumns = computed(() =>
+    saColumns.value.filter(
+      (c: { prop?: string }) => !(selectedNamespace.value && c.prop === 'metadata.namespace')
+    )
+  )
+
+  function runCrSearch() {
+    replaceCrSearchParams({ name: (crSearchForm.value.name ?? '').trim() || undefined })
+    getCrData()
+  }
+  function forceCrSearch() {
+    replaceCrSearchParams({ name: (crSearchForm.value.name ?? '').trim() || undefined })
+    getCrData()
+  }
+  function onCrRefresh() {
+    refreshCrData()
+  }
+
+  function runCrbSearch() {
+    replaceCrbSearchParams({ name: (crbSearchForm.value.name ?? '').trim() || undefined })
+    getCrbData()
+  }
+  function forceCrbSearch() {
+    replaceCrbSearchParams({ name: (crbSearchForm.value.name ?? '').trim() || undefined })
+    getCrbData()
+  }
+  function onCrbRefresh() {
+    refreshCrbData()
+  }
+
+  function runRoleSearch() {
+    replaceRoleSearchParams({
+      name: (roleSearchForm.value.name ?? '').trim() || undefined
+    })
+    getRoleData()
+  }
+  function forceRoleSearch() {
+    replaceRoleSearchParams({
+      name: (roleSearchForm.value.name ?? '').trim() || undefined
+    })
+    getRoleData()
+  }
+  function onRoleRefresh() {
+    refreshRoleData()
+  }
+
+  function runRbSearch() {
+    replaceRbSearchParams({
+      name: (rbSearchForm.value.name ?? '').trim() || undefined
+    })
+    getRbData()
+  }
+  function forceRbSearch() {
+    replaceRbSearchParams({
+      name: (rbSearchForm.value.name ?? '').trim() || undefined
+    })
+    getRbData()
+  }
+  function onRbRefresh() {
+    refreshRbData()
+  }
+
+  function runSaSearch() {
+    replaceSaSearchParams({
+      name: (saSearchForm.value.name ?? '').trim() || undefined
+    })
+    getSaData()
+  }
+  function forceSaSearch() {
+    replaceSaSearchParams({
+      name: (saSearchForm.value.name ?? '').trim() || undefined
+    })
+    getSaData()
+  }
+  function onSaRefresh() {
+    refreshSaData()
+  }
+
+  function refreshActiveTab() {
+    const cluster = String(route.query.cluster ?? '')
+    if (!cluster) return
+    if (kind.value === 'clusterrole') getCrData()
+    else if (kind.value === 'clusterrolebinding') getCrbData()
+    else if (kind.value === 'role') getRoleData()
+    else if (kind.value === 'rolebinding') getRbData()
+    else getSaData()
+  }
+
+  watch(kind, (val) => {
+    const cluster = String(route.query.cluster ?? '')
+    if (!cluster) return
+    if (val === 'clusterrole') getCrData()
+    else if (val === 'clusterrolebinding') getCrbData()
+    else if (val === 'role') getRoleData()
+    else if (val === 'rolebinding') getRbData()
+    else getSaData()
+  })
+
+  watch(selectedNamespace, () => {
+    if (kind.value === 'role') getRoleData()
+    if (kind.value === 'rolebinding') getRbData()
+    if (kind.value === 'serviceaccount') getSaData()
+  })
+
+  watch(
+    () => String(route.query.cluster ?? ''),
+    (cluster) => {
+      if (cluster) refreshActiveTab()
+    },
+    { immediate: true }
+  )
 </script>
 
+<style>
+  .services-page .icon-action {
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .services-page .el-table__row:hover .icon-action {
+    opacity: 1;
+  }
+  .services-page .art-table .el-table {
+    font-size: 13px;
+  }
+  .services-page .art-table .el-table th.el-table__cell {
+    font-size: 13px;
+  }
+  /* 名称列 ellipsis：让单元格在 flex 布局下可被压缩 */
+  .services-page .art-table .el-table .el-table__cell > .cell {
+    min-width: 0;
+  }
+  .services-page .el-tabs__header {
+    margin-top: -6px;
+  }
+</style>
+
 <style scoped>
-  .page-hd {
-    font-size: 15px;
-    font-weight: 600;
+  .workloads-toolbar {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .workloads-toolbar__filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+    margin-right: 8px;
+  }
+
+  .workloads-toolbar__search {
+    width: 350px;
+    max-width: 100%;
+  }
+
+  .workloads-toolbar-search-btn {
+    flex-shrink: 0;
+    display: flex;
+    width: 32px;
+    height: 32px;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--art-gray-300) 55%, transparent);
+    color: var(--el-text-color-secondary);
+    transition: background-color 0.15s ease;
+  }
+
+  .workloads-toolbar-search-btn:hover {
+    background: var(--art-gray-300);
+  }
+
+  .workloads-toolbar-search-btn:focus-visible {
+    outline: 2px solid var(--el-color-primary);
+    outline-offset: 1px;
   }
 </style>

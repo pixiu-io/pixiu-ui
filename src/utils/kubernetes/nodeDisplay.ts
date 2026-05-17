@@ -76,26 +76,26 @@ export function formatNodeStatusText(row: K8sNode): string {
 
 export function formatNodeInternalIp(row: K8sNode): string {
   const addrs = row.status?.addresses
-  if (!addrs?.length) return '—'
+  if (!addrs?.length) return '-'
   for (const a of addrs) {
     if (a.type === 'InternalIP') return a.address
   }
-  return addrs[0]?.address ?? '—'
+  return addrs[0]?.address ?? '-'
 }
 
 export function formatKubeletVersion(row: K8sNode): string {
-  return row.status?.nodeInfo?.kubeletVersion ?? '—'
+  return row.status?.nodeInfo?.kubeletVersion ?? '-'
 }
 
 /** 与 kubectl / dashboard 一致，完整展示如 docker://20.10.15、containerd://1.7.28-tke.2 */
 export function formatContainerRuntime(row: K8sNode): string {
   const v = row.status?.nodeInfo?.containerRuntimeVersion
-  if (!v) return '—'
+  if (!v) return '-'
   return String(v)
 }
 
 export function formatNodeCreationTime(iso?: string): string {
-  if (!iso) return '—'
+  if (!iso) return '-'
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso
   const pad = (n: number) => String(n).padStart(2, '0')

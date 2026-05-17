@@ -80,10 +80,9 @@
               <ElCheckbox value="ReadWriteOnce">ReadWriteOnce</ElCheckbox>
               <ElCheckbox value="ReadOnlyMany">ReadOnlyMany</ElCheckbox>
               <ElCheckbox value="ReadWriteMany">ReadWriteMany</ElCheckbox>
-              <ElCheckbox value="ReadWriteOncePod">ReadWriteOncePod</ElCheckbox>
             </ElCheckboxGroup>
             <div class="svc-field-tip"
-              >ReadWriteOnce：单节点读写；ReadOnlyMany：多节点只读；ReadWriteMany：多节点读写；ReadWriteOncePod：单 Pod 独占读写（需 K8s 1.22+）</div
+              >ReadWriteOnce：单节点读写；ReadOnlyMany：多节点只读；ReadWriteMany：多节点读写</div
             >
           </div>
         </ElFormItem>
@@ -103,9 +102,9 @@
         <ElFormItem label="回收策略">
           <div class="svc-field-col">
             <ElRadioGroup v-model="form.reclaimPolicy" class="sc-radio-group">
-              <ElRadioButton value="Retain">保留（Retain）</ElRadioButton>
-              <ElRadioButton value="Delete">删除（Delete）</ElRadioButton>
-              <ElRadioButton value="Recycle">回收（Recycle）</ElRadioButton>
+              <ElRadioButton value="Retain">Retain</ElRadioButton>
+              <ElRadioButton value="Delete">Delete</ElRadioButton>
+              <ElRadioButton value="Recycle">Recycle</ElRadioButton>
             </ElRadioGroup>
             <div v-if="form.reclaimPolicy === 'Retain'" class="svc-field-tip"
               >PVC 释放后 PV 数据保留，需手动删除或复用</div
@@ -499,55 +498,4 @@
     gap: 12px;
   }
 
-  /* ── Radio 按钮组 ── */
-  .sc-radio-group {
-    display: inline-flex;
-  }
-
-  .sc-radio-group :deep(.el-radio-button) {
-    display: flex;
-  }
-
-  .sc-radio-group :deep(.el-radio-button__inner) {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    white-space: nowrap;
-    box-sizing: border-box;
-    font-size: 13px;
-    padding: 0 14px;
-    height: 32px;
-    line-height: 30px;
-    font-weight: 400;
-    color: var(--el-text-color-regular);
-    background: transparent;
-    border: 1px solid var(--el-border-color);
-    border-left: 1px solid var(--el-border-color);
-    border-radius: 0 !important;
-    box-shadow: none !important;
-    transition: border-color 0.15s, color 0.15s;
-  }
-
-  .sc-radio-group :deep(.el-radio-button:first-child .el-radio-button__inner) {
-    border-radius: 4px 0 0 4px !important;
-  }
-
-  .sc-radio-group :deep(.el-radio-button:last-child .el-radio-button__inner) {
-    border-radius: 0 4px 4px 0 !important;
-  }
-
-  .sc-radio-group :deep(.el-radio-button__inner:hover) {
-    border-color: var(--el-color-primary);
-    color: var(--el-color-primary);
-  }
-
-  .sc-radio-group :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
-    background-color: var(--el-bg-color) !important;
-    color: var(--el-color-primary) !important;
-    font-weight: 500 !important;
-    border-color: var(--el-color-primary) !important;
-    box-shadow: none !important;
-    position: relative;
-    z-index: 1;
-  }
 </style>

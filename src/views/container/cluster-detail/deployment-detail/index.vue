@@ -78,7 +78,7 @@
                   {{ item.key }}:{{ item.value }}
                 </el-tag>
               </template>
-              <span v-else class="dd-empty">—</span>
+              <span v-else class="dd-empty">-</span>
             </div>
           </div>
           <div class="dd-info-cell">
@@ -87,7 +87,7 @@
               <div>超过期望的Pod数量:{{ rollingUpdateValues.maxSurge }}</div>
               <div>不可用Pod最大数量:{{ rollingUpdateValues.maxUnavailable }}</div>
             </div>
-            <span v-else class="dd-v">—</span>
+            <span v-else class="dd-v">-</span>
           </div>
           <div class="dd-info-cell">
             <span class="dd-k">注释</span>
@@ -113,7 +113,7 @@
                   {{ showAllAnnotations ? '收起' : '更多' }}
                 </el-button>
               </template>
-              <span v-else class="dd-empty">—</span>
+              <span v-else class="dd-empty">-</span>
             </div>
           </div>
           <div class="dd-info-cell">
@@ -140,7 +140,7 @@
                   {{ showAllLabels ? '收起' : '更多' }}
                 </el-button>
               </template>
-              <span v-else class="dd-empty">—</span>
+              <span v-else class="dd-empty">-</span>
             </div>
           </div>
         </div>
@@ -201,12 +201,12 @@
             </el-table-column>
             <el-table-column label="所在节点" min-width="140">
               <template #default="{ row }"
-                ><span class="mono">{{ row.spec?.nodeName || '—' }}</span></template
+                ><span class="mono">{{ row.spec?.nodeName || '-' }}</span></template
               >
             </el-table-column>
             <el-table-column label="Pod IP" width="130">
               <template #default="{ row }"
-                ><span class="mono">{{ row.status?.podIP || '—' }}</span></template
+                ><span class="mono">{{ row.status?.podIP || '-' }}</span></template
               >
             </el-table-column>
             <el-table-column label="创建时间" width="160">
@@ -247,7 +247,7 @@
             </el-table-column>
             <el-table-column label="Cluster IP" width="140">
               <template #default="{ row }"
-                ><span class="mono">{{ row.spec?.clusterIP || '—' }}</span></template
+                ><span class="mono">{{ row.spec?.clusterIP || '-' }}</span></template
               >
             </el-table-column>
             <el-table-column label="端口" min-width="200">
@@ -408,7 +408,7 @@
             <el-table-column label="版本号" width="90">
               <template #default="{ row }">
                 <el-tag size="small" effect="plain">{{
-                  row.metadata?.annotations?.['deployment.kubernetes.io/revision'] || '—'
+                  row.metadata?.annotations?.['deployment.kubernetes.io/revision'] || '-'
                 }}</el-tag>
               </template>
             </el-table-column>
@@ -490,6 +490,9 @@
         deploy-data-mode="pod"
         :deploy-namespace="namespace"
         :deploy-label-selector="podSelector"
+        show-workload-metrics-tab
+        :metrics-namespace="namespace"
+        :metrics-label-selector="podSelector"
         :show-deploy-create="false"
         sts-tab-label="访问方式"
         ds-tab-label="日志"
@@ -502,6 +505,7 @@
         :mirror-namespace="namespace"
         :mirror-selector="podSelector"
         :mirror-resource-name="name"
+        :mirror-event-kind="workloadKind"
         :mirror-containers="containers"
         :initial-tab="initialTab"
       />
@@ -576,7 +580,11 @@
   import type { K8sPod } from '@/api/kubernetes/pod'
   import { fetchK8sServiceList } from '@/api/kubernetes/service'
   import type { K8sService } from '@/api/kubernetes/service'
-  import { fetchKubeRawEventList } from '@/api/kubernetes/events'
+  import {
+    fetchAggregatedEventList,
+    fetchKubeRawEventList,
+    getAggregatedEventKind
+  } from '@/api/kubernetes/events'
   import { fetchK8sReplicaSetList } from '@/api/kubernetes/replicaset'
   import type { K8sReplicaSet } from '@/api/kubernetes/replicaset'
   import { updateK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
@@ -648,7 +656,7 @@
     if (workloadKind.value === 'DaemonSet') return 'RollingUpdate'
     if (workloadKind.value === 'Job') return 'OneTime'
     if (workloadKind.value === 'CronJob') return 'Cron'
-    return '—'
+    return '-'
   })
   const isReady = computed(
     () => readyReplicas.value === desiredReplicas.value && desiredReplicas.value > 0
@@ -808,7 +816,7 @@
 
   // ── Time format ──
   function formatTime(ts?: string): string {
-    if (!ts) return '—'
+    if (!ts) return '-'
     const d = new Date(ts)
     const pad = (n: number) => String(n).padStart(2, '0')
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
@@ -894,14 +902,22 @@
   async function loadEvents() {
     eventsLoading.value = true
     try {
-      const { items } = await fetchKubeRawEventList(cluster.value, {
-        namespace: namespace.value,
-        name: name.value,
-        kind: workloadKind.value,
-        namespaced: true,
-        page: 1,
-        limit: 100
-      })
+      const aggregateKind = getAggregatedEventKind(workloadKind.value)
+      const { items } = aggregateKind
+        ? await fetchAggregatedEventList(
+            cluster.value,
+            namespace.value,
+            name.value,
+            aggregateKind
+          )
+        : await fetchKubeRawEventList(cluster.value, {
+            namespace: namespace.value,
+            name: name.value,
+            kind: workloadKind.value,
+            namespaced: true,
+            page: 1,
+            limit: 100
+          })
       events.value = items as any[]
     } catch {
       events.value = []
@@ -1595,5 +1611,17 @@
   }
   .dd-workloads-copy {
     margin-top: -8px;
+  }
+
+  .dd-workloads-copy :deep(.workloads-tabs .el-tabs__header) {
+    margin-bottom: 8px;
+  }
+
+  .dd-workloads-copy :deep(.workloads-tabs .el-tabs__content) {
+    padding-top: 0;
+  }
+
+  .dd-workloads-copy :deep(.art-table-card > .el-card__body) {
+    padding-top: 12px;
   }
 </style>

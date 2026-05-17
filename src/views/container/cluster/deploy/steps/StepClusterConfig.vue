@@ -7,7 +7,7 @@
     label-position="right"
     class="step-cluster-config"
   >
-    <ElDivider content-position="left" class="section-divider-top">集群配置</ElDivider>
+    <ElDivider content-position="left" class="section-divider-top">高级配置</ElDivider>
 
     <ElFormItem label="高可用 Kubernetes" prop="highAvailability">
       <ElSwitch
@@ -73,6 +73,32 @@
       <div class="form-tip form-tip--block"
         >默认使用 iptables 模式，ipvs 的转发性能更高。选择之后无法修改</div
       >
+    </ElFormItem>
+
+    <ElDivider content-position="left" class="section-divider-top">云原生服务</ElDivider>
+
+    <ElFormItem label="Metrics Server">
+      <ElCheckbox
+        :model-value="form.metricsServer"
+        :disabled="readOnly"
+        @update:model-value="
+          emit('update:form', { ...form, metricsServer: $event as boolean })
+        "
+      >
+        启用
+      </ElCheckbox>
+    </ElFormItem>
+
+    <ElFormItem label="Nginx Ingress">
+      <ElCheckbox
+        :model-value="form.ingressNginx"
+        :disabled="readOnly"
+        @update:model-value="
+          emit('update:form', { ...form, ingressNginx: $event as boolean })
+        "
+      >
+        启用
+      </ElCheckbox>
     </ElFormItem>
   </ElForm>
 </template>

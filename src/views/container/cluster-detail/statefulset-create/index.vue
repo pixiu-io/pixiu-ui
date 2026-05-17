@@ -2014,10 +2014,6 @@
     (name, oldName) => {
       const n = name.trim()
       const o = (oldName ?? '').trim()
-      const c0 = form.value.containers[0]
-      if (c0 && (!c0.name.trim() || c0.name.trim() === o)) {
-        c0.name = n
-      }
       const appLabel = form.value.labels.find((item) => item.key.trim() === 'app')
       if (appLabel && (!appLabel.value.trim() || appLabel.value.trim() === o)) {
         appLabel.value = n
@@ -2342,7 +2338,9 @@
     box-sizing: border-box;
     text-align: center;
     font-size: 12px;
-    padding: 2px 10px;
+    padding: 6px 10px;
+    line-height: 1.25;
+    min-height: 28px;
     font-weight: 400;
     color: var(--el-text-color-regular);
     background: transparent;

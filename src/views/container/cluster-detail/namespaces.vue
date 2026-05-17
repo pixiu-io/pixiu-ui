@@ -230,7 +230,7 @@
           label: '命名空间',
           minWidth: 200,
           formatter: (row: K8sNamespace) => {
-            const name = row.metadata?.name ?? '—'
+            const name = row.metadata?.name ?? '-'
             const isSystem = name === 'default' || name.startsWith('kube-')
             return h('div', { style: 'line-height:1.8' }, [
               h('div', { style: 'display:flex;align-items:center;gap:8px' }, [

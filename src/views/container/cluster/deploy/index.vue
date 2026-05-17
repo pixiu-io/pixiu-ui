@@ -24,6 +24,26 @@
     </div>
 
     <ElCard class="deploy-create-card">
+      <nav class="deploy-step-nav" aria-label="部署步骤">
+        <template v-for="(step, index) in deploySteps" :key="step.key">
+          <span v-if="index > 0" class="deploy-step-nav__chevron" aria-hidden="true">&gt;</span>
+          <button
+            type="button"
+            class="deploy-step-nav__item"
+            :class="{
+              'is-active': currentStep === index,
+              'is-done': currentStep > index,
+              'is-clickable': canGoToStep(index)
+            }"
+            :disabled="!canGoToStep(index)"
+            @click="onStepNavClick(index)"
+          >
+            <span class="deploy-step-nav__index">{{ index + 1 }}</span>
+            <span class="deploy-step-nav__label">{{ step.label }}</span>
+          </button>
+        </template>
+      </nav>
+
       <div class="deploy-create-main">
         <div v-show="currentStep === 0" class="deploy-step-pane">
           <StepBasic
@@ -130,6 +150,25 @@
   const activeTabName = ref('0')
   const currentStep = computed(() => Number(activeTabName.value))
 
+  const deploySteps = [
+    { key: 'basic', label: '集群信息' },
+    { key: 'config', label: '集群配置' },
+    { key: 'nodes', label: '节点' },
+    { key: 'confirm', label: '信息确认' }
+  ] as const
+
+  function canGoToStep(index: number) {
+    if (index === currentStep.value) return false
+    if (isReadOnlyMode.value) return true
+    return index < currentStep.value
+  }
+
+  function onStepNavClick(index: number) {
+    if (!canGoToStep(index)) return
+    activeTabName.value = String(index)
+  }
+
+
   const stepping = ref(false)
   const submitting = ref(false)
   const currentResourceVersion = ref<number | null>(null)
@@ -178,6 +217,8 @@
     apiServerAddress: '',
     apiServerPort: 6443,
     kubeProxyMode: 'iptables',
+    metricsServer: true,
+    ingressNginx: false,
     nodes: [] as NodeConfig[],
     enablePrometheus: false,
     enableLogging: false
@@ -243,6 +284,8 @@
         ),
         apiServerPort,
         kubeProxyMode: 'iptables',
+        metricsServer: Boolean(cfg.component?.metric_server?.enable),
+        ingressNginx: Boolean(cfg.component?.ingress_nginx?.enable),
         nodes: (detail.nodes ?? []).map(mapNodeFromApi),
         enablePrometheus: Boolean(cfg.component?.prometheus?.enabled),
         enableLogging: Boolean(cfg.component?.logging?.enabled)
@@ -266,7 +309,11 @@
   }
 
   function goToStep(step: number) {
-    if (!isReadOnlyMode.value) activeTabName.value = String(step)
+    if (isReadOnlyMode.value) {
+      activeTabName.value = String(step)
+      return
+    }
+    if (step <= currentStep.value) activeTabName.value = String(step)
   }
 
   async function nextStep() {
@@ -386,7 +433,9 @@
         runtime: { runtime: f.runtime },
         component: {
           ...(f.enablePrometheus ? { prometheus: { enabled: true } } : {}),
-          ...(f.enableLogging ? { logging: { enabled: true } } : {})
+          ...(f.enableLogging ? { logging: { enabled: true } } : {}),
+          metric_server: { enable: f.metricsServer },
+          ingress_nginx: { enable: f.ingressNginx }
         }
       },
       nodes
@@ -509,6 +558,87 @@
     .deploy-create-header {
       margin-left: -12px;
     }
+  }
+
+  .deploy-step-nav {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px 0;
+    padding: 8px 0 12px;
+    margin-bottom: 4px;
+  }
+
+  .deploy-step-nav__chevron {
+    margin: 0 14px;
+    font-size: 12px;
+    line-height: 1;
+    color: var(--el-text-color-placeholder);
+    user-select: none;
+  }
+
+  .deploy-step-nav__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 4px;
+    border: none;
+    background: transparent;
+    cursor: default;
+    font: inherit;
+  }
+
+  .deploy-step-nav__item.is-clickable:not(:disabled) {
+    cursor: pointer;
+  }
+
+  .deploy-step-nav__item:disabled {
+    cursor: default;
+  }
+
+  .deploy-step-nav__index {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
+    color: var(--el-text-color-secondary);
+    background: var(--el-bg-color);
+    border: 1px solid var(--el-border-color);
+    transition:
+      background-color 0.2s,
+      border-color 0.2s,
+      color 0.2s;
+  }
+
+  .deploy-step-nav__label {
+    font-size: 14px;
+    color: var(--el-text-color-secondary);
+    transition: color 0.2s;
+  }
+
+  .deploy-step-nav__item.is-active .deploy-step-nav__index,
+  .deploy-step-nav__item.is-done .deploy-step-nav__index {
+    color: #fff;
+    background: var(--el-color-primary);
+    border-color: var(--el-color-primary);
+  }
+
+  .deploy-step-nav__item.is-active .deploy-step-nav__label {
+    color: var(--el-color-primary);
+    font-weight: 500;
+  }
+
+  .deploy-step-nav__item.is-done .deploy-step-nav__label {
+    color: var(--el-text-color-regular);
+  }
+
+  .deploy-step-nav__item.is-clickable:hover .deploy-step-nav__label {
+    color: var(--el-color-primary);
   }
 
   .deploy-create-main {

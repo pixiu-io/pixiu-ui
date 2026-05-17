@@ -235,6 +235,8 @@
     apiServerAddress: string
     apiServerPort: number
     kubeProxyMode: 'iptables' | 'ipvs'
+    metricsServer: boolean
+    ingressNginx: boolean
     nodes: NodeConfig[]
     enablePrometheus: boolean
     enableLogging: boolean

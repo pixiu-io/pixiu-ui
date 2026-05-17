@@ -44,7 +44,7 @@
               <ElTag size="small" :type="nodeTypeTagType" effect="light">{{ nodeTypeTagText }}</ElTag>
             </span>
           </div>
-          <div class="nd-info-cell"><span class="nd-k">操作系统</span><span class="nd-v">{{ node.status?.nodeInfo?.osImage || '—' }}</span></div>
+          <div class="nd-info-cell"><span class="nd-k">操作系统</span><span class="nd-v">{{ node.status?.nodeInfo?.osImage || '-' }}</span></div>
           <div class="nd-info-cell"><span class="nd-k">创建时间</span><span class="nd-v">{{ formatNodeCreationTime(node.metadata.creationTimestamp) }}</span></div>
           <div class="nd-info-cell"><span class="nd-k">运行状态</span><span class="nd-v">{{ runningStatusText }}</span></div>
           <div class="nd-info-cell"><span class="nd-k">容器运行时</span><span class="nd-v">{{ formatContainerRuntime(node) }}</span></div>
@@ -76,7 +76,7 @@
                   {{ showAllLabels ? '收起' : '更多' }}
                 </el-button>
               </template>
-              <span v-else class="nd-empty">—</span>
+              <span v-else class="nd-empty">-</span>
             </div>
           </div>
           <div class="nd-info-cell">
@@ -103,7 +103,7 @@
                   {{ showAllAnnotations ? '收起' : '更多' }}
                 </el-button>
               </template>
-              <span v-else class="nd-empty">—</span>
+              <span v-else class="nd-empty">-</span>
             </div>
           </div>
         </div>
@@ -136,7 +136,7 @@
         :node-status-rows="conditionRows"
         :node-resource="nodeResource"
         :node-resource-rows="nodeResourceRows"
-        :node-metrics="nodeMetrics"
+        :metrics-node="node"
       />
     </div>
 
@@ -183,7 +183,6 @@
     deleteK8sNode,
     type K8sNode
   } from '@/api/kubernetes/node'
-  import { fetchNodeUsageMetrics } from '@/api/kubernetes/metrics'
   import { kubeProxyAxios } from '@/api/kubeProxy'
   import HostRemoteSsh from '@/views/safeguard/host/modules/host-remote-ssh.vue'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
@@ -216,9 +215,9 @@
   const podCidrsText = computed(() => {
     const values = node.value?.spec?.podCIDRs?.filter(Boolean) ?? []
     if (values.length) return values.join(', ')
-    return node.value?.spec?.podCIDR || '—'
+    return node.value?.spec?.podCIDR || '-'
   })
-  const kernelVersionText = computed(() => node.value?.status?.nodeInfo?.kernelVersion || '—')
+  const kernelVersionText = computed(() => node.value?.status?.nodeInfo?.kernelVersion || '-')
   const nodeRole = computed(() => {
     const labels = node.value?.metadata?.labels ?? {}
     if ('node-role.kubernetes.io/control-plane' in labels || 'node-role.kubernetes.io/master' in labels)
@@ -255,9 +254,6 @@
   const labelVisible = ref(false)
   const labelRows = ref<{ key: string; value: string }[]>([])
   const labelSubmitting = ref(false)
-  const metricsLoading = ref(false)
-  const cpuUsageMillicores = ref(0)
-  const memoryUsageBytes = ref(0)
   const allocatedResourceMap = ref<Record<string, { req: number; lim: number; total: number }>>({})
 
   const conditionRows = computed(() => {
@@ -270,17 +266,17 @@
       message?: string
     }>
     return rows.map((r) => ({
-      type: r.type || '—',
-      status: r.status || '—',
+      type: r.type || '-',
+      status: r.status || '-',
       lastHeartbeatTime: formatDateTime(r.lastHeartbeatTime),
       lastTransitionTime: formatDateTime(r.lastTransitionTime),
-      reason: r.reason || '—',
-      message: r.message || '—'
+      reason: r.reason || '-',
+      message: r.message || '-'
     }))
   })
 
   function formatDateTime(ts?: string): string {
-    if (!ts) return '—'
+    if (!ts) return '-'
     const d = new Date(ts)
     if (Number.isNaN(d.getTime())) return ts
     const pad = (n: number) => String(n).padStart(2, '0')
@@ -337,34 +333,12 @@
   const memoryAllocatableBytes = computed(() =>
     parseMemoryToBytes(String(node.value?.status?.allocatable?.memory ?? '0'))
   )
-  const cpuUsagePercent = computed(() => {
-    const total = cpuAllocatableMillicores.value
-    if (!total) return 0
-    return Math.min(100, Number(((cpuUsageMillicores.value / total) * 100).toFixed(2)))
-  })
-  const memoryUsagePercent = computed(() => {
-    const total = memoryAllocatableBytes.value
-    if (!total) return 0
-    return Math.min(100, Number(((memoryUsageBytes.value / total) * 100).toFixed(2)))
-  })
-  const cpuUsageText = computed(() => formatMillicores(cpuUsageMillicores.value))
-  const memoryUsageText = computed(() => formatBytes(memoryUsageBytes.value))
-  const cpuUsageAllocText = computed(
-    () =>
-      `${formatMillicores(cpuUsageMillicores.value)} / ${formatMillicores(
-        cpuAllocatableMillicores.value
-      )} (${cpuUsagePercent.value}%)`
-  )
-  const memoryUsageAllocText = computed(
-    () =>
-      `${formatBytes(memoryUsageBytes.value)} / ${formatBytes(memoryAllocatableBytes.value)} (${memoryUsagePercent.value}%)`
-  )
   const nodeResource = computed(() => ({
-    cpuPercent: cpuUsagePercent.value,
-    memoryPercent: memoryUsagePercent.value,
-    cpuRequested: formatMillicores(cpuUsageMillicores.value),
+    cpuPercent: 0,
+    memoryPercent: 0,
+    cpuRequested: '0',
     cpuTotal: formatMillicores(cpuAllocatableMillicores.value),
-    memoryRequested: formatBytes(memoryUsageBytes.value),
+    memoryRequested: '0',
     memoryTotal: formatBytes(memoryAllocatableBytes.value)
   }))
   const nodeResourceRows = computed(() => {
@@ -388,38 +362,6 @@
       }
     })
   })
-  const nodeMetrics = computed(() => ({
-    cpuUsageText: cpuUsageText.value,
-    memoryUsageText: memoryUsageText.value,
-    cpuUsageAllocText: cpuUsageAllocText.value,
-    memoryUsageAllocText: memoryUsageAllocText.value,
-    cpuUsagePercent: cpuUsagePercent.value,
-    memoryUsagePercent: memoryUsagePercent.value
-  }))
-
-  async function loadMetrics() {
-    if (!node.value?.metadata?.name) return
-    metricsLoading.value = true
-    try {
-      const [cpuRes, memRes] = await Promise.all([
-        fetchNodeUsageMetrics(cluster.value, node.value.metadata.name, 'cpu', 'usage').catch(
-          () => ({ items: [] as any[] })
-        ),
-        fetchNodeUsageMetrics(cluster.value, node.value.metadata.name, 'memory', 'usage').catch(
-          () => ({ items: [] as any[] })
-        )
-      ])
-      const cpuPoints = cpuRes.items?.[0]?.metricPoints ?? []
-      const memPoints = memRes.items?.[0]?.metricPoints ?? []
-      const latestCpu = cpuPoints.length ? cpuPoints[cpuPoints.length - 1]?.value ?? 0 : 0
-      const latestMem = memPoints.length ? memPoints[memPoints.length - 1]?.value ?? 0 : 0
-      cpuUsageMillicores.value = Number(latestCpu) || 0
-      memoryUsageBytes.value = Number(latestMem) || 0
-    } finally {
-      metricsLoading.value = false
-    }
-  }
-
   async function loadAllocatedResources() {
     if (!node.value?.metadata?.name) return
     const clusterName = cluster.value
@@ -552,7 +494,7 @@
   function openRemoteLoginSameAsHost() {
     if (!node.value) return
     const ip = formatNodeInternalIp(node.value).trim()
-    if (!ip || ip === '—') {
+    if (!ip || ip === '-') {
       ElMessage.warning('该节点暂无 IP，无法远程登录')
       return
     }
@@ -561,7 +503,6 @@
 
   onMounted(async () => {
     await loadNode()
-    await loadMetrics()
     await loadAllocatedResources()
   })
 </script>

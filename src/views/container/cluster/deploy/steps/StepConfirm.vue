@@ -99,6 +99,22 @@
           <div class="kv-label">Kube-proxy 模式</div>
           <div class="kv-value">{{ form.kubeProxyMode || '-' }}</div>
         </div>
+        <div class="kv-item">
+          <div class="kv-label">Metrics Server</div>
+          <div class="kv-value">
+            <ElTag :type="form.metricsServer ? 'success' : 'info'" size="small">
+              {{ form.metricsServer ? '启用' : '关闭' }}
+            </ElTag>
+          </div>
+        </div>
+        <div class="kv-item">
+          <div class="kv-label">Nginx Ingress</div>
+          <div class="kv-value">
+            <ElTag :type="form.ingressNginx ? 'success' : 'info'" size="small">
+              {{ form.ingressNginx ? '启用' : '关闭' }}
+            </ElTag>
+          </div>
+        </div>
       </div>
     </section>
     <section class="confirm-panel">

@@ -186,7 +186,7 @@
           formatter: (row: K8sEventRow) => {
             const kind = row.involvedObject?.kind ?? ''
             const name = row.involvedObject?.name ?? ''
-            const text = kind && name ? `${kind}/${name}` : kind || name || '—'
+            const text = kind && name ? `${kind}/${name}` : kind || name || '-'
             return h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, text)
           }
         },
@@ -203,7 +203,7 @@
           minWidth: 280,
           showOverflowTooltip: true,
           formatter: (row: K8sEventRow) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, row.message ?? '—')
+            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, row.message ?? '-')
         },
         {
           prop: 'operation',

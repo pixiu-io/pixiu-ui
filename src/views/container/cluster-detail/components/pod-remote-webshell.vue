@@ -13,7 +13,7 @@
     <template #header>
       <div class="host-ssh-drawer-header-inner">
         <span class="host-ssh-drawer-title">
-          Pod 远程登录 —
+          Pod 远程登录 -
           <span class="host-ssh-drawer-host">{{ targetLine }}</span>
         </span>
         <div class="host-ssh-header-toolbar">

@@ -43,13 +43,15 @@
             popper-class="cluster-detail-ns-select-popper"
           >
             <template #label="{ label, value }">
-              <span style="display:inline-flex;align-items:center;gap:4px">
+              <span style="display: inline-flex; align-items: center; gap: 4px">
                 <span class="ns-selected-label">{{ label }}</span>
-                <span v-if="isSystemNamespace(String(value || ''))" class="ns-system-tag">系统</span>
+                <span v-if="isSystemNamespace(String(value || ''))" class="ns-system-tag"
+                  >系统</span
+                >
               </span>
             </template>
             <ElOption v-for="ns in namespaceOptions" :key="ns" :value="ns" :label="ns">
-              <span style="display:inline-flex;align-items:center;gap:0">
+              <span style="display: inline-flex; align-items: center; gap: 0">
                 <span class="ns-option-name">{{ ns }}</span>
                 <span v-if="isSystemNamespace(ns)" class="ns-system-tag">系统</span>
               </span>
@@ -58,7 +60,9 @@
         </div>
       </div>
       <div class="cluster-detail-header__right">
-        <ElButton v-ripple :disabled="!ctx.name" @click="yamlCreateVisible = true">YAML创建</ElButton>
+        <ElButton v-ripple :disabled="!ctx.name" @click="yamlCreateVisible = true"
+          >YAML创建资源</ElButton
+        >
       </div>
     </header>
 
@@ -97,8 +101,9 @@
             </template>
             <ElMenuItem index="autoscaling">弹性伸缩</ElMenuItem>
             <ElMenuItem index="auth">认证授权</ElMenuItem>
-            <ElMenuItem index="policy">策略管理</ElMenuItem>
             <ElMenuItem index="addon-components">组件管理</ElMenuItem>
+            <ElMenuItem index="crds">自定义资源</ElMenuItem>
+            <ElMenuItem index="apiservices">APIService</ElMenuItem>
           </ElSubMenu>
 
           <ElSubMenu index="group-monitor">
@@ -132,7 +137,13 @@
   import type { ClusterItem } from '@/api/container'
   import { fetchK8sNamespaceList } from '@/api/kubernetes/namespace'
   import ClusterYamlCreateDialog from './modules/cluster-yaml-create-dialog.vue'
-  import { clusterDetailContextKey, clusterDetailNamespaceKey, clusterNameSeed, type ClusterDetailContext } from './context'
+  import {
+    clusterDetailContextKey,
+    clusterDetailNamespaceKey,
+    clusterDetailRefreshKey,
+    clusterNameSeed,
+    type ClusterDetailContext
+  } from './context'
   import { useSettingStore } from '@/store/modules/setting'
   import { storeToRefs } from 'pinia'
 
@@ -143,8 +154,8 @@
   const settingStore = useSettingStore()
   const { getMenuTheme } = storeToRefs(settingStore)
 
-  /** 默认展开「资源对象」「运维中心」；「监控告警」默认折叠 */
-  const DEFAULT_SUBMENU_OPENEDS: string[] = ['group-resource', 'group-monitor']
+  /** 默认展开「资源对象」「运维中心」「监控告警」 */
+  const DEFAULT_SUBMENU_OPENEDS: string[] = ['group-resource', 'group-ops', 'group-monitor']
 
   const DETAIL_SEGMENTS = new Set([
     'overview',
@@ -157,8 +168,9 @@
     'storage',
     'autoscaling',
     'auth',
-    'policy',
     'addon-components',
+    'crds',
+    'apiservices',
     'alert',
     'logs',
     'events',
@@ -176,7 +188,10 @@
   const nsLoading = ref(false)
 
   async function loadNamespaceOptions(clusterName: string) {
-    if (!clusterName) { namespaceOptions.value = []; return }
+    if (!clusterName) {
+      namespaceOptions.value = []
+      return
+    }
     nsLoading.value = true
     try {
       const { items } = await fetchK8sNamespaceList(clusterName, { page: 1, limit: 500 })
@@ -271,9 +286,17 @@
     return {
       name,
       aliasName: row?.aliasName ?? name,
+      id: row?.id ?? 0,
+      resourceVersion: row?.resourceVersion ?? 0,
       status: row?.status ?? 0,
       version: row?.version ?? '-',
+      clusterType: row?.clusterType ?? 0,
+      planId: row?.planId ?? 0,
+      isProtected: row?.isProtected ?? false,
+      createTime: row?.createTime ?? '-',
       nodeCount: row?.nodeCount ?? 0,
+      nodeReady: row?.nodeReady ?? 0,
+      nodeNotReady: row?.nodeNotReady ?? 0,
       seed: clusterNameSeed(name)
     }
   })
@@ -311,8 +334,22 @@
     return [stubClusterRow(currentName), ...list]
   })
 
+  async function refreshClusterRow() {
+    const name = String(route.query.cluster ?? '')
+    if (!name) {
+      clusterRow.value = null
+      return
+    }
+    try {
+      clusterRow.value = await fetchClusterByName(name)
+    } catch {
+      clusterRow.value = null
+    }
+  }
+
   provide(clusterDetailContextKey, ctx)
   provide(clusterDetailNamespaceKey, { namespace: selectedNamespace, namespaceOptions })
+  provide(clusterDetailRefreshKey, refreshClusterRow)
 
   const STATUS_CONFIG = {
     0: { type: 'success' as const, text: '运行中' },
@@ -549,7 +586,9 @@
     cursor: pointer;
     color: var(--el-text-color-secondary);
     border-radius: 4px;
-    transition: color 0.15s, background-color 0.15s;
+    transition:
+      color 0.15s,
+      background-color 0.15s;
   }
 
   .ns-refresh-btn:hover {
@@ -564,8 +603,12 @@
   }
 
   @keyframes ns-refresh-spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   .ns-option-name {

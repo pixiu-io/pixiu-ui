@@ -14,12 +14,13 @@ const clusterDetailChildren: AppRouteRecord[] = [
   { path: 'storage', name: 'ClusterDetailStorage', component: '/container/cluster-detail/storage' },
   { path: 'autoscaling', name: 'ClusterDetailAutoscaling', component: '/container/cluster-detail/autoscaling' },
   { path: 'auth', name: 'ClusterDetailAuth', component: '/container/cluster-detail/auth' },
-  { path: 'policy', name: 'ClusterDetailPolicy', component: '/container/cluster-detail/policy' },
   {
     path: 'addon-components',
     name: 'ClusterDetailAddonComponents',
     component: '/container/cluster-detail/addon-components'
   },
+  { path: 'crds', name: 'ClusterDetailCrds', component: '/container/cluster-detail/crds' },
+  { path: 'apiservices', name: 'ClusterDetailApiservices', component: '/container/cluster-detail/apiservices' },
   { path: 'alert', name: 'ClusterDetailAlert', component: '/container/cluster-detail/alert' },
   { path: 'logs', name: 'ClusterDetailLogs', component: '/container/cluster-detail/logs' },
   { path: 'events', name: 'ClusterDetailEvents', component: '/container/cluster-detail/events' },

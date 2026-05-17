@@ -697,35 +697,37 @@
     gap: 12px;
   }
 
-  /* ── Secret 类型：与创建 Deployment「拉取策略」分段样式一致（宽度随文案自适应）── */
+  /* ── Radio 按钮组 ── */
   .pull-policy-group {
     --el-radio-button-checked-border-color: var(--el-color-primary);
     --el-radio-button-checked-bg-color: var(--el-bg-color-overlay);
     --el-radio-button-checked-text-color: var(--el-color-primary);
-    display: inline-flex;
-    flex-wrap: nowrap;
-    width: fit-content;
-    max-width: 100%;
+    display: flex;
+    width: 320px;
+    min-width: 320px;
+    max-width: 320px;
+    overflow: hidden;
     box-sizing: border-box;
-    vertical-align: middle;
   }
 
   .pull-policy-group :deep(.el-radio-button) {
-    flex: 0 0 auto;
-    display: inline-flex;
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
   }
 
   .pull-policy-group :deep(.el-radio-button__inner) {
-    display: inline-flex;
+    display: flex;
+    flex: 1;
     align-items: center;
     justify-content: center;
+    width: 100%;
     box-sizing: border-box;
     text-align: center;
     font-size: 12px;
-    line-height: 1.2;
-    padding: 0 10px;
-    height: 28px;
-    white-space: nowrap;
+    padding: 6px 10px;
+    line-height: 1.25;
+    min-height: 28px;
     font-weight: 400;
     color: var(--el-text-color-regular);
     background: transparent;

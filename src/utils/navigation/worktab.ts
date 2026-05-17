@@ -62,6 +62,12 @@ export function shouldHideWorkTabBar(route: RouteLocationNormalized): boolean {
  */
 export const setWorktab = (to: RouteLocationNormalized): void => {
   const worktabStore = useWorktabStore()
+
+  // 回到集群列表时清理集群内产生的标签（详情多子页、创建页等），避免堆叠无效标签
+  if (to.path === '/container/cluster') {
+    worktabStore.removeClusterContextTabs()
+  }
+
   const { meta, path, name, params, query } = to
 
   const clusterParam = query.cluster
