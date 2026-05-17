@@ -7,6 +7,8 @@
     label-position="right"
     class="step-cluster-config"
   >
+    <ElDivider content-position="left" class="section-divider-top">集群配置</ElDivider>
+
     <ElFormItem label="高可用 Kubernetes" prop="highAvailability">
       <ElSwitch
         :model-value="form.highAvailability"
@@ -168,12 +170,21 @@
 
 <style scoped>
   .step-cluster-config {
-    max-width: 760px;
-    padding-top: 8px;
+    width: 100%;
+    max-width: none;
+    padding-top: 0;
   }
 
   .step-cluster-config :deep(.el-form-item) {
     margin-bottom: 20px;
+  }
+
+  .step-cluster-config :deep(.el-form-item__label) {
+    font-size: 12px;
+  }
+
+  .section-divider-top {
+    margin-top: 0;
   }
 
   .form-tip {

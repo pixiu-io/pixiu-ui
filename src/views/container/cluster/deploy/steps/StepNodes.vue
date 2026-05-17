@@ -1,5 +1,6 @@
 <template>
   <div class="step-nodes">
+    <ElDivider content-position="left" class="section-divider-top">节点</ElDivider>
     <div class="nodes-toolbar">
       <div class="nodes-toolbar__left">
         <ElButton v-ripple :disabled="readOnly" @click="openAddDialog">添加节点</ElButton>
@@ -331,6 +332,18 @@
 <style scoped>
   .step-nodes {
     width: 100%;
+    max-width: none;
+    padding-top: 0;
+  }
+
+  .section-divider-top {
+    margin-top: 0;
+    margin-bottom: 4px;
+  }
+
+  .section-divider-top :deep(.el-divider__text) {
+    font-size: 13px;
+    font-weight: 500;
   }
 
   .nodes-toolbar {

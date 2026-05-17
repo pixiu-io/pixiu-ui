@@ -25,43 +25,41 @@
 
     <ElCard class="deploy-create-card">
       <div class="deploy-create-main">
-        <ElTabs v-model="activeTabName" tab-position="left" class="deploy-create-tabs">
-          <ElTabPane label="集群信息" name="0">
-            <StepBasic
-              ref="stepBasicRef"
-              :form="form"
-              :read-only="isReadOnlyMode"
-              :lock-immutable-fields="false"
-              @update:form="form = $event"
-            />
-          </ElTabPane>
-          <ElTabPane label="集群配置" name="1">
-            <StepClusterConfig
-              ref="stepClusterConfigRef"
-              :form="form"
-              :read-only="isReadOnlyMode"
-              :lock-immutable-fields="false"
-              @update:form="form = $event"
-            />
-          </ElTabPane>
-          <ElTabPane label="节点" name="2">
-            <StepNodes
-              ref="stepNodesRef"
-              :form="form"
-              :read-only="isReadOnlyMode"
-              @update:form="form = $event"
-            />
-          </ElTabPane>
-          <ElTabPane label="信息确认" name="3">
-            <StepConfirm
-              ref="stepConfirmRef"
-              :form="form"
-              :read-only="isReadOnlyMode"
-              @update:form="form = $event"
-              @go-step="goToStep"
-            />
-          </ElTabPane>
-        </ElTabs>
+        <div v-show="currentStep === 0" class="deploy-step-pane">
+          <StepBasic
+            ref="stepBasicRef"
+            :form="form"
+            :read-only="isReadOnlyMode"
+            :lock-immutable-fields="lockImmutableFields"
+            @update:form="form = $event"
+          />
+        </div>
+        <div v-show="currentStep === 1" class="deploy-step-pane">
+          <StepClusterConfig
+            ref="stepClusterConfigRef"
+            :form="form"
+            :read-only="isReadOnlyMode"
+            :lock-immutable-fields="lockImmutableFields"
+            @update:form="form = $event"
+          />
+        </div>
+        <div v-show="currentStep === 2" class="deploy-step-pane">
+          <StepNodes
+            ref="stepNodesRef"
+            :form="form"
+            :read-only="isReadOnlyMode"
+            @update:form="form = $event"
+          />
+        </div>
+        <div v-show="currentStep === 3" class="deploy-step-pane">
+          <StepConfirm
+            ref="stepConfirmRef"
+            :form="form"
+            :read-only="isReadOnlyMode"
+            @update:form="form = $event"
+            @go-step="goToStep"
+          />
+        </div>
       </div>
 
       <div class="deploy-create-footer">
@@ -514,18 +512,38 @@
   }
 
   .deploy-create-main {
-    display: flex;
-    gap: 14px;
-  }
-
-  .deploy-create-tabs {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .deploy-create-tabs :deep(.el-tabs__content) {
+    width: 100%;
     min-height: 420px;
-    padding-top: 12px;
+  }
+
+  .deploy-step-pane {
+    width: 100%;
+    max-width: none;
+  }
+
+  .deploy-step-pane :deep(.el-form) {
+    width: 100%;
+    max-width: none;
+  }
+
+  .deploy-step-pane :deep(.el-form-item__label) {
+    font-size: 12px;
+    padding-right: 16px;
+  }
+
+  .deploy-step-pane :deep(.el-input__placeholder),
+  .deploy-step-pane :deep(.el-textarea__placeholder) {
+    font-size: 12px;
+  }
+
+  .deploy-step-pane :deep(.el-divider__text) {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--el-text-color-primary);
+  }
+
+  .deploy-step-pane :deep(.section-divider-top) {
+    margin-top: 0;
   }
 
   .deploy-create-footer {

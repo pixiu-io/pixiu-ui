@@ -423,8 +423,9 @@
 
 <style scoped>
   .step-basic {
-    max-width: 680px;
-    padding-top: 8px;
+    width: 100%;
+    max-width: none;
+    padding-top: 0;
   }
 
   .step-basic :deep(.el-form-item) {
@@ -433,7 +434,7 @@
 
   .step-basic :deep(.el-form-item__label) {
     color: var(--el-text-color-regular);
-    font-size: 14px;
+    font-size: 12px;
   }
 
   .os-selector {
