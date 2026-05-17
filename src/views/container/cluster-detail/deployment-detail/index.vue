@@ -505,6 +505,7 @@
         :mirror-namespace="namespace"
         :mirror-selector="podSelector"
         :mirror-resource-name="name"
+        :mirror-event-kind="workloadKind"
         :mirror-containers="containers"
         :initial-tab="initialTab"
       />
@@ -579,7 +580,11 @@
   import type { K8sPod } from '@/api/kubernetes/pod'
   import { fetchK8sServiceList } from '@/api/kubernetes/service'
   import type { K8sService } from '@/api/kubernetes/service'
-  import { fetchKubeRawEventList } from '@/api/kubernetes/events'
+  import {
+    fetchAggregatedEventList,
+    fetchKubeRawEventList,
+    getAggregatedEventKind
+  } from '@/api/kubernetes/events'
   import { fetchK8sReplicaSetList } from '@/api/kubernetes/replicaset'
   import type { K8sReplicaSet } from '@/api/kubernetes/replicaset'
   import { updateK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
@@ -897,14 +902,22 @@
   async function loadEvents() {
     eventsLoading.value = true
     try {
-      const { items } = await fetchKubeRawEventList(cluster.value, {
-        namespace: namespace.value,
-        name: name.value,
-        kind: workloadKind.value,
-        namespaced: true,
-        page: 1,
-        limit: 100
-      })
+      const aggregateKind = getAggregatedEventKind(workloadKind.value)
+      const { items } = aggregateKind
+        ? await fetchAggregatedEventList(
+            cluster.value,
+            namespace.value,
+            name.value,
+            aggregateKind
+          )
+        : await fetchKubeRawEventList(cluster.value, {
+            namespace: namespace.value,
+            name: name.value,
+            kind: workloadKind.value,
+            namespaced: true,
+            page: 1,
+            limit: 100
+          })
       events.value = items as any[]
     } catch {
       events.value = []

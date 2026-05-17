@@ -644,7 +644,12 @@
   import { fetchK8sReplicaSetList, type K8sReplicaSet } from '@/api/kubernetes/replicaset'
   import { fetchK8sServiceList, type K8sService } from '@/api/kubernetes/service'
   import { fetchK8sNamespaceList } from '@/api/kubernetes/namespace'
-  import { deleteK8sEvent, fetchKubeRawEventList } from '@/api/kubernetes/events'
+  import {
+    deleteK8sEvent,
+    fetchAggregatedEventList,
+    fetchKubeRawEventList,
+    getAggregatedEventKind
+  } from '@/api/kubernetes/events'
   import { updateK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
   import { formatNodeCreationTime } from '@/utils/kubernetes/nodeDisplay'
   import { clusterDetailNamespaceKey } from './context'
@@ -1956,22 +1961,23 @@
               data: { records: [] as any[], total: 0, current: params.current, size: params.size }
             }
           }
-          const query: {
-            namespace?: string
-            name: string
-            kind: string
-            namespaced: boolean
-            page: number
-            limit: number
-          } = {
-            name: props.mirrorResourceName,
-            kind: eventKind,
-            namespaced,
-            page: 1,
-            limit: 200
-          }
-          if (namespaced) query.namespace = ns
-          const { items } = await fetchKubeRawEventList(cluster, query)
+          const aggregateKind = getAggregatedEventKind(eventKind)
+          const { items } =
+            aggregateKind && namespaced && ns
+              ? await fetchAggregatedEventList(
+                  cluster,
+                  ns,
+                  props.mirrorResourceName,
+                  aggregateKind
+                )
+              : await fetchKubeRawEventList(cluster, {
+                  namespace: namespaced ? ns : undefined,
+                  name: props.mirrorResourceName,
+                  kind: eventKind,
+                  namespaced,
+                  page: 1,
+                  limit: 200
+                })
           const typeFilter = (params.type ?? '').trim()
           let filtered = (items as any[]).filter(
             (e) => !typeFilter || String(e.type ?? 'Unknown') === typeFilter
