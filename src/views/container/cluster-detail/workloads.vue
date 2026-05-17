@@ -445,12 +445,13 @@
             </div>
           </div>
 
-          <ElTable :data="dsLogRows" v-loading="dsLogLoading" class="workloads-log-table">
-            <ElTableColumn prop="lineContent" label="日志内容" />
-            <template #empty>
-              <div class="workloads-log-empty">暂无日志</div>
-            </template>
-          </ElTable>
+          <div class="workloads-log-content-label">日志内容</div>
+          <K8sLogOutput
+            :lines="dsLogLines"
+            :loading="dsLogLoading"
+            :download-name="dsLogDownloadName"
+            empty-text="暂无日志"
+          />
         </ElTabPane>
       </ElTabs>
     </ElCard>
@@ -571,6 +572,7 @@
 </template>
 
 <script setup lang="ts">
+  import K8sLogOutput from '@/components/kubernetes/k8s-log-output.vue'
   import NodeMetricsPane from './components/node-metrics-pane.vue'
   import WorkloadMetricsPane from './components/workload-metrics-pane.vue'
   import {
@@ -852,7 +854,10 @@
   const dsLogMode = ref<'history' | 'realtime'>('realtime')
   const dsLogLoading = ref(false)
   const dsLogRefreshing = ref(false)
-  const dsLogRows = ref<Array<{ lineContent: string }>>([])
+  const dsLogLines = ref<string[]>([])
+  const dsLogDownloadName = computed(
+    () => `${dsLogPod.value || 'pod'}-${dsLogContainer.value || 'container'}.log`
+  )
   const dsLogContainerOptions = computed(() => {
     const pod = dsLogPods.value.find((p) => p.metadata?.name === dsLogPod.value)
     return (pod?.spec?.containers ?? []).map((c) => c.name ?? '').filter(Boolean)
@@ -1870,9 +1875,9 @@
         .split('\n')
         .filter((line) => line.length > 0)
         .filter((line) => !dsLogKeyword.value.trim() || line.includes(dsLogKeyword.value.trim()))
-      dsLogRows.value = lines.map((line) => ({ lineContent: line }))
+      dsLogLines.value = lines
     } catch (e: unknown) {
-      dsLogRows.value = []
+      dsLogLines.value = []
       let errorMessage = '获取日志失败'
       if (typeof e === 'object' && e !== null) {
         const maybeAxios = e as {
@@ -4393,14 +4398,11 @@
     flex: 1;
   }
 
-  .workloads-log-table {
-    margin-top: 12px;
-  }
-
-  .workloads-log-empty {
-    color: var(--el-text-color-secondary);
+  .workloads-log-content-label {
+    margin: 10px 0 8px;
     font-size: 13px;
-    padding: 16px 0;
+    font-weight: 500;
+    color: var(--el-text-color-primary);
   }
 
   .remote-login-select {

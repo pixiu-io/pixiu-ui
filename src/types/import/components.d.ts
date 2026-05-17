@@ -129,6 +129,7 @@ declare module 'vue' {
     ElUpload: typeof import('element-plus/es')['ElUpload']
     ElWatermark: typeof import('element-plus/es')['ElWatermark']
     HorizontalSubmenu: typeof import('./../../components/core/layouts/art-menus/art-horizontal-menu/widget/HorizontalSubmenu.vue')['default']
+    K8sLogOutput: typeof import('./../../components/kubernetes/k8s-log-output.vue')['default']
     K8sMonacoEditor: typeof import('./../../components/kubernetes/k8s-monaco-editor.vue')['default']
     K8sYamlDialog: typeof import('./../../components/kubernetes/k8s-yaml-dialog.vue')['default']
     LoginLeftView: typeof import('./../../components/core/views/login/LoginLeftView.vue')['default']
