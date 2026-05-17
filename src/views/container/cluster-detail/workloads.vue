@@ -379,7 +379,7 @@
 
         <ElTabPane
           v-if="props.showWorkloadMetricsTab"
-          label="监控指标"
+          label="监控"
           name="workloadMetrics"
         >
           <WorkloadMetricsPane
@@ -4180,6 +4180,20 @@
 
   .workloads-tabs :deep(.el-tabs__header) {
     margin-top: -6px;
+    margin-bottom: 8px;
+  }
+
+  .workloads-tabs :deep(.el-tabs__content) {
+    padding-top: 0;
+  }
+
+  .workloads-page > .art-table-card :deep(> .el-card__body) {
+    padding-top: 12px;
+  }
+
+  .workloads-tabs :deep(#pane-workloadMetrics),
+  .workloads-tabs :deep(#pane-nodeMetrics) {
+    padding-top: 0;
   }
 
   .workloads-extra-table {

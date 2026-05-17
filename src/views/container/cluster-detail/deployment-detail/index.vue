@@ -1612,4 +1612,16 @@
   .dd-workloads-copy {
     margin-top: -8px;
   }
+
+  .dd-workloads-copy :deep(.workloads-tabs .el-tabs__header) {
+    margin-bottom: 8px;
+  }
+
+  .dd-workloads-copy :deep(.workloads-tabs .el-tabs__content) {
+    padding-top: 0;
+  }
+
+  .dd-workloads-copy :deep(.art-table-card > .el-card__body) {
+    padding-top: 12px;
+  }
 </style>

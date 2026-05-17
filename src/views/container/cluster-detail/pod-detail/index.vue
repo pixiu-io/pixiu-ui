@@ -656,7 +656,15 @@
     padding: 0 14px;
   }
   .dd-tabs :deep(.el-tabs__header) {
-    margin-bottom: 14px;
+    margin-bottom: 8px;
+  }
+
+  .dd-tabs :deep(.el-tabs__content) {
+    padding-top: 0;
+  }
+
+  .dd-tabs :deep(#pane-workloadMetrics) {
+    padding-top: 0;
   }
   .dd-tabs :deep(.el-tabs__nav-wrap::after) {
     height: 1px;

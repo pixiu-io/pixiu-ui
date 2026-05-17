@@ -1,13 +1,19 @@
 <!-- 节点详情 - 监控指标（与集群监控抽屉同源展示） -->
 <template>
   <div class="node-metrics-pane" v-loading="metricsInitialLoading">
-    <div class="node-metrics-pane__toolbar">
-      <ElButton text circle title="刷新" :loading="metricsInitialLoading" @click="handleRefresh">
+    <div class="node-metrics-pane__section-head">
+      <div class="tab-section-title tab-section-title--first">CPU</div>
+      <ElButton
+        text
+        circle
+        class="node-metrics-pane__refresh"
+        title="刷新"
+        :loading="metricsInitialLoading"
+        @click="handleRefresh"
+      >
         <ElIcon :size="16"><Refresh /></ElIcon>
       </ElButton>
     </div>
-
-    <div class="tab-section-title">CPU</div>
     <div class="chart-grid">
       <MetricChartPanel
         v-for="item in cpuMetrics"
@@ -119,13 +125,20 @@
 <style scoped>
   .node-metrics-pane {
     min-height: 200px;
-    padding-top: 4px;
+    padding-top: 0;
   }
 
-  .node-metrics-pane__toolbar {
+  .node-metrics-pane__section-head {
     display: flex;
-    justify-content: flex-end;
-    margin-bottom: 4px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .node-metrics-pane__refresh {
+    flex-shrink: 0;
+    margin: -4px 0 0;
   }
 
   .tab-section-title {
@@ -136,8 +149,12 @@
     color: var(--el-text-color-primary);
   }
 
+  .tab-section-title--first {
+    margin-bottom: 0;
+  }
+
   .tab-section-title--spaced {
-    margin-top: 20px;
+    margin-top: 16px;
   }
 
   .chart-grid {
