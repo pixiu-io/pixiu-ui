@@ -136,7 +136,7 @@
         :node-status-rows="conditionRows"
         :node-resource="nodeResource"
         :node-resource-rows="nodeResourceRows"
-        :node-metrics="nodeMetrics"
+        :metrics-node="node"
       />
     </div>
 
@@ -183,7 +183,6 @@
     deleteK8sNode,
     type K8sNode
   } from '@/api/kubernetes/node'
-  import { fetchNodeUsageMetrics } from '@/api/kubernetes/metrics'
   import { kubeProxyAxios } from '@/api/kubeProxy'
   import HostRemoteSsh from '@/views/safeguard/host/modules/host-remote-ssh.vue'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
@@ -255,9 +254,6 @@
   const labelVisible = ref(false)
   const labelRows = ref<{ key: string; value: string }[]>([])
   const labelSubmitting = ref(false)
-  const metricsLoading = ref(false)
-  const cpuUsageMillicores = ref(0)
-  const memoryUsageBytes = ref(0)
   const allocatedResourceMap = ref<Record<string, { req: number; lim: number; total: number }>>({})
 
   const conditionRows = computed(() => {
@@ -337,34 +333,12 @@
   const memoryAllocatableBytes = computed(() =>
     parseMemoryToBytes(String(node.value?.status?.allocatable?.memory ?? '0'))
   )
-  const cpuUsagePercent = computed(() => {
-    const total = cpuAllocatableMillicores.value
-    if (!total) return 0
-    return Math.min(100, Number(((cpuUsageMillicores.value / total) * 100).toFixed(2)))
-  })
-  const memoryUsagePercent = computed(() => {
-    const total = memoryAllocatableBytes.value
-    if (!total) return 0
-    return Math.min(100, Number(((memoryUsageBytes.value / total) * 100).toFixed(2)))
-  })
-  const cpuUsageText = computed(() => formatMillicores(cpuUsageMillicores.value))
-  const memoryUsageText = computed(() => formatBytes(memoryUsageBytes.value))
-  const cpuUsageAllocText = computed(
-    () =>
-      `${formatMillicores(cpuUsageMillicores.value)} / ${formatMillicores(
-        cpuAllocatableMillicores.value
-      )} (${cpuUsagePercent.value}%)`
-  )
-  const memoryUsageAllocText = computed(
-    () =>
-      `${formatBytes(memoryUsageBytes.value)} / ${formatBytes(memoryAllocatableBytes.value)} (${memoryUsagePercent.value}%)`
-  )
   const nodeResource = computed(() => ({
-    cpuPercent: cpuUsagePercent.value,
-    memoryPercent: memoryUsagePercent.value,
-    cpuRequested: formatMillicores(cpuUsageMillicores.value),
+    cpuPercent: 0,
+    memoryPercent: 0,
+    cpuRequested: '0',
     cpuTotal: formatMillicores(cpuAllocatableMillicores.value),
-    memoryRequested: formatBytes(memoryUsageBytes.value),
+    memoryRequested: '0',
     memoryTotal: formatBytes(memoryAllocatableBytes.value)
   }))
   const nodeResourceRows = computed(() => {
@@ -388,38 +362,6 @@
       }
     })
   })
-  const nodeMetrics = computed(() => ({
-    cpuUsageText: cpuUsageText.value,
-    memoryUsageText: memoryUsageText.value,
-    cpuUsageAllocText: cpuUsageAllocText.value,
-    memoryUsageAllocText: memoryUsageAllocText.value,
-    cpuUsagePercent: cpuUsagePercent.value,
-    memoryUsagePercent: memoryUsagePercent.value
-  }))
-
-  async function loadMetrics() {
-    if (!node.value?.metadata?.name) return
-    metricsLoading.value = true
-    try {
-      const [cpuRes, memRes] = await Promise.all([
-        fetchNodeUsageMetrics(cluster.value, node.value.metadata.name, 'cpu', 'usage').catch(
-          () => ({ items: [] as any[] })
-        ),
-        fetchNodeUsageMetrics(cluster.value, node.value.metadata.name, 'memory', 'usage').catch(
-          () => ({ items: [] as any[] })
-        )
-      ])
-      const cpuPoints = cpuRes.items?.[0]?.metricPoints ?? []
-      const memPoints = memRes.items?.[0]?.metricPoints ?? []
-      const latestCpu = cpuPoints.length ? cpuPoints[cpuPoints.length - 1]?.value ?? 0 : 0
-      const latestMem = memPoints.length ? memPoints[memPoints.length - 1]?.value ?? 0 : 0
-      cpuUsageMillicores.value = Number(latestCpu) || 0
-      memoryUsageBytes.value = Number(latestMem) || 0
-    } finally {
-      metricsLoading.value = false
-    }
-  }
-
   async function loadAllocatedResources() {
     if (!node.value?.metadata?.name) return
     const clusterName = cluster.value
@@ -561,7 +503,6 @@
 
   onMounted(async () => {
     await loadNode()
-    await loadMetrics()
     await loadAllocatedResources()
   })
 </script>

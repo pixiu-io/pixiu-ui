@@ -33,6 +33,7 @@
     symbol: 'none',
     symbolSize: 6,
     animationDelay: 200,
+    silentUpdate: false,
 
     // 轴线显示配置
     showAxisLabel: true,
@@ -82,19 +83,6 @@
       return singleData?.length ? Math.max(...singleData) : 0
     }
   })
-
-  // 初始化动画数据（优化：减少条件判断）
-  const initAnimationData = (): number[] | LineDataItem[] => {
-    if (isMultipleData.value) {
-      const multiData = props.data as LineDataItem[]
-      return multiData.map((item) => ({
-        ...item,
-        data: Array(item.data.length).fill(0)
-      }))
-    }
-    const singleData = props.data as number[]
-    return Array(singleData.length).fill(0)
-  }
 
   // 复制真实数据（优化：使用结构化克隆）
   const copyRealData = (): number[] | LineDataItem[] => {
@@ -154,10 +142,30 @@
     }
   }
 
+  const LEFT_TO_RIGHT_TOTAL_MS = 1300
+  const LEFT_TO_RIGHT_MIN_POINT_DELAY = 24
+  const LEFT_TO_RIGHT_MAX_POINT_DELAY = 80
+
+  function getLeftToRightPointDelay(pointCount: number): number {
+    if (pointCount <= 1) return 0
+    return Math.min(
+      LEFT_TO_RIGHT_MAX_POINT_DELAY,
+      Math.max(
+        LEFT_TO_RIGHT_MIN_POINT_DELAY,
+        Math.floor(LEFT_TO_RIGHT_TOTAL_MS / (pointCount - 1))
+      )
+    )
+  }
+
+  /** 从左到右逐点展示：未展示位置为 null，折线只连左侧已展示点 */
+  function buildLeftToRightData(values: number[], revealCount: number): (number | null)[] {
+    return values.map((v, idx) => (idx < revealCount ? v : null))
+  }
+
   // 创建系列配置
   const createSeriesItem = (config: {
     name?: string
-    data: number[]
+    data: (number | null)[]
     color?: string
     smooth?: boolean
     symbol?: string
@@ -169,6 +177,7 @@
       name: config.name,
       data: config.data,
       type: 'line' as const,
+      connectNulls: false,
       color: config.color,
       smooth: config.smooth ?? props.smooth,
       symbol: config.symbol ?? props.symbol,
@@ -188,11 +197,11 @@
   }
 
   // 生成图表配置
-  const generateChartOptions = (isInitial = false): EChartsOption => {
+  const generateChartOptions = (isInitial = false, stepReveal = false): EChartsOption => {
     const options: EChartsOption = {
-      animation: true,
-      animationDuration: isInitial ? 0 : 1300,
-      animationDurationUpdate: isInitial ? 0 : 1300,
+      animation: !stepReveal,
+      animationDuration: isInitial || stepReveal ? 0 : 1300,
+      animationDurationUpdate: isInitial || stepReveal ? 0 : 1300,
       grid: getGridWithLegend(props.showLegend && isMultipleData.value, props.legendPosition, {
         top: 15,
         right: 15,
@@ -262,46 +271,89 @@
     initChart(options)
   }
 
-  // 初始化动画函数（优化：统一定时器管理，减少内存泄漏风险）
+  /** 单条折线从左到右逐点生成 */
+  function runSingleSeriesLeftToRightAnimation(realData: number[]) {
+    const pointCount = realData.length
+    if (!pointCount) {
+      isAnimating.value = false
+      return
+    }
+
+    const pointDelay = getLeftToRightPointDelay(pointCount)
+
+    animatedData.value = buildLeftToRightData(realData, 1)
+    updateChartOptions(generateChartOptions(true, true))
+
+    if (pointCount === 1) {
+      isAnimating.value = false
+      return
+    }
+
+    for (let revealCount = 2; revealCount <= pointCount; revealCount++) {
+      const timer = window.setTimeout(
+        () => {
+          animatedData.value = buildLeftToRightData(realData, revealCount)
+          updateChartOptions(generateChartOptions(false, true))
+          if (revealCount === pointCount) isAnimating.value = false
+        },
+        (revealCount - 1) * pointDelay
+      )
+      animationTimers.value.push(timer)
+    }
+  }
+
+  /** 多条折线同步从左到右逐点生成 */
+  function runMultiSeriesLeftToRightAnimation(multiData: LineDataItem[]) {
+    const maxLen = Math.max(...multiData.map((item) => item.data?.length ?? 0), 0)
+    if (!maxLen) {
+      isAnimating.value = false
+      return
+    }
+
+    const pointDelay = getLeftToRightPointDelay(maxLen)
+
+    animatedData.value = multiData.map((item) => ({
+      ...item,
+      data: buildLeftToRightData(item.data, 1)
+    }))
+    updateChartOptions(generateChartOptions(true, true))
+
+    if (maxLen === 1) {
+      animatedData.value = copyRealData()
+      updateChartOptions(generateChartOptions(false, true))
+      isAnimating.value = false
+      return
+    }
+
+    for (let revealCount = 2; revealCount <= maxLen; revealCount++) {
+      const timer = window.setTimeout(
+        () => {
+          animatedData.value = multiData.map((item) => ({
+            ...item,
+            data: buildLeftToRightData(item.data, revealCount)
+          }))
+          updateChartOptions(generateChartOptions(false, true))
+          if (revealCount === maxLen) {
+            animatedData.value = copyRealData()
+            updateChartOptions(generateChartOptions(false, true))
+            isAnimating.value = false
+          }
+        },
+        (revealCount - 1) * pointDelay
+      )
+      animationTimers.value.push(timer)
+    }
+  }
+
+  // 初始化动画：折线从左向右逐点展开
   const initChartWithAnimation = () => {
     clearAnimationTimers()
     isAnimating.value = true
 
-    // 初始化为0值数据
-    animatedData.value = initAnimationData()
-    updateChartOptions(generateChartOptions(true))
-
     if (isMultipleData.value) {
-      // 多数据阶梯式动画
-      const multiData = props.data as LineDataItem[]
-      const currentAnimatedData = animatedData.value as LineDataItem[]
-
-      multiData.forEach((item, index) => {
-        const timer = window.setTimeout(
-          () => {
-            currentAnimatedData[index] = { ...item, data: [...item.data] }
-            animatedData.value = [...currentAnimatedData]
-            updateChartOptions(generateChartOptions(false))
-          },
-          index * props.animationDelay + 100
-        )
-
-        animationTimers.value.push(timer)
-      })
-
-      // 标记动画完成
-      const totalDelay = (multiData.length - 1) * props.animationDelay + 1500
-      const finishTimer = window.setTimeout(() => {
-        isAnimating.value = false
-      }, totalDelay)
-      animationTimers.value.push(finishTimer)
+      runMultiSeriesLeftToRightAnimation(props.data as LineDataItem[])
     } else {
-      // 单数据简单动画 - 使用 nextTick 确保初始状态已渲染
-      nextTick(() => {
-        animatedData.value = copyRealData()
-        updateChartOptions(generateChartOptions(false))
-        isAnimating.value = false
-      })
+      runSingleSeriesLeftToRightAnimation([...(props.data as number[])])
     }
   }
 
@@ -325,7 +377,12 @@
     return true
   }
 
-  // 使用新的图表组件抽象
+  function hasRenderableData() {
+    if (props.isEmpty) return false
+    return !checkIsEmpty()
+  }
+
+  // 使用新的图表组件抽象（数据更新由 renderChart 统一处理，避免与从左到右动画冲突）
   const {
     chartRef,
     initChart,
@@ -336,29 +393,62 @@
     getTooltipStyle,
     getLegendStyle,
     getGridWithLegend,
-    isEmpty
+    isEmpty,
+    isDark,
+    emptyStateManager
   } = useChartComponent({
     props,
-    checkEmpty: checkIsEmpty,
-    watchSources: [() => props.data, () => props.xAxisData, () => props.colors],
+    checkEmpty: () => {
+      if (isAnimating.value && hasRenderableData()) return false
+      return checkIsEmpty()
+    },
+    watchSources: [],
     onVisible: () => {
-      // 当图表变为可见时，检查是否为空数据
-      if (!isEmpty.value) {
-        initChartWithAnimation()
-      }
+      if (hasRenderableData()) forceReplayAnimation()
     },
     generateOptions: () => generateChartOptions(false)
   })
 
-  // 图表渲染函数（优化：防止动画期间重复触发）
-  const renderChart = () => {
-    if (!isAnimating.value && !isEmpty.value) {
-      initChartWithAnimation()
-    }
+  function forceReplayAnimation() {
+    if (!hasRenderableData()) return
+    clearAnimationTimers()
+    isAnimating.value = false
+    emptyStateManager.remove()
+    initChartWithAnimation()
   }
 
-  // 使用 VueUse 的 watchDebounced 优化数据监听（避免频繁更新）
+  // 图表渲染：静默刷新直接更新；非静默则从左到右逐点展开
+  const renderChart = () => {
+    if (!hasRenderableData()) {
+      clearAnimationTimers()
+      isAnimating.value = false
+      return
+    }
+
+    if (props.silentUpdate) {
+      clearAnimationTimers()
+      isAnimating.value = false
+      emptyStateManager.remove()
+      animatedData.value = copyRealData()
+      updateChartOptions(generateChartOptions(false))
+      return
+    }
+
+    forceReplayAnimation()
+  }
+
   watch([() => props.data, () => props.xAxisData, () => props.colors], renderChart, { deep: true })
+
+  watch(
+    () => props.silentUpdate,
+    (silent, prev) => {
+      if (prev && !silent && hasRenderableData()) forceReplayAnimation()
+    }
+  )
+
+  watch(isDark, () => {
+    if (hasRenderableData()) renderChart()
+  })
 
   // 生命周期
   onMounted(() => {

@@ -369,40 +369,26 @@
         </ElTabPane>
 
         <ElTabPane v-if="props.showNodeMetricsTab" label="监控指标" name="nodeMetrics">
-          <div class="workloads-node-metrics">
-            <div class="workloads-node-metrics__grid">
-              <div class="workloads-node-metrics__item">
-                <div class="workloads-node-metrics__title">CPU 使用量</div>
-                <div class="workloads-node-metrics__value">{{
-                  props.nodeMetrics.cpuUsageText
-                }}</div>
-              </div>
-              <div class="workloads-node-metrics__item">
-                <div class="workloads-node-metrics__title">内存使用量</div>
-                <div class="workloads-node-metrics__value">{{
-                  props.nodeMetrics.memoryUsageText
-                }}</div>
-              </div>
-              <div class="workloads-node-metrics__item">
-                <div class="workloads-node-metrics__title">分配情况</div>
-                <div class="workloads-node-metrics__alloc">
-                  <div class="workloads-node-metrics__row">
-                    <span>CPU</span>
-                    <span>{{ props.nodeMetrics.cpuUsageAllocText }}</span>
-                  </div>
-                  <ElProgress :percentage="props.nodeMetrics.cpuUsagePercent" :stroke-width="8" />
-                  <div class="workloads-node-metrics__row">
-                    <span>内存</span>
-                    <span>{{ props.nodeMetrics.memoryUsageAllocText }}</span>
-                  </div>
-                  <ElProgress
-                    :percentage="props.nodeMetrics.memoryUsagePercent"
-                    :stroke-width="8"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
+          <NodeMetricsPane
+            :cluster="String(route.query.cluster ?? '')"
+            :node-name="props.deployNodeName || props.mirrorResourceName || ''"
+            :node="props.metricsNode"
+            :active="kind === 'nodeMetrics'"
+          />
+        </ElTabPane>
+
+        <ElTabPane
+          v-if="props.showWorkloadMetricsTab"
+          label="监控"
+          name="workloadMetrics"
+        >
+          <WorkloadMetricsPane
+            :cluster="String(route.query.cluster ?? '')"
+            :namespace="props.metricsNamespace || props.deployNamespace || ''"
+            :label-selector="props.metricsLabelSelector || props.deployLabelSelector || ''"
+            :pod-names="props.metricsPodNames"
+            :active="kind === 'workloadMetrics'"
+          />
         </ElTabPane>
 
         <ElTabPane
@@ -459,12 +445,13 @@
             </div>
           </div>
 
-          <ElTable :data="dsLogRows" v-loading="dsLogLoading" class="workloads-log-table">
-            <ElTableColumn prop="lineContent" label="日志内容" />
-            <template #empty>
-              <div class="workloads-log-empty">暂无日志</div>
-            </template>
-          </ElTable>
+          <div class="workloads-log-content-label">日志内容</div>
+          <K8sLogOutput
+            :lines="dsLogLines"
+            :loading="dsLogLoading"
+            :download-name="dsLogDownloadName"
+            empty-text="暂无日志"
+          />
         </ElTabPane>
       </ElTabs>
     </ElCard>
@@ -585,6 +572,9 @@
 </template>
 
 <script setup lang="ts">
+  import K8sLogOutput from '@/components/kubernetes/k8s-log-output.vue'
+  import NodeMetricsPane from './components/node-metrics-pane.vue'
+  import WorkloadMetricsPane from './components/workload-metrics-pane.vue'
   import {
     ElAlert,
     ElButton,
@@ -656,7 +646,12 @@
   import { fetchK8sReplicaSetList, type K8sReplicaSet } from '@/api/kubernetes/replicaset'
   import { fetchK8sServiceList, type K8sService } from '@/api/kubernetes/service'
   import { fetchK8sNamespaceList } from '@/api/kubernetes/namespace'
-  import { deleteK8sEvent, fetchKubeRawEventList } from '@/api/kubernetes/events'
+  import {
+    deleteK8sEvent,
+    fetchAggregatedEventList,
+    fetchKubeRawEventList,
+    getAggregatedEventKind
+  } from '@/api/kubernetes/events'
   import { updateK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
   import { formatNodeCreationTime } from '@/utils/kubernetes/nodeDisplay'
   import { clusterDetailNamespaceKey } from './context'
@@ -682,6 +677,11 @@
       showNodeStatusTab?: boolean
       showNodeResourceTab?: boolean
       showNodeMetricsTab?: boolean
+      showWorkloadMetricsTab?: boolean
+      metricsNamespace?: string
+      metricsLabelSelector?: string
+      metricsPodNames?: string[]
+      metricsNode?: import('@/api/kubernetes/node').K8sNode | null
       nodeStatusRows?: Array<{
         type?: string
         status?: string
@@ -690,14 +690,6 @@
         reason?: string
         message?: string
       }>
-      nodeMetrics?: {
-        cpuUsageText?: string
-        memoryUsageText?: string
-        cpuUsageAllocText?: string
-        memoryUsageAllocText?: string
-        cpuUsagePercent?: number
-        memoryUsagePercent?: number
-      }
       nodeResource?: {
         cpuPercent?: number
         memoryPercent?: number
@@ -750,15 +742,12 @@
       showNodeStatusTab: false,
       showNodeResourceTab: false,
       showNodeMetricsTab: false,
+      showWorkloadMetricsTab: false,
+      metricsNamespace: '',
+      metricsLabelSelector: '',
+      metricsPodNames: () => [],
+      metricsNode: null,
       nodeStatusRows: () => [],
-      nodeMetrics: () => ({
-        cpuUsageText: '0m',
-        memoryUsageText: '0 B',
-        cpuUsageAllocText: '0m / 0m (0%)',
-        memoryUsageAllocText: '0 B / 0 B (0%)',
-        cpuUsagePercent: 0,
-        memoryUsagePercent: 0
-      }),
       nodeResource: () => ({
         cpuPercent: 0,
         memoryPercent: 0,
@@ -865,7 +854,10 @@
   const dsLogMode = ref<'history' | 'realtime'>('realtime')
   const dsLogLoading = ref(false)
   const dsLogRefreshing = ref(false)
-  const dsLogRows = ref<Array<{ lineContent: string }>>([])
+  const dsLogLines = ref<string[]>([])
+  const dsLogDownloadName = computed(
+    () => `${dsLogPod.value || 'pod'}-${dsLogContainer.value || 'container'}.log`
+  )
   const dsLogContainerOptions = computed(() => {
     const pod = dsLogPods.value.find((p) => p.metadata?.name === dsLogPod.value)
     return (pod?.spec?.containers ?? []).map((c) => c.name ?? '').filter(Boolean)
@@ -1883,9 +1875,9 @@
         .split('\n')
         .filter((line) => line.length > 0)
         .filter((line) => !dsLogKeyword.value.trim() || line.includes(dsLogKeyword.value.trim()))
-      dsLogRows.value = lines.map((line) => ({ lineContent: line }))
+      dsLogLines.value = lines
     } catch (e: unknown) {
-      dsLogRows.value = []
+      dsLogLines.value = []
       let errorMessage = '获取日志失败'
       if (typeof e === 'object' && e !== null) {
         const maybeAxios = e as {
@@ -1974,22 +1966,23 @@
               data: { records: [] as any[], total: 0, current: params.current, size: params.size }
             }
           }
-          const query: {
-            namespace?: string
-            name: string
-            kind: string
-            namespaced: boolean
-            page: number
-            limit: number
-          } = {
-            name: props.mirrorResourceName,
-            kind: eventKind,
-            namespaced,
-            page: 1,
-            limit: 200
-          }
-          if (namespaced) query.namespace = ns
-          const { items } = await fetchKubeRawEventList(cluster, query)
+          const aggregateKind = getAggregatedEventKind(eventKind)
+          const { items } =
+            aggregateKind && namespaced && ns
+              ? await fetchAggregatedEventList(
+                  cluster,
+                  ns,
+                  props.mirrorResourceName,
+                  aggregateKind
+                )
+              : await fetchKubeRawEventList(cluster, {
+                  namespace: namespaced ? ns : undefined,
+                  name: props.mirrorResourceName,
+                  kind: eventKind,
+                  namespaced,
+                  page: 1,
+                  limit: 200
+                })
           const typeFilter = (params.type ?? '').trim()
           let filtered = (items as any[]).filter(
             (e) => !typeFilter || String(e.type ?? 'Unknown') === typeFilter
@@ -3943,7 +3936,8 @@
     'containers',
     'events',
     'history',
-    'logs'
+    'logs',
+    'workloadMetrics'
   ])
 
   // ── Tab lazy loading（含 immediate：从创建页带 ?tab= 返回时 kind 已正确，须挂载即拉取） ──
@@ -4191,6 +4185,20 @@
 
   .workloads-tabs :deep(.el-tabs__header) {
     margin-top: -6px;
+    margin-bottom: 8px;
+  }
+
+  .workloads-tabs :deep(.el-tabs__content) {
+    padding-top: 0;
+  }
+
+  .workloads-page > .art-table-card :deep(> .el-card__body) {
+    padding-top: 12px;
+  }
+
+  .workloads-tabs :deep(#pane-workloadMetrics),
+  .workloads-tabs :deep(#pane-nodeMetrics) {
+    padding-top: 0;
   }
 
   .workloads-extra-table {
@@ -4390,14 +4398,11 @@
     flex: 1;
   }
 
-  .workloads-log-table {
-    margin-top: 12px;
-  }
-
-  .workloads-log-empty {
-    color: var(--el-text-color-secondary);
+  .workloads-log-content-label {
+    margin: 10px 0 8px;
     font-size: 13px;
-    padding: 16px 0;
+    font-weight: 500;
+    color: var(--el-text-color-primary);
   }
 
   .remote-login-select {

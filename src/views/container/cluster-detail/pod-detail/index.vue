@@ -120,6 +120,16 @@
     <ElCard v-if="pod && !loading" class="dd-card dd-card--tabs">
       <el-tabs v-model="activeTab" class="dd-tabs">
 
+        <!-- 监控指标 -->
+        <el-tab-pane label="监控指标" name="workloadMetrics">
+          <WorkloadMetricsPane
+            :cluster="cluster"
+            :namespace="namespace"
+            :pod-names="metricsPodNames"
+            :active="activeTab === 'workloadMetrics'"
+          />
+        </el-tab-pane>
+
         <!-- 容器管理 -->
         <el-tab-pane label="容器管理" name="containers">
           <div v-for="container in containers" :key="container.name" class="ct-card">
@@ -269,6 +279,7 @@
   import { useRoute, useRouter } from 'vue-router'
   import ArtButtonMore, { type ButtonMoreItem } from '@/components/core/forms/art-button-more/index.vue'
   import PodRemoteWebshell from '../components/pod-remote-webshell.vue'
+  import WorkloadMetricsPane from '../components/workload-metrics-pane.vue'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
   import { clusterDetailContextKey } from '../context'
   import { fetchK8sPod, deleteK8sPod } from '@/api/kubernetes/pod'
@@ -284,6 +295,7 @@
   const cluster = computed(() => String(route.query.cluster ?? ''))
   const namespace = computed(() => String(route.query.namespace ?? ''))
   const podName = computed(() => String(route.query.pod ?? ''))
+  const metricsPodNames = computed(() => (podName.value ? [podName.value] : []))
   const isSystemNamespace = computed(() => namespace.value === 'default' || namespace.value.startsWith('kube-'))
 
   const clusterCtx = inject(clusterDetailContextKey, undefined)
@@ -474,6 +486,8 @@
 
   // ── Load ──
   onMounted(async () => {
+    const qTab = String(route.query.tab ?? '')
+    if (qTab === 'workloadMetrics') activeTab.value = 'workloadMetrics'
     if (!cluster.value || !namespace.value || !podName.value) {
       ElMessage.error('参数不完整')
       return
@@ -642,7 +656,15 @@
     padding: 0 14px;
   }
   .dd-tabs :deep(.el-tabs__header) {
-    margin-bottom: 14px;
+    margin-bottom: 8px;
+  }
+
+  .dd-tabs :deep(.el-tabs__content) {
+    padding-top: 0;
+  }
+
+  .dd-tabs :deep(#pane-workloadMetrics) {
+    padding-top: 0;
   }
   .dd-tabs :deep(.el-tabs__nav-wrap::after) {
     height: 1px;
