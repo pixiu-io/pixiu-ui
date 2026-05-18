@@ -588,6 +588,15 @@
     </ElDialog>
 
     <PodRemoteWebshell ref="podRemoteWebshellRef" />
+
+    <WorkloadImageManageDialog
+      v-model="imageDialog.visible"
+      :cluster="imageDialog.cluster"
+      :namespace="imageDialog.namespace"
+      :name="imageDialog.name"
+      :kind="imageDialog.kind"
+      @updated="onImageDialogUpdated"
+    />
   </div>
 </template>
 
@@ -637,6 +646,9 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   } from '@/api/kubernetes/deployment'
   import { deleteK8sPod, fetchK8sPod, type K8sPod } from '@/api/kubernetes/pod'
   import PodRemoteWebshell from './components/pod-remote-webshell.vue'
+  import WorkloadImageManageDialog, {
+    type WorkloadImageKind
+  } from './components/workload-image-manage-dialog.vue'
   import { kubeProxyAxios } from '@/api/kubeProxy'
   import {
     fetchK8sStatefulSetList,
@@ -1462,6 +1474,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
                     h(ArtButtonMore, {
                       list: [
                         { key: 'yaml', label: '查看YAML', icon: 'ri:file-code-line' },
+                        { key: 'images', label: '镜像管理', icon: 'ri:docker-line' },
                         { key: 'redeploy', label: '重新部署', icon: 'ri:refresh-line' },
                         {
                           key: 'delete',
@@ -1790,6 +1803,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
                       h(ArtButtonMore, {
                         list: [
                           { key: 'redeploy', label: '重新部署', icon: 'ri:refresh-line' },
+                          { key: 'images', label: '镜像管理', icon: 'ri:docker-line' },
                           {
                             key: 'delete',
                             label: '删除',
@@ -3248,6 +3262,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
                       list: [
                         { key: 'redeploy', label: '重新部署', icon: 'ri:refresh-line' },
                         { key: 'yaml', label: '编辑YAML', icon: 'ri:file-code-line' },
+                        { key: 'images', label: '镜像管理', icon: 'ri:docker-line' },
                         {
                           key: 'delete',
                           label: '删除',
@@ -3746,6 +3761,36 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     }
   }
 
+  const imageDialog = ref<{
+    visible: boolean
+    cluster: string
+    namespace: string
+    name: string
+    kind: WorkloadImageKind
+  }>({
+    visible: false,
+    cluster: '',
+    namespace: '',
+    name: '',
+    kind: 'deploy'
+  })
+
+  function openWorkloadImageDialog(namespace: string, name: string, kind: WorkloadImageKind) {
+    const cluster = String(route.query.cluster ?? '')
+    if (!cluster || !namespace || !name) {
+      ElMessage.warning('资源信息不完整')
+      return
+    }
+    imageDialog.value = { visible: true, cluster, namespace, name, kind }
+  }
+
+  function onImageDialogUpdated() {
+    const kind = imageDialog.value.kind
+    if (kind === 'deploy') onDeplRefresh()
+    else if (kind === 'sts') onStsRefresh()
+    else onDsRefresh()
+  }
+
   function openWorkloadUpdate(
     namespace: string,
     name: string,
@@ -3768,6 +3813,9 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       case 'yaml':
         void openYamlDialog(row)
         break
+      case 'images':
+        openWorkloadImageDialog(row.metadata?.namespace ?? '', row.metadata?.name ?? '', 'deploy')
+        break
     }
   }
 
@@ -3775,6 +3823,9 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     switch (item.key) {
       case 'yaml':
         void openSharedYamlDialog('sts', row.metadata?.namespace ?? '', row.metadata?.name ?? '')
+        break
+      case 'images':
+        openWorkloadImageDialog(row.metadata?.namespace ?? '', row.metadata?.name ?? '', 'sts')
         break
       case 'redeploy':
         void redeployStatefulSet(row)
@@ -3816,6 +3867,9 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     switch (item.key) {
       case 'yaml':
         void openSharedYamlDialog('ds', row.metadata?.namespace ?? '', row.metadata?.name ?? '')
+        break
+      case 'images':
+        openWorkloadImageDialog(row.metadata?.namespace ?? '', row.metadata?.name ?? '', 'ds')
         break
       case 'redeploy':
         void redeployDaemonSet(row)
