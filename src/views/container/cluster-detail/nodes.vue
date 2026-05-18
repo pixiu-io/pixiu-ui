@@ -31,11 +31,15 @@
         :data="mergedData"
         :columns="columns"
         :pagination="effectivePagination"
-        :pagination-options="{ align: 'right' }"
+        :pagination-options="CLUSTER_TABLE_PAGINATION_OPTIONS"
         @selection-change="handleNodeSelectionChange"
         @pagination:size-change="handleSizeChange"
         @pagination:current-change="handleCurrentChange"
-      />
+>
+        <template #empty>
+          <ClusterTableEmpty />
+        </template>
+      </ArtTable>
     </ElCard>
 
     <K8sYamlDialog
@@ -260,6 +264,8 @@
   } from '@/components/core/forms/art-button-more/index.vue'
   import { CopyDocument, InfoFilled } from '@element-plus/icons-vue'
   import { h, ref, computed, onUnmounted } from 'vue'
+import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
+import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
   import {

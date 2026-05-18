@@ -40,12 +40,12 @@
             :data="data"
             :columns="columns"
             :pagination="pagination"
-            :pagination-options="{ align: 'right', hideOnEmpty: false }"
+            :pagination-options="CLUSTER_TABLE_PAGINATION_OPTIONS"
             @pagination:size-change="handleSizeChange"
             @pagination:current-change="handleCurrentChange"
           >
             <template #empty>
-              <div class="crds-table-empty">暂无数据</div>
+              <ClusterTableEmpty />
             </template>
           </ArtTable>
     </ElCard>
@@ -68,6 +68,8 @@
   import yaml from 'js-yaml'
   import { h, ref, watch } from 'vue'
   import { useRoute } from 'vue-router'
+  import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
+  import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useTable } from '@/hooks/core/useTable'
   import { fetchK8sAPIService, fetchK8sAPIServiceList, type K8sAPIService } from '@/api/kubernetes/apiservice'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
@@ -210,9 +212,6 @@
 <style>
   .services-page .icon-action { opacity: 0; transition: opacity 0.15s; }
   .services-page .el-table__row:hover .icon-action { opacity: 1; }
-  .services-page :deep(.el-table__empty-block) { min-height: 40px; }
-  .services-page :deep(.el-table__empty-text) { line-height: 40px; padding: 0; }
-  .crds-table-empty { font-size: 11px; color: var(--el-text-color-secondary); text-align: center; }
   .workloads-toolbar__search { width: 350px; max-width: 100%; }
   .workloads-toolbar__filters { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-left: auto; }
   .workloads-toolbar-search-btn {

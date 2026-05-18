@@ -42,11 +42,15 @@
         :data="data"
         :columns="visibleColumns"
         :pagination="pagination"
-        :pagination-options="{ align: 'right' }"
+        :pagination-options="CLUSTER_TABLE_PAGINATION_OPTIONS"
         @selection-change="onSelectionChange"
         @pagination:size-change="handleSizeChange"
         @pagination:current-change="handleCurrentChange"
-      />
+      >
+        <template #empty>
+          <ClusterTableEmpty />
+        </template>
+      </ArtTable>
     </ElCard>
 
     <K8sYamlDialog
@@ -189,6 +193,8 @@
   import ArtButtonMore, { type ButtonMoreItem } from '@/components/core/forms/art-button-more/index.vue'
   import { Close, CopyDocument, FullScreen, Loading, Refresh, ScaleToOriginal } from '@element-plus/icons-vue'
   import { h, nextTick, ref, computed, watch, inject } from 'vue'
+import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
+import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
   import { deleteK8sEvent, fetchKubeRawEventList } from '@/api/kubernetes/events'
@@ -579,7 +585,7 @@
   watch(selectedNamespace, (ns) => {
     replaceSearchParams({ namespace: ns || undefined })
     getData()
-  })
+  }, { immediate: true })
 
   function onSelectionChange(rows: K8sPod[]) {
     selectedPods.value = rows

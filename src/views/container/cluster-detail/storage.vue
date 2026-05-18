@@ -44,11 +44,15 @@
             :data="pvData"
             :columns="pvColumns"
             :pagination="pvPagination"
-            :pagination-options="{ align: 'right' }"
+            :pagination-options="CLUSTER_TABLE_PAGINATION_OPTIONS"
             @pagination:size-change="pvHandleSizeChange"
             @pagination:current-change="pvHandleCurrentChange"
             @sort-change="onPvSortChange"
-          />
+>
+        <template #empty>
+          <ClusterTableEmpty />
+        </template>
+          </ArtTable>
         </ElTabPane>
 
         <!-- ── PVC Tab ── -->
@@ -93,11 +97,15 @@
             :data="pvcData"
             :columns="pvcVisibleColumns"
             :pagination="pvcPagination"
-            :pagination-options="{ align: 'right' }"
+            :pagination-options="CLUSTER_TABLE_PAGINATION_OPTIONS"
             @pagination:size-change="pvcHandleSizeChange"
             @pagination:current-change="pvcHandleCurrentChange"
             @sort-change="onPvcSortChange"
-          />
+>
+        <template #empty>
+          <ClusterTableEmpty />
+        </template>
+          </ArtTable>
         </ElTabPane>
 
         <!-- ── StorageClass Tab ── -->
@@ -142,11 +150,15 @@
             :data="scData"
             :columns="scColumns"
             :pagination="scPagination"
-            :pagination-options="{ align: 'right' }"
+            :pagination-options="CLUSTER_TABLE_PAGINATION_OPTIONS"
             @pagination:size-change="scHandleSizeChange"
             @pagination:current-change="scHandleCurrentChange"
             @sort-change="onScSortChange"
-          />
+>
+        <template #empty>
+          <ClusterTableEmpty />
+        </template>
+          </ArtTable>
         </ElTabPane>
       </ElTabs>
     </ElCard>
@@ -190,6 +202,8 @@
   import { CopyDocument } from '@element-plus/icons-vue'
   import yaml from 'js-yaml'
   import { computed, h, inject, ref, watch } from 'vue'
+import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
+import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
   import { fetchK8sPVCList, fetchK8sPVC, deleteK8sPVC, type K8sPVC } from '@/api/kubernetes/pvc'

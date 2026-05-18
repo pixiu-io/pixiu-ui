@@ -46,11 +46,15 @@
         :data="data"
         :columns="columns"
         :pagination="pagination"
-        :pagination-options="{ align: 'right' }"
+        :pagination-options="CLUSTER_TABLE_PAGINATION_OPTIONS"
         @selection-change="onSelectionChange"
         @pagination:size-change="handleSizeChange"
         @pagination:current-change="handleCurrentChange"
-      />
+>
+        <template #empty>
+          <ClusterTableEmpty />
+        </template>
+      </ArtTable>
     </ElCard>
   </div>
 </template>
@@ -58,6 +62,8 @@
 <script setup lang="ts">
   import { ElButton, ElLink, ElMessage, ElMessageBox, ElTag, ElSelect, ElOption } from 'element-plus'
   import { computed, h, ref, watch, inject } from 'vue'
+import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
+import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
   import { deleteK8sEvent, fetchKubeRawEventList } from '@/api/kubernetes/events'
@@ -233,6 +239,7 @@
   }
 
   watch(selectedNamespace, (ns) => {
+    
     eventCache.value = null
     replaceSearchParams({ namespace: ns || undefined })
     getData()

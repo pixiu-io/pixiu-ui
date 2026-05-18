@@ -41,15 +41,13 @@
             :data="data"
             :columns="columns"
             :pagination="pagination"
-            :pagination-options="{ align: 'right', hideOnEmpty: false }"
+            :pagination-options="CLUSTER_TABLE_PAGINATION_OPTIONS"
             @pagination:size-change="handleSizeChange"
             @pagination:current-change="handleCurrentChange"
             @sort-change="onSortChange"
           >
             <template #empty>
-              <div class="crds-table-empty">
-                选择的该命名空间的列表为空，可以切换到其他命名空间
-              </div>
+              <ClusterTableEmpty />
             </template>
           </ArtTable>
     </ElCard>
@@ -87,6 +85,8 @@
   import yaml from 'js-yaml'
   import { h, ref, watch } from 'vue'
   import { useRoute } from 'vue-router'
+  import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
+  import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useTable } from '@/hooks/core/useTable'
   import {
     fetchK8sCustomResourceDefinition,
@@ -424,18 +424,4 @@
     outline-offset: 1px;
   }
 
-  .crds-table-empty {
-    padding: 0 20px;
-    line-height: 40px;
-    font-size: 11px;
-    color: var(--el-text-color-secondary);
-    text-align: center;
-  }
-  .services-page :deep(.el-table__empty-block) {
-    min-height: 40px;
-  }
-  .services-page :deep(.el-table__empty-text) {
-    line-height: 40px;
-    padding: 0;
-  }
 </style>

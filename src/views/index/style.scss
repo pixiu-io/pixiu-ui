@@ -26,6 +26,8 @@
 
     #app-content {
       flex: 1;
+      // 移除工作台标签栏后，为内容与顶栏之间保留与原标签区相近的间距
+      padding-top: 12px;
 
       :deep(.layout-content) {
         box-sizing: border-box;
@@ -84,6 +86,8 @@
   .app-layout {
     #app-main {
       #app-content {
+        padding-top: 12px;
+
         :deep(.layout-content) {
           width: calc(100% - 30px);
         }

@@ -90,12 +90,16 @@
             :data="deplData"
             :columns="deplVisibleColumns"
             :pagination="deplPagination"
-            :pagination-options="{ align: 'right' }"
+            :pagination-options="CLUSTER_TABLE_PAGINATION_OPTIONS"
             @selection-change="onDeplSelectionChange"
             @pagination:size-change="deplHandleSizeChange"
             @pagination:current-change="deplHandleCurrentChange"
             @sort-change="onDeplSortChange"
-          />
+>
+        <template #empty>
+          <ClusterTableEmpty />
+        </template>
+          </ArtTable>
         </ElTabPane>
 
         <!-- ── StatefulSet Tab ── -->
@@ -139,11 +143,15 @@
             :data="stsData"
             :columns="stsVisibleColumns"
             :pagination="stsPagination"
-            :pagination-options="{ align: 'right' }"
+            :pagination-options="CLUSTER_TABLE_PAGINATION_OPTIONS"
             @pagination:size-change="stsHandleSizeChange"
             @pagination:current-change="stsHandleCurrentChange"
             @sort-change="onStsSortChange"
-          />
+>
+        <template #empty>
+          <ClusterTableEmpty />
+        </template>
+          </ArtTable>
         </ElTabPane>
 
         <!-- ── DaemonSet Tab ── -->
@@ -191,11 +199,15 @@
             :data="dsData"
             :columns="dsVisibleColumns"
             :pagination="dsPagination"
-            :pagination-options="{ align: 'right' }"
+            :pagination-options="CLUSTER_TABLE_PAGINATION_OPTIONS"
             @pagination:size-change="dsHandleSizeChange"
             @pagination:current-change="dsHandleCurrentChange"
             @sort-change="onDsSortChange"
-          />
+>
+        <template #empty>
+          <ClusterTableEmpty />
+        </template>
+          </ArtTable>
         </ElTabPane>
 
         <!-- ── Job Tab ── -->
@@ -262,12 +274,16 @@
             :data="jobData"
             :columns="jobVisibleColumns"
             :pagination="jobPagination"
-            :pagination-options="{ align: 'right' }"
+            :pagination-options="CLUSTER_TABLE_PAGINATION_OPTIONS"
             @selection-change="onJobSelectionChange"
             @pagination:size-change="jobHandleSizeChange"
             @pagination:current-change="jobHandleCurrentChange"
             @sort-change="onJobSortChange"
-          />
+>
+        <template #empty>
+          <ClusterTableEmpty />
+        </template>
+          </ArtTable>
         </ElTabPane>
 
         <!-- ── CronJob Tab ── -->
@@ -313,11 +329,15 @@
             :data="cjData"
             :columns="cjVisibleColumns"
             :pagination="cjPagination"
-            :pagination-options="{ align: 'right' }"
+            :pagination-options="CLUSTER_TABLE_PAGINATION_OPTIONS"
             @pagination:size-change="cjHandleSizeChange"
             @pagination:current-change="cjHandleCurrentChange"
             @sort-change="onCjSortChange"
-          />
+>
+        <template #empty>
+          <ClusterTableEmpty />
+        </template>
+          </ArtTable>
         </ElTabPane>
 
         <ElTabPane v-if="props.showNodeStatusTab" label="状态" name="nodeStatus">
@@ -603,6 +623,8 @@
     type ButtonMoreItem
   } from '@/components/core/forms/art-button-more/index.vue'
   import { computed, h, ref, watch, inject } from 'vue'
+import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
+import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
   import {
@@ -3905,7 +3927,7 @@
     else if (kind.value === 'ds') getDsData()
     else if (kind.value === 'job') getJobData()
     else if (kind.value === 'cj') getCjData()
-  })
+  }, { immediate: true })
 
   watch(
     () => String(route.query.cluster ?? ''),

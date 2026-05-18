@@ -42,10 +42,14 @@
             :data="crData"
             :columns="crColumns"
             :pagination="crPagination"
-            :pagination-options="{ align: 'right' }"
+            :pagination-options="CLUSTER_TABLE_PAGINATION_OPTIONS"
             @pagination:size-change="crHandleSizeChange"
             @pagination:current-change="crHandleCurrentChange"
-          />
+>
+        <template #empty>
+          <ClusterTableEmpty />
+        </template>
+          </ArtTable>
         </ElTabPane>
 
         <ElTabPane label="ClusterRoleBinding" name="clusterrolebinding">
@@ -88,10 +92,14 @@
             :data="crbData"
             :columns="crbColumns"
             :pagination="crbPagination"
-            :pagination-options="{ align: 'right' }"
+            :pagination-options="CLUSTER_TABLE_PAGINATION_OPTIONS"
             @pagination:size-change="crbHandleSizeChange"
             @pagination:current-change="crbHandleCurrentChange"
-          />
+>
+        <template #empty>
+          <ClusterTableEmpty />
+        </template>
+          </ArtTable>
         </ElTabPane>
 
         <ElTabPane label="Role" name="role">
@@ -134,10 +142,14 @@
             :data="roleData"
             :columns="roleVisibleColumns"
             :pagination="rolePagination"
-            :pagination-options="{ align: 'right' }"
+            :pagination-options="CLUSTER_TABLE_PAGINATION_OPTIONS"
             @pagination:size-change="roleHandleSizeChange"
             @pagination:current-change="roleHandleCurrentChange"
-          />
+>
+        <template #empty>
+          <ClusterTableEmpty />
+        </template>
+          </ArtTable>
         </ElTabPane>
 
         <ElTabPane label="RoleBinding" name="rolebinding">
@@ -180,10 +192,14 @@
             :data="rbData"
             :columns="rbVisibleColumns"
             :pagination="rbPagination"
-            :pagination-options="{ align: 'right' }"
+            :pagination-options="CLUSTER_TABLE_PAGINATION_OPTIONS"
             @pagination:size-change="rbHandleSizeChange"
             @pagination:current-change="rbHandleCurrentChange"
-          />
+>
+        <template #empty>
+          <ClusterTableEmpty />
+        </template>
+          </ArtTable>
         </ElTabPane>
 
         <ElTabPane label="ServiceAccount" name="serviceaccount">
@@ -226,10 +242,14 @@
             :data="saData"
             :columns="saVisibleColumns"
             :pagination="saPagination"
-            :pagination-options="{ align: 'right' }"
+            :pagination-options="CLUSTER_TABLE_PAGINATION_OPTIONS"
             @pagination:size-change="saHandleSizeChange"
             @pagination:current-change="saHandleCurrentChange"
-          />
+>
+        <template #empty>
+          <ClusterTableEmpty />
+        </template>
+          </ArtTable>
         </ElTabPane>
       </ElTabs>
     </ElCard>
@@ -259,6 +279,8 @@
     ElTabs
   } from 'element-plus'
   import { h, computed, inject, ref, watch } from 'vue'
+import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
+import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
   import yaml from 'js-yaml'

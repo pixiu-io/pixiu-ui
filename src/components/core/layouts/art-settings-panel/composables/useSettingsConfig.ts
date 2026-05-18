@@ -104,13 +104,6 @@ export function useSettingsConfig() {
     // 定义所有基础设置项
     const allSettings = [
       {
-        key: 'showWorkTab',
-        label: t('setting.basics.list.multiTab'),
-        type: 'switch' as const,
-        handler: 'workTab',
-        headerBarKey: null // 不依赖headerBar配置
-      },
-      {
         key: 'uniqueOpened',
         label: t('setting.basics.list.accordion'),
         type: 'switch' as const,

@@ -713,4 +713,22 @@
   .dark .cluster-detail-menu .el-sub-menu__title {
     color: var(--art-gray-800) !important;
   }
+
+  /* 集群内资源列表空状态（与自定义资源列表一致） */
+  .cluster-detail-layout .cluster-table-empty {
+    padding: 0 20px;
+    line-height: 40px;
+    font-size: 11px;
+    color: var(--el-text-color-secondary);
+    text-align: center;
+  }
+
+  .cluster-detail-layout .el-table__empty-block {
+    min-height: 40px;
+  }
+
+  .cluster-detail-layout .el-table__empty-text {
+    line-height: 40px;
+    padding: 0;
+  }
 </style>

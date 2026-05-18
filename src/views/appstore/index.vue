@@ -6,6 +6,10 @@
     </div>
 
     <div class="appstore-toolbar">
+      <ElSelect v-model="filterCategory" placeholder="全部分类" clearable class="appstore-filter" @change="onSearch">
+        <ElOption label="全部分类" value="" />
+        <ElOption v-for="cat in categories" :key="cat" :label="cat" :value="cat" />
+      </ElSelect>
       <ElInput
         v-model="searchKeyword"
         placeholder="搜索组件名称或描述"
@@ -17,10 +21,6 @@
           <ElIcon><Search /></ElIcon>
         </template>
       </ElInput>
-      <ElSelect v-model="filterCategory" placeholder="全部分类" clearable class="appstore-filter" @change="onSearch">
-        <ElOption label="全部分类" value="" />
-        <ElOption v-for="cat in categories" :key="cat" :label="cat" :value="cat" />
-      </ElSelect>
     </div>
 
     <div class="appstore-grid">
@@ -47,15 +47,16 @@
           </div>
         </div>
         <div class="app-card__footer">
-          <ElButton
-            :type="app.installed ? 'default' : 'primary'"
-            size="small"
+          <ElLink
+            type="primary"
+            :underline="false"
             :disabled="app.installed"
+            style="font-size: 12px"
             @click="onInstall(app)"
           >
             {{ app.installed ? '已安装' : '安装' }}
-          </ElButton>
-          <ElButton size="small" @click="onDetail(app)">详情</ElButton>
+          </ElLink>
+          <ElLink type="primary" :underline="false" style="font-size: 12px" @click="onDetail(app)">详情</ElLink>
         </div>
       </ElCard>
     </div>
@@ -94,7 +95,7 @@
     {
       name: 'prometheus',
       displayName: 'Prometheus',
-      icon: 'ri:fire-line',
+      icon: 'simple-icons:prometheus',
       color: '#E6522C',
       description: '开源监控和告警工具包，用于记录时序数据并支持多维数据模型与灵活查询',
       version: 'v2.52.0',
@@ -104,7 +105,7 @@
     {
       name: 'grafana',
       displayName: 'Grafana',
-      icon: 'ri:line-chart-line',
+      icon: 'simple-icons:grafana',
       color: '#F46800',
       description: '领先的可视化及分析平台，支持 Prometheus、Loki 等多种数据源',
       version: 'v10.4.0',
@@ -114,7 +115,7 @@
     {
       name: 'loki',
       displayName: 'Grafana Loki',
-      icon: 'ri:file-search-line',
+      icon: 'simple-icons:grafana',
       color: '#FFA500',
       description: '受 Prometheus 启发的水平可扩展、高可用日志聚合系统',
       version: 'v2.9.0',
@@ -122,59 +123,9 @@
       installed: false
     },
     {
-      name: 'istio',
-      displayName: 'Istio',
-      icon: 'ri:ship-2-line',
-      color: '#466BB0',
-      description: '领先的服务网格平台，提供流量管理、安全、可观测性等微服务治理能力',
-      version: 'v1.22.0',
-      category: '服务网格',
-      installed: false
-    },
-    {
-      name: 'jaeger',
-      displayName: 'Jaeger',
-      icon: 'ri:radar-line',
-      color: '#67CFCF',
-      description: '由 Uber 开源的端到端分布式追踪系统，用于监控和排查微服务架构中的事务',
-      version: 'v1.56.0',
-      category: '可观测性',
-      installed: false
-    },
-    {
-      name: 'argocd',
-      displayName: 'ArgoCD',
-      icon: 'ri:git-branch-line',
-      color: '#EF7B4D',
-      description: '声明式 GitOps 持续交付工具，自动同步 Git 仓库中的应用配置到 K8s 集群',
-      version: 'v2.11.0',
-      category: 'CI/CD',
-      installed: false
-    },
-    {
-      name: 'cert-manager',
-      displayName: 'Cert-Manager',
-      icon: 'ri:shield-keyhole-line',
-      color: '#326CE5',
-      description: 'K8s 原生证书管理控制器，自动颁发和续签来自多种签发者的 TLS 证书',
-      version: 'v1.14.0',
-      category: '安全',
-      installed: false
-    },
-    {
-      name: 'nginx-ingress',
-      displayName: 'Nginx Ingress',
-      icon: 'ri:router-line',
-      color: '#009639',
-      description: '基于 Nginx 的 K8s Ingress 控制器，提供七层负载均衡与流量管理',
-      version: 'v1.10.0',
-      category: '网络',
-      installed: false
-    },
-    {
       name: 'metrics-server',
       displayName: 'Metrics Server',
-      icon: 'ri:bar-chart-grouped-line',
+      icon: 'simple-icons:kubernetes',
       color: '#326CE5',
       description: 'K8s 集群资源指标数据采集组件，为 HPA 自动伸缩与 kubectl top 提供 CPU/内存数据',
       version: 'v0.7.0',
@@ -182,33 +133,23 @@
       installed: false
     },
     {
-      name: 'harbor',
-      displayName: 'Harbor',
-      icon: 'ri:archive-line',
-      color: '#60B932',
-      description: '企业级容器镜像仓库，支持镜像漏洞扫描、签名验证、代理缓存等功能',
-      version: 'v2.10.0',
-      category: '镜像仓库',
+      name: 'nginx-ingress',
+      displayName: 'Nginx Ingress',
+      icon: 'simple-icons:nginx',
+      color: '#009639',
+      description: '基于 Nginx 的 K8s Ingress 控制器，提供七层负载均衡与流量管理',
+      version: 'v1.10.0',
+      category: '网络',
       installed: false
     },
     {
-      name: 'kyverno',
-      displayName: 'Kyverno',
-      icon: 'ri:shield-check-line',
-      color: '#5B47FB',
-      description: 'K8s 原生策略管理工具，支持验证、变更、生成及清理规则，无需学习新语言',
-      version: 'v1.11.0',
-      category: '安全',
-      installed: false
-    },
-    {
-      name: 'tekton',
-      displayName: 'Tekton',
-      icon: 'ri:tools-line',
-      color: '#3E4A5B',
-      description: '云原生 CI/CD 框架，用 K8s CRD 定义可复用的 Pipeline 和 Task',
-      version: 'v0.61.0',
-      category: 'CI/CD',
+      name: 'istio',
+      displayName: 'Istio',
+      icon: 'simple-icons:istio',
+      color: '#466BB0',
+      description: '领先的服务网格平台，提供流量管理、安全、可观测性等微服务治理能力',
+      version: 'v1.22.0',
+      category: '服务网格',
       installed: false
     }
   ])
@@ -232,20 +173,22 @@
 
   function onSearch() {}
 
-  function onInstall(app: AppItem) {
-    ElMessage.info(`正在准备安装 ${app.displayName}，请稍候...`)
+  const comingSoonTip = '功能还在开发中，敬请期待'
+
+  function onInstall(_app: AppItem) {
+    ElMessage.info(comingSoonTip)
   }
 
-  function onDetail(app: AppItem) {
-    ElMessage.info(`查看 ${app.displayName} 详情`)
+  function onDetail(_app: AppItem) {
+    ElMessage.info(comingSoonTip)
   }
 </script>
 
 <style scoped>
   .appstore-page {
-    padding: 28px clamp(24px, 4vw, 48px);
-    max-width: 1400px;
-    margin: 0 auto;
+    padding: 10px 25px;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .appstore-header {
@@ -282,7 +225,7 @@
 
   .appstore-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    grid-template-columns: repeat(4, 1fr);
     gap: 16px;
   }
 
@@ -301,7 +244,7 @@
     display: flex;
     flex-direction: column;
     flex: 1;
-    padding: 20px;
+    padding: 20px 20px 12px;
   }
 
   .app-card__header {
@@ -329,8 +272,8 @@
   }
 
   .app-card__name {
-    font-size: 15px;
-    font-weight: 600;
+    font-size: 14px;
+    font-weight: 500;
     color: var(--el-text-color-primary);
   }
 
@@ -364,7 +307,7 @@
   .app-card__footer {
     display: flex;
     gap: 8px;
-    padding-top: 12px;
+    padding-top: 6px;
     border-top: 1px solid var(--el-border-color-lighter);
   }
 

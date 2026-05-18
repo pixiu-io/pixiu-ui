@@ -1,19 +1,7 @@
 <!-- 顶部栏 -->
 <template>
-  <div
-    class="w-full bg-[var(--default-bg-color)]"
-    :class="[
-      tabStyle === 'tab-card' || tabStyle === 'tab-google' ? 'mb-5 max-sm:mb-3 !bg-box' : ''
-    ]"
-  >
-    <div
-      class="relative box-border flex-b h-15 leading-15 select-none"
-      :class="[
-        tabStyle === 'tab-card' || tabStyle === 'tab-google'
-          ? 'border-b border-[var(--art-card-border)]'
-          : ''
-      ]"
-    >
+  <div class="w-full bg-[var(--default-bg-color)]">
+    <div class="relative box-border flex-b h-15 leading-15 select-none border-b border-[var(--art-card-border)]">
       <div class="flex-c flex-1 min-w-0 leading-15" style="display: flex">
         <!-- 系统信息  -->
         <div class="flex-c c-p" @click="toHome" v-if="isTopMenu">
@@ -129,6 +117,9 @@
           <div class="breathing-dot absolute top-2 right-2 size-1.5 !bg-success rounded-full"></div>
         </ArtIconButton>
 
+        <!-- GitHub（与 dashboard 一致跳转 Pixiu 仓库） -->
+        <ArtIconButton icon="simple-icons:github" class="github-btn" @click="openGithub" />
+
         <!-- 设置按钮 -->
         <div v-if="shouldShowSettings">
           <ElPopover :visible="showSettingGuide" placement="bottom-start" :width="190" :offset="0">
@@ -160,9 +151,6 @@
       </div>
     </div>
 
-    <!-- 标签页 -->
-    <ArtWorkTab />
-
     <!-- 通知 -->
     <ArtNotification v-model:value="showNotice" ref="notice" />
   </div>
@@ -182,6 +170,7 @@
   import { themeAnimation } from '@/utils/ui/animation'
   import { useCommon } from '@/hooks/core/useCommon'
   import { useHeaderBar } from '@/hooks/core/useHeaderBar'
+  import { WEB_LINKS } from '@/utils/constants'
   import ArtUserMenu from './widget/ArtUserMenu.vue'
 
   defineOptions({ name: 'ArtHeaderBar' })
@@ -213,8 +202,7 @@
     fastEnterMinWidth: headerBarFastEnterMinWidth
   } = useHeaderBar()
 
-  const { menuOpen, systemThemeColor, showSettingGuide, menuType, isDark, tabStyle } =
-    storeToRefs(settingStore)
+  const { menuOpen, systemThemeColor, showSettingGuide, menuType, isDark } = storeToRefs(settingStore)
 
   const { language } = storeToRefs(userStore)
   const { menuList } = storeToRefs(menuStore)
@@ -289,6 +277,10 @@
     locale.value = lang
     userStore.setLanguage(lang)
     reload(50)
+  }
+
+  const openGithub = (): void => {
+    window.open(WEB_LINKS.GITHUB_HOME, '_blank', 'noopener,noreferrer')
   }
 
   const openSetting = (): void => {

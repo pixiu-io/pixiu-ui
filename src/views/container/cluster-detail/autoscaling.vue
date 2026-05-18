@@ -43,10 +43,14 @@
             :data="data"
             :columns="visibleColumns"
             :pagination="pagination"
-            :pagination-options="{ align: 'right' }"
+            :pagination-options="CLUSTER_TABLE_PAGINATION_OPTIONS"
             @pagination:size-change="handleSizeChange"
             @pagination:current-change="handleCurrentChange"
-          />
+>
+        <template #empty>
+          <ClusterTableEmpty />
+        </template>
+          </ArtTable>
         </ElTabPane>
 
         <ElTabPane label="HorizontalPodCronscaler" name="cron" disabled>
@@ -84,6 +88,8 @@
   } from 'element-plus'
   import { CopyDocument } from '@element-plus/icons-vue'
   import { h, computed, inject, ref, watch } from 'vue'
+import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
+import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
   import ArtButtonMore, { type ButtonMoreItem } from '@/components/core/forms/art-button-more/index.vue'

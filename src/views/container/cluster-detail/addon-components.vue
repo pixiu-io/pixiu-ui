@@ -40,10 +40,14 @@
         :data="data"
         :columns="columns"
         :pagination="pagination"
-        :pagination-options="{ align: 'right' }"
+        :pagination-options="CLUSTER_TABLE_PAGINATION_OPTIONS"
         @pagination:size-change="handleSizeChange"
         @pagination:current-change="handleCurrentChange"
-      />
+>
+        <template #empty>
+          <ClusterTableEmpty />
+        </template>
+      </ArtTable>
     </ElCard>
   </div>
 </template>
@@ -51,6 +55,8 @@
 <script setup lang="ts">
   import { ElInput, ElTag } from 'element-plus'
   import { h, ref, watch } from 'vue'
+import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
+import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
 

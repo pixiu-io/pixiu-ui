@@ -44,11 +44,15 @@
             :data="cmData"
             :columns="cmVisibleColumns"
             :pagination="cmPagination"
-            :pagination-options="{ align: 'right' }"
+            :pagination-options="CLUSTER_TABLE_PAGINATION_OPTIONS"
             @pagination:size-change="cmHandleSizeChange"
             @pagination:current-change="cmHandleCurrentChange"
             @sort-change="onCmSortChange"
-          />
+>
+        <template #empty>
+          <ClusterTableEmpty />
+        </template>
+          </ArtTable>
         </ElTabPane>
 
         <!-- ── Secret Tab ── -->
@@ -93,11 +97,15 @@
             :data="secData"
             :columns="secVisibleColumns"
             :pagination="secPagination"
-            :pagination-options="{ align: 'right' }"
+            :pagination-options="CLUSTER_TABLE_PAGINATION_OPTIONS"
             @pagination:size-change="secHandleSizeChange"
             @pagination:current-change="secHandleCurrentChange"
             @sort-change="onSecSortChange"
-          />
+>
+        <template #empty>
+          <ClusterTableEmpty />
+        </template>
+          </ArtTable>
         </ElTabPane>
       </ElTabs>
     </ElCard>
@@ -130,6 +138,8 @@
   import { CopyDocument } from '@element-plus/icons-vue'
   import yaml from 'js-yaml'
   import { computed, h, inject, ref, watch } from 'vue'
+import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
+import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
   import {

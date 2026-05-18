@@ -44,11 +44,15 @@
             :data="svcData"
             :columns="svcVisibleColumns"
             :pagination="svcPagination"
-            :pagination-options="{ align: 'right' }"
+            :pagination-options="CLUSTER_TABLE_PAGINATION_OPTIONS"
             @pagination:size-change="svcHandleSizeChange"
             @pagination:current-change="svcHandleCurrentChange"
             @sort-change="onSvcSortChange"
-          />
+>
+        <template #empty>
+          <ClusterTableEmpty />
+        </template>
+          </ArtTable>
         </ElTabPane>
 
         <!-- ── Ingress Tab ── -->
@@ -93,11 +97,15 @@
             :data="ingData"
             :columns="ingVisibleColumns"
             :pagination="ingPagination"
-            :pagination-options="{ align: 'right' }"
+            :pagination-options="CLUSTER_TABLE_PAGINATION_OPTIONS"
             @pagination:size-change="ingHandleSizeChange"
             @pagination:current-change="ingHandleCurrentChange"
             @sort-change="onIngSortChange"
-          />
+>
+        <template #empty>
+          <ClusterTableEmpty />
+        </template>
+          </ArtTable>
         </ElTabPane>
       </ElTabs>
     </ElCard>
@@ -128,6 +136,8 @@
   import { CopyDocument } from '@element-plus/icons-vue'
   import yaml from 'js-yaml'
   import { computed, h, inject, ref, watch } from 'vue'
+import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
+import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
   import {
