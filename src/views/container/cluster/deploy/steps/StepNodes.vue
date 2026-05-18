@@ -1,5 +1,11 @@
 <template>
   <div class="step-nodes">
+    <ElDivider
+      content-position="left"
+      class="section-divider-top"
+      style="margin-top: 24px; margin-bottom: 30px"
+      >新增节点</ElDivider
+    >
     <div class="nodes-toolbar">
       <div class="nodes-toolbar__left">
         <ElButton v-ripple :disabled="readOnly" @click="openAddDialog">添加节点</ElButton>
@@ -35,14 +41,17 @@
           >
         </div>
       </template>
-      <ElTableColumn type="selection" width="42" />
-      <ElTableColumn label="节点名称" prop="name" min-width="140" />
+      <ElTableColumn label="节点名称" min-width="140">
+        <template #default="{ row }">
+          <ElLink type="primary" :underline="false" style="font-size: 12px" @click="openEditDialog(row, pageOffset + $index)">{{ row.name }}</ElLink>
+        </template>
+      </ElTableColumn>
       <ElTableColumn label="角色" min-width="140">
         <template #default="{ row }">
           <ElTag
             v-for="r in row.role"
             :key="r"
-            :type="r === 'master' ? 'warning' : 'success'"
+            :type="r === 'master' ? 'primary' : 'info'"
             size="small"
             class="role-tag"
             >{{ r }}</ElTag
@@ -66,7 +75,7 @@
             >编辑</ElLink
           >
           <ElLink
-            type="danger"
+            type="primary"
             :underline="false"
             :disabled="readOnly"
             style="font-size: 12px"
@@ -215,7 +224,11 @@
           // Linux 主机名：1-63 位，仅小写字母/数字/中划线，且不能以中划线开头或结尾
           const hostnamePattern = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/
           if (!hostnamePattern.test(hostname)) {
-            cb(new Error('主机名称需符合 Linux 规范：1-63 位，小写字母/数字/中划线，且不能以中划线开头或结尾'))
+            cb(
+              new Error(
+                '主机名称需符合 Linux 规范：1-63 位，小写字母/数字/中划线，且不能以中划线开头或结尾'
+              )
+            )
             return
           }
           cb()
@@ -224,6 +237,7 @@
       }
     ],
     role: [
+      { required: true, message: '请至少选择一个角色', trigger: 'change' },
       {
         validator: (_r, value: string[], cb) => {
           if (!value || value.length === 0) cb(new Error('请至少选择一个角色'))
@@ -331,6 +345,18 @@
 <style scoped>
   .step-nodes {
     width: 100%;
+    max-width: none;
+    padding-top: 0;
+  }
+
+  .section-divider-top {
+    margin-top: 0;
+    margin-bottom: 4px;
+  }
+
+  .section-divider-top :deep(.el-divider__text) {
+    font-size: 13px;
+    font-weight: 500;
   }
 
   .nodes-toolbar {
@@ -460,7 +486,7 @@
 
   .node-form-dialog :deep(.el-input__inner),
   .node-form-dialog :deep(.el-textarea__inner) {
-    font-size: 14px;
+    font-size: 12px;
     color: var(--el-text-color-primary);
   }
 
@@ -484,7 +510,7 @@
   }
 
   .node-form-dialog :deep(.el-form-item__label) {
-    font-size: 14px;
+    font-size: 12px;
     color: var(--el-text-color-regular);
   }
 
@@ -515,7 +541,7 @@
 
   .node-form-dialog :deep(.el-radio__label),
   .node-form-dialog :deep(.el-checkbox__label) {
-    font-size: 14px;
+    font-size: 12px !important;
   }
 
   .node-form-dialog :deep(.el-radio__input.is-checked .el-radio__inner),
@@ -558,5 +584,12 @@
   .node-form-dialog :deep(.node-role-group .el-checkbox) {
     display: inline-flex;
     align-items: center;
+  }
+  .step-nodes :deep(.el-table__header) th {
+    font-size: 13px;
+  }
+
+  .step-nodes :deep(.el-table__body) td {
+    font-size: 12px;
   }
 </style>

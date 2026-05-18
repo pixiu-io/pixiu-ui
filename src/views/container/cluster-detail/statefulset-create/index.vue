@@ -2298,11 +2298,15 @@
   }
 
   .add-container-btn {
-    font-size: 13px;
+    font-size: 12px;
     padding: 4px 8px;
     display: inline-flex;
     align-items: center;
     gap: 2px;
+  }
+
+  .add-container-btn :deep(.el-icon) {
+    font-size: 12px;
   }
 
   .container-form-wrap {

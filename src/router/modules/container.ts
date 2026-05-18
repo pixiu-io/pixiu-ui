@@ -21,6 +21,7 @@ const clusterDetailChildren: AppRouteRecord[] = [
   },
   { path: 'crds', name: 'ClusterDetailCrds', component: '/container/cluster-detail/crds' },
   { path: 'apiservices', name: 'ClusterDetailApiservices', component: '/container/cluster-detail/apiservices' },
+  { path: 'appstore', name: 'ClusterDetailAppstore', component: '/container/cluster-detail/apiservices' },
   { path: 'alert', name: 'ClusterDetailAlert', component: '/container/cluster-detail/alert' },
   { path: 'logs', name: 'ClusterDetailLogs', component: '/container/cluster-detail/logs' },
   { path: 'events', name: 'ClusterDetailEvents', component: '/container/cluster-detail/events' },

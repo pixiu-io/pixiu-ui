@@ -1328,7 +1328,16 @@
   .dc-form :deep(.el-input__inner), .dc-form :deep(.el-textarea__inner), .dc-form :deep(.el-select__wrapper) { font-size: 12px; }
 
   .kv-add-btn { font-size: 12px; }
-  .add-container-btn { font-size: 12px; }
+  .add-container-btn {
+    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .add-container-btn :deep(.el-icon) {
+    font-size: 12px;
+  }
   .kv-del-btn { color: var(--el-text-color-primary); }
 
   .advanced-field-wrap { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }

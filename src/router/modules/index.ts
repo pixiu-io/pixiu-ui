@@ -2,6 +2,7 @@ import { AppRouteRecord } from '@/types/router'
 import { dashboardRoutes } from './dashboard'
 import { systemRoutes } from './system'
 import { safeguardRoutes } from './safeguard'
+import { appstoreRoutes } from './appstore'
 import { helpRoutes } from './help'
 import { containerRoutes } from './container'
 
@@ -12,6 +13,7 @@ export const routeModules: AppRouteRecord[] = [
   dashboardRoutes,
   containerRoutes,
   safeguardRoutes,
+  appstoreRoutes,
   systemRoutes,
   ...helpRoutes
 ]

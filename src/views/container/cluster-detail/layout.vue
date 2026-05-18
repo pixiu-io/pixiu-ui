@@ -183,7 +183,7 @@
   const clusterListLoaded = ref(false)
   const yamlCreateVisible = ref(false)
 
-  const selectedNamespace = ref('')
+  const selectedNamespace = ref('default')
   const namespaceOptions = ref<string[]>([])
   const nsLoading = ref(false)
 
@@ -274,7 +274,7 @@
   watch(
     () => String(route.query.cluster ?? ''),
     (name) => {
-      selectedNamespace.value = ''
+      selectedNamespace.value = 'default'
       void loadNamespaceOptions(name)
     },
     { immediate: true }

@@ -5,137 +5,47 @@
       <div class="w-112 mr-5 max-md:w-full max-md:mr-0">
         <div class="art-card-sm relative p-9 pb-6 overflow-hidden text-center">
           <img class="absolute top-0 left-0 w-full h-50 object-cover" src="@imgs/user/bg.webp" />
-          <img
-            class="relative z-10 w-20 h-20 mt-30 mx-auto object-cover border-2 border-white rounded-full"
-            src="@imgs/user/avatar.webp"
-          />
-          <h2 class="mt-5 text-xl font-normal">{{ userInfo.userName }}</h2>
-          <p class="mt-5 text-sm">专注于用户体验跟视觉设计</p>
-
-          <div class="w-75 mx-auto mt-7.5 text-left">
-            <div class="mt-2.5">
-              <ArtSvgIcon icon="ri:mail-line" class="text-g-700" />
-              <span class="ml-2 text-sm">jdkjjfnndf@mall.com</span>
-            </div>
-            <div class="mt-2.5">
-              <ArtSvgIcon icon="ri:user-3-line" class="text-g-700" />
-              <span class="ml-2 text-sm">交互专家</span>
-            </div>
-            <div class="mt-2.5">
-              <ArtSvgIcon icon="ri:map-pin-line" class="text-g-700" />
-              <span class="ml-2 text-sm">广东省深圳市</span>
-            </div>
-            <div class="mt-2.5">
-              <ArtSvgIcon icon="ri:dribbble-fill" class="text-g-700" />
-              <span class="ml-2 text-sm">字节跳动－某某平台部－UED</span>
-            </div>
-          </div>
-
-          <div class="mt-10">
-            <h3 class="text-sm font-medium">标签</h3>
-            <div class="flex flex-wrap justify-center mt-3.5">
-              <div
-                v-for="item in lableList"
-                :key="item"
-                class="py-1 px-1.5 mr-2.5 mb-2.5 text-xs border border-g-300 rounded"
-              >
-                {{ item }}
-              </div>
-            </div>
-          </div>
+          <img class="user-center-avatar relative z-10 w-20 h-20 mt-30 mx-auto object-cover border-2 border-white rounded-full" :src="defaultAvatar" alt="avatar" />
+          <h2 class="mt-5 text-xl font-normal">{{ userStore.getUserInfo?.userName || '-' }}</h2>
+          <p class="mt-5 text-sm">{{ greeting }}</p>
         </div>
       </div>
       <div class="flex-1 overflow-hidden max-md:w-full max-md:mt-3.5">
+        <!-- 基本设置 -->
         <div class="art-card-sm">
           <h1 class="p-4 text-xl font-normal border-b border-g-300">基本设置</h1>
-
-          <ElForm
-            :model="form"
-            class="box-border p-5 [&>.el-row_.el-form-item]:w-[calc(50%-10px)] [&>.el-row_.el-input]:w-full [&>.el-row_.el-select]:w-full"
-            ref="ruleFormRef"
-            :rules="rules"
-            label-width="86px"
-            label-position="top"
-          >
+          <ElForm ref="ruleFormRef" :model="form" :rules="rules" class="box-border p-5" label-width="86px" label-position="top">
             <ElRow>
-              <ElFormItem label="姓名" prop="realName">
-                <ElInput v-model="form.realName" :disabled="!isEdit" />
-              </ElFormItem>
-              <ElFormItem label="性别" prop="sex" class="ml-5">
-                <ElSelect v-model="form.sex" placeholder="Select" :disabled="!isEdit">
-                  <ElOption
-                    v-for="item in options"
-                    :key="item.value"
-                    :label="item.label"
-                    :value="item.value"
-                  />
-                </ElSelect>
-              </ElFormItem>
-            </ElRow>
-
-            <ElRow>
-              <ElFormItem label="昵称" prop="nikeName">
-                <ElInput v-model="form.nikeName" :disabled="!isEdit" />
+              <ElFormItem label="用户名" prop="userName">
+                <ElInput v-model="form.userName" disabled />
               </ElFormItem>
               <ElFormItem label="邮箱" prop="email" class="ml-5">
                 <ElInput v-model="form.email" :disabled="!isEdit" />
               </ElFormItem>
             </ElRow>
-
-            <ElRow>
-              <ElFormItem label="手机" prop="mobile">
-                <ElInput v-model="form.mobile" :disabled="!isEdit" />
-              </ElFormItem>
-              <ElFormItem label="地址" prop="address" class="ml-5">
-                <ElInput v-model="form.address" :disabled="!isEdit" />
-              </ElFormItem>
-            </ElRow>
-
-            <ElFormItem label="个人介绍" prop="des" class="h-32">
-              <ElInput type="textarea" :rows="4" v-model="form.des" :disabled="!isEdit" />
-            </ElFormItem>
-
             <div class="flex-c justify-end [&_.el-button]:!w-27.5">
-              <ElButton type="primary" class="w-22.5" v-ripple @click="edit">
+              <ElButton type="primary" class="w-22.5" v-ripple :loading="saving" @click="onSave">
                 {{ isEdit ? '保存' : '编辑' }}
               </ElButton>
             </div>
           </ElForm>
         </div>
 
+        <!-- 更改密码 -->
         <div class="art-card-sm my-5">
           <h1 class="p-4 text-xl font-normal border-b border-g-300">更改密码</h1>
-
-          <ElForm :model="pwdForm" class="box-border p-5" label-width="86px" label-position="top">
-            <ElFormItem label="当前密码" prop="password">
-              <ElInput
-                v-model="pwdForm.password"
-                type="password"
-                :disabled="!isEditPwd"
-                show-password
-              />
+          <ElForm ref="pwdFormRef" :model="pwdForm" :rules="pwdRules" class="box-border p-5" label-width="86px" label-position="top">
+            <ElFormItem label="当前密码" prop="old">
+              <ElInput v-model="pwdForm.old" type="password" :disabled="!isEditPwd" show-password placeholder="请输入当前密码" />
             </ElFormItem>
-
             <ElFormItem label="新密码" prop="newPassword">
-              <ElInput
-                v-model="pwdForm.newPassword"
-                type="password"
-                :disabled="!isEditPwd"
-                show-password
-              />
+              <ElInput v-model="pwdForm.newPassword" type="password" :disabled="!isEditPwd" show-password placeholder="至少8位，含大小写字母和数字" />
             </ElFormItem>
-
             <ElFormItem label="确认新密码" prop="confirmPassword">
-              <ElInput
-                v-model="pwdForm.confirmPassword"
-                type="password"
-                :disabled="!isEditPwd"
-                show-password
-              />
+              <ElInput v-model="pwdForm.confirmPassword" type="password" :disabled="!isEditPwd" show-password placeholder="请再次输入新密码" />
             </ElFormItem>
-
             <div class="flex-c justify-end [&_.el-button]:!w-27.5">
-              <ElButton type="primary" class="w-22.5" v-ripple @click="editPwd">
+              <ElButton type="primary" class="w-22.5" v-ripple :loading="savingPwd" @click="onSavePwd">
                 {{ isEditPwd ? '保存' : '编辑' }}
               </ElButton>
             </div>
@@ -149,6 +59,9 @@
 <script setup lang="ts">
   import { useUserStore } from '@/store/modules/user'
   import type { FormInstance, FormRules } from 'element-plus'
+  import defaultAvatar from '@imgs/user/default-avatar.svg'
+  import { ElMessage } from 'element-plus'
+  import { fetchUpdateUser, fetchChangePassword } from '@/api/system-manage'
 
   defineOptions({ name: 'UserCenter' })
 
@@ -157,91 +70,78 @@
 
   const isEdit = ref(false)
   const isEditPwd = ref(false)
-  const date = ref('')
+  const saving = ref(false)
+  const savingPwd = ref(false)
   const ruleFormRef = ref<FormInstance>()
+  const pwdFormRef = ref<FormInstance>()
 
-  /**
-   * 用户信息表单
-   */
-  const form = reactive({
-    realName: '断马',
-    nikeName: '断马',
-    email: 'xxxxxxx@mall.com',
-    mobile: '18888888888',
-    address: '杭州',
-    sex: '2',
-    des: '一个开源的企业级容器平台，为企业提供 Kubernetes 资源可视化部署和管理功能。'
-  })
-
-  /**
-   * 密码修改表单
-   */
-  const pwdForm = reactive({
-    password: '123456',
-    newPassword: '123456',
-    confirmPassword: '123456'
-  })
-
-  /**
-   * 表单验证规则
-   */
-  const rules = reactive<FormRules>({
-    realName: [
-      { required: true, message: '请输入姓名', trigger: 'blur' },
-      { min: 2, max: 50, message: '长度在 2 到 50 个字符', trigger: 'blur' }
-    ],
-    nikeName: [
-      { required: true, message: '请输入昵称', trigger: 'blur' },
-      { min: 2, max: 50, message: '长度在 2 到 50 个字符', trigger: 'blur' }
-    ],
-    email: [{ required: true, message: '请输入邮箱', trigger: 'blur' }],
-    mobile: [{ required: true, message: '请输入手机号码', trigger: 'blur' }],
-    address: [{ required: true, message: '请输入地址', trigger: 'blur' }],
-    sex: [{ required: true, message: '请选择性别', trigger: 'blur' }]
-  })
-
-  /**
-   * 性别选项
-   */
-  const options = [
-    { value: '1', label: '男' },
-    { value: '2', label: '女' }
-  ]
-
-  /**
-   * 用户标签列表
-   */
-  const lableList: Array<string> = ['专注设计', '很有想法', '辣~', '大长腿', '川妹子', '海纳百川']
-
-  onMounted(() => {
-    getDate()
-  })
-
-  /**
-   * 根据当前时间获取问候语
-   */
-  const getDate = () => {
+  const greeting = computed(() => {
     const h = new Date().getHours()
+    if (h >= 6 && h < 9) return '早上好'
+    if (h >= 9 && h < 11) return '上午好'
+    if (h >= 11 && h < 13) return '中午好'
+    if (h >= 13 && h < 18) return '下午好'
+    if (h >= 18 && h < 24) return '晚上好'
+    return '很晚了，早点睡'
+  })
 
-    if (h >= 6 && h < 9) date.value = '早上好'
-    else if (h >= 9 && h < 11) date.value = '上午好'
-    else if (h >= 11 && h < 13) date.value = '中午好'
-    else if (h >= 13 && h < 18) date.value = '下午好'
-    else if (h >= 18 && h < 24) date.value = '晚上好'
-    else date.value = '很晚了，早点睡'
+  const form = reactive({ userName: '', email: '' })
+  const pwdForm = reactive({ old: '', newPassword: '', confirmPassword: '' })
+
+  const rules = reactive<FormRules>({
+    email: [{ type: 'email', message: '请输入有效邮箱', trigger: 'blur' }]
+  })
+
+  const pwdRules = reactive<FormRules>({
+    old: [{ required: true, message: '请输入当前密码', trigger: 'blur' }],
+    newPassword: [
+      { required: true, message: '请输入新密码', trigger: 'blur' },
+      { min: 8, message: '密码至少8位', trigger: 'blur' },
+      { pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, message: '需包含大小写字母和数字', trigger: 'blur' }
+    ],
+    confirmPassword: [
+      { required: true, message: '请确认新密码', trigger: 'blur' },
+      { validator: (_r, val, cb) => { if (val !== pwdForm.newPassword) cb(new Error('两次密码不一致')); else cb() }, trigger: 'blur' }
+    ]
+  })
+
+  watch(userInfo, (info) => { if (info) { form.userName = info.userName || ''; form.email = info.email || '' } }, { immediate: true })
+
+  async function onSave() {
+    if (isEdit.value) {
+      if (!ruleFormRef.value) return
+      try { await ruleFormRef.value.validate() } catch { return }
+      saving.value = true
+      try {
+        const u = userStore.getUserInfo
+        if (u?.userId) await fetchUpdateUser({ id: Number(u.userId), resourceVersion: (u as any).resourceVersion ?? 0, email: form.email })
+        userStore.setUserInfo({ ...userStore.getUserInfo, email: form.email } as Api.Auth.UserInfo)
+        ElMessage.success('保存成功')
+        isEdit.value = false
+      } catch (e: unknown) { ElMessage.error(e instanceof Error ? e.message : '保存失败') }
+      finally { saving.value = false }
+    } else { isEdit.value = true }
   }
 
-  /**
-   * 切换用户信息编辑状态
-   */
-  const edit = () => {
-    isEdit.value = !isEdit.value
-  }
-
-  /**
-   * 切换密码编辑状态
-   */
-  const editPwd = () => {
-    isEditPwd.value = !isEditPwd.value
+  async function onSavePwd() {
+    if (isEditPwd.value) {
+      if (!pwdFormRef.value) return
+      try { await pwdFormRef.value.validate() } catch { return }
+      savingPwd.value = true
+      try {
+        const u = userStore.getUserInfo
+        if (!u?.userId) { ElMessage.error('未获取到用户信息'); return }
+        await fetchChangePassword({ userId: Number(u.userId), old: pwdForm.old, new: pwdForm.newPassword })
+        ElMessage.success('密码修改成功，请重新登录')
+        pwdForm.old = ''; pwdForm.newPassword = ''; pwdForm.confirmPassword = ''
+        isEditPwd.value = false
+        userStore.logOut()
+      } catch (e: unknown) { ElMessage.error(e instanceof Error ? e.message : '修改失败') }
+      finally { savingPwd.value = false }
+    } else { isEditPwd.value = true }
   }
 </script>
+
+<style scoped>
+  .user-center-avatar { box-shadow: 0 0 0 1px rgb(37 99 235 / 18%); }
+</style>

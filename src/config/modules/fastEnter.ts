@@ -47,15 +47,6 @@ const fastEnterConfig: FastEnterConfig = {
       routeName: 'Chat'
     },
     {
-      name: '官方文档',
-      description: '使用指南与开发文档',
-      icon: 'ri:bill-line',
-      iconColor: '#ffb100',
-      enabled: true,
-      order: 5,
-      link: WEB_LINKS.DOCS
-    },
-    {
       name: '技术支持',
       description: '技术支持与问题反馈',
       icon: 'ri:user-location-line',

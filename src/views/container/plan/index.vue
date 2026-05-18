@@ -542,7 +542,7 @@
                 list: [
                   { key: 'copy', label: '拷贝', icon: 'ri:file-copy-2-line' },
                   { key: 'edit', label: '编辑', icon: 'ri:edit-2-line' },
-                  { key: 'destroy', label: '销毁', icon: 'ri:delete-back-2-line' },
+                  { key: 'destroy', label: '销毁', icon: 'ri:delete-back-2-line', disabled: true },
                   { key: 'delete', label: '删除', icon: 'ri:delete-bin-line' }
                 ],
                 onClick: (item: ButtonMoreItem) => {

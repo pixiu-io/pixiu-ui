@@ -7,12 +7,15 @@
     label-position="right"
     class="step-cluster-config"
   >
-    <ElDivider content-position="left" class="section-divider-top">高级配置</ElDivider>
+    <ElDivider content-position="left" class="section-divider-top" style="margin-top: 24px"
+      >高级配置</ElDivider
+    >
 
-    <ElFormItem label="高可用 Kubernetes" prop="highAvailability">
+    <ElFormItem label="高可用" prop="highAvailability">
       <ElSwitch
         :model-value="form.highAvailability"
         :disabled="readOnly"
+        size="small"
         @update:model-value="onHighAvailabilityChange"
       />
       <div class="form-tip form-tip--block">
@@ -24,6 +27,7 @@
       <ElSwitch
         :model-value="form.selfLoadBalance"
         :disabled="readOnly || !form.highAvailability"
+        size="small"
         @update:model-value="emit('update:form', { ...form, selfLoadBalance: $event as boolean })"
       />
       <div class="form-tip form-tip--block">启用 haproxy + keepalived 自建负载均衡</div>
@@ -33,6 +37,7 @@
       <ElInput
         :model-value="form.apiServerAddress"
         placeholder="kubernetes apiserver 的地址，非高可用可不填"
+        style="width: 360px"
         :disabled="readOnly"
         @update:model-value="emit('update:form', { ...form, apiServerAddress: $event })"
       />
@@ -49,7 +54,7 @@
         :max="65535"
         :precision="0"
         :disabled="readOnly"
-        controls-position="right"
+        style="width: 120px"
         @update:model-value="
           emit('update:form', { ...form, apiServerPort: Number($event || 6443) })
         "
@@ -75,30 +80,31 @@
       >
     </ElFormItem>
 
-    <ElDivider content-position="left" class="section-divider-top">云原生服务</ElDivider>
-
     <ElFormItem label="Metrics Server">
       <ElCheckbox
         :model-value="form.metricsServer"
         :disabled="readOnly"
-        @update:model-value="
-          emit('update:form', { ...form, metricsServer: $event as boolean })
-        "
+        @update:model-value="emit('update:form', { ...form, metricsServer: $event as boolean })"
       >
         启用
       </ElCheckbox>
+      <div class="form-tip form-tip--block">
+        收集和资源指标数据的核心组件，它从各节点的 Kubelet 采集 CPU、内存等资源使用情况，并通过
+        Metrics API 提供给 HPA（水平 Pod 自动伸缩）和 kubectl top 等工具使用
+      </div>
     </ElFormItem>
 
     <ElFormItem label="Nginx Ingress">
       <ElCheckbox
         :model-value="form.ingressNginx"
         :disabled="readOnly"
-        @update:model-value="
-          emit('update:form', { ...form, ingressNginx: $event as boolean })
-        "
+        @update:model-value="emit('update:form', { ...form, ingressNginx: $event as boolean })"
       >
         启用
       </ElCheckbox>
+      <div class="form-tip form-tip--block">
+        Kubernetes 集群中基于 Nginx 的反向代理组件，用于管理外部流量接入
+      </div>
     </ElFormItem>
   </ElForm>
 </template>
@@ -128,7 +134,7 @@
         required: true,
         validator: (_rule, value: unknown, callback: (err?: Error) => void) => {
           if (typeof value !== 'boolean') {
-            callback(new Error('请选择是否启用高可用 Kubernetes'))
+            callback(new Error('请选择是否启用高可用'))
             return
           }
           callback()
@@ -196,23 +202,31 @@
 
 <style scoped>
   .step-cluster-config {
-    max-width: 760px;
-    padding-top: 8px;
+    width: 100%;
+    max-width: none;
+    padding-top: 0;
   }
 
   .step-cluster-config :deep(.el-form-item) {
     margin-bottom: 20px;
   }
 
+  .step-cluster-config :deep(.el-form-item__label) {
+    font-size: 12px;
+  }
+
   .section-divider-top {
-    margin-top: 5px;
+    margin-top: 0;
   }
 
   .form-tip {
-    margin-left: 10px;
+    flex-basis: 100%;
+    width: 100%;
+    display: block;
+    margin-top: 4px;
     font-size: 12px;
     color: var(--el-text-color-placeholder);
-    white-space: nowrap;
+    line-height: 1.5;
   }
 
   .form-tip--block {
@@ -223,5 +237,8 @@
     margin-top: 6px;
     white-space: normal;
     line-height: 1.5;
+  }
+  .step-cluster-config :deep(.el-checkbox__label) {
+    font-size: 12px;
   }
 </style>

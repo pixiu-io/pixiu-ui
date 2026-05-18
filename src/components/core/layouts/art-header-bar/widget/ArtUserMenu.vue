@@ -13,8 +13,8 @@
   >
     <template #reference>
       <img
-        class="size-8.5 mr-5 c-p rounded-full max-sm:w-6.5 max-sm:h-6.5 max-sm:mr-[16px]"
-        src="@imgs/user/avatar.webp"
+        class="user-menu-avatar-img size-[28px] mr-5 c-p rounded-full object-cover max-sm:size-6 max-sm:mr-4"
+        :src="defaultAvatar"
         alt="avatar"
       />
     </template>
@@ -22,8 +22,9 @@
       <div class="pt-3">
         <div class="flex-c pb-1 px-0">
           <img
-            class="w-10 h-10 mr-3 ml-0 overflow-hidden rounded-full float-left"
-            src="@imgs/user/avatar.webp"
+            class="user-menu-avatar-img size-9 mr-3 ml-0 shrink-0 rounded-full object-cover"
+            :src="defaultAvatar"
+            alt="avatar"
           />
           <div class="w-[calc(100%-60px)] h-full">
             <span class="block text-sm font-medium text-g-800 truncate">{{
@@ -67,6 +68,7 @@
   import { WEB_LINKS } from '@/utils/constants'
   import { mittBus } from '@/utils/sys'
   import { fetchLogout } from '@/api/auth'
+  import defaultAvatar from '@imgs/user/default-avatar.svg'
 
   defineOptions({ name: 'ArtUserMenu' })
 
@@ -159,6 +161,10 @@
         background-color: var(--art-gray-200);
       }
     }
+  }
+
+  .user-menu-avatar-img {
+    box-shadow: 0 0 0 1px rgb(37 99 235 / 18%);
   }
 
   .log-out {

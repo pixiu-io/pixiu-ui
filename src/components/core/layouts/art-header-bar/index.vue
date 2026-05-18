@@ -291,9 +291,6 @@
     reload(50)
   }
 
-  /**
-   * 打开设置面板
-   */
   const openSetting = (): void => {
     mittBus.emit('openSetting')
 
@@ -442,6 +439,18 @@
   }
 
   .language-btn:hover :deep(.art-svg-icon) {
+    animation: moveUp 0.4s;
+  }
+
+  .github-btn :deep(.art-svg-icon) {
+    color: #24292f;
+  }
+
+  html.dark .github-btn :deep(.art-svg-icon) {
+    color: #e6edf3;
+  }
+
+  .github-btn:hover :deep(.art-svg-icon) {
     animation: moveUp 0.4s;
   }
 

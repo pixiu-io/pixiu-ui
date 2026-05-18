@@ -7,12 +7,15 @@
     label-position="right"
     class="step-basic"
   >
-    <ElDivider content-position="left" class="section-divider-top">基础配置</ElDivider>
+    <ElDivider content-position="left" class="section-divider-top" style="margin-top: 24px"
+      >基础配置</ElDivider
+    >
 
     <ElFormItem label="部署名称" prop="name">
       <ElInput
         :model-value="form.name"
-        placeholder="请输入部署名称"
+        placeholder="请输入部署集群名称，不超过50个字符"
+        style="width: 280px"
         clearable
         :disabled="readOnly"
         @update:model-value="emit('update:form', { ...form, name: $event })"
@@ -33,24 +36,57 @@
       >
         <ElOption v-for="v in k8sVersions" :key="v" :label="v" :value="v" />
       </ElSelect>
+      <div class="form-tip">选择需要的 Kubernetes 版本，如果下拉选择中不存在，可手动输入版本</div>
     </ElFormItem>
 
     <ElFormItem label="容器运行时" prop="runtime">
-      <ElRadioGroup
-        :model-value="form.runtime"
-        :disabled="readOnly"
-        @update:model-value="
-          emit('update:form', { ...form, runtime: $event as 'docker' | 'containerd' })
-        "
-      >
-        <ElRadio value="containerd">
-          <span class="runtime-label">containerd</span>
-          <ElTag size="small" type="success" class="runtime-tag">推荐</ElTag>
-        </ElRadio>
-        <ElRadio value="docker">
-          <span class="runtime-label">docker</span>
-        </ElRadio>
-      </ElRadioGroup>
+      <div class="runtime-field-col">
+        <ElRadioGroup
+          :model-value="form.runtime"
+          :disabled="readOnly"
+          @update:model-value="
+            emit('update:form', { ...form, runtime: $event as 'docker' | 'containerd' })
+          "
+        >
+          <ElRadio value="containerd">
+            <span class="runtime-label">containerd</span>
+          </ElRadio>
+          <ElRadio value="docker" :disabled="k8sGt124">
+            <span class="runtime-label">docker</span>
+          </ElRadio>
+        </ElRadioGroup>
+        <div class="form-tip">
+          Kubernetes 1.24.0 通过 Dockershim 对 Docker 的支持已移除，新建节点的容器运行时请使用
+          Containerd
+        </div>
+        <div class="runtime-custom-dir-row">
+          <ElCheckbox
+            :model-value="form.customRuntimeDir"
+            :disabled="readOnly"
+            @update:model-value="onCustomRuntimeDirChange"
+          >
+            自定义数据目录
+          </ElCheckbox>
+          <span class="runtime-custom-dir-tip"
+            >（自定义容器运行时数据存放目录，未勾选时使用系统默认路径）</span
+          >
+        </div>
+        <ElFormItem
+          v-if="form.customRuntimeDir"
+          prop="runtimeDir"
+          class="runtime-dir-form-item"
+          label-width="0"
+        >
+          <ElInput
+            :model-value="form.runtimeDir"
+            placeholder="请输入容器 runtime 的自定义目录"
+            class="runtime-dir-input"
+            clearable
+            :disabled="readOnly"
+            @update:model-value="emit('update:form', { ...form, runtimeDir: $event })"
+          />
+        </ElFormItem>
+      </div>
     </ElFormItem>
 
     <ElFormItem label="操作系统" prop="osType">
@@ -58,12 +94,34 @@
         <ElSelect
           :model-value="form.osType"
           placeholder="选择OS类型"
-          style="width: 180px"
+          class="os-type-select"
+          style="width: 220px"
           :loading="osLoading"
           :disabled="readOnly"
           @update:model-value="onOsTypeChange"
         >
-          <ElOption v-for="os in osTypes" :key="os" :label="osLabels[os] ?? os" :value="os" />
+          <template v-if="form.osType" #label>
+            <div class="os-option os-option--selected">
+              <ArtSvgIcon
+                :icon="osIcon(form.osType)"
+                class="os-option__logo"
+                :style="{ color: osBrandColor(form.osType) }"
+              />
+              <span class="os-option__name">{{ osLabels[form.osType] ?? form.osType }}</span>
+              <span v-if="form.osType === 'ubuntu'" class="os-option__tag">推荐</span>
+            </div>
+          </template>
+          <ElOption v-for="os in osTypes" :key="os" :label="osLabels[os] ?? os" :value="os">
+            <div class="os-option">
+              <ArtSvgIcon
+                :icon="osIcon(os)"
+                class="os-option__logo"
+                :style="{ color: osBrandColor(os) }"
+              />
+              <span class="os-option__name">{{ osLabels[os] ?? os }}</span>
+              <span v-if="os === 'ubuntu'" class="os-option__tag">推荐</span>
+            </div>
+          </ElOption>
         </ElSelect>
         <ElSelect
           :model-value="form.osImage"
@@ -81,24 +139,12 @@
       <ElInput
         :model-value="form.description"
         type="textarea"
+        style="width: 360px"
         :autosize="{ minRows: 3, maxRows: 6 }"
         placeholder="可选，描述此集群的用途"
         :disabled="readOnly"
         @update:model-value="emit('update:form', { ...form, description: $event })"
       />
-    </ElFormItem>
-
-    <ElDivider content-position="left">网络配置</ElDivider>
-
-    <ElFormItem label="节点网口" prop="networkInterface">
-      <ElInput
-        :model-value="form.networkInterface"
-        placeholder="eth0"
-        style="width: 240px"
-        :disabled="readOnly"
-        @update:model-value="emit('update:form', { ...form, networkInterface: $event })"
-      />
-      <span class="form-tip">默认使用 eth0，请填写实际网卡名</span>
     </ElFormItem>
 
     <ElFormItem label="容器网络插件" prop="cni">
@@ -201,6 +247,74 @@
         </div>
       </div>
     </ElFormItem>
+
+    <ElFormItem label="节点网口" prop="networkInterface">
+      <ElInput
+        :model-value="form.networkInterface"
+        placeholder="请输入网卡名称，默认 eth0"
+        style="width: 240px"
+        :disabled="readOnly"
+        @update:model-value="emit('update:form', { ...form, networkInterface: $event })"
+      />
+      <span class="form-tip">默认使用 eth0，请填写实际网卡名</span>
+    </ElFormItem>
+
+    <ElFormItem label="节点命名模式">
+      <ElRadioGroup
+        :model-value="form.nodeNamingMode"
+        :disabled="readOnly"
+        @update:model-value="
+          emit('update:form', { ...form, nodeNamingMode: $event as 'auto' | 'manual' })
+        "
+      >
+        <ElRadio value="auto">自动命名</ElRadio>
+        <ElRadio value="manual">手动命名</ElRadio>
+      </ElRadioGroup>
+      <div class="form-tip"
+        >选择自动命名时，会根据主机名和 IP 自动修改操作系统的主机名称，Rocky 系统不生效</div
+      >
+    </ElFormItem>
+
+    <div style="padding-left: 70px; margin-bottom: 10px">
+      <ElButton
+        link
+        type="primary"
+        class="advanced-toggle-btn"
+        @click="showAdvancedOptions = !showAdvancedOptions"
+      >
+        高级选项
+        <ArtSvgIcon
+          :icon="showAdvancedOptions ? 'ri:arrow-up-s-line' : 'ri:arrow-down-s-line'"
+          style="font-size: 14px; margin-left: 2px"
+        />
+      </ElButton>
+    </div>
+
+    <template v-if="showAdvancedOptions">
+      <ElFormItem label="删除保护">
+        <ElSwitch
+          :model-value="form.protected"
+          :disabled="readOnly"
+          size="small"
+          @update:model-value="emit('update:form', { ...form, protected: $event as boolean })"
+        />
+        <div class="form-tip">开启后不允许删除该集群</div>
+      </ElFormItem>
+      <ElFormItem label="Kubernetes 镜像仓库">
+        <ElInput
+          :model-value="form.registryMirror"
+          placeholder="请输入 kubernetes 基础组件的镜像仓库"
+          style="width: 360px"
+          clearable
+          :disabled="readOnly"
+          @update:model-value="emit('update:form', { ...form, registryMirror: $event })"
+        />
+        <div class="form-tip"
+          >Kubernetes
+          镜像仓库地址，默认阿里云（registry.cn-hangzhou.aliyuncs.com/google_containers），用户可根据实际情况配置</div
+        >
+      </ElFormItem>
+    </template>
   </ElForm>
 </template>
 
@@ -223,9 +337,14 @@
     name: string
     kubernetesVersion: string
     runtime: 'docker' | 'containerd'
+    runtimeDir: string
+    customRuntimeDir: boolean
     osType: string
     osImage: string
     description: string
+    protected: boolean
+    registryMirror: string
+    nodeNamingMode: 'auto' | 'manual'
     networkInterface: string
     cni: string
     podNetwork: string
@@ -252,6 +371,16 @@
     }
   )
   const emit = defineEmits<{ 'update:form': [DeployClusterForm] }>()
+
+  const showAdvancedOptions = ref(false)
+
+  watch(
+    () => [props.form.registryMirror, props.form.protected] as const,
+    ([rm, pt]) => {
+      if (rm || !pt) showAdvancedOptions.value = true
+    },
+    { immediate: true }
+  )
   const readOnly = computed(() => props.readOnly)
   const lockImmutableFields = computed(() => props.lockImmutableFields)
 
@@ -259,12 +388,45 @@
 
   const k8sVersions = ['1.30.3', '1.29.7', '1.28.12', '1.27.16', '1.26.15']
 
+  const k8sGt124 = computed(() => {
+    const v = props.form.kubernetesVersion
+    if (!v) return true
+    const parts = v.replace(/^v/, '').split('.').map(Number)
+    if (parts.length < 2) return true
+    return parts[0] > 1 || (parts[0] === 1 && parts[1] > 24)
+  })
+
   const osLabels: Record<string, string> = {
     centos: 'CentOS',
     ubuntu: 'Ubuntu',
     debian: 'Debian',
-    openEuler: 'openEuler',
-    rocky: 'Rocky Linux'
+    openEuler: 'OpenEuler',
+    rocky: 'RockyLinux'
+  }
+
+  const osIconMap: Record<string, string> = {
+    centos: 'ri:centos-fill',
+    ubuntu: 'simple-icons:ubuntu',
+    debian: 'simple-icons:debian',
+    openEuler: 'ri:openbase-fill',
+    rocky: 'simple-icons:rockylinux'
+  }
+
+  function osIcon(os: string) {
+    return osIconMap[os] ?? 'ri:ubuntu-line'
+  }
+
+  /** 品牌色 */
+  const osBrandColors: Record<string, string> = {
+    centos: '#932279',
+    ubuntu: '#E95420',
+    debian: '#A81D33',
+    openEuler: '#0067C0',
+    rocky: '#10B981'
+  }
+
+  function osBrandColor(os: string) {
+    return osBrandColors[os] ?? '#606266'
   }
 
   const osLoading = ref(false)
@@ -395,10 +557,40 @@
     }
   }
 
+  function validateRuntimeDir(_r: unknown, value: string, cb: (err?: Error) => void) {
+    if (!props.form.customRuntimeDir) {
+      cb()
+      return
+    }
+    const v = (value ?? '').trim()
+    if (!v) {
+      cb(new Error('请输入容器 runtime 的自定义目录'))
+      return
+    }
+    if (!v.startsWith('/')) {
+      cb(new Error('请输入以 / 开头的绝对路径'))
+      return
+    }
+    cb()
+  }
+
+  function onCustomRuntimeDirChange(checked: boolean) {
+    emit('update:form', {
+      ...props.form,
+      customRuntimeDir: checked,
+      runtimeDir: checked ? props.form.runtimeDir : ''
+    })
+    nextTick(() => {
+      formRef.value?.clearValidate('runtimeDir')
+      if (checked) void formRef.value?.validateField('runtimeDir')
+    })
+  }
+
   const rules: FormRules = {
     name: [{ required: true, message: '请输入集群名称', trigger: 'blur' }],
     kubernetesVersion: [{ required: true, message: '请选择 Kubernetes 版本', trigger: 'change' }],
     runtime: [{ required: true, message: '请选择容器运行时', trigger: 'change' }],
+    runtimeDir: [{ validator: validateRuntimeDir, trigger: ['blur', 'change'] }],
     osType: [{ required: true, message: '请选择操作系统', trigger: 'change' }],
     networkInterface: [{ required: true, message: '请输入节点网口名称', trigger: 'blur' }],
     cni: [{ required: true, message: '请选择容器网络插件', trigger: 'change' }],
@@ -425,8 +617,9 @@
 
 <style scoped>
   .step-basic {
-    max-width: 680px;
-    padding-top: 8px;
+    width: 100%;
+    max-width: none;
+    padding-top: 0;
   }
 
   .step-basic :deep(.el-form-item) {
@@ -435,7 +628,7 @@
 
   .step-basic :deep(.el-form-item__label) {
     color: var(--el-text-color-regular);
-    font-size: 14px;
+    font-size: 12px;
   }
 
   .os-selector {
@@ -445,12 +638,123 @@
     gap: 0;
   }
 
+  .os-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 22px;
+    line-height: 22px;
+  }
+
+  .os-option__logo {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+  }
+
+  .os-option__logo :deep(svg) {
+    color: inherit;
+  }
+
+  .os-option__name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+  }
+
+  .os-option__tag {
+    flex-shrink: 0;
+    padding: 0 6px;
+    border-radius: 10px;
+    background: #ff6a00;
+    color: #fff;
+    font-size: 12px;
+    line-height: 18px;
+    height: 18px;
+  }
+
+  .os-type-select :deep(.el-select__selected-item) {
+    display: flex;
+    align-items: center;
+  }
+
+  .os-type-select :deep(.el-select-dropdown__item) {
+    height: auto;
+    padding: 8px 12px;
+  }
+
   .runtime-label {
     margin-right: 4px;
   }
 
   .runtime-tag {
+    padding: 0 6px;
+    border-radius: 10px;
+    background: #ff6a00;
+    color: #fff;
+    font-size: 12px;
+    line-height: 18px;
+    height: 18px;
     vertical-align: middle;
+  }
+
+  .runtime-field-col {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    width: 100%;
+  }
+
+  .runtime-custom-dir-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    max-width: 100%;
+    margin-top: 10px;
+  }
+
+  .runtime-custom-dir-row :deep(.el-checkbox) {
+    flex-shrink: 0;
+    height: auto;
+    margin-right: 0;
+  }
+
+  .runtime-custom-dir-row :deep(.el-checkbox__label) {
+    font-size: 12px;
+    padding-right: 0;
+  }
+
+  .runtime-custom-dir-tip {
+    flex: 0 1 auto;
+    margin: 0 0 0 4px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--el-text-color-placeholder);
+    white-space: nowrap;
+  }
+
+  .runtime-dir-form-item {
+    width: 100%;
+    margin-top: 10px;
+    margin-bottom: 0;
+  }
+
+  .runtime-dir-form-item :deep(.el-form-item__label) {
+    display: none;
+  }
+
+  .runtime-dir-form-item :deep(.el-form-item__content) {
+    margin-left: 0 !important;
+  }
+
+  .runtime-dir-input {
+    width: 280px;
   }
 
   .section-divider-top {
@@ -458,10 +762,13 @@
   }
 
   .form-tip {
-    margin-left: 10px;
+    flex-basis: 100%;
+    width: 100%;
+    display: block;
+    margin-top: 4px;
     font-size: 12px;
     color: var(--el-text-color-placeholder);
-    white-space: nowrap;
+    line-height: 1.5;
   }
 
   .cidr-block {
@@ -575,5 +882,21 @@
   .warning-icon {
     font-size: 13px;
     flex-shrink: 0;
+  }
+
+  .step-basic :deep(.el-radio__label) {
+    font-size: 12px;
+  }
+
+  .step-basic :deep(.el-input__inner) {
+    font-size: 12px;
+  }
+
+  .advanced-toggle-item :deep(.el-form-item__content) {
+    margin-left: 0 !important;
+  }
+
+  .advanced-toggle-btn {
+    font-size: 12px;
   }
 </style>

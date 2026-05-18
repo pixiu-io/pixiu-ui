@@ -1,19 +1,6 @@
 import { AppRouteRecord } from '@/types/router'
-import { WEB_LINKS } from '@/utils/constants'
 
 export const helpRoutes: AppRouteRecord[] = [
-  {
-    name: 'Document',
-    path: '',
-    component: '',
-    meta: {
-      title: 'menus.help.document',
-      icon: 'ri:bill-line',
-      link: WEB_LINKS.DOCS,
-      isIframe: false,
-      keepAlive: false
-    }
-  },
   {
     name: 'ChangeLog',
     path: '/change/log',

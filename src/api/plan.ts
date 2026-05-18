@@ -22,9 +22,17 @@ export interface CreatePlanParams {
   description?: string
   config: {
     os_image: string
+    description?: string
     kubernetes: {
       kubernetes_version: string
       high_availability?: boolean
+      enable_ha?: boolean
+      enable_public_ip?: boolean
+      api_server?: string
+      api_port?: string
+      image_repository?: string
+      set_hostname?: boolean
+      protect?: boolean
     }
     network: {
       network_interface: string
@@ -38,6 +46,7 @@ export interface CreatePlanParams {
     }
     runtime: {
       runtime: 'docker' | 'containerd'
+      data_dir?: string
     }
     component: {
       prometheus?: { enabled: boolean }
@@ -160,14 +169,23 @@ export interface PlanResourcesDetail {
   description: string
   config?: {
     os_image?: string
-    kubernetes?: { kubernetes_version?: string }
+    description?: string
+    image_repository?: string
+    set_hostname?: boolean
+    protect?: boolean
+    kubernetes?: {
+      kubernetes_version?: string
+      image_repository?: string
+      set_hostname?: boolean
+      protect?: boolean
+    }
     network?: {
       network_interface?: string
       cni?: string
       pod_network?: string
       service_network?: string
     }
-    runtime?: { runtime?: 'docker' | 'containerd' }
+    runtime?: { runtime?: 'docker' | 'containerd'; data_dir?: string }
     component?: {
       prometheus?: { enabled?: boolean }
       logging?: { enabled?: boolean }

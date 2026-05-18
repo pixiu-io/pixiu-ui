@@ -1854,7 +1854,17 @@
   .container-tab-item.is-active { background: var(--el-bg-color-overlay); color: var(--el-color-primary); font-weight: 500; border-color: var(--el-color-primary); }
   .container-tab-close { position: absolute; top: -7px; right: -7px; width: 14px; height: 14px; font-size: 10px; color: #fff; background: var(--el-text-color-placeholder); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   .container-tab-close:hover { background: var(--el-color-danger); color: #fff; }
-  .add-container-btn { font-size: 12px; padding: 4px 8px; display: inline-flex; align-items: center; gap: 2px; }
+  .add-container-btn {
+    font-size: 12px;
+    padding: 4px 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .add-container-btn :deep(.el-icon) {
+    font-size: 12px;
+  }
   .container-form-wrap { background: var(--el-fill-color-light, #f5f7fa); border-radius: 6px; padding: 16px 12px 8px; }
   .pull-policy-group { --el-radio-button-checked-border-color: var(--el-color-primary); --el-radio-button-checked-bg-color: var(--el-bg-color-overlay); --el-radio-button-checked-text-color: var(--el-color-primary); display: flex; width: 320px; min-width: 320px; max-width: 320px; overflow: hidden; box-sizing: border-box; }
   .pull-policy-group :deep(.el-radio-button) { flex: 1 1 0; min-width: 0; display: flex; }

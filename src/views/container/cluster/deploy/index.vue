@@ -24,44 +24,62 @@
     </div>
 
     <ElCard class="deploy-create-card">
+      <nav class="deploy-step-nav" aria-label="部署步骤">
+        <template v-for="(step, index) in deploySteps" :key="step.key">
+          <span v-if="index > 0" class="deploy-step-nav__chevron" aria-hidden="true">&gt;</span>
+          <button
+            type="button"
+            class="deploy-step-nav__item"
+            :class="{
+              'is-active': currentStep === index,
+              'is-done': currentStep > index,
+              'is-clickable': canGoToStep(index)
+            }"
+            :disabled="!canGoToStep(index)"
+            @click="onStepNavClick(index)"
+          >
+            <span class="deploy-step-nav__index">{{ index + 1 }}</span>
+            <span class="deploy-step-nav__label">{{ step.label }}</span>
+          </button>
+        </template>
+      </nav>
+
       <div class="deploy-create-main">
-        <ElTabs v-model="activeTabName" tab-position="left" class="deploy-create-tabs">
-          <ElTabPane label="集群信息" name="0">
-            <StepBasic
-              ref="stepBasicRef"
-              :form="form"
-              :read-only="isReadOnlyMode"
-              :lock-immutable-fields="false"
-              @update:form="form = $event"
-            />
-          </ElTabPane>
-          <ElTabPane label="集群配置" name="1">
-            <StepClusterConfig
-              ref="stepClusterConfigRef"
-              :form="form"
-              :read-only="isReadOnlyMode"
-              :lock-immutable-fields="false"
-              @update:form="form = $event"
-            />
-          </ElTabPane>
-          <ElTabPane label="节点" name="2">
-            <StepNodes
-              ref="stepNodesRef"
-              :form="form"
-              :read-only="isReadOnlyMode"
-              @update:form="form = $event"
-            />
-          </ElTabPane>
-          <ElTabPane label="信息确认" name="3">
-            <StepConfirm
-              ref="stepConfirmRef"
-              :form="form"
-              :read-only="isReadOnlyMode"
-              @update:form="form = $event"
-              @go-step="goToStep"
-            />
-          </ElTabPane>
-        </ElTabs>
+        <div v-show="currentStep === 0" class="deploy-step-pane">
+          <StepBasic
+            ref="stepBasicRef"
+            :form="form"
+            :read-only="isReadOnlyMode"
+            :lock-immutable-fields="lockImmutableFields"
+            @update:form="form = $event"
+          />
+        </div>
+        <div v-show="currentStep === 1" class="deploy-step-pane">
+          <StepClusterConfig
+            ref="stepClusterConfigRef"
+            :form="form"
+            :read-only="isReadOnlyMode"
+            :lock-immutable-fields="lockImmutableFields"
+            @update:form="form = $event"
+          />
+        </div>
+        <div v-show="currentStep === 2" class="deploy-step-pane">
+          <StepNodes
+            ref="stepNodesRef"
+            :form="form"
+            :read-only="isReadOnlyMode"
+            @update:form="form = $event"
+          />
+        </div>
+        <div v-show="currentStep === 3" class="deploy-step-pane">
+          <StepConfirm
+            ref="stepConfirmRef"
+            :form="form"
+            :read-only="isReadOnlyMode"
+            @update:form="form = $event"
+            @go-step="goToStep"
+          />
+        </div>
       </div>
 
       <div class="deploy-create-footer">
@@ -115,7 +133,9 @@
   const currentPlanId = computed(() => Number(route.query.planId ?? 0))
   const queryMode = computed(() => String(route.query.mode ?? ''))
   const hasPlanId = computed(() => Number.isFinite(currentPlanId.value) && currentPlanId.value > 0)
-  const pageMode = computed(() => (queryMode.value ? queryMode.value : hasPlanId.value ? 'detail' : 'create'))
+  const pageMode = computed(() =>
+    queryMode.value ? queryMode.value : hasPlanId.value ? 'detail' : 'create'
+  )
   const isCreateMode = computed(() => !hasPlanId.value || pageMode.value === 'create')
   const isCopyMode = computed(() => hasPlanId.value && pageMode.value === 'copy')
   const isEditMode = computed(() => hasPlanId.value && pageMode.value === 'edit')
@@ -132,6 +152,24 @@
   const activeTabName = ref('0')
   const currentStep = computed(() => Number(activeTabName.value))
 
+  const deploySteps = [
+    { key: 'basic', label: '集群信息' },
+    { key: 'config', label: '高级配置' },
+    { key: 'nodes', label: '新增节点' },
+    { key: 'confirm', label: '信息确认' }
+  ] as const
+
+  function canGoToStep(index: number) {
+    if (index === currentStep.value) return false
+    if (isReadOnlyMode.value) return true
+    return index < currentStep.value
+  }
+
+  function onStepNavClick(index: number) {
+    if (!canGoToStep(index)) return
+    activeTabName.value = String(index)
+  }
+
   const stepping = ref(false)
   const submitting = ref(false)
   const currentResourceVersion = ref<number | null>(null)
@@ -143,10 +181,10 @@
     if (planStatusText.value === '已失败') return 'danger'
     return 'info'
   })
-  const canStartDeploy = computed(() => Boolean(currentPlanId.value) && planStatusText.value !== '已成功')
-  const lockImmutableFields = computed(
-    () => isEditMode.value && planStatusText.value !== '未开始'
+  const canStartDeploy = computed(
+    () => Boolean(currentPlanId.value) && planStatusText.value !== '已成功'
   )
+  const lockImmutableFields = computed(() => isEditMode.value && planStatusText.value !== '未开始')
   const shouldSubmitAsUpdate = computed(() => isEditMode.value)
 
   const stepBasicRef = ref<StepRef>(null)
@@ -168,9 +206,14 @@
     name: '',
     kubernetesVersion: '1.28.12',
     runtime: 'containerd',
-    osType: '',
+    runtimeDir: '',
+    customRuntimeDir: false,
+    osType: 'ubuntu',
     osImage: '',
     description: '',
+    protected: true,
+    registryMirror: '',
+    nodeNamingMode: 'auto' as 'auto' | 'manual',
     networkInterface: 'eth0',
     cni: 'calico',
     podNetwork: '172.30.0.0/16',
@@ -181,7 +224,7 @@
     apiServerPort: 6443,
     kubeProxyMode: 'iptables',
     metricsServer: true,
-    ingressNginx: false,
+    ingressNginx: true,
     nodes: [] as NodeConfig[],
     enablePrometheus: false,
     enableLogging: false
@@ -214,7 +257,10 @@
 
   async function loadPlanDetail(planId: number) {
     try {
-      const [detail, planMeta] = await Promise.all([fetchPlanWithResources(planId), fetchPlan(planId)])
+      const [detail, planMeta] = await Promise.all([
+        fetchPlanWithResources(planId),
+        fetchPlan(planId)
+      ])
       planStatusText.value = planMeta.step || '未开始'
       const cfg = detail.config ?? {}
       const rv = planMeta.resourceVersion ?? detail.resource_version
@@ -228,14 +274,27 @@
           (cfg.kubernetes as any)?.api_port ??
           (highAvailability ? 8443 : 6443)
       )
-      const apiServerPort = Number.isFinite(apiServerPortRaw) ? apiServerPortRaw : highAvailability ? 8443 : 6443
+      const apiServerPort = Number.isFinite(apiServerPortRaw)
+        ? apiServerPortRaw
+        : highAvailability
+          ? 8443
+          : 6443
+      const k8s = cfg.kubernetes ?? {}
+      const dataDir = cfg.runtime?.data_dir ?? ''
+      const setHostname =
+        k8s.set_hostname ?? cfg.set_hostname ?? false
       form.value = {
         name: detail.name ?? '',
-        kubernetesVersion: cfg.kubernetes?.kubernetes_version ?? '1.28.12',
+        kubernetesVersion: k8s.kubernetes_version ?? '1.28.12',
         runtime: (cfg.runtime?.runtime ?? 'containerd') as 'docker' | 'containerd',
+        runtimeDir: dataDir,
+        customRuntimeDir: Boolean(dataDir),
         osType: detectOsTypeFromImage(osImage),
         osImage,
         description: detail.description ?? '',
+        protected: k8s.protect ?? cfg.protect ?? true,
+        registryMirror: k8s.image_repository ?? cfg.image_repository ?? '',
+        nodeNamingMode: setHostname ? 'auto' : 'manual',
         networkInterface: cfg.network?.network_interface ?? 'eth0',
         cni: cfg.network?.cni ?? 'calico',
         podNetwork: cfg.network?.pod_network ?? '172.30.0.0/16',
@@ -272,7 +331,11 @@
   }
 
   function goToStep(step: number) {
-    if (!isReadOnlyMode.value) activeTabName.value = String(step)
+    if (isReadOnlyMode.value) {
+      activeTabName.value = String(step)
+      return
+    }
+    if (step <= currentStep.value) activeTabName.value = String(step)
   }
 
   async function nextStep() {
@@ -336,11 +399,15 @@
   async function startCurrentPlan() {
     if (!currentPlanId.value) return
     try {
-      await ElMessageBox.confirm(`确定要启动计划 "${form.value.name || '-'}" 的部署任务吗？`, '启动部署', {
-        confirmButtonText: '启动',
-        cancelButtonText: '取消',
-        type: 'warning'
-      })
+      await ElMessageBox.confirm(
+        `确定要启动计划 "${form.value.name || '-'}" 的部署任务吗？`,
+        '启动部署',
+        {
+          confirmButtonText: '启动',
+          cancelButtonText: '取消',
+          type: 'warning'
+        }
+      )
       await fetchStartPlan(currentPlanId.value)
       ElMessage.success(`计划 "${form.value.name || '-'}" 启动成功`)
       await loadPlanDetail(currentPlanId.value)
@@ -368,6 +435,7 @@
       description: f.description,
       config: {
         os_image: f.osImage,
+        description: f.description,
         kubernetes: {
           kubernetes_version: f.kubernetesVersion,
           // Backward-compatible: keep both old/new keys.
@@ -375,7 +443,10 @@
           enable_ha: f.highAvailability,
           api_server: f.apiServerAddress || '',
           api_port: String(f.apiServerPort || 6443),
-          enable_public_ip: Boolean(f.apiServerAddress)
+          enable_public_ip: Boolean(f.apiServerAddress),
+          image_repository: f.registryMirror,
+          set_hostname: f.nodeNamingMode === 'auto',
+          protect: f.protected
         },
         network: {
           network_interface: f.networkInterface,
@@ -389,7 +460,10 @@
           kube_proxy_mode: 'iptables',
           kube_proxy: 'iptables'
         },
-        runtime: { runtime: f.runtime },
+        runtime: {
+          runtime: f.runtime,
+          data_dir: f.customRuntimeDir ? f.runtimeDir.trim() : ''
+        },
         component: {
           ...(f.enablePrometheus ? { prometheus: { enabled: true } } : {}),
           ...(f.enableLogging ? { logging: { enabled: true } } : {}),
@@ -430,7 +504,7 @@
           resource_version: currentResourceVersion.value
         })
         ElMessage.success('部署修改成功')
-        router.push({ path: '/container/cluster/deploy', query: { planId: String(currentPlanId.value) } })
+        router.push('/container/plan')
       } else {
         await fetchCreatePlan(payload)
         ElMessage.success('部署集群创建成功')
@@ -438,7 +512,9 @@
       }
     } catch (e: unknown) {
       const err = e as Error
-      ElMessage.error(err.message || (shouldSubmitAsUpdate.value ? '修改失败，请重试' : '创建失败，请重试'))
+      ElMessage.error(
+        err.message || (shouldSubmitAsUpdate.value ? '修改失败，请重试' : '创建失败，请重试')
+      )
     } finally {
       submitting.value = false
     }
@@ -519,19 +595,120 @@
     }
   }
 
-  .deploy-create-main {
+  .deploy-step-nav {
     display: flex;
-    gap: 14px;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px 0;
+    padding: 8px 0 12px;
+    margin-bottom: 4px;
   }
 
-  .deploy-create-tabs {
-    flex: 1;
-    min-width: 0;
+  .deploy-step-nav__chevron {
+    margin: 0 14px;
+    font-size: 12px;
+    line-height: 1;
+    color: var(--el-text-color-placeholder);
+    user-select: none;
   }
 
-  .deploy-create-tabs :deep(.el-tabs__content) {
+  .deploy-step-nav__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 4px;
+    border: none;
+    background: transparent;
+    cursor: default;
+    font: inherit;
+  }
+
+  .deploy-step-nav__item.is-clickable:not(:disabled) {
+    cursor: pointer;
+  }
+
+  .deploy-step-nav__item:disabled {
+    cursor: default;
+  }
+
+  .deploy-step-nav__index {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
+    color: var(--el-text-color-secondary);
+    background: var(--el-bg-color);
+    border: 1px solid var(--el-border-color);
+    transition:
+      background-color 0.2s,
+      border-color 0.2s,
+      color 0.2s;
+  }
+
+  .deploy-step-nav__label {
+    font-size: 14px;
+    color: var(--el-text-color-secondary);
+    transition: color 0.2s;
+  }
+
+  .deploy-step-nav__item.is-active .deploy-step-nav__index,
+  .deploy-step-nav__item.is-done .deploy-step-nav__index {
+    color: #fff;
+    background: var(--el-color-primary);
+    border-color: var(--el-color-primary);
+  }
+
+  .deploy-step-nav__item.is-active .deploy-step-nav__label {
+    color: var(--el-color-primary);
+    font-weight: 500;
+  }
+
+  .deploy-step-nav__item.is-done .deploy-step-nav__label {
+    color: var(--el-text-color-regular);
+  }
+
+  .deploy-step-nav__item.is-clickable:hover .deploy-step-nav__label {
+    color: var(--el-color-primary);
+  }
+
+  .deploy-create-main {
+    width: 100%;
     min-height: 420px;
-    padding-top: 12px;
+  }
+
+  .deploy-step-pane {
+    width: 100%;
+    max-width: none;
+  }
+
+  .deploy-step-pane :deep(.el-form) {
+    width: 100%;
+    max-width: none;
+  }
+
+  .deploy-step-pane :deep(.el-form-item__label) {
+    font-size: 12px;
+    padding-right: 16px;
+  }
+
+  .deploy-step-pane :deep(.el-input__placeholder),
+  .deploy-step-pane :deep(.el-textarea__placeholder) {
+    font-size: 12px;
+  }
+
+  .deploy-step-pane :deep(.el-divider__text) {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--el-text-color-primary);
+  }
+
+  .deploy-step-pane :deep(.section-divider-top) {
+    margin-top: 0;
   }
 
   .deploy-create-footer {

@@ -123,6 +123,21 @@ export async function fetchBatchDeleteUsers(userIds: number[]): Promise<void> {
   }
 }
 
+interface ChangePasswordParams {
+  userId: number
+  old: string
+  new: string
+}
+
+export async function fetchChangePassword(params: ChangePasswordParams): Promise<void> {
+  const res = await pixiuAxios.put(`/pixiu/users/${params.userId}/password`, {
+    old: params.old,
+    new: params.new
+  })
+  const { code, message } = res.data
+  if (code !== 200) throw new Error(message || '修改密码失败')
+}
+
 // 获取角色列表
 export function fetchGetRoleList(params: Api.SystemManage.RoleSearchParams) {
   return request.get<Api.SystemManage.RoleList>({

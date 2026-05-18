@@ -12,7 +12,15 @@
           :key="link.label"
           @click="goPage(link.url)"
         >
-          <span class="text-g-700">{{ link.label }}</span>
+          <span class="text-g-700 flex items-center gap-2">
+            <ArtSvgIcon
+              v-if="link.icon"
+              :icon="link.icon"
+              class="text-base shrink-0"
+              :class="link.iconClass"
+            />
+            {{ link.label }}
+          </span>
           <ArtSvgIcon icon="ri:arrow-right-s-line" class="text-lg text-g-600" />
         </div>
       </div>
@@ -30,7 +38,12 @@
   const linkList = [
     { label: '项目官网', url: WEB_LINKS.DOCS },
     { label: '文档', url: WEB_LINKS.INTRODUCE },
-    { label: 'Github', url: WEB_LINKS.GITHUB_HOME },
+    {
+      label: 'Github',
+      url: WEB_LINKS.GITHUB_HOME,
+      icon: 'simple-icons:github',
+      iconClass: 'about-github-icon'
+    },
     { label: '哔哩哔哩', url: WEB_LINKS.BILIBILI }
   ]
 
@@ -42,3 +55,9 @@
     window.open(url, '_blank', 'noopener,noreferrer')
   }
 </script>
+
+<style scoped>
+  .about-github-icon {
+    color: #24292f;
+  }
+</style>

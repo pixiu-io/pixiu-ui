@@ -65,7 +65,7 @@
     <section class="confirm-panel">
       <div class="panel-header">
         <div class="panel-title-wrap">
-          <h3 class="panel-title">集群配置</h3>
+          <h3 class="panel-title">高级配置</h3>
           <span class="panel-subtitle">高可用与接入参数</span>
         </div>
         <ElButton v-if="!readOnly" link type="primary" @click="emit('go-step', 1)">编辑</ElButton>
@@ -133,7 +133,7 @@
             <ElTag
               v-for="r in row.role"
               :key="r"
-              :type="r === 'master' ? 'warning' : 'success'"
+              :type="r === 'master' ? 'primary' : 'info'"
               size="small"
               style="margin-right: 4px"
               >{{ r }}</ElTag
