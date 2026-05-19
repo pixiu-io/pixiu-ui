@@ -6,12 +6,12 @@
         <span>返回</span>
       </ElButton>
       <ElDivider direction="vertical" class="deploy-create-header-divider" />
-      <ElBreadcrumb separator="/">
-        <ElBreadcrumbItem :to="{ path: '/container/workloads', query: { cluster, tab: kind === 'cj' ? 'cj' : kind } }">工作负载</ElBreadcrumbItem>
-        <ElBreadcrumbItem v-if="mode === 'schedule'">修改定时规则</ElBreadcrumbItem>
-        <ElBreadcrumbItem v-else-if="mode === 'strategy'">设置更新策略</ElBreadcrumbItem>
-        <ElBreadcrumbItem v-else>更新Pod设置</ElBreadcrumbItem>
-      </ElBreadcrumb>
+      <ClusterResourceBreadcrumb
+        parent-path="/container/workloads"
+        parent-label="工作负载"
+        :parent-query="{ tab: kind === 'cj' ? 'cj' : kind }"
+        :current-label="breadcrumbCurrentLabel"
+      />
     </div>
 
     <ElCard class="deploy-create-card" v-loading="loading">
@@ -684,6 +684,7 @@
   import { fetchK8sDaemonSet, patchK8sDaemonSet } from '@/api/kubernetes/daemonset'
   import { fetchK8sCronJob, patchK8sCronJob } from '@/api/kubernetes/cronjob'
   import { fetchK8sSecretList } from '@/api/kubernetes/secret'
+  import ClusterResourceBreadcrumb from '../components/cluster-resource-breadcrumb.vue'
 
   defineOptions({ name: 'WorkloadUpdatePage' })
 
@@ -695,6 +696,12 @@
   const name = computed(() => String(route.query.name ?? ''))
   const kind = computed(() => String(route.query.kind ?? 'deploy') as 'deploy' | 'sts' | 'ds' | 'cj' | 'job')
   const mode = computed(() => String(route.query.mode ?? '') as 'schedule' | 'strategy' | '')
+
+  const breadcrumbCurrentLabel = computed(() => {
+    if (mode.value === 'schedule') return '修改定时规则'
+    if (mode.value === 'strategy') return '设置更新策略'
+    return '更新Pod设置'
+  })
 
   const kindLabel = computed(() => {
     if (kind.value === 'sts') return 'StatefulSet'

@@ -6,12 +6,11 @@
         <span>返回</span>
       </ElButton>
       <ElDivider direction="vertical" class="ing-create-header-divider" />
-      <ElBreadcrumb separator="/">
-        <ElBreadcrumbItem :to="{ path: '/container/services', query: { cluster } }"
-          >服务与路由</ElBreadcrumbItem
-        >
-        <ElBreadcrumbItem>创建 Ingress</ElBreadcrumbItem>
-      </ElBreadcrumb>
+      <ClusterResourceBreadcrumb
+        parent-path="/container/services"
+        parent-label="服务与路由"
+        current-label="创建 Ingress"
+      />
     </div>
 
     <ElCard class="ing-create-card">
@@ -235,6 +234,7 @@
   import { createK8sIngress } from '@/api/kubernetes/ingress'
   import { fetchK8sNamespaceList } from '@/api/kubernetes/namespace'
   import { fetchK8sServiceList, type K8sService } from '@/api/kubernetes/service'
+  import ClusterResourceBreadcrumb from '../components/cluster-resource-breadcrumb.vue'
 
   defineOptions({ name: 'IngressCreatePage' })
 

@@ -6,12 +6,11 @@
         <span>返回</span>
       </ElButton>
       <ElDivider direction="vertical" class="svc-create-header-divider" />
-      <ElBreadcrumb separator="/">
-        <ElBreadcrumbItem :to="{ path: '/container/config', query: { cluster } }"
-          >配置管理</ElBreadcrumbItem
-        >
-        <ElBreadcrumbItem>创建 Secret</ElBreadcrumbItem>
-      </ElBreadcrumb>
+      <ClusterResourceBreadcrumb
+        parent-path="/container/config"
+        parent-label="配置管理"
+        current-label="创建 Secret"
+      />
     </div>
 
     <ElCard class="svc-create-card">
@@ -290,6 +289,7 @@
   import { useRoute, useRouter } from 'vue-router'
   import { createK8sSecret } from '@/api/kubernetes/secret'
   import { fetchK8sNamespaceList } from '@/api/kubernetes/namespace'
+  import ClusterResourceBreadcrumb from '../components/cluster-resource-breadcrumb.vue'
 
   defineOptions({ name: 'SecretCreatePage' })
 

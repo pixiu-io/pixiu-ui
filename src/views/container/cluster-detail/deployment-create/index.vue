@@ -6,12 +6,12 @@
         <span>返回</span>
       </ElButton>
       <ElDivider direction="vertical" class="deploy-create-header-divider" />
-      <ElBreadcrumb separator="/">
-        <ElBreadcrumbItem :to="{ path: '/container/workloads', query: { cluster, tab: 'deploy' } }"
-          >工作负载</ElBreadcrumbItem
-        >
-        <ElBreadcrumbItem>创建 Deployment</ElBreadcrumbItem>
-      </ElBreadcrumb>
+      <ClusterResourceBreadcrumb
+        parent-path="/container/workloads"
+        parent-label="工作负载"
+        :parent-query="{ tab: 'deploy' }"
+        current-label="创建 Deployment"
+      />
     </div>
 
     <ElCard class="deploy-create-card">
@@ -1157,12 +1157,14 @@
     InfoFilled
   } from '@element-plus/icons-vue'
   import { useRoute, useRouter } from 'vue-router'
+  import { buildClusterRouteQuery } from '@/utils/navigation/cluster-query'
   import yaml from 'js-yaml'
   import { createK8sDeployment } from '@/api/kubernetes/deployment'
   import { createK8sService } from '@/api/kubernetes/service'
   import { fetchK8sNamespaceList } from '@/api/kubernetes/namespace'
   import { fetchK8sSecretList } from '@/api/kubernetes/secret'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
+  import ClusterResourceBreadcrumb from '../components/cluster-resource-breadcrumb.vue'
 
   defineOptions({ name: 'DeploymentCreatePage' })
 
@@ -1813,7 +1815,10 @@
   }
 
   function goBack() {
-    router.push({ path: '/container/workloads', query: { cluster: cluster.value, tab: 'deploy' } })
+    router.push({
+      path: '/container/workloads',
+      query: buildClusterRouteQuery(route, { tab: 'deploy' })
+    })
   }
 
   function previewYaml() {

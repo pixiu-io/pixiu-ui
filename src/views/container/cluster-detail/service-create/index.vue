@@ -6,12 +6,11 @@
         <span>返回</span>
       </ElButton>
       <ElDivider direction="vertical" class="svc-create-header-divider" />
-      <ElBreadcrumb separator="/">
-        <ElBreadcrumbItem :to="{ path: '/container/services', query: { cluster } }"
-          >服务与路由</ElBreadcrumbItem
-        >
-        <ElBreadcrumbItem>创建 Service</ElBreadcrumbItem>
-      </ElBreadcrumb>
+      <ClusterResourceBreadcrumb
+        parent-path="/container/services"
+        parent-label="服务与路由"
+        current-label="创建 Service"
+      />
     </div>
 
     <ElCard class="svc-create-card">
@@ -322,6 +321,7 @@
   import { fetchK8sNamespaceList } from '@/api/kubernetes/namespace'
   import { fetchK8sDeploymentList } from '@/api/kubernetes/deployment'
   import { fetchK8sStatefulSetList } from '@/api/kubernetes/statefulset'
+  import ClusterResourceBreadcrumb from '../components/cluster-resource-breadcrumb.vue'
 
   defineOptions({ name: 'ServiceCreatePage' })
 

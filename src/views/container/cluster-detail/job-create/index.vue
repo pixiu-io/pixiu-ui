@@ -6,12 +6,12 @@
         <span>返回</span>
       </ElButton>
       <ElDivider direction="vertical" class="deploy-create-header-divider" />
-      <ElBreadcrumb separator="/">
-        <ElBreadcrumbItem :to="{ path: '/container/workloads', query: { cluster, tab: 'job' } }"
-          >工作负载</ElBreadcrumbItem
-        >
-        <ElBreadcrumbItem>创建 Job</ElBreadcrumbItem>
-      </ElBreadcrumb>
+      <ClusterResourceBreadcrumb
+        parent-path="/container/workloads"
+        parent-label="工作负载"
+        :parent-query="{ tab: 'job' }"
+        current-label="创建 Job"
+      />
     </div>
 
     <ElCard class="deploy-create-card">
@@ -1008,6 +1008,7 @@
   import { createK8sJob } from '@/api/kubernetes/job'
   import { fetchK8sNamespaceList } from '@/api/kubernetes/namespace'
   import { fetchK8sSecretList } from '@/api/kubernetes/secret'
+  import ClusterResourceBreadcrumb from '../components/cluster-resource-breadcrumb.vue'
 
   defineOptions({ name: 'JobCreatePage' })
 

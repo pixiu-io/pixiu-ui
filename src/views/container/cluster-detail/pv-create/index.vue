@@ -6,12 +6,12 @@
         <span>返回</span>
       </ElButton>
       <ElDivider direction="vertical" class="svc-create-header-divider" />
-      <ElBreadcrumb separator="/">
-        <ElBreadcrumbItem :to="{ path: '/container/storage', query: { cluster, tab: 'pv' } }"
-          >存储管理</ElBreadcrumbItem
-        >
-        <ElBreadcrumbItem>创建 PersistentVolume</ElBreadcrumbItem>
-      </ElBreadcrumb>
+      <ClusterResourceBreadcrumb
+        parent-path="/container/storage"
+        parent-label="存储管理"
+        :parent-query="{ tab: 'pv' }"
+        current-label="创建 PersistentVolume"
+      />
     </div>
 
     <ElCard class="svc-create-card">
@@ -214,6 +214,7 @@
   import { ArrowLeft, Close } from '@element-plus/icons-vue'
   import { useRoute, useRouter } from 'vue-router'
   import { createK8sPV } from '@/api/kubernetes/pv'
+  import ClusterResourceBreadcrumb from '../components/cluster-resource-breadcrumb.vue'
 
   defineOptions({ name: 'PVCreatePage' })
 

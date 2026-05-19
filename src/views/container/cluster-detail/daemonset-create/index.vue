@@ -6,12 +6,12 @@
         <span>返回</span>
       </ElButton>
       <ElDivider direction="vertical" class="deploy-create-header-divider" />
-      <ElBreadcrumb separator="/">
-        <ElBreadcrumbItem :to="{ path: '/container/workloads', query: { cluster, tab: 'ds' } }"
-          >工作负载</ElBreadcrumbItem
-        >
-        <ElBreadcrumbItem>创建 DaemonSet</ElBreadcrumbItem>
-      </ElBreadcrumb>
+      <ClusterResourceBreadcrumb
+        parent-path="/container/workloads"
+        parent-label="工作负载"
+        :parent-query="{ tab: 'ds' }"
+        current-label="创建 DaemonSet"
+      />
     </div>
 
     <ElCard class="deploy-create-card">
@@ -1058,6 +1058,7 @@
   import { fetchK8sNamespaceList } from '@/api/kubernetes/namespace'
   import { fetchK8sSecretList } from '@/api/kubernetes/secret'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
+  import ClusterResourceBreadcrumb from '../components/cluster-resource-breadcrumb.vue'
 
   defineOptions({ name: 'DaemonSetCreatePage' })
 

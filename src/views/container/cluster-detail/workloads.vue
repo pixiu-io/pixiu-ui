@@ -3460,11 +3460,10 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     const namespace = globalNamespace.value || nsOptions.value[0] || ''
     router.push({
       path: '/container/deployment-create',
-      query: {
-        cluster,
+      query: buildClusterRouteQuery(route, {
         ...(namespace ? { namespace } : {}),
         tab: 'deploy'
-      }
+      })
     })
   }
 
@@ -3477,11 +3476,10 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     const namespace = globalNamespace.value || nsOptions.value[0] || ''
     router.push({
       path: '/container/statefulset-create',
-      query: {
-        cluster,
+      query: buildClusterRouteQuery(route, {
         ...(namespace ? { namespace } : {}),
         tab: 'sts'
-      }
+      })
     })
   }
 
@@ -3494,11 +3492,10 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     const namespace = globalNamespace.value || nsOptions.value[0] || ''
     router.push({
       path: '/container/daemonset-create',
-      query: {
-        cluster,
+      query: buildClusterRouteQuery(route, {
         ...(namespace ? { namespace } : {}),
         tab: 'ds'
-      }
+      })
     })
   }
 
@@ -3511,11 +3508,10 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     const namespace = globalNamespace.value || nsOptions.value[0] || ''
     router.push({
       path: '/container/job-create',
-      query: {
-        cluster,
+      query: buildClusterRouteQuery(route, {
         ...(namespace ? { namespace } : {}),
         tab: 'job'
-      }
+      })
     })
   }
 
@@ -3528,11 +3524,10 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     const namespace = globalNamespace.value || nsOptions.value[0] || ''
     router.push({
       path: '/container/cronjob-create',
-      query: {
-        cluster,
+      query: buildClusterRouteQuery(route, {
         ...(namespace ? { namespace } : {}),
         tab: 'cj'
-      }
+      })
     })
   }
 

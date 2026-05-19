@@ -6,12 +6,11 @@
         <span>返回</span>
       </ElButton>
       <ElDivider direction="vertical" class="svc-create-header-divider" />
-      <ElBreadcrumb separator="/">
-        <ElBreadcrumbItem :to="{ path: '/container/storage', query: { cluster } }"
-          >存储管理</ElBreadcrumbItem
-        >
-        <ElBreadcrumbItem>创建 StorageClass</ElBreadcrumbItem>
-      </ElBreadcrumb>
+      <ClusterResourceBreadcrumb
+        parent-path="/container/storage"
+        parent-label="存储管理"
+        current-label="创建 StorageClass"
+      />
     </div>
 
     <ElCard class="svc-create-card">
@@ -154,6 +153,7 @@
   import { ArrowLeft, Close } from '@element-plus/icons-vue'
   import { useRoute, useRouter } from 'vue-router'
   import { createK8sStorageClass } from '@/api/kubernetes/storageclass'
+  import ClusterResourceBreadcrumb from '../components/cluster-resource-breadcrumb.vue'
 
   defineOptions({ name: 'StorageClassCreatePage' })
 
