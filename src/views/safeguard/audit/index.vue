@@ -81,7 +81,6 @@
         :columns="columns"
         :pagination="pagination"
         :pagination-options="{ align: 'right' }"
-        @selection-change="handleSelectionChange"
         @pagination:size-change="handleSizeChange"
         @pagination:current-change="handleCurrentChange"
       />
@@ -191,7 +190,6 @@
       },
       apiParams: { current: 1, size: 10 },
       columnsFactory: () => [
-        { type: 'selection', width: 30 },
         {
           label: '操作人',
           width: 120,

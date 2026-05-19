@@ -7,7 +7,7 @@ export const helpRoutes: AppRouteRecord[] = [
     component: '/change/log',
     meta: {
       title: 'menus.plan.log',
-      showTextBadge: `v${__APP_VERSION__}`,
+      showTextBadge: 'v2.0.1',
       icon: 'ri:gamepad-line',
       keepAlive: false
     }

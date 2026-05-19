@@ -143,7 +143,7 @@
 <script setup lang="ts">
   import { h, nextTick, onActivated, reactive, ref } from 'vue'
   import { CopyDocument } from '@element-plus/icons-vue'
-  import { ElLink, ElMessage, ElMessageBox, ElTag } from 'element-plus'
+  import { ElLink, ElMessage, ElMessageBox } from 'element-plus'
   import type { FormInstance, FormRules } from 'element-plus'
   import ArtButtonMore, { type ButtonMoreItem } from '@/components/core/forms/art-button-more/index.vue'
   import { useTable } from '@/hooks/core/useTable'
@@ -185,12 +185,6 @@
     if (t === 'key') return '密钥'
     if (t === 'none') return '无'
     return t?.trim() ? String(t) : '-'
-  }
-
-  function authTagType(t?: string): 'success' | 'warning' | 'info' {
-    if (t === 'password') return 'success'
-    if (t === 'key') return 'warning'
-    return 'info'
   }
 
   function parseAuthForForm(authStr: string): {
@@ -525,7 +519,7 @@
         {
           prop: 'name',
           label: '主机名称',
-          minWidth: 200,
+          minWidth: 140,
           formatter: (row: PixiuNodeItem) =>
             h('div', { style: 'display:flex;align-items:center;gap:4px' }, [
               h('span', { style: 'font-size:12px;color:var(--el-text-color-primary)' }, row.name),
@@ -549,12 +543,12 @@
         {
           prop: 'ip',
           label: 'IP',
-          minWidth: 140,
+          minWidth: 120,
           formatter: (row: PixiuNodeItem) =>
             h('div', { style: 'display:flex;align-items:center;gap:4px' }, [
               h(
                 'span',
-                { style: 'font-size:13px;font-family:var(--el-font-family-mono,monospace)' },
+                { style: 'font-size:12px;font-family:var(--el-font-family-mono,monospace)' },
                 row.ip || '-'
               ),
               ...(row.ip
@@ -581,16 +575,13 @@
         {
           prop: 'auth',
           label: '认证类型',
-          width: 120,
-          formatter: (row: PixiuNodeItem) => {
-            let t: string | undefined
-            try {
-              t = (JSON.parse(row.auth || '{}') as { type?: string }).type
-            } catch {
-              t = undefined
-            }
-            return h(ElTag, { type: authTagType(t), size: 'small' }, () => authTypeLabelFromJson(row.auth || ''))
-          }
+          minWidth: 100,
+          formatter: (row: PixiuNodeItem) =>
+            h(
+              'span',
+              { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+              authTypeLabelFromJson(row.auth || '')
+            )
         },
         {
           prop: 'operation',

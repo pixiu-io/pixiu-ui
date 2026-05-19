@@ -3,7 +3,7 @@
   <ElDialog
     :model-value="modelValue"
     title="镜像列表"
-    width="800px"
+    width="700px"
     align-center
     destroy-on-close
     class="workload-image-dialog"
@@ -14,10 +14,11 @@
       v-loading="loading"
       :data="imageRows"
       stripe
+      size="small"
       class="workload-image-dialog__table"
       empty-text="暂无容器镜像"
     >
-      <ElTableColumn label="容器名称" prop="name" width="180">
+      <ElTableColumn label="容器名称" prop="name" width="200">
         <template #default="{ row }">
           <div class="workload-image-dialog__name-cell">
             <span class="workload-image-dialog__name-text">{{ row.name }}</span>
@@ -27,13 +28,14 @@
           </div>
         </template>
       </ElTableColumn>
-      <ElTableColumn label="镜像" min-width="440">
+      <ElTableColumn label="镜像" min-width="360">
         <template #default="{ row }">
           <div v-if="!row.editing" class="workload-image-dialog__image-cell">
             <span class="workload-image-dialog__image-value">
               <span class="workload-image-dialog__image-text">{{ row.image }}</span>
               <ElButton
                 link
+                type="primary"
                 class="workload-image-dialog__edit-btn"
                 title="编辑"
                 :disabled="patching"
@@ -51,34 +53,22 @@
               clearable
               @keyup.enter="confirmEdit(row)"
             />
-            <ElPopover
-              v-model:visible="row.editing"
-              placement="top-end"
-              :width="100"
-              trigger="manual"
-              popper-class="workload-image-dialog__edit-popover"
-              @hide="onPopoverHide(row)"
-            >
-              <template #reference>
-                <span class="workload-image-dialog__popover-anchor" aria-hidden="true" />
-              </template>
-              <div class="workload-image-dialog__edit-actions">
-                <span
-                  class="workload-image-dialog__action-text"
-                  :class="{ 'is-disabled': patching }"
-                  @click="!patching && confirmEdit(row)"
-                >
-                  确认
-                </span>
-                <span
-                  class="workload-image-dialog__action-text"
-                  :class="{ 'is-disabled': patching }"
-                  @click="!patching && cancelEdit(row)"
-                >
-                  取消
-                </span>
-              </div>
-            </ElPopover>
+            <div class="workload-image-dialog__edit-actions">
+              <span
+                class="workload-image-dialog__action-text"
+                :class="{ 'is-disabled': patching }"
+                @click.stop="!patching && confirmEdit(row)"
+              >
+                确认
+              </span>
+              <span
+                class="workload-image-dialog__action-text"
+                :class="{ 'is-disabled': patching }"
+                @click.stop="!patching && cancelEdit(row)"
+              >
+                取消
+              </span>
+            </div>
           </div>
         </template>
       </ElTableColumn>
@@ -212,13 +202,6 @@
     row.editing = true
   }
 
-  function onPopoverHide(row: ImageRow) {
-    if (!patching.value) {
-      row.editing = false
-      row.newImage = ''
-    }
-  }
-
   function cancelEdit(row: ImageRow) {
     row.editing = false
     row.newImage = ''
@@ -281,15 +264,14 @@
 
   .workload-image-dialog__image-cell {
     max-width: 100%;
+    overflow-x: auto;
   }
 
   .workload-image-dialog__image-value {
     display: inline-flex;
     align-items: center;
-    flex-wrap: nowrap;
     gap: 4px;
     max-width: 100%;
-    overflow-x: auto;
   }
 
   .workload-image-dialog__image-text {
@@ -304,16 +286,6 @@
     flex-shrink: 0;
     padding: 0 2px;
     height: auto;
-    color: #000;
-  }
-
-  .workload-image-dialog__edit-btn:hover,
-  .workload-image-dialog__edit-btn:focus {
-    color: #333;
-  }
-
-  .workload-image-dialog__edit-btn.is-disabled {
-    color: var(--el-text-color-disabled);
   }
 
   .workload-image-dialog__edit-icon {
@@ -321,34 +293,39 @@
     color: inherit;
   }
 
+  /* 暗黑模式：避免继承表格文字色导致编辑图标对比度不足 */
+  html.dark .workload-image-dialog__edit-btn:not(.is-disabled) {
+    color: var(--el-color-primary);
+  }
+
+  html.dark .workload-image-dialog__edit-btn:not(.is-disabled):hover,
+  html.dark .workload-image-dialog__edit-btn:not(.is-disabled):focus {
+    color: var(--el-color-primary-light-3);
+  }
+
   .workload-image-dialog__edit-cell {
-    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
     width: 100%;
-    padding-right: 8px;
+    min-width: 0;
   }
 
   .workload-image-dialog__image-input {
-    width: 100%;
+    flex: 1;
+    min-width: 0;
   }
 
   .workload-image-dialog__image-input :deep(.el-input__inner) {
     font-size: 12px;
   }
 
-  .workload-image-dialog__popover-anchor {
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 1px;
-    height: 1px;
-    pointer-events: none;
-  }
-
   .workload-image-dialog__edit-actions {
     display: flex;
+    flex-shrink: 0;
     align-items: center;
-    justify-content: center;
-    gap: 12px;
+    gap: 8px;
+    white-space: nowrap;
   }
 
   .workload-image-dialog__action-text {
@@ -370,8 +347,13 @@
 </style>
 
 <style>
-  .workload-image-dialog__edit-popover.el-popover.el-popper {
-    padding: 8px 10px;
-    min-width: auto;
+  .workload-image-dialog.el-dialog .el-dialog__body {
+    padding-top: 12px;
+    padding-bottom: 8px;
   }
+
+  .workload-image-dialog.el-dialog .el-dialog__footer {
+    padding-top: 8px;
+  }
+
 </style>

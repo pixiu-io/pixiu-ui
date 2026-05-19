@@ -187,6 +187,16 @@
   const namespaceOptions = ref<string[]>([])
   const nsLoading = ref(false)
 
+  function getNsCacheKey(cluster: string) { return `pixiu-ns-${cluster}` }
+  function loadCachedNamespace(cluster: string): string | null {
+    try { return localStorage.getItem(getNsCacheKey(cluster)) }
+    catch { return null }
+  }
+  function saveCachedNamespace(cluster: string, ns: string) {
+    try { localStorage.setItem(getNsCacheKey(cluster), ns) }
+    catch { /* ignore */ }
+  }
+
   async function loadNamespaceOptions(clusterName: string) {
     if (!clusterName) {
       namespaceOptions.value = []
@@ -274,7 +284,7 @@
   watch(
     () => String(route.query.cluster ?? ''),
     (name) => {
-      selectedNamespace.value = 'default'
+      selectedNamespace.value = loadCachedNamespace(name) ?? 'default'
       void loadNamespaceOptions(name)
     },
     { immediate: true }
@@ -350,6 +360,12 @@
   provide(clusterDetailContextKey, ctx)
   provide(clusterDetailNamespaceKey, { namespace: selectedNamespace, namespaceOptions })
   provide(clusterDetailRefreshKey, refreshClusterRow)
+
+  // 命名空间变更时缓存到 localStorage
+  watch(selectedNamespace, (ns) => {
+    const cluster = String(route.query.cluster ?? '')
+    if (cluster) saveCachedNamespace(cluster, ns)
+  })
 
   const STATUS_CONFIG = {
     0: { type: 'success' as const, text: '运行中' },
