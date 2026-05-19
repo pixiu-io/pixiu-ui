@@ -1022,6 +1022,22 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     })
   }
 
+  function openWorkloadLogs(detailPath: string, namespace: string, name: string) {
+    if (!namespace || !name) return
+    router.push({
+      path: detailPath,
+      query: buildClusterRouteQuery(route, { namespace, name, tab: 'logs' })
+    })
+  }
+
+  function openPodDetailLogs(namespace: string, pod: string) {
+    if (!namespace || !pod) return
+    router.push({
+      path: '/container/pod-detail',
+      query: buildClusterRouteQuery(route, { namespace, pod, tab: 'logs' })
+    })
+  }
+
   /** 名称 + 复制（与 Deployment 列表样式一致） */
   function renderWorkloadDetailNameCell(detailPath: string, namespace: string, name: string) {
     const display = name || '-'
@@ -1469,6 +1485,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
                     ),
                     h(ArtButtonMore, {
                       list: [
+                        { key: 'logs', label: '日志', icon: 'ri:file-text-line' },
                         { key: 'yaml', label: '查看YAML', icon: 'ri:file-code-line' },
                         { key: 'images', label: '镜像管理', icon: 'ri:docker-line' },
                         { key: 'redeploy', label: '重新部署', icon: 'ri:refresh-line' },
@@ -1798,6 +1815,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
                       ),
                       h(ArtButtonMore, {
                         list: [
+                          { key: 'logs', label: '日志', icon: 'ri:file-text-line' },
                           { key: 'redeploy', label: '重新部署', icon: 'ri:refresh-line' },
                           { key: 'images', label: '镜像管理', icon: 'ri:docker-line' },
                           {
@@ -2301,6 +2319,21 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
                         underline: 'never',
                         style: 'font-size:12px',
                         onClick: () =>
+                          openWorkloadLogs(
+                            '/container/job-detail',
+                            row.metadata?.namespace ?? '',
+                            row.metadata?.name ?? ''
+                          )
+                      },
+                      () => '日志'
+                    ),
+                    h(
+                      ElLink,
+                      {
+                        type: 'primary',
+                        underline: 'never',
+                        style: 'font-size:12px',
+                        onClick: () =>
                           void deleteWorkload(
                             'job',
                             row.metadata?.namespace ?? '',
@@ -2749,6 +2782,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
                     ),
                     h(ArtButtonMore, {
                       list: [
+                        { key: 'logs', label: '日志', icon: 'ri:file-text-line' },
                         {
                           key: 'suspend',
                           label: suspended ? '恢复' : '暂停',
@@ -3079,6 +3113,20 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
                       },
                       () => '查看'
                     ),
+                    h(
+                      ElLink,
+                      {
+                        type: 'primary',
+                        underline: 'never',
+                        style: 'font-size:12px;line-height:1',
+                        onClick: () =>
+                          openPodDetailLogs(
+                            (row.metadata?.namespace ?? props.deployNamespace) || globalNamespace.value,
+                            row.metadata?.name ?? ''
+                          )
+                      },
+                      () => '日志'
+                    ),
                     h(ArtButtonMore, {
                       list: [
                         {
@@ -3255,6 +3303,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
                     ),
                     h(ArtButtonMore, {
                       list: [
+                        { key: 'logs', label: '日志', icon: 'ri:file-text-line' },
                         { key: 'redeploy', label: '重新部署', icon: 'ri:refresh-line' },
                         { key: 'yaml', label: '编辑YAML', icon: 'ri:file-code-line' },
                         { key: 'images', label: '镜像管理', icon: 'ri:docker-line' },
@@ -3794,6 +3843,13 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
 
   function deplMoreClick(item: ButtonMoreItem, row: K8sDeployment) {
     switch (item.key) {
+      case 'logs':
+        openWorkloadLogs(
+          '/container/deployment-detail',
+          row.metadata?.namespace ?? '',
+          row.metadata?.name ?? ''
+        )
+        break
       case 'delete':
         void deleteDeployment(row)
         break
@@ -3811,6 +3867,13 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
 
   function stsMoreClick(item: ButtonMoreItem, row: K8sStatefulSet) {
     switch (item.key) {
+      case 'logs':
+        openWorkloadLogs(
+          '/container/statefulset-detail',
+          row.metadata?.namespace ?? '',
+          row.metadata?.name ?? ''
+        )
+        break
       case 'yaml':
         void openSharedYamlDialog('sts', row.metadata?.namespace ?? '', row.metadata?.name ?? '')
         break
@@ -3855,6 +3918,13 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
 
   function dsMoreClick(item: ButtonMoreItem, row: K8sDaemonSet) {
     switch (item.key) {
+      case 'logs':
+        openWorkloadLogs(
+          '/container/daemonset-detail',
+          row.metadata?.namespace ?? '',
+          row.metadata?.name ?? ''
+        )
+        break
       case 'yaml':
         void openSharedYamlDialog('ds', row.metadata?.namespace ?? '', row.metadata?.name ?? '')
         break
@@ -3899,6 +3969,13 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
 
   function cjMoreClick(item: ButtonMoreItem, row: K8sCronJob) {
     switch (item.key) {
+      case 'logs':
+        openWorkloadLogs(
+          '/container/cronjob-detail',
+          row.metadata?.namespace ?? '',
+          row.metadata?.name ?? ''
+        )
+        break
       case 'suspend':
         void toggleCjSuspend(row)
         break

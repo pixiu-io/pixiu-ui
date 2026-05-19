@@ -116,19 +116,10 @@
       </template>
     </ElCard>
 
-    <!-- Tabs card -->
-    <ElCard v-if="pod && !loading" class="dd-card dd-card--tabs">
+    <!-- Tabs card（间距与 Deployment 详情 workloads 区一致） -->
+    <div v-if="pod && !loading" class="dd-workloads-copy">
+    <ElCard class="dd-card dd-card--tabs">
       <el-tabs v-model="activeTab" class="dd-tabs">
-
-        <!-- 监控指标 -->
-        <el-tab-pane label="监控指标" name="workloadMetrics">
-          <WorkloadMetricsPane
-            :cluster="cluster"
-            :namespace="namespace"
-            :pod-names="metricsPodNames"
-            :active="activeTab === 'workloadMetrics'"
-          />
-        </el-tab-pane>
 
         <!-- 容器管理 -->
         <el-tab-pane label="容器管理" name="containers">
@@ -136,13 +127,6 @@
             <div class="ct-card__head">
               <span class="ct-name">{{ container.name }}</span>
               <el-tag size="small" type="info" effect="plain">容器</el-tag>
-              <el-tag
-                v-if="containerReadyMap[container.name]"
-                size="small"
-                type="success"
-                effect="plain"
-                style="margin-left:4px"
-              >Ready</el-tag>
             </div>
             <div class="ct-body">
               <div class="ct-row">
@@ -213,49 +197,65 @@
         <!-- 事件 -->
         <el-tab-pane label="事件" name="events">
           <div class="dd-toolbar">
-            <el-button size="small" class="dd-refresh-btn" :loading="eventsLoading" @click="loadEvents">刷新</el-button>
+            <el-button
+              size="small"
+              class="dd-refresh-btn"
+              :loading="eventsLoading"
+              @click="loadEvents"
+              >刷新</el-button
+            >
           </div>
           <el-table :data="events" v-loading="eventsLoading" size="small" stripe class="dd-table">
             <el-table-column label="类型" width="90">
               <template #default="{ row }">
-                <el-tag :type="row.type === 'Warning' ? 'warning' : 'success'" size="small" effect="light">{{ row.type }}</el-tag>
+                <el-tag
+                  :type="row.type === 'Warning' ? 'warning' : 'success'"
+                  size="small"
+                  effect="light"
+                  >{{ row.type }}</el-tag
+                >
               </template>
             </el-table-column>
             <el-table-column label="原因" width="150" prop="reason" />
+            <el-table-column label="对象" width="200">
+              <template #default="{ row }"
+                >{{ row.involvedObject?.kind }}/{{ row.involvedObject?.name }}</template
+              >
+            </el-table-column>
             <el-table-column label="消息" min-width="300" prop="message" show-overflow-tooltip />
             <el-table-column label="次数" width="70" prop="count" />
             <el-table-column label="最近发生" width="160">
-              <template #default="{ row }">{{ formatTime(row.lastTimestamp || row.eventTime) }}</template>
+              <template #default="{ row }">{{
+                formatTime(row.lastTimestamp || row.eventTime)
+              }}</template>
             </el-table-column>
           </el-table>
           <div v-if="!eventsLoading && events.length === 0" class="dd-empty-tip">暂无相关事件</div>
         </el-tab-pane>
 
+        <!-- 监控指标 -->
+        <el-tab-pane label="监控指标" name="workloadMetrics">
+          <WorkloadMetricsPane
+            :cluster="cluster"
+            :namespace="namespace"
+            :pod-names="metricsPodNames"
+            :active="activeTab === 'workloadMetrics'"
+          />
+        </el-tab-pane>
+
         <!-- 日志 -->
         <el-tab-pane label="日志" name="logs">
-          <div class="dd-log-bar">
-            <el-select v-model="logContainer" placeholder="选择容器" size="small" style="width:200px">
-              <el-option v-for="c in containerNames" :key="c" :label="c" :value="c" />
-            </el-select>
-            <el-select v-model="logTailLines" size="small" style="width:130px">
-              <el-option label="最近 100 行" :value="100" />
-              <el-option label="最近 200 行" :value="200" />
-              <el-option label="最近 500 行" :value="500" />
-              <el-option label="最近 1000 行" :value="1000" />
-            </el-select>
-            <el-button size="small" type="primary" :loading="logLoading" :disabled="!logContainer" @click="fetchLogs">获取日志</el-button>
-          </div>
-          <div class="dd-log-view" ref="logViewerRef">
-            <div v-if="logLoading" class="dd-log-state">
-              <el-icon class="is-loading"><Loading /></el-icon> 加载日志…
-            </div>
-            <pre v-else-if="logContent" class="dd-log-txt">{{ logContent }}</pre>
-            <div v-else class="dd-log-state">请选择容器后获取日志</div>
-          </div>
+          <K8sPodLogsPane
+            :cluster="cluster"
+            :namespace="namespace"
+            :pod-name="podName"
+            :active="activeTab === 'logs'"
+          />
         </el-tab-pane>
 
       </el-tabs>
     </ElCard>
+    </div>
 
     <K8sYamlDialog
       v-model="yamlVisible"
@@ -273,19 +273,19 @@
 </template>
 
 <script setup lang="ts">
-  import { ArrowLeft, Loading } from '@element-plus/icons-vue'
+  import { ArrowLeft } from '@element-plus/icons-vue'
   import { ElMessage, ElMessageBox } from 'element-plus'
-  import { computed, inject, nextTick, onMounted, ref, watch } from 'vue'
+  import { computed, inject, onMounted, ref, watch } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import ArtButtonMore, { type ButtonMoreItem } from '@/components/core/forms/art-button-more/index.vue'
   import PodRemoteWebshell from '../components/pod-remote-webshell.vue'
+  import K8sPodLogsPane from '../components/k8s-pod-logs-pane.vue'
   import WorkloadMetricsPane from '../components/workload-metrics-pane.vue'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
   import { clusterDetailContextKey } from '../context'
   import { buildClusterRouteQuery } from '@/utils/navigation/cluster-query'
   import { fetchK8sPod, deleteK8sPod } from '@/api/kubernetes/pod'
   import { fetchKubeRawEventList } from '@/api/kubernetes/events'
-  import { kubeProxyAxios } from '@/api/kubeProxy'
   import YAML from 'js-yaml'
 
   defineOptions({ name: 'PodDetail' })
@@ -305,7 +305,9 @@
   // ── Data ──
   const loading = ref(true)
   const pod = ref<any>(null)
-  const activeTab = ref('containers')
+  const POD_DETAIL_TABS = new Set(['workloadMetrics', 'containers', 'events', 'logs'])
+  const tabFromRoute = String(route.query.tab ?? '')
+  const activeTab = ref(POD_DETAIL_TABS.has(tabFromRoute) ? tabFromRoute : 'containers')
 
   // ── Computed from pod ──
   const phaseTagType = computed(() => {
@@ -318,11 +320,6 @@
 
   const containers = computed<any[]>(() => pod.value?.spec?.containers ?? [])
   const containerNames = computed<string[]>(() => containers.value.map((c: any) => c.name).filter(Boolean))
-
-  const containerReadyMap = computed<Record<string, boolean>>(() => {
-    const statuses: any[] = pod.value?.status?.containerStatuses ?? []
-    return Object.fromEntries(statuses.map((s: any) => [s.name, !!s.ready]))
-  })
 
   const readyCount = computed(() => {
     const statuses: any[] = pod.value?.status?.containerStatuses ?? []
@@ -370,33 +367,6 @@
       events.value = []
     } finally {
       eventsLoading.value = false
-    }
-  }
-
-  // ── Logs tab ──
-  const logContainer = ref('')
-  const logTailLines = ref(100)
-  const logLoading = ref(false)
-  const logContent = ref('')
-  const logViewerRef = ref<HTMLElement>()
-
-  async function fetchLogs() {
-    if (!logContainer.value) return
-    logLoading.value = true
-    try {
-      const url = `/pixiu/proxy/${encodeURIComponent(cluster.value)}/api/v1/namespaces/${encodeURIComponent(namespace.value)}/pods/${encodeURIComponent(podName.value)}/log`
-      const { data } = await kubeProxyAxios.get<string>(url, {
-        params: { container: logContainer.value, tailLines: logTailLines.value },
-        responseType: 'text'
-      })
-      logContent.value = data
-      nextTick(() => {
-        if (logViewerRef.value) logViewerRef.value.scrollTop = logViewerRef.value.scrollHeight
-      })
-    } catch (e: any) {
-      logContent.value = `获取日志失败: ${e.message}`
-    } finally {
-      logLoading.value = false
     }
   }
 
@@ -477,21 +447,26 @@
   }
 
   // ── Tab lazy loading ──
+  watch(
+    () => String(route.query.tab ?? ''),
+    (t) => {
+      if (POD_DETAIL_TABS.has(t)) activeTab.value = t
+    }
+  )
+
   watch(activeTab, (tab) => {
     if (tab === 'events' && events.value.length === 0) void loadEvents()
-    if (tab === 'logs' && !logContainer.value) logContainer.value = containerNames.value[0] ?? ''
   })
 
   watch(pod, () => {
     showAllLabels.value = false
     showAllAnnotations.value = false
-    logContainer.value = containerNames.value[0] ?? ''
   })
 
   // ── Load ──
   onMounted(async () => {
     const qTab = String(route.query.tab ?? '')
-    if (qTab === 'workloadMetrics') activeTab.value = 'workloadMetrics'
+    if (POD_DETAIL_TABS.has(qTab)) activeTab.value = qTab
     if (!cluster.value || !namespace.value || !podName.value) {
       ElMessage.error('参数不完整')
       return
@@ -655,19 +630,28 @@
     font-size: 12px;
   }
 
-  /* ── Tabs card ── */
-  .dd-card--tabs :deep(.el-card__body) {
-    padding: 0 14px;
+  /* ── Tabs card（与 Deployment 详情 dd-workloads-copy 一致） ── */
+  .dd-workloads-copy {
+    margin-top: -8px;
   }
-  .dd-tabs :deep(.el-tabs__header) {
+  /* Deployment 第二块为 art-table-card，全局有 margin-top: 12px */
+  .dd-workloads-copy :deep(.dd-card--tabs) {
+    margin-top: 12px;
+  }
+  .dd-workloads-copy :deep(.dd-card--tabs > .el-card__body) {
+    padding-top: 12px;
+    padding-left: var(--el-card-padding);
+    padding-right: var(--el-card-padding);
+    padding-bottom: 0;
+  }
+  .dd-workloads-copy :deep(.dd-tabs .el-tabs__header) {
+    margin-top: -6px;
     margin-bottom: 8px;
   }
-
-  .dd-tabs :deep(.el-tabs__content) {
+  .dd-workloads-copy :deep(.dd-tabs .el-tabs__content) {
     padding-top: 0;
   }
-
-  .dd-tabs :deep(#pane-workloadMetrics) {
+  .dd-workloads-copy :deep(.dd-tabs #pane-workloadMetrics) {
     padding-top: 0;
   }
   .dd-tabs :deep(.el-tabs__nav-wrap::after) {
@@ -706,6 +690,9 @@
   .dd-table :deep(.el-table__body td.el-table__cell) {
     height: 38px;
     font-size: 12px;
+  }
+  .dd-table :deep(.el-table__row:hover > td.el-table__cell) {
+    background-color: var(--el-fill-color-lighter);
   }
   .dd-empty-tip {
     text-align: center;
@@ -795,42 +782,6 @@
     padding: 2px 0;
   }
   .probe-desc { color: var(--el-text-color-regular); }
-
-  /* ── Logs ── */
-  .dd-log-bar {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    margin-bottom: 12px;
-    flex-wrap: wrap;
-  }
-  .dd-log-view {
-    background: #13151a;
-    border-radius: 8px;
-    padding: 12px;
-    min-height: 400px;
-    max-height: 600px;
-    overflow-y: auto;
-    position: relative;
-  }
-  .dd-log-txt {
-    font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
-    font-size: 13px;
-    line-height: 1.65;
-    color: #d4d4d4;
-    white-space: pre-wrap;
-    word-break: break-all;
-    margin: 0;
-  }
-  .dd-log-state {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 300px;
-    color: #6b7280;
-    gap: 8px;
-    font-size: 14px;
-  }
 
   /* ── Misc ── */
   .mono {

@@ -876,14 +876,13 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   }
 
   function openPodLogs(row: K8sPod) {
-    logPod.value = row
-    logContainers.value = (row.spec?.containers ?? []).map((c) => c.name ?? '').filter(Boolean)
-    logContainer.value = logContainers.value[0] ?? ''
-    logTailLines.value = 100
-    logRows.value = []
-    logDrawerFullscreen.value = false
-    logDrawerVisible.value = true
-    nextTick(() => { connectLogWs() })
+    const ns = row.metadata?.namespace ?? ''
+    const pod = row.metadata?.name ?? ''
+    if (!ns || !pod) return
+    router.push({
+      path: '/container/pod-detail',
+      query: buildClusterRouteQuery(route, { namespace: ns, pod, tab: 'logs' })
+    })
   }
 
   function closePodLogs() {
