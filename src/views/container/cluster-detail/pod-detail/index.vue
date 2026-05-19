@@ -196,41 +196,13 @@
 
         <!-- 事件 -->
         <el-tab-pane label="事件" name="events">
-          <div class="dd-toolbar">
-            <el-button
-              size="small"
-              class="dd-refresh-btn"
-              :loading="eventsLoading"
-              @click="loadEvents"
-              >刷新</el-button
-            >
-          </div>
-          <el-table :data="events" v-loading="eventsLoading" size="small" stripe class="dd-table">
-            <el-table-column label="类型" width="90">
-              <template #default="{ row }">
-                <el-tag
-                  :type="row.type === 'Warning' ? 'warning' : 'success'"
-                  size="small"
-                  effect="light"
-                  >{{ row.type }}</el-tag
-                >
-              </template>
-            </el-table-column>
-            <el-table-column label="原因" width="150" prop="reason" />
-            <el-table-column label="对象" width="200">
-              <template #default="{ row }"
-                >{{ row.involvedObject?.kind }}/{{ row.involvedObject?.name }}</template
-              >
-            </el-table-column>
-            <el-table-column label="消息" min-width="300" prop="message" show-overflow-tooltip />
-            <el-table-column label="次数" width="70" prop="count" />
-            <el-table-column label="最近发生" width="160">
-              <template #default="{ row }">{{
-                formatTime(row.lastTimestamp || row.eventTime)
-              }}</template>
-            </el-table-column>
-          </el-table>
-          <div v-if="!eventsLoading && events.length === 0" class="dd-empty-tip">暂无相关事件</div>
+          <K8sResourceEventsPane
+            :cluster="cluster"
+            :namespace="namespace"
+            :resource-name="podName"
+            kind="Pod"
+            :active="activeTab === 'events'"
+          />
         </el-tab-pane>
 
         <!-- 监控指标 -->
@@ -280,12 +252,12 @@
   import ArtButtonMore, { type ButtonMoreItem } from '@/components/core/forms/art-button-more/index.vue'
   import PodRemoteWebshell from '../components/pod-remote-webshell.vue'
   import K8sPodLogsPane from '../components/k8s-pod-logs-pane.vue'
+  import K8sResourceEventsPane from '../components/k8s-resource-events-pane.vue'
   import WorkloadMetricsPane from '../components/workload-metrics-pane.vue'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
   import { clusterDetailContextKey } from '../context'
   import { buildClusterRouteQuery } from '@/utils/navigation/cluster-query'
   import { fetchK8sPod, deleteK8sPod } from '@/api/kubernetes/pod'
-  import { fetchKubeRawEventList } from '@/api/kubernetes/events'
   import YAML from 'js-yaml'
 
   defineOptions({ name: 'PodDetail' })
@@ -347,28 +319,6 @@
   const visibleAnnotationEntries = computed(() =>
     showAllAnnotations.value || !hasMoreAnnotations.value ? annotationEntries.value : annotationEntries.value.slice(0, 2)
   )
-
-  // ── Events tab ──
-  const events = ref<any[]>([])
-  const eventsLoading = ref(false)
-  async function loadEvents() {
-    eventsLoading.value = true
-    try {
-      const { items } = await fetchKubeRawEventList(cluster.value, {
-        namespace: namespace.value,
-        name: podName.value,
-        kind: 'Pod',
-        namespaced: true,
-        page: 1,
-        limit: 100
-      })
-      events.value = items as any[]
-    } catch {
-      events.value = []
-    } finally {
-      eventsLoading.value = false
-    }
-  }
 
   // ── Container helpers ──
   function containerResources(c: any) {
@@ -453,10 +403,6 @@
       if (POD_DETAIL_TABS.has(t)) activeTab.value = t
     }
   )
-
-  watch(activeTab, (tab) => {
-    if (tab === 'events' && events.value.length === 0) void loadEvents()
-  })
 
   watch(pod, () => {
     showAllLabels.value = false

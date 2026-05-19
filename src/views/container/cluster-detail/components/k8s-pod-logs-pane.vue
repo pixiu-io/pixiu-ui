@@ -3,21 +3,7 @@
   <div class="k8s-pod-logs-pane">
     <div class="workloads-log-toolbar">
       <div class="workloads-log-row">
-        <span class="workloads-log-label">Pod选项</span>
-        <ElSelect
-          v-model="logPod"
-          class="workloads-log-select"
-          :disabled="!!fixedPodName"
-          placeholder="请选择"
-          @change="onLogPodChange"
-        >
-          <ElOption
-            v-for="p in logPods"
-            :key="p.metadata?.name"
-            :label="p.metadata?.name"
-            :value="p.metadata?.name"
-          />
-        </ElSelect>
+        <span class="workloads-log-label">容器选项</span>
         <ElSelect v-model="logContainer" class="workloads-log-select" placeholder="请选择">
           <ElOption v-for="c in logContainerOptions" :key="c" :label="c" :value="c" />
         </ElSelect>
@@ -79,19 +65,15 @@
     defineProps<{
       cluster: string
       namespace: string
-      /** Pod 详情：固定 Pod 名 */
-      podName?: string
-      /** Deployment 详情：按标签拉 Pod 列表 */
-      labelSelector?: string
+      podName: string
       active?: boolean
     }>(),
     { active: false }
   )
 
-  const fixedPodName = computed(() => props.podName?.trim() ?? '')
+  const podName = computed(() => props.podName?.trim() ?? '')
 
-  const logPods = ref<K8sPod[]>([])
-  const logPod = ref('')
+  const currentPod = ref<K8sPod | null>(null)
   const logContainer = ref('')
   const tailLines = ref(10)
   const keyword = ref('')
@@ -101,62 +83,29 @@
   const logLines = ref<string[]>([])
 
   const downloadName = computed(
-    () => `${logPod.value || 'pod'}-${logContainer.value || 'container'}.log`
+    () => `${podName.value || 'pod'}-${logContainer.value || 'container'}.log`
   )
 
-  const logContainerOptions = computed(() => {
-    const pod = logPods.value.find((p) => p.metadata?.name === logPod.value)
-    return (pod?.spec?.containers ?? []).map((c) => c.name ?? '').filter(Boolean)
-  })
-
-  function onLogPodChange() {
-    logContainer.value = logContainerOptions.value[0] ?? ''
-    logLines.value = []
-  }
+  const logContainerOptions = computed(() =>
+    (currentPod.value?.spec?.containers ?? []).map((c) => c.name ?? '').filter(Boolean)
+  )
 
   async function loadPods() {
-    if (!props.cluster || !props.namespace) {
-      logPods.value = []
-      logPod.value = ''
+    if (!props.cluster || !props.namespace || !podName.value) {
+      currentPod.value = null
       logContainer.value = ''
       return
     }
 
     refreshing.value = true
     try {
-      if (fixedPodName.value) {
-        const pod = await fetchK8sPod(props.cluster, props.namespace, fixedPodName.value)
-        logPods.value = [pod]
-        logPod.value = fixedPodName.value
+      const pod = await fetchK8sPod(props.cluster, props.namespace, podName.value)
+      currentPod.value = pod
+      if (!logContainer.value || !logContainerOptions.value.includes(logContainer.value)) {
         logContainer.value = logContainerOptions.value[0] ?? ''
-        return
       }
-
-      const selector = props.labelSelector?.trim() ?? ''
-      if (!selector) {
-        logPods.value = []
-        logPod.value = ''
-        logContainer.value = ''
-        return
-      }
-
-      const base = `/pixiu/proxy/${encodeURIComponent(props.cluster)}/api/v1/namespaces/${encodeURIComponent(props.namespace)}/pods`
-      const { data } = await kubeProxyAxios.get<{ items?: K8sPod[] }>(base, {
-        params: { labelSelector: selector, limit: 200 }
-      })
-      logPods.value = data.items ?? []
-      if (!logPods.value.length) {
-        logPod.value = ''
-        logContainer.value = ''
-        return
-      }
-      if (!logPod.value || !logPods.value.some((p) => p.metadata?.name === logPod.value)) {
-        logPod.value = logPods.value[0].metadata?.name ?? ''
-      }
-      logContainer.value = logContainerOptions.value[0] ?? ''
     } catch {
-      logPods.value = []
-      logPod.value = ''
+      currentPod.value = null
       logContainer.value = ''
     } finally {
       refreshing.value = false
@@ -188,13 +137,13 @@
   }
 
   async function fetchLogs() {
-    if (!props.cluster || !props.namespace || !logPod.value || !logContainer.value) {
-      ElMessage.warning('请先选择 Pod 和容器')
+    if (!props.cluster || !props.namespace || !podName.value || !logContainer.value) {
+      ElMessage.warning('请先选择容器')
       return
     }
     loading.value = true
     try {
-      const url = `/pixiu/proxy/${encodeURIComponent(props.cluster)}/api/v1/namespaces/${encodeURIComponent(props.namespace)}/pods/${encodeURIComponent(logPod.value)}/log`
+      const url = `/pixiu/proxy/${encodeURIComponent(props.cluster)}/api/v1/namespaces/${encodeURIComponent(props.namespace)}/pods/${encodeURIComponent(podName.value)}/log`
       const { data } = await kubeProxyAxios.get<string>(url, {
         params: {
           container: logContainer.value,
@@ -218,7 +167,7 @@
   }
 
   watch(
-    () => [props.active, props.cluster, props.namespace, props.podName, props.labelSelector] as const,
+    () => [props.active, props.cluster, props.namespace, props.podName] as const,
     ([active]) => {
       if (active) void loadPods()
     },
