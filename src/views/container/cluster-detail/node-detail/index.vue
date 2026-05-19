@@ -177,6 +177,7 @@
   import ArtButtonMore, { type ButtonMoreItem } from '@/components/core/forms/art-button-more/index.vue'
   import ClusterDetailWorkloads from '../workloads.vue'
   import { clusterDetailContextKey } from '../context'
+  import { buildClusterRouteQuery } from '@/utils/navigation/cluster-query'
   import {
     fetchK8sNode,
     patchK8sNode,
@@ -485,7 +486,10 @@
   }
 
   function goBack() {
-    router.push({ path: '/container/nodes', query: { cluster: cluster.value } })
+    router.push({
+      path: '/container/nodes',
+      query: buildClusterRouteQuery(route, { cluster: cluster.value })
+    })
   }
 
   const hostRemoteSshRef = ref<InstanceType<typeof HostRemoteSsh> | null>(null)

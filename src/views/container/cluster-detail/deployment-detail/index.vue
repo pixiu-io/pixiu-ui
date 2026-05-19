@@ -557,6 +557,7 @@
   } from '@/components/core/forms/art-button-more/index.vue'
   import ClusterDetailWorkloads from '../workloads.vue'
   import { clusterDetailContextKey } from '../context'
+  import { buildClusterRouteQuery } from '@/utils/navigation/cluster-query'
   import { kubeProxyAxios } from '@/api/kubeProxy'
   import {
     fetchK8sDeployment,
@@ -1097,7 +1098,10 @@
   }
   function goBack() {
     const tab = KIND_TO_TAB[workloadKind.value] ?? 'deploy'
-    router.push({ path: '/container/workloads', query: { cluster: cluster.value, tab } })
+    router.push({
+      path: '/container/workloads',
+      query: buildClusterRouteQuery(route, { cluster: cluster.value, tab })
+    })
   }
 
   // ── Load data ──

@@ -203,14 +203,17 @@
   import { confirmDestroyPlan } from '../utils/destroy-plan-dialog'
   import type { ClusterItem } from '@/api/container'
   import type { PlanTask } from '@/api/plan'
+  import { setClusterAliasCache } from '@/utils/navigation/cluster-query'
 
   defineOptions({ name: 'Cluster' })
 
   const router = useRouter()
 
-  /** 集群详情 URL 仅保留 cluster=<internalName> */
+  /** 集群详情 URL：cluster + aliasName */
   function clusterDetailQuery(row: ClusterItem) {
-    return { cluster: row.name, aliasName: row.aliasName || row.name }
+    const aliasName = row.aliasName || row.name
+    setClusterAliasCache(row.name, aliasName)
+    return { cluster: row.name, aliasName }
   }
 
   /** 集群详情 - 概览页「API Server」标签（与 overview 内 overviewTab=api 一致） */
@@ -218,7 +221,7 @@
     if (isCustomClusterNotRunning(row)) return
     router.push({
       path: '/container/overview',
-      query: { cluster: row.name, overviewTab: 'api' }
+      query: { ...clusterDetailQuery(row), overviewTab: 'api' }
     })
   }
 

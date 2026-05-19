@@ -196,6 +196,7 @@
 import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
 import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute, useRouter } from 'vue-router'
+  import { buildClusterRouteQuery } from '@/utils/navigation/cluster-query'
   import { useTable } from '@/hooks/core/useTable'
   import { deleteK8sEvent, fetchKubeRawEventList } from '@/api/kubernetes/events'
   import { deleteK8sPod, fetchK8sPod, fetchK8sPodList, type K8sPod } from '@/api/kubernetes/pod'
@@ -360,10 +361,12 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
                         underline: 'never',
                         style: 'font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block',
                         onClick: () => {
-                          const cluster = String(route.query.cluster ?? '')
                           const ns = row.metadata?.namespace ?? ''
                           const name = row.metadata?.name ?? ''
-                          router.push({ path: '/container/pod-detail', query: { cluster, namespace: ns, pod: name } })
+                          router.push({
+                            path: '/container/pod-detail',
+                            query: buildClusterRouteQuery(route, { namespace: ns, pod: name })
+                          })
                         }
                       },
                       () => row.metadata?.name ?? '-'
@@ -430,10 +433,12 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
                   underline: 'never',
                   style: 'font-size:11px',
                   onClick: () => {
-                    const cluster = String(route.query.cluster ?? '')
                     const ns = row.metadata?.namespace ?? ''
                     const name = row.metadata?.name ?? ''
-                    router.push({ path: '/container/pod-detail', query: { cluster, namespace: ns, pod: name, tab: 'events' } })
+                    router.push({
+                      path: '/container/pod-detail',
+                      query: buildClusterRouteQuery(route, { namespace: ns, pod: name, tab: 'events' })
+                    })
                   }
                 },
                 () => '查看事件列表'

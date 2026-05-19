@@ -37,6 +37,7 @@
   import { useRouter, useRoute } from 'vue-router'
   import type { RouteLocationMatched, RouteRecordRaw } from 'vue-router'
   import { formatMenuTitle } from '@/utils/router'
+  import { resolveClusterAlias } from '@/utils/navigation/cluster-query'
 
   defineOptions({ name: 'ArtBreadcrumb' })
 
@@ -123,8 +124,8 @@
         // 已知子页（如 ClusterDetailWorkloads → "工作负载"）
         mappedTitle = CLUSTER_DETAIL_TITLE_MAP[routeName]
       } else {
-        // 父级布局路由--显示集群别名（route 来自外层 useRoute()）
-        const alias = String(route.query.aliasName || route.query.cluster || '')
+        // 父级布局路由--显示集群别名（URL / 缓存 / 内部名）
+        const alias = resolveClusterAlias(route)
         mappedTitle = alias || rawTitle
       }
     } else {

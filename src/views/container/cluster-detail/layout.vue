@@ -144,6 +144,7 @@
     clusterNameSeed,
     type ClusterDetailContext
   } from './context'
+  import { buildClusterRouteQuery, setClusterAliasCache } from '@/utils/navigation/cluster-query'
   import { useSettingStore } from '@/store/modules/setting'
   import { storeToRefs } from 'pinia'
 
@@ -264,7 +265,8 @@
     if (s === String(route.query.cluster ?? '')) return
     const selected = clusterListItems.value.find((c) => c.name === s)
     const aliasName = selected?.aliasName || s
-    router.push({ path: route.path, query: { cluster: s, aliasName } })
+    setClusterAliasCache(s, aliasName)
+    router.push({ path: route.path, query: buildClusterRouteQuery(route, { cluster: s, aliasName }) })
   }
 
   watch(
@@ -361,6 +363,27 @@
   provide(clusterDetailNamespaceKey, { namespace: selectedNamespace, namespaceOptions })
   provide(clusterDetailRefreshKey, refreshClusterRow)
 
+  watch(
+    () => ctx.value,
+    (c) => {
+      if (c.name) setClusterAliasCache(c.name, c.aliasName)
+    },
+    { immediate: true }
+  )
+
+  /** 接口拉取到别名后写回 URL，避免从详情返回后面包屑显示内部集群名 */
+  watch(
+    () => [String(route.query.cluster ?? ''), ctx.value.name, ctx.value.aliasName] as const,
+    ([queryCluster, ctxName, alias]) => {
+      if (!queryCluster || queryCluster !== ctxName || !alias) return
+      if (String(route.query.aliasName ?? '') === alias) return
+      router.replace({
+        path: route.path,
+        query: buildClusterRouteQuery(route, { cluster: queryCluster, aliasName: alias })
+      })
+    }
+  )
+
   // 命名空间变更时缓存到 localStorage
   watch(selectedNamespace, (ns) => {
     const cluster = String(route.query.cluster ?? '')
@@ -387,12 +410,7 @@
   })
 
   function preservedQuery(): Record<string, string> {
-    const c = route.query.cluster
-    if (c == null || c === '') return {}
-    const q: Record<string, string> = { cluster: String(c) }
-    const a = route.query.aliasName
-    if (a != null && a !== '') q.aliasName = String(a)
-    return q
+    return buildClusterRouteQuery(route)
   }
 
   /** 去掉历史书签里的 alias/status 等参数，只保留 cluster 和 aliasName */
@@ -406,8 +424,12 @@
         const q: Record<string, string> = { cluster: String(cluster) }
         const ot = route.query.overviewTab
         if (typeof ot === 'string' && ot !== '') q.overviewTab = ot
-        const an = route.query.aliasName
-        if (typeof an === 'string' && an !== '') q.aliasName = an
+        const clusterName = String(cluster)
+        const an =
+          (typeof route.query.aliasName === 'string' && route.query.aliasName !== ''
+            ? route.query.aliasName
+            : undefined) ?? ctx.value.aliasName
+        if (an) q.aliasName = an
         router.replace({ path: route.path, query: q })
       }
     },
@@ -733,8 +755,8 @@
   /* 集群内资源列表空状态（与自定义资源列表一致） */
   .cluster-detail-layout .cluster-table-empty {
     padding: 0 20px;
-    line-height: 40px;
-    font-size: 11px;
+    line-height: 50px;
+    font-size: 12px;
     color: var(--el-text-color-secondary);
     text-align: center;
   }

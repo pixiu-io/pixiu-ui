@@ -267,6 +267,7 @@
 import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
 import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute, useRouter } from 'vue-router'
+  import { buildClusterRouteQuery } from '@/utils/navigation/cluster-query'
   import { useTable } from '@/hooks/core/useTable'
   import {
     deleteK8sNode,
@@ -455,7 +456,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
                       onClick: () =>
                         router.push({
                           path: '/container/node-detail',
-                          query: { cluster: String(route.query.cluster ?? ''), name }
+                          query: buildClusterRouteQuery(route, { name })
                         })
                     },
                     () => name

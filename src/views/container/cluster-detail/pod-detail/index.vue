@@ -282,6 +282,7 @@
   import WorkloadMetricsPane from '../components/workload-metrics-pane.vue'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
   import { clusterDetailContextKey } from '../context'
+  import { buildClusterRouteQuery } from '@/utils/navigation/cluster-query'
   import { fetchK8sPod, deleteK8sPod } from '@/api/kubernetes/pod'
   import { fetchKubeRawEventList } from '@/api/kubernetes/events'
   import { kubeProxyAxios } from '@/api/kubeProxy'
@@ -469,7 +470,10 @@
 
   // ── Navigation ──
   function goBack() {
-    router.back()
+    router.push({
+      path: '/container/pods',
+      query: buildClusterRouteQuery(route, { cluster: cluster.value })
+    })
   }
 
   // ── Tab lazy loading ──
