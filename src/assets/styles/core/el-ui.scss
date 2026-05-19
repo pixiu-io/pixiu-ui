@@ -743,6 +743,10 @@ textarea::placeholder,
 }
 .art-table .el-table__empty-text,
 .art-table .el-table__empty-block .cell {
-  font-size: 11px !important;
+  font-size: 12px !important;
   color: var(--el-text-color-secondary) !important;
+}
+
+.art-table .cluster-table-empty {
+  font-size: 12px !important;
 }

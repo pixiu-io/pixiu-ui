@@ -756,7 +756,7 @@
   .cluster-detail-layout .cluster-table-empty {
     padding: 0 20px;
     line-height: 50px;
-    font-size: 12px;
+    font-size: 12px !important;
     color: var(--el-text-color-secondary);
     text-align: center;
   }

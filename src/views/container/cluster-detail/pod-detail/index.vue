@@ -588,7 +588,7 @@
     padding-top: 12px;
     padding-left: var(--el-card-padding);
     padding-right: var(--el-card-padding);
-    padding-bottom: 0;
+    padding-bottom: var(--el-card-padding);
   }
   .dd-workloads-copy :deep(.dd-tabs .el-tabs__header) {
     margin-top: -6px;
