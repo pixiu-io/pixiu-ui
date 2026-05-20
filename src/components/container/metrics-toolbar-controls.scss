@@ -1,0 +1,36 @@
+/* 监控工具栏统一控件样式（时间选择 / 下拉等） */
+@mixin metrics-toolbar-control-base {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0 11px;
+  border: 1px solid var(--el-border-color);
+  border-radius: 6px;
+  background: var(--el-bg-color);
+  font-size: 13px;
+  line-height: 1;
+  color: var(--el-text-color-primary);
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s,
+    background-color 0.2s;
+  box-sizing: border-box;
+}
+
+@mixin metrics-toolbar-control-interactive {
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--el-color-primary-light-5);
+    background: var(--el-fill-color-blank);
+  }
+
+  &:focus-visible {
+    outline: none;
+    border-color: var(--el-color-primary);
+    box-shadow: 0 0 0 2px var(--el-color-primary-light-8);
+  }
+}

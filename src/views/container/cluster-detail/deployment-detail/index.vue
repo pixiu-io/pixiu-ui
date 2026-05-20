@@ -16,7 +16,7 @@
         <el-divider direction="vertical" class="dd-vdv" />
         <div class="dd-cluster-wrap">
           <span class="dd-cluster-label">集群:</span>
-          <span class="dd-cluster-value">{{ clusterAlias }}</span>
+          <span class="dd-cluster-value">{{ clusterDisplayName }}</span>
         </div>
         <div class="dd-hd-actions">
           <ElButton v-if="supportsScale" v-ripple @click="scaleVisible = true">扩缩容</ElButton>
@@ -621,6 +621,12 @@
 
   const clusterDetailCtx = inject(clusterDetailContextKey, undefined)
   const clusterAlias = computed(() => clusterDetailCtx?.value?.aliasName || cluster.value)
+  const clusterDisplayName = computed(() => {
+    const name = cluster.value
+    const alias = clusterDetailCtx?.value?.aliasName
+    if (alias && alias !== name) return `${alias}(${name})`
+    return name
+  })
 
   // ── Core data ──
   const loading = ref(true)

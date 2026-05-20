@@ -4121,6 +4121,16 @@
     },
     { immediate: true }
   )
+
+  // 父组件异步加载 workload 后 mirrorSelector 才会就绪，需补调一次 loadDsLogPods
+  watch(
+    () => [props.mirrorSelector, props.mirrorNamespace] as const,
+    ([selector, ns]) => {
+      if (kind.value === 'ds' && props.dsDataMode === 'logs' && selector && ns) {
+        void loadDsLogPods()
+      }
+    }
+  )
 </script>
 
 <style>

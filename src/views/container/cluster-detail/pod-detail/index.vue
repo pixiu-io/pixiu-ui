@@ -15,7 +15,7 @@
         <el-divider direction="vertical" class="dd-vdv" />
         <div class="dd-cluster-wrap">
           <span class="dd-cluster-label">集群:</span>
-          <span class="dd-cluster-value">{{ clusterAlias }}</span>
+          <span class="dd-cluster-value">{{ clusterDisplayName }}</span>
         </div>
         <div class="dd-hd-actions">
           <ElButton v-ripple :disabled="pod?.status?.phase !== 'Running'" @click="openLogin">登录</ElButton>
@@ -275,6 +275,12 @@
 
   const clusterCtx = inject(clusterDetailContextKey, undefined)
   const clusterAlias = computed(() => clusterCtx?.value?.aliasName || cluster.value)
+  const clusterDisplayName = computed(() => {
+    const name = cluster.value
+    const alias = clusterCtx?.value?.aliasName
+    if (alias && alias !== name) return `${alias}(${name})`
+    return name
+  })
 
   // ── Data ──
   const loading = ref(true)
@@ -658,9 +664,6 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
   }
-  .ct-grid:has(.ct-card:only-child) {
-    grid-template-columns: 1fr;
-  }
   @media (max-width: 960px) {
     .ct-grid {
       grid-template-columns: 1fr;
@@ -722,7 +725,7 @@
     display: flex;
     align-items: baseline;
     gap: 6px;
-    font-size: 13px;
+    font-size: 12px;
     padding: 2px 0;
   }
   .env-k { color: var(--el-color-primary); min-width: 140px; }

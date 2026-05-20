@@ -1,10 +1,10 @@
-<!-- 配置告警（Mock） -->
+<!-- 配置告警 -->
 <template>
   <ElCard shadow="never">
     <template #header>
       <span class="page-hd">配置告警</span>
     </template>
-    <ElForm label-width="120px" class="form-block">
+    <ElForm label-width="80px" class="form-block">
       <ElFormItem label="告警渠道">
         <ElCheckboxGroup v-model="channels">
           <ElCheckbox value="email">邮件</ElCheckbox>
@@ -16,12 +16,6 @@
         <ElInput type="textarea" :rows="3" placeholder="告警规则与通知渠道（演示，待对接后端）" />
       </ElFormItem>
     </ElForm>
-    <ElDivider />
-    <ElTable :data="rules" stripe>
-      <ElTableColumn prop="name" label="规则名称" min-width="160" />
-      <ElTableColumn prop="expr" label="条件（演示）" min-width="220" show-overflow-tooltip />
-      <ElTableColumn prop="level" label="级别" width="90" />
-    </ElTable>
   </ElCard>
 </template>
 
@@ -31,11 +25,6 @@
   defineOptions({ name: 'ClusterDetailAlert' })
 
   const channels = ref<string[]>(['email'])
-
-  const rules = [
-    { name: '节点 NotReady', expr: 'node_status != Ready', level: 'P1' },
-    { name: 'Pod 重启频繁', expr: 'pod_restarts > 10 in 5m', level: 'P2' }
-  ]
 </script>
 
 <style scoped>
@@ -45,6 +34,19 @@
   }
 
   .form-block {
-    max-width: 640px;
+    max-width: 500px;
+    font-size: 12px;
+  }
+
+  .form-block :deep(.el-checkbox__label) {
+    font-size: 12px;
+  }
+
+  .form-block :deep(.el-textarea__inner) {
+    font-size: 12px;
+  }
+
+  .form-block :deep(.el-form-item__label) {
+    font-size: 12px;
   }
 </style>
