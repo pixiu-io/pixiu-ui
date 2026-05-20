@@ -69,17 +69,21 @@
       title="登录"
       width="520px"
       destroy-on-close
+      align-center
+      class="remote-login-dialog"
+      header-class="remote-login-dialog-header"
+      body-class="remote-login-dialog-body"
       @close="resetRemoteLogin"
     >
       <ElAlert
         type="info"
         :closable="false"
         show-icon
-        class="mb-3"
+        class="remote-login-alert"
         description="基于 WebShell 提供登录容器的功能。"
       />
-      <ElForm label-width="90px">
-        <ElFormItem label="容器名称">
+      <ElForm label-width="auto" class="remote-login-form">
+        <ElFormItem label="容器名称" class="remote-login-form-item">
           <ElSelect v-model="remoteLogin.container" class="remote-login-select">
             <ElOption
               v-for="name in remoteLogin.containers"
@@ -1094,5 +1098,40 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   }
   .pod-log-table {
     width: 100%;
+  }
+
+  .remote-login-alert {
+    margin: 15px 0;
+    height: 45px;
+    padding: 10px 16px 10px 10px !important;
+    box-sizing: border-box;
+    background-color: #ecf5ff !important;
+    border: none !important;
+  }
+
+  .remote-login-alert :deep(.el-alert__icon) {
+    font-size: 20px;
+    color: #0958d9 !important;
+    margin-right: 4px !important;
+  }
+
+  .remote-login-alert :deep(.el-alert__description) {
+    font-size: 12px;
+    color: #0958d9 !important;
+  }
+
+  .remote-login-form-item :deep(.el-form-item__label) {
+    font-size: 13px;
+  }
+</style>
+
+<style>
+  .remote-login-dialog-header {
+    padding: 10px 24px 0 !important;
+    margin-bottom: 0 !important;
+  }
+
+  .remote-login-dialog-body {
+    padding: 0 24px 12px !important;
   }
 </style>
