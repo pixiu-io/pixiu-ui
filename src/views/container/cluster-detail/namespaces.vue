@@ -83,20 +83,24 @@
       title="配额管理"
       width="560px"
       destroy-on-close
+      class="quota-dialog"
+      header-class="quota-dialog-header"
+      body-class="quota-dialog-body"
       @close="resetQuotaDialog"
     >
       <ElAlert
         type="info"
         :closable="false"
         show-icon
-        class="mb-3"
-        description="配额用于限制命名空间下的资源使用，支持以命名空间为粒度进行资源划分。"
+        class="quota-alert"
+        description="配额可以限制命名空间下的资源使用，支持以命名空间为粒度的资源划分。"
       />
-      <ElTable :data="quotaRows" size="small" border>
+      <div class="quota-divider" />
+      <ElTable :data="quotaRows" size="small" class="quota-table">
         <ElTableColumn prop="name" label="应用资源" min-width="220" />
         <ElTableColumn label="配额" width="200">
           <template #default="{ row }">
-            <ElInputNumber v-model="row.value" :min="0" :precision="0" controls-position="right" />
+            <ElInputNumber v-model="row.value" :min="0" :precision="0" />
           </template>
         </ElTableColumn>
       </ElTable>
@@ -625,5 +629,62 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
 
   .mb-3 {
     margin-bottom: 12px;
+  }
+
+  .quota-alert {
+    margin: 15px 0;
+    height: 45px;
+    padding: 10px 16px 10px 10px !important;
+    box-sizing: border-box;
+    background-color: #ecf5ff !important;
+    border: none !important;
+  }
+
+  .quota-divider {
+    height: 1px;
+    background-color: var(--el-border-color-lighter);
+  }
+
+  .quota-table :deep(.el-table__inner-wrapper::before) {
+    display: none;
+  }
+
+  .quota-table :deep(.el-table__cell) {
+    border-right: none !important;
+  }
+
+  .quota-table :deep(th.el-table__cell) {
+    border-bottom: 1px solid var(--el-border-color-lighter);
+    background-color: transparent;
+    font-weight: normal;
+    color: var(--el-text-color-regular);
+  }
+
+  .quota-table :deep(td.el-table__cell) {
+    border-bottom: 1px solid var(--el-border-color-lighter);
+  }
+
+  .quota-table :deep(.el-table__body tr:last-child td.el-table__cell) {
+    border-bottom: none;
+  }
+
+  :global(.quota-dialog-header) {
+    padding: 10px 24px 0 !important;
+    margin-bottom: 0 !important;
+  }
+
+  :global(.quota-dialog-body) {
+    padding: 0 24px 12px !important;
+  }
+
+  .quota-alert :deep(.el-alert__icon) {
+    font-size: 20px;
+    color: #0958d9 !important;
+    margin-right: 4px !important;
+  }
+
+  .quota-alert :deep(.el-alert__description) {
+    font-size: 12px;
+    color: #0958d9 !important;
   }
 </style>
