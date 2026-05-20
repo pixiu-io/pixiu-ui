@@ -123,7 +123,8 @@
 
         <!-- 容器管理 -->
         <el-tab-pane label="容器管理" name="containers">
-          <div v-for="container in containers" :key="container.name" class="ct-card">
+          <div class="ct-grid">
+            <div v-for="container in containers" :key="container.name" class="ct-card">
             <div class="ct-card__head">
               <span class="ct-name">{{ container.name }}</span>
               <el-tag size="small" type="info" effect="plain">容器</el-tag>
@@ -190,6 +191,7 @@
                 </div>
               </template>
             </div>
+          </div>
           </div>
           <div v-if="!containers.length" class="dd-empty-tip">暂无容器信息</div>
         </el-tab-pane>
@@ -600,6 +602,9 @@
   .dd-workloads-copy :deep(.dd-tabs #pane-workloadMetrics) {
     padding-top: 0;
   }
+  .dd-workloads-copy :deep(.dd-tabs #pane-containers) {
+    padding-top: 16px;
+  }
   .dd-tabs :deep(.el-tabs__nav-wrap::after) {
     height: 1px;
     background-color: var(--el-border-color);
@@ -648,10 +653,23 @@
   }
 
   /* ── Container card ── */
+  .ct-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .ct-grid:has(.ct-card:only-child) {
+    grid-template-columns: 1fr;
+  }
+  @media (max-width: 960px) {
+    .ct-grid {
+      grid-template-columns: 1fr;
+    }
+  }
   .ct-card {
     border: 1px solid var(--el-border-color-lighter);
     border-radius: 8px;
-    margin-bottom: 10px;
+    margin-bottom: 0;
     overflow: hidden;
   }
   .ct-card__head {

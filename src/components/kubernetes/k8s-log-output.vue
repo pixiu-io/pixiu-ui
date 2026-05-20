@@ -157,7 +157,7 @@
 
   .k8s-log-output__actions :deep(.el-button.is-link) {
     color: #4ea1ff;
-    font-size: 13px;
+    font-size: 12px;
     padding: 2px 4px;
     margin-left: 0;
   }
@@ -168,7 +168,7 @@
 
   .k8s-log-output__wrap-check :deep(.el-checkbox__label) {
     color: #d8d8d8;
-    font-size: 13px;
+    font-size: 12px;
   }
 
   .k8s-log-output__wrap-check :deep(.el-checkbox__inner) {
@@ -182,7 +182,7 @@
     overflow: auto;
     padding: 8px 0;
     font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
-    font-size: 13px;
+    font-size: 12px;
     line-height: 1.6;
   }
 
@@ -192,7 +192,7 @@
     justify-content: center;
     gap: 8px;
     color: #9aa0a8;
-    font-size: 14px;
+    font-size: 12px;
     font-family: inherit;
   }
 

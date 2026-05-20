@@ -190,10 +190,14 @@
 
   function getNsCacheKey(cluster: string) { return `pixiu-ns-${cluster}` }
   function loadCachedNamespace(cluster: string): string | null {
-    try { return localStorage.getItem(getNsCacheKey(cluster)) }
+    try {
+      const v = localStorage.getItem(getNsCacheKey(cluster))
+      return (v && v !== 'undefined' && v !== 'null') ? v : null
+    }
     catch { return null }
   }
   function saveCachedNamespace(cluster: string, ns: string) {
+    if (!ns || ns === 'undefined' || ns === 'null') return
     try { localStorage.setItem(getNsCacheKey(cluster), ns) }
     catch { /* ignore */ }
   }
@@ -364,22 +368,31 @@
   provide(clusterDetailRefreshKey, refreshClusterRow)
 
   watch(
-    () => ctx.value,
-    (c) => {
-      if (c.name) setClusterAliasCache(c.name, c.aliasName)
+    () => [ctx.value.name, ctx.value.aliasName] as const,
+    ([name, alias]) => {
+      if (name) setClusterAliasCache(name, alias)
     },
     { immediate: true }
   )
+
+  function clusterQuerySignature(q: Record<string, string>): string {
+    return Object.keys(q)
+      .sort()
+      .map((k) => `${k}=${q[k]}`)
+      .join('&')
+  }
 
   /** 接口拉取到别名后写回 URL，避免从详情返回后面包屑显示内部集群名 */
   watch(
     () => [String(route.query.cluster ?? ''), ctx.value.name, ctx.value.aliasName] as const,
     ([queryCluster, ctxName, alias]) => {
       if (!queryCluster || queryCluster !== ctxName || !alias) return
-      if (String(route.query.aliasName ?? '') === alias) return
+      const nextQuery = buildClusterRouteQuery(route, { cluster: queryCluster, aliasName: alias })
+      const currentQuery = buildClusterRouteQuery(route)
+      if (clusterQuerySignature(nextQuery) === clusterQuerySignature(currentQuery)) return
       router.replace({
         path: route.path,
-        query: buildClusterRouteQuery(route, { cluster: queryCluster, aliasName: alias })
+        query: nextQuery
       })
     }
   )
@@ -387,7 +400,7 @@
   // 命名空间变更时缓存到 localStorage
   watch(selectedNamespace, (ns) => {
     const cluster = String(route.query.cluster ?? '')
-    if (cluster) saveCachedNamespace(cluster, ns)
+    if (cluster && ns && ns !== 'undefined' && ns !== 'null') saveCachedNamespace(cluster, ns)
   })
 
   const STATUS_CONFIG = {
@@ -421,15 +434,14 @@
       if (cluster == null || cluster === '') return
       const stale = ['alias', 'status', 'version', 'nodeCount'].some((k) => route.query[k] != null)
       if (stale) {
-        const q: Record<string, string> = { cluster: String(cluster) }
-        const ot = route.query.overviewTab
-        if (typeof ot === 'string' && ot !== '') q.overviewTab = ot
-        const clusterName = String(cluster)
-        const an =
-          (typeof route.query.aliasName === 'string' && route.query.aliasName !== ''
-            ? route.query.aliasName
-            : undefined) ?? ctx.value.aliasName
-        if (an) q.aliasName = an
+        const q = buildClusterRouteQuery(route, {
+          cluster: String(cluster),
+          aliasName:
+            (typeof route.query.aliasName === 'string' && route.query.aliasName !== ''
+              ? route.query.aliasName
+              : undefined) ?? ctx.value.aliasName
+        })
+        if (clusterQuerySignature(q) === clusterQuerySignature(buildClusterRouteQuery(route))) return
         router.replace({ path: route.path, query: q })
       }
     },

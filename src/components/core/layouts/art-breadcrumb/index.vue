@@ -9,11 +9,11 @@
       >
         <div
           :class="
-            isClickable(item, index)
+            item.path !== '/outside' && index < breadcrumbItems.length - 1
               ? 'c-p py-1 rounded tad-200 hover:bg-active-color hover:[&_span]:text-g-600'
               : ''
           "
-          @click="handleBreadcrumbClick(item, index)"
+          @click="handleBreadcrumbClick(item, index, breadcrumbItems.length)"
         >
           <span
             class="block max-w-46 overflow-hidden text-ellipsis whitespace-nowrap px-1.5 text-sm text-g-600 dark:text-g-800"
@@ -21,7 +21,7 @@
           >
         </div>
         <div
-          v-if="!isLastItem(index) && item.title"
+          v-if="index < breadcrumbItems.length - 1 && item.title"
           class="mx-1 text-sm not-italic text-g-500"
           aria-hidden="true"
         >
@@ -37,7 +37,11 @@
   import { useRouter, useRoute } from 'vue-router'
   import type { RouteLocationMatched, RouteRecordRaw } from 'vue-router'
   import { formatMenuTitle } from '@/utils/router'
-  import { resolveClusterAlias } from '@/utils/navigation/cluster-query'
+  import {
+    buildClusterRouteQuery,
+    isClusterDetailSubPath,
+    resolveClusterAlias
+  } from '@/utils/navigation/cluster-query'
 
   defineOptions({ name: 'ArtBreadcrumb' })
 
@@ -70,17 +74,14 @@
     ClusterDetailPrometheus: '监控'
   }
 
-  // 使用computed替代watch，提高性能
   const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
     const { matched } = route
     const matchedLength = matched.length
 
-    // 处理首页情况
     if (!matchedLength || isHomeRoute(matched[0])) {
       return []
     }
 
-    // 处理一级菜单和普通路由
     const firstRoute = matched[0]
     const isFirstLevel = firstRoute.meta?.isFirstLevel
     const lastIndex = matchedLength - 1
@@ -91,83 +92,100 @@
       ? [createBreadcrumbItem(currentRoute, matchedLength - 1)]
       : matched.map((m, index) => createBreadcrumbItem(m, index))
 
-    // 过滤包裹容器：如果有多个项目且第一个是容器路由（如 /outside），则移除它
     if (items.length > 1 && isWrapperContainer(items[0])) {
       items = items.slice(1)
     }
 
-    // 去掉相邻重复标题（如父子路由 title 相同时）
     items = items.filter((item, index, arr) => {
       if (index === 0) return true
       return arr[index - 1]?.title !== item.title
     })
 
-    // IFrame 页面特殊处理：如果过滤后只剩一个 iframe 页面，或者所有项都是包裹容器，则仅展示当前页
     if (currentRouteMeta?.isIframe && (items.length === 1 || items.every(isWrapperContainer))) {
       return [createBreadcrumbItem(currentRoute, matchedLength - 1)]
     }
 
-    return items
+    return ensureClusterDetailBreadcrumb(items)
   })
 
-  // 辅助函数：判断是否为包裹容器路由
   const isWrapperContainer = (item: BreadcrumbItem): boolean =>
     item.path === '/outside' && !!item.meta?.isIframe
 
-  // 辅助函数：创建面包屑项目
+  /** 从工作负载详情等全屏子页返回时，matched 可能缺少布局父级，补插集群名称段 */
+  function ensureClusterDetailBreadcrumb(items: BreadcrumbItem[]): BreadcrumbItem[] {
+    if (!isClusterDetailSubPath(route.path)) return items
+
+    const clusterLabel = resolveClusterAlias(route).trim()
+    if (!clusterLabel) return items
+
+    const routeName = route.name ? String(route.name) : ''
+    if (!routeName || !CLUSTER_DETAIL_TITLE_MAP[routeName]) return items
+    if (items.some((item) => item.title === clusterLabel)) return items
+
+    const clusterItem: BreadcrumbItem = {
+      key: `cluster-name::${clusterLabel}`,
+      path: '/container/overview',
+      meta: {
+        isClusterNameCrumb: true,
+        clusterQuery: buildClusterRouteQuery(route)
+      },
+      title: clusterLabel
+    }
+
+    const next = [...items]
+    next.splice(Math.max(next.length - 1, 1), 0, clusterItem)
+    return next
+  }
+
   const createBreadcrumbItem = (matched: RouteLocationMatched, index: number): BreadcrumbItem => {
-    const routeName = matched.name ? String(matched.name) : 'anonymous'
+    const routeName = matched.name ? String(matched.name) : ''
     const rawTitle = String(matched.meta?.title ?? '')
+    const isClusterDetailMeta =
+      matched.meta?.tabGroup === 'clusterDetail' || rawTitle === 'menus.container.clusterDetail'
+
     let mappedTitle: string
-    if (rawTitle === 'menus.container.clusterDetail') {
-      if (CLUSTER_DETAIL_TITLE_MAP[routeName]) {
-        // 已知子页（如 ClusterDetailWorkloads → "工作负载"）
-        mappedTitle = CLUSTER_DETAIL_TITLE_MAP[routeName]
-      } else {
-        // 父级布局路由--显示集群别名（URL / 缓存 / 内部名）
-        const alias = resolveClusterAlias(route)
-        mappedTitle = alias || rawTitle
-      }
+    if (isClusterDetailMeta && routeName && CLUSTER_DETAIL_TITLE_MAP[routeName]) {
+      mappedTitle = CLUSTER_DETAIL_TITLE_MAP[routeName]
+    } else if (isClusterDetailMeta) {
+      const alias = resolveClusterAlias(route)
+      mappedTitle = alias || rawTitle
     } else {
       mappedTitle = rawTitle
     }
+
     return {
-      key: `${matched.path}::${routeName}::${index}`,
+      key: `${matched.path}::${routeName || 'anonymous'}::${index}`,
       path: matched.path,
       meta: matched.meta,
       title: mappedTitle
     }
   }
 
-  // 辅助函数：判断是否为首页
   const isHomeRoute = (route: RouteLocationMatched): boolean => route.name === '/'
 
-  // 辅助函数：判断是否为最后一项
-  const isLastItem = (index: number): boolean => {
-    const itemsLength = breadcrumbItems.value.length
-    return index === itemsLength - 1
-  }
-
-  // 辅助函数：判断是否可点击
-  const isClickable = (item: BreadcrumbItem, index: number): boolean =>
-    item.path !== '/outside' && !isLastItem(index)
-
-  // 辅助函数：查找路由的第一个有效子路由
   const findFirstValidChild = (route: RouteRecordRaw) =>
     route.children?.find((child) => !child.redirect && !child.meta?.isHide)
 
-  // 辅助函数：构建完整路径
   const buildFullPath = (childPath: string): string => `/${childPath}`.replace('//', '/')
 
-  // 处理面包屑点击事件
-  async function handleBreadcrumbClick(item: BreadcrumbItem, index: number): Promise<void> {
-    // 如果是最后一项或外部链接，不处理
-    if (isLastItem(index) || item.path === '/outside') {
+  async function handleBreadcrumbClick(
+    item: BreadcrumbItem,
+    index: number,
+    total: number
+  ): Promise<void> {
+    if (index >= total - 1 || item.path === '/outside') {
       return
     }
 
     try {
-      // 缓存路由表查找结果
+      if (item.meta?.isClusterNameCrumb && item.meta?.clusterQuery) {
+        await router.push({
+          path: '/container/overview',
+          query: item.meta.clusterQuery as Record<string, string>
+        })
+        return
+      }
+
       const routes = router.getRoutes()
       const targetRoute = routes.find((route) => route.path === item.path)
 

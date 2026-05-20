@@ -679,6 +679,7 @@
   import { ElMessage } from 'element-plus'
   import { ArrowLeft, Close, InfoFilled, Plus, Refresh } from '@element-plus/icons-vue'
   import { useRoute, useRouter } from 'vue-router'
+  import { buildClusterRouteQuery } from '@/utils/navigation/cluster-query'
   import { fetchK8sDeployment, patchK8sDeployment } from '@/api/kubernetes/deployment'
   import { fetchK8sStatefulSet, patchK8sStatefulSet } from '@/api/kubernetes/statefulset'
   import { fetchK8sDaemonSet, patchK8sDaemonSet } from '@/api/kubernetes/daemonset'
@@ -1133,7 +1134,10 @@
   }
 
   function goBack() {
-    router.push({ path: '/container/workloads', query: { cluster: cluster.value, tab: kind.value } })
+    router.push({
+      path: '/container/workloads',
+      query: buildClusterRouteQuery(route, { cluster: cluster.value, tab: kind.value })
+    })
   }
 
   function addContainer() {

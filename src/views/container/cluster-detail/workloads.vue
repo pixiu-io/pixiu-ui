@@ -632,8 +632,8 @@
     type ButtonMoreItem
   } from '@/components/core/forms/art-button-more/index.vue'
   import { computed, h, ref, watch, inject } from 'vue'
-import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
-import ClusterTableEmpty from './components/cluster-table-empty.vue'
+  import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
+  import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { buildClusterRouteQuery } from '@/utils/navigation/cluster-query'
   import { useRoute, useRouter } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
@@ -1077,7 +1077,8 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     ])
   }
 
-  function renderPodNameCell(name: string) {
+  function renderPodNameCell(row: K8sPod) {
+    const name = row.metadata?.name ?? '-'
     return h(
       ElTooltip,
       { content: name, placement: 'top', showAfter: 300 },
@@ -1089,7 +1090,17 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
               type: 'primary',
               underline: 'never',
               style:
-                'font-size:12px;font-family:JetBrains Mono,Consolas,monospace;display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'
+                'font-size:12px;font-family:JetBrains Mono,Consolas,monospace;display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap',
+              onClick: () => {
+                router.push({
+                  path: '/container/pod-detail',
+                  query: {
+                    cluster: String(route.query.cluster ?? ''),
+                    namespace: row.metadata?.namespace ?? '',
+                    pod: name
+                  }
+                })
+              }
             },
             () => name
           )
@@ -2999,7 +3010,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
                 prop: 'metadata.name',
                 label: '名称',
                 minWidth: 160,
-                formatter: (row: K8sPod) => renderPodNameCell(row.metadata?.name ?? '-')
+                formatter: (row: K8sPod) => renderPodNameCell(row)
               },
               {
                 prop: 'status.phase',

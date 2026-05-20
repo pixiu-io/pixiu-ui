@@ -1,5 +1,31 @@
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
 
+/** 集群详情布局子路径（与 layout.vue DETAIL_SEGMENTS 一致） */
+export const CLUSTER_DETAIL_SEGMENTS = new Set([
+  'overview',
+  'nodes',
+  'namespaces',
+  'workloads',
+  'pods',
+  'services',
+  'config',
+  'storage',
+  'autoscaling',
+  'auth',
+  'addon-components',
+  'crds',
+  'apiservices',
+  'alert',
+  'logs',
+  'events',
+  'prometheus'
+])
+
+export function isClusterDetailSubPath(path: string): boolean {
+  const seg = path.replace(/^\/container\//, '').split('/')[0]
+  return CLUSTER_DETAIL_SEGMENTS.has(seg)
+}
+
 /** 集群内部名 → 展示别名（详情页离开 layout 后仍可用于面包屑与返回链接） */
 const clusterAliasCache = new Map<string, string>()
 

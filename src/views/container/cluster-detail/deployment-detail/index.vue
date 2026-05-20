@@ -181,7 +181,7 @@
           >
             <el-table-column label="名称" min-width="200">
               <template #default="{ row }">
-                <span class="mono link-text">{{ row.metadata?.name }}</span>
+                <el-link type="primary" :underline="false" class="mono" @click="goToPodDetail(row)">{{ row.metadata?.name }}</el-link>
               </template>
             </el-table-column>
             <el-table-column label="状态" width="100">
@@ -1095,6 +1095,16 @@
     DaemonSet: 'ds',
     Job: 'job',
     CronJob: 'cj'
+  }
+  function goToPodDetail(pod: { metadata?: { name?: string; namespace?: string } }) {
+    router.push({
+      path: '/container/pod-detail',
+      query: {
+        cluster: cluster.value,
+        namespace: pod.metadata?.namespace ?? namespace.value,
+        pod: pod.metadata?.name ?? ''
+      }
+    })
   }
   function goBack() {
     const tab = KIND_TO_TAB[workloadKind.value] ?? 'deploy'
