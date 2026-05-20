@@ -21,7 +21,7 @@
           <component
             class="art-page-view"
             :is="Component"
-            :key="route.path"
+            :key="getRouteViewKey(route)"
             v-if="route.meta.keepAlive"
           />
         </KeepAlive>
@@ -32,7 +32,7 @@
         <component
           class="art-page-view"
           :is="Component"
-          :key="route.path"
+          :key="getRouteViewKey(route)"
           v-if="!route.meta.keepAlive"
         />
       </Transition>
@@ -49,6 +49,7 @@
 </template>
 <script setup lang="ts">
   import type { CSSProperties } from 'vue'
+  import type { RouteLocationNormalizedLoaded } from 'vue-router'
   import { useRoute } from 'vue-router'
   import { useAutoLayoutHeight } from '@/hooks/core/useLayoutHeight'
   import { useSettingStore } from '@/store/modules/setting'
@@ -116,6 +117,16 @@
       minHeight: containerMinHeight.value
     })
   )
+
+  /**
+   * 对同一业务组路由（如 clusterDetail）复用页面实例，避免菜单切换时整页重建。
+   * 未配置 tabGroup 的页面仍按路径区分，保持原行为。
+   */
+  function getRouteViewKey(currentRoute: RouteLocationNormalizedLoaded) {
+    const tabGroup = currentRoute.meta?.tabGroup
+    if (tabGroup) return String(tabGroup)
+    return currentRoute.path
+  }
 
   const reload = () => {
     isRefresh.value = false
