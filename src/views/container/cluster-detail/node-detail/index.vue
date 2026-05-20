@@ -146,9 +146,11 @@
       v-model="yamlVisible"
       title="查看 YAML"
       :yaml="yamlText"
-      read-only
+      footer-mode="edit"
       width="900px"
       :editor-height="520"
+      :submit-loading="yamlSaving"
+      @save="onNodeYamlSave"
     />
 
     <ElDialog v-model="labelVisible" title="标签管理" width="720px" @close="resetLabelForm">
@@ -187,6 +189,7 @@
   import { kubeProxyAxios } from '@/api/kubeProxy'
   import HostRemoteSsh from '@/views/safeguard/host/modules/host-remote-ssh.vue'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
+  import { updateK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
   import {
     formatContainerRuntime,
     formatKubeletVersion,
@@ -252,6 +255,27 @@
 
   const yamlVisible = ref(false)
   const yamlText = ref('')
+  const yamlSaving = ref(false)
+
+  function onNodeYamlSave(text: string) {
+    yamlText.value = text
+    void saveNodeYaml()
+  }
+
+  async function saveNodeYaml() {
+    yamlSaving.value = true
+    try {
+      await updateK8sResourceFromYaml(cluster.value, yamlText.value)
+      ElMessage.success('保存成功')
+      yamlVisible.value = false
+      await loadNode()
+    } catch (e: unknown) {
+      ElMessage.error(e instanceof Error ? e.message : '保存失败')
+    } finally {
+      yamlSaving.value = false
+    }
+  }
+
   const labelVisible = ref(false)
   const labelRows = ref<{ key: string; value: string }[]>([])
   const labelSubmitting = ref(false)

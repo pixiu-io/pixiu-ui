@@ -114,9 +114,11 @@
       v-model="yamlVisible"
       title="查看 YAML"
       :yaml="yamlText"
-      read-only
+      footer-mode="edit"
       width="900px"
       :editor-height="480"
+      :submit-loading="yamlSaving"
+      @save="onYamlSave"
     />
   </div>
 </template>
@@ -155,6 +157,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { formatNodeCreationTime } from '@/utils/kubernetes/nodeDisplay'
   import { clusterDetailNamespaceKey } from './context'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
+  import { updateK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
 
   defineOptions({ name: 'ClusterDetailServices' })
 
@@ -193,6 +196,8 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   // ── YAML dialog ──
   const yamlVisible = ref(false)
   const yamlText = ref('')
+  const yamlSaving = ref(false)
+  const currentYamlKind = ref<'svc' | 'ing'>('svc')
 
   // ── Shared helpers ──
   function renderNsCell(ns: string) {
@@ -666,6 +671,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   async function openYamlDialog(resKind: 'svc' | 'ing', namespace: string, name: string) {
     const cluster = String(route.query.cluster ?? '')
     if (!cluster || !namespace || !name) return
+    currentYamlKind.value = resKind
     try {
       let resource: unknown
       if (resKind === 'svc') resource = await fetchK8sService(cluster, namespace, name)
@@ -674,6 +680,27 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       yamlVisible.value = true
     } catch (e: unknown) {
       ElMessage.error(e instanceof Error ? e.message : '加载失败')
+    }
+  }
+
+  function onYamlSave(text: string) {
+    yamlText.value = text
+    void saveYaml()
+  }
+
+  async function saveYaml() {
+    const cluster = String(route.query.cluster ?? '')
+    yamlSaving.value = true
+    try {
+      await updateK8sResourceFromYaml(cluster, yamlText.value)
+      ElMessage.success('保存成功')
+      yamlVisible.value = false
+      if (currentYamlKind.value === 'svc') getSvcData()
+      else getIngData()
+    } catch (e: unknown) {
+      ElMessage.error(e instanceof Error ? e.message : '保存失败')
+    } finally {
+      yamlSaving.value = false
     }
   }
 

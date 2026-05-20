@@ -20,7 +20,6 @@
         </div>
         <div class="dd-hd-actions">
           <ElButton v-if="supportsScale" v-ripple @click="scaleVisible = true">扩缩容</ElButton>
-          <ElButton v-ripple @click="openYamlEditor">YAML创建</ElButton>
           <ArtButtonMore
             :list="[
               { key: 'delete', label: '删除', icon: 'ri:delete-bin-4-line', color: '#409eff' }

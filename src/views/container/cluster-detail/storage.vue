@@ -167,9 +167,11 @@
       v-model="yamlVisible"
       title="查看 YAML"
       :yaml="yamlText"
-      read-only
+      footer-mode="edit"
       width="900px"
       :editor-height="480"
+      :submit-loading="yamlSaving"
+      @save="onYamlSave"
     />
 
     <K8sYamlDialog
@@ -212,6 +214,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { formatNodeCreationTime } from '@/utils/kubernetes/nodeDisplay'
   import { clusterDetailNamespaceKey } from './context'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
+  import { updateK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
 
   defineOptions({ name: 'ClusterDetailStorage' })
 
@@ -240,6 +243,8 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   // ── YAML dialog state ──
   const yamlVisible = ref(false)
   const yamlText = ref('')
+  const yamlSaving = ref(false)
+  const currentYamlKind = ref<'pvc' | 'pv' | 'sc'>('pvc')
 
   // ── SC 编辑 YAML dialog state ──
   const scEditYamlVisible = ref(false)
@@ -280,6 +285,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   async function openYamlDialog(res: 'pvc' | 'pv' | 'sc', ns: string, name: string) {
     const cluster = String(route.query.cluster ?? '')
     if (!cluster || !name) return
+    currentYamlKind.value = res
     try {
       let resource: unknown
       if (res === 'pvc') resource = await fetchK8sPVC(cluster, ns, name)
@@ -289,6 +295,28 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       yamlVisible.value = true
     } catch (e: unknown) {
       ElMessage.error(e instanceof Error ? e.message : '加载失败')
+    }
+  }
+
+  function onYamlSave(text: string) {
+    yamlText.value = text
+    void saveYaml()
+  }
+
+  async function saveYaml() {
+    const cluster = String(route.query.cluster ?? '')
+    yamlSaving.value = true
+    try {
+      await updateK8sResourceFromYaml(cluster, yamlText.value)
+      ElMessage.success('保存成功')
+      yamlVisible.value = false
+      if (currentYamlKind.value === 'pvc') getPvcData()
+      else if (currentYamlKind.value === 'pv') getPvData()
+      else getScData()
+    } catch (e: unknown) {
+      ElMessage.error(e instanceof Error ? e.message : '保存失败')
+    } finally {
+      yamlSaving.value = false
     }
   }
 

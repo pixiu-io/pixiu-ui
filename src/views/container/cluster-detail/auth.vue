@@ -258,10 +258,11 @@
       v-model="yamlVisible"
       title="查看 YAML"
       :yaml="yamlText"
-      read-only
-      show-copy
+      footer-mode="edit"
       width="900px"
       :editor-height="480"
+      :submit-loading="yamlSaving"
+      @save="onYamlSave"
     />
   </div>
 </template>
@@ -304,6 +305,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   } from '@/api/kubernetes/rbac'
   import { clusterDetailNamespaceKey } from './context'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
+  import { updateK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
 
   defineOptions({ name: 'ClusterDetailAuth' })
 
@@ -330,6 +332,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
 
   const yamlVisible = ref(false)
   const yamlText = ref('')
+  const yamlSaving = ref(false)
 
   function renderKvCell(lines: string[]) {
     const lineStyle =
@@ -455,11 +458,14 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     ])
   }
 
+  const currentYamlTab = ref<AuthTab>('clusterrole')
+
   async function openYaml(tab: AuthTab, row: K8sRbacObject) {
     const cluster = String(route.query.cluster ?? '')
     const ns = row.metadata?.namespace ?? ''
     const name = row.metadata?.name ?? ''
     if (!cluster || !name) return
+    currentYamlTab.value = tab
     try {
       let obj: unknown
       if (tab === 'clusterrole') obj = await fetchK8sClusterRole(cluster, name)
@@ -478,6 +484,30 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       yamlVisible.value = true
     } catch (e: unknown) {
       ElMessage.error(e instanceof Error ? e.message : '加载失败')
+    }
+  }
+
+  function onYamlSave(text: string) {
+    yamlText.value = text
+    void saveYaml()
+  }
+
+  async function saveYaml() {
+    const cluster = String(route.query.cluster ?? '')
+    yamlSaving.value = true
+    try {
+      await updateK8sResourceFromYaml(cluster, yamlText.value)
+      ElMessage.success('保存成功')
+      yamlVisible.value = false
+      if (currentYamlTab.value === 'clusterrole') onCrRefresh()
+      else if (currentYamlTab.value === 'clusterrolebinding') refreshCrbData()
+      else if (currentYamlTab.value === 'role') onRoleRefresh()
+      else if (currentYamlTab.value === 'rolebinding') onRbRefresh()
+      else onSaRefresh()
+    } catch (e: unknown) {
+      ElMessage.error(e instanceof Error ? e.message : '保存失败')
+    } finally {
+      yamlSaving.value = false
     }
   }
 

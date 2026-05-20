@@ -57,10 +57,11 @@
       v-model="yamlVisible"
       title="查看 YAML"
       :yaml="yamlText"
-      read-only
-      show-copy
+      footer-mode="edit"
       width="900px"
       :editor-height="520"
+      :submit-loading="yamlSaving"
+      @save="onPodYamlSave"
     />
 
     <ElDialog
@@ -204,6 +205,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { clusterDetailNamespaceKey } from './context'
   import PodRemoteWebshell from './components/pod-remote-webshell.vue'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
+  import { updateK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
   import { resolvePixiuWsOrigin } from '@/utils/pixiu-ws-origin'
   import yaml from 'js-yaml'
 
@@ -224,6 +226,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     }
   )
   const yamlText = ref('')
+  const yamlSaving = ref(false)
   const remoteLoginVisible = ref(false)
   const remoteLogin = ref<{
     pod: string
@@ -643,6 +646,26 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       yamlVisible.value = true
     } catch (e: unknown) {
       ElMessage.error(e instanceof Error ? e.message : '加载失败')
+    }
+  }
+
+  function onPodYamlSave(text: string) {
+    yamlText.value = text
+    void savePodYaml()
+  }
+
+  async function savePodYaml() {
+    const cluster = String(route.query.cluster ?? '')
+    yamlSaving.value = true
+    try {
+      await updateK8sResourceFromYaml(cluster, yamlText.value)
+      ElMessage.success('保存成功')
+      yamlVisible.value = false
+      refreshData()
+    } catch (e: unknown) {
+      ElMessage.error(e instanceof Error ? e.message : '保存失败')
+    } finally {
+      yamlSaving.value = false
     }
   }
 

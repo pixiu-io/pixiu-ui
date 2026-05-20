@@ -66,10 +66,11 @@
       v-model="yamlVisible"
       title="HorizontalPodAutoscaler YAML"
       :yaml="yamlText"
-      read-only
-      show-copy
+      footer-mode="edit"
       width="900px"
       :editor-height="520"
+      :submit-loading="yamlSaving"
+      @save="onYamlSave"
     />
   </div>
 </template>
@@ -94,6 +95,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useTable } from '@/hooks/core/useTable'
   import ArtButtonMore, { type ButtonMoreItem } from '@/components/core/forms/art-button-more/index.vue'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
+  import { updateK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
   import yaml from 'js-yaml'
   import {
     deleteK8sHpa,
@@ -114,6 +116,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   const searchForm = ref<{ name?: string }>({})
   const yamlVisible = ref(false)
   const yamlText = ref('')
+  const yamlSaving = ref(false)
 
   const globalNs = inject(clusterDetailNamespaceKey)
   const selectedNamespace = computed(() => globalNs?.namespace.value ?? '')
@@ -514,6 +517,26 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       yamlVisible.value = true
     } catch (e: unknown) {
       ElMessage.error(e instanceof Error ? e.message : '加载失败')
+    }
+  }
+
+  function onYamlSave(text: string) {
+    yamlText.value = text
+    void saveYaml()
+  }
+
+  async function saveYaml() {
+    const cluster = String(route.query.cluster ?? '')
+    yamlSaving.value = true
+    try {
+      await updateK8sResourceFromYaml(cluster, yamlText.value)
+      ElMessage.success('保存成功')
+      yamlVisible.value = false
+      refreshData()
+    } catch (e: unknown) {
+      ElMessage.error(e instanceof Error ? e.message : '保存失败')
+    } finally {
+      yamlSaving.value = false
     }
   }
 
