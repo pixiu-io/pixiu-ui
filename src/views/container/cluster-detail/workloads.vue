@@ -673,6 +673,7 @@
     fetchK8sJob,
     deleteK8sJob,
     createK8sJob,
+    rerunK8sJob,
     type K8sJob
   } from '@/api/kubernetes/job'
   import {
@@ -2308,7 +2309,7 @@
               {
                 prop: 'operation',
                 label: '操作',
-                minWidth: 120,
+                minWidth: 200,
                 fixed: 'right',
                 formatter: (row: K8sJob) =>
                   h('div', { class: 'workloads-op-cell' }, [
@@ -2342,22 +2343,17 @@
                       },
                       () => '日志'
                     ),
-                    h(
-                      ElLink,
-                      {
-                        type: 'primary',
-                        underline: 'never',
-                        style: 'font-size:12px',
-                        onClick: () =>
-                          void deleteWorkload(
-                            'job',
-                            row.metadata?.namespace ?? '',
-                            row.metadata?.name ?? '',
-                            onJobRefresh
-                          )
-                      },
-                      () => '删除'
-                    )
+                    h(ArtButtonMore, {
+                      list: [
+                        { key: 'rerun', label: '重新执行', icon: 'ri:refresh-line' },
+                        {
+                          key: 'delete',
+                          label: '删除',
+                          icon: 'ri:delete-bin-4-line'
+                        }
+                      ],
+                      onClick: (item: ButtonMoreItem) => jobMoreClick(item, row)
+                    })
                   ])
               }
             ]
@@ -3877,6 +3873,50 @@
       case 'images':
         openWorkloadImageDialog(row.metadata?.namespace ?? '', row.metadata?.name ?? '', 'deploy')
         break
+    }
+  }
+
+  function jobMoreClick(item: ButtonMoreItem, row: K8sJob) {
+    switch (item.key) {
+      case 'rerun':
+        void confirmRerunJob(row)
+        break
+      case 'delete':
+        void deleteWorkload(
+          'job',
+          row.metadata?.namespace ?? '',
+          row.metadata?.name ?? '',
+          onJobRefresh
+        )
+        break
+    }
+  }
+
+  async function confirmRerunJob(row: K8sJob) {
+    const cluster = String(route.query.cluster ?? '')
+    const ns = row.metadata?.namespace ?? ''
+    const name = row.metadata?.name ?? ''
+    const resourceVersion = row.metadata?.resourceVersion ?? ''
+    if (!cluster || !ns || !name) {
+      ElMessage.warning('Job 信息不完整')
+      return
+    }
+    if (!resourceVersion) {
+      ElMessage.warning('缺少 resourceVersion，无法重新执行')
+      return
+    }
+    try {
+      await ElMessageBox.confirm(`确认重新执行 Job「${name}」?`, '重新执行', {
+        type: 'warning',
+        confirmButtonText: '确认',
+        cancelButtonText: '取消'
+      })
+      await rerunK8sJob(cluster, ns, name, resourceVersion)
+      ElMessage.success('已触发重新执行')
+      onJobRefresh()
+    } catch (e: unknown) {
+      if (e === 'cancel') return
+      ElMessage.error(e instanceof Error ? e.message : '重新执行失败')
     }
   }
 
