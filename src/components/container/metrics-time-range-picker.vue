@@ -1,6 +1,6 @@
 <!-- 监控时间区间选择（快捷项 + 自定义 datetimerange） -->
 <template>
-  <div class="metrics-time-range-picker">
+  <div class="metrics-time-range-picker" :class="{ 'is-custom-range': isCustomRange }">
     <button
       type="button"
       class="metrics-time-range-picker__trigger"
@@ -15,6 +15,7 @@
       v-model="pickerDraft"
       type="datetimerange"
       class="metrics-time-range-picker__picker"
+      placement="top-start"
       :shortcuts="shortcuts"
       :clearable="false"
       range-separator="至"
@@ -54,6 +55,7 @@
 
   const pickerDraft = ref<[number, number] | null>(null)
   const displayLabel = computed(() => getMetricsTimeRangeLabel(model.value))
+  const isCustomRange = computed(() => model.value?.presetKey === 'custom')
 
   function syncDraftFromModel() {
     const [start, end] = toDateTimePickerValue(model.value)
@@ -135,39 +137,69 @@
     margin-top: 6px !important;
   }
 
+  .metrics-time-range-picker__popper .el-date-range-picker {
+    width: 680px;
+  }
+
   .metrics-time-range-picker__popper .el-picker-panel {
     border-radius: 8px;
     overflow: hidden;
+    border: 1px solid var(--el-border-color-lighter);
+  }
+
+  .metrics-time-range-picker__popper .el-picker-panel__body-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .metrics-time-range-picker__popper .el-picker-panel__sidebar {
+    order: 0;
+    position: static !important;
+    inset: auto !important;
     width: 100%;
+    height: auto !important;
+    float: none !important;
     border-right: none;
-    border-bottom: 1px solid var(--el-border-color-lighter);
-    padding: 12px 14px 6px;
+    border-bottom: 1px solid var(--el-border-color);
+    padding: 12px 16px 10px;
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    align-items: flex-start;
+    gap: 8px 16px;
+    justify-content: flex-start;
+    background: var(--el-bg-color);
   }
 
   .metrics-time-range-picker__popper .el-picker-panel__sidebar + .el-picker-panel__body {
-    margin-left: 0;
+    order: 1;
+    margin-left: 0 !important;
+    width: 100%;
+    padding-top: 6px;
+  }
+
+  .metrics-time-range-picker__popper .el-date-range-picker.has-sidebar {
+    width: 680px;
   }
 
   .metrics-time-range-picker__popper .el-picker-panel__shortcut {
-    display: inline-flex;
+    display: inline-flex !important;
     align-items: center;
     justify-content: center;
-    min-width: 64px;
+    width: auto !important;
+    max-width: none !important;
+    flex: 0 0 auto;
+    min-width: 52px;
     height: 30px;
     margin: 0;
-    padding: 0 12px;
-    border: 1px solid var(--el-border-color);
-    border-radius: 4px;
+    padding: 0 10px;
+    border: 1px solid transparent;
+    border-radius: 3px;
     font-size: 13px;
+    font-weight: 500;
     line-height: 1;
     color: var(--el-text-color-regular);
-    background: var(--el-bg-color);
+    background: transparent;
     transition:
       color 0.15s,
       border-color 0.15s,
@@ -176,19 +208,65 @@
 
   .metrics-time-range-picker__popper .el-picker-panel__shortcut:hover {
     color: var(--el-color-primary);
-    border-color: var(--el-color-primary-light-5);
-    background: var(--el-color-primary-light-9);
+    background: transparent;
+  }
+
+  .metrics-time-range-picker__popper .el-picker-panel__shortcut.active,
+  .metrics-time-range-picker__popper .el-picker-panel__shortcut.is-active {
+    color: var(--el-color-primary);
+    border-color: var(--el-color-primary);
+    background: var(--el-bg-color);
+  }
+
+  .metrics-time-range-picker__popper .el-date-range-picker__time-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+    background: var(--el-fill-color-blank);
+  }
+
+  .metrics-time-range-picker__popper
+    .el-date-range-picker__time-header
+    .el-date-range-picker__editor {
+    height: 32px;
+  }
+
+  .metrics-time-range-picker__popper .el-date-range-picker__time-header .el-input__wrapper {
+    min-height: 32px;
+    border-radius: 2px;
+    box-shadow: 0 0 0 1px var(--el-border-color) inset;
+  }
+
+  .metrics-time-range-picker__popper .el-picker-panel__body {
+    padding: 10px 8px 8px;
+  }
+
+  .metrics-time-range-picker__popper .el-date-range-picker__content {
+    padding: 0 10px;
+  }
+
+  .metrics-time-range-picker__popper .el-date-range-picker__header {
+    margin-bottom: 8px;
+  }
+
+  .metrics-time-range-picker__popper .el-date-table td div {
+    height: 28px;
+    padding: 0;
+  }
+
+  .metrics-time-range-picker__popper .el-date-table td span {
+    width: 26px;
+    height: 26px;
+    line-height: 26px;
   }
 
   .metrics-time-range-picker__popper .el-picker-panel__footer {
-    padding: 8px 14px 12px;
+    padding: 10px 16px 12px;
+    border-top: 1px solid var(--el-border-color-lighter);
   }
 
   .metrics-time-range-picker__popper .el-picker-panel__footer .el-button--primary {
-    min-width: 72px;
-  }
-
-  .metrics-time-range-picker__popper .el-date-range-picker {
-    width: 100%;
+    min-width: 88px;
+    height: 32px;
+    border-radius: 2px;
   }
 </style>

@@ -47,12 +47,28 @@
           />
         </ElSelect>
       </div>
+
+      <span class="metrics-monitor-toolbar__divider" aria-hidden="true" />
+
+      <ElCheckbox v-model="showLegendModel" class="metrics-monitor-toolbar__legend">
+        显示图例
+      </ElCheckbox>
+
+      <ElButton
+        v-if="showMoreMenu"
+        text
+        class="metrics-monitor-toolbar__more-btn"
+        title="更多操作"
+        @click="emit('moreClick')"
+      >
+        <ElIcon><MoreFilled /></ElIcon>
+      </ElButton>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-  import { Clock, Refresh } from '@element-plus/icons-vue'
+  import { Clock, MoreFilled, Refresh } from '@element-plus/icons-vue'
   import MetricsTimeRangePicker from '@/components/container/metrics-time-range-picker.vue'
   import {
     getDefaultMetricsAutoRefresh,
@@ -75,6 +91,20 @@
   const autoRefreshModel = defineModel<MetricsAutoRefreshOption>('autoRefresh', {
     default: () => getDefaultMetricsAutoRefresh()
   })
+  const showLegendModel = defineModel<boolean>('showLegend', {
+    default: true
+  })
+  withDefaults(
+    defineProps<{
+      showMoreMenu?: boolean
+    }>(),
+    {
+      showMoreMenu: false
+    }
+  )
+  const emit = defineEmits<{
+    (e: 'moreClick'): void
+  }>()
 
   const granularityKey = ref(granularityModel.value.key)
   const autoRefreshKey = ref(autoRefreshModel.value.key)
@@ -178,7 +208,40 @@
     font-size: 13px;
   }
 
+  .metrics-monitor-toolbar__legend {
+    margin-left: auto;
+    font-size: 13px;
+    color: var(--el-text-color-regular);
+    user-select: none;
+  }
+
+  .metrics-monitor-toolbar__legend :deep(.el-checkbox__label) {
+    font-size: 13px;
+    padding-left: 6px;
+  }
+
+  .metrics-monitor-toolbar__more-btn {
+    width: 32px;
+    height: 32px;
+    margin-left: -4px;
+    padding: 0;
+    color: var(--el-text-color-regular);
+    border: 1px solid var(--el-border-color);
+    border-radius: 2px;
+    background: var(--el-bg-color);
+  }
+
+  .metrics-monitor-toolbar__more-btn:hover {
+    color: var(--el-text-color-primary);
+    border-color: var(--el-color-primary-light-5);
+    background: var(--el-color-primary-light-9);
+  }
+
   @media (max-width: 640px) {
+    .metrics-monitor-toolbar__bar {
+      align-items: flex-start;
+    }
+
     .metrics-monitor-toolbar__divider {
       display: none;
     }
@@ -190,6 +253,14 @@
     .metrics-monitor-toolbar__select {
       flex: 1;
       min-width: 0;
+    }
+
+    .metrics-monitor-toolbar__legend {
+      margin-left: 0;
+    }
+
+    .metrics-monitor-toolbar__more-btn {
+      margin-left: 0;
     }
   }
 </style>

@@ -8,6 +8,8 @@ import {
 } from '@/api/kubernetes/metrics'
 import { fetchKubeListAll } from '@/api/kubernetes/list'
 import type { K8sNode } from '@/api/kubernetes/node'
+import type { MetricsGranularityOption } from '@/utils/metrics/granularity'
+import type { MetricsTimeRange } from '@/utils/metrics/time-range'
 
 export type ClusterMetricChartItem = { title: string; data: number[] }
 
@@ -22,9 +24,13 @@ function createMetricCharts(titles: readonly string[]): ClusterMetricChartItem[]
  * 集群节点 CPU/内存时序指标（与 cluster-monitor 抽屉同源：nodes + metrics.pixiu.io dashboard API）
  */
 export function useClusterNodesUsageMetrics(
-  clusterName: Ref<string> | ComputedRef<string>
+  clusterName: Ref<string> | ComputedRef<string>,
+  timeRange?: Ref<MetricsTimeRange> | ComputedRef<MetricsTimeRange>,
+  granularity?: Ref<MetricsGranularityOption> | ComputedRef<MetricsGranularityOption>
 ) {
   const cluster = computed(() => String(unref(clusterName) || '').trim())
+  const metricsTimeRange = computed(() => unref(timeRange))
+  const metricsGranularity = computed(() => unref(granularity))
 
   const loading = ref(false)
   const chartReady = ref(false)
@@ -76,6 +82,32 @@ export function useClusterNodesUsageMetrics(
     memoryMetrics.value[2].data = usageBytesSeries.map((v) => bytesToGib(v))
   }
 
+  function applyGranularity(
+    labels: string[],
+    timestamps: number[],
+    values: number[]
+  ): { labels: string[]; values: number[] } {
+    const stepMs = metricsGranularity.value?.stepMs ?? 0
+    if (stepMs <= 0 || timestamps.length <= 2 || labels.length !== timestamps.length) {
+      return { labels, values }
+    }
+    const pickIndexes: number[] = [0]
+    let lastTs = timestamps[0]
+    for (let i = 1; i < timestamps.length - 1; i++) {
+      const ts = timestamps[i]
+      if (ts - lastTs >= stepMs) {
+        pickIndexes.push(i)
+        lastTs = ts
+      }
+    }
+    const lastIndex = timestamps.length - 1
+    if (pickIndexes[pickIndexes.length - 1] !== lastIndex) pickIndexes.push(lastIndex)
+    return {
+      labels: pickIndexes.map((i) => labels[i]),
+      values: pickIndexes.map((i) => values[i])
+    }
+  }
+
   async function load(silent = false) {
     const name = cluster.value
     if (!name) {
@@ -115,8 +147,12 @@ export function useClusterNodesUsageMetrics(
         fetchNodesUsageMetrics(name, nodeNames, 'cpu', 'usage'),
         fetchNodesUsageMetrics(name, nodeNames, 'memory', 'usage')
       ])
-      const cpuAgg = aggregateDashboardMetricPoints(cpuRes.items)
-      const memAgg = aggregateDashboardMetricPoints(memRes.items)
+      const cpuAgg = aggregateDashboardMetricPoints(cpuRes.items, {
+        timeRange: metricsTimeRange.value
+      })
+      const memAgg = aggregateDashboardMetricPoints(memRes.items, {
+        timeRange: metricsTimeRange.value
+      })
 
       if (!cpuAgg.labels.length && !memAgg.labels.length) {
         if (!silent) resetCharts()
@@ -124,10 +160,12 @@ export function useClusterNodesUsageMetrics(
       }
 
       if (cpuAgg.labels.length) {
-        applyCpuChartData(cpuAgg.labels, totalCores, totalMillic, cpuAgg.values)
+        const sampled = applyGranularity(cpuAgg.labels, cpuAgg.timestamps, cpuAgg.values)
+        applyCpuChartData(sampled.labels, totalCores, totalMillic, sampled.values)
       }
       if (memAgg.labels.length) {
-        applyMemoryChartData(memAgg.labels, totalMemoryBytes, memAgg.values)
+        const sampled = applyGranularity(memAgg.labels, memAgg.timestamps, memAgg.values)
+        applyMemoryChartData(sampled.labels, totalMemoryBytes, sampled.values)
       }
       chartReady.value = true
     } catch {
@@ -144,10 +182,12 @@ export function useClusterNodesUsageMetrics(
     }
   }
 
-  function startRefresh() {
+  function startRefresh(intervalMs = 60_000) {
     stopRefresh()
     void load(false)
-    refreshTimer = setInterval(() => void load(true), 60_000)
+    if (intervalMs > 0) {
+      refreshTimer = setInterval(() => void load(true), intervalMs)
+    }
   }
 
   /** 手动刷新：静默拉数（不整页 loading），返回 Promise 供调用方触发图表重绘动画 */

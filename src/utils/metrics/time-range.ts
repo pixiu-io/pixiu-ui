@@ -54,11 +54,6 @@ export const METRICS_TIME_PRESETS: MetricsTimePreset[] = [
     getRange: (now) => relativeRange('1h', '1小时', 60 * 60 * 1000, now)
   },
   {
-    key: '3h',
-    label: '3小时',
-    getRange: (now) => relativeRange('3h', '3小时', 3 * 60 * 60 * 1000, now)
-  },
-  {
     key: '12h',
     label: '12小时',
     getRange: (now) => relativeRange('12h', '12小时', 12 * 60 * 60 * 1000, now)
@@ -67,11 +62,6 @@ export const METRICS_TIME_PRESETS: MetricsTimePreset[] = [
     key: '24h',
     label: '24小时',
     getRange: (now) => relativeRange('24h', '24小时', 24 * 60 * 60 * 1000, now)
-  },
-  {
-    key: '2d',
-    label: '2天',
-    getRange: (now) => relativeRange('2d', '2天', 2 * 24 * 60 * 60 * 1000, now)
   },
   {
     key: '7d',
@@ -151,4 +141,23 @@ export function fromDateTimePickerValue(value: [Date, Date] | null | undefined):
     end,
     presetKey: matched?.key ?? 'custom'
   }
+}
+
+export type MetricsTimeShortcut = {
+  text: string
+  value: () => [Date, Date]
+}
+
+/**
+ * 生成 Element Plus DatePicker shortcuts。
+ * 每次点击快捷项时按“当前时间”重新计算区间，避免使用陈旧时间。
+ */
+export function buildMetricsTimeShortcuts(nowFactory: () => Date = () => new Date()): MetricsTimeShortcut[] {
+  return METRICS_TIME_PRESETS.map((preset) => ({
+    text: preset.label,
+    value: () => {
+      const range = preset.getRange(nowFactory())
+      return [new Date(range.start), new Date(range.end)]
+    }
+  }))
 }

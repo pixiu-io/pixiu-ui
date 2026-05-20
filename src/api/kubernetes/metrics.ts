@@ -7,6 +7,13 @@ export type DashboardNodeMetricsResponse = {
   items?: Array<{ metricPoints?: DashboardMetricPoint[] }>
 }
 
+type AggregateMetricOptions = {
+  timeRange?: {
+    start: Date
+    end: Date
+  }
+}
+
 export type DashboardPodMetricItem = {
   metricPoints?: DashboardMetricPoint[]
   /** 后端将 Pod 名称存放在 uids[0] */
@@ -177,18 +184,23 @@ export function parseNodeCpuMillicores(cpuStr: string | undefined): number {
 
 /** 按时间戳汇总多节点 metricPoints（value 同单位相加） */
 export function aggregateDashboardMetricPoints(
-  items: Array<{ metricPoints?: DashboardMetricPoint[] }> | undefined
-): { labels: string[]; values: number[] } {
+  items: Array<{ metricPoints?: DashboardMetricPoint[] }> | undefined,
+  options?: AggregateMetricOptions
+): { labels: string[]; values: number[]; timestamps: number[] } {
+  const startMs = options?.timeRange?.start ? options.timeRange.start.getTime() : Number.NEGATIVE_INFINITY
+  const endMs = options?.timeRange?.end ? options.timeRange.end.getTime() : Number.POSITIVE_INFINITY
   const byTime = new Map<number, number>()
   for (const item of items ?? []) {
     for (const p of item.metricPoints ?? []) {
       const t = new Date(p.timestamp).getTime()
       if (!Number.isFinite(t)) continue
+      if (t < startMs || t > endMs) continue
       byTime.set(t, (byTime.get(t) ?? 0) + Number(p.value))
     }
   }
   const sorted = [...byTime.entries()].sort((a, b) => a[0] - b[0])
   return {
+    timestamps: sorted.map(([t]) => t),
     labels: sorted.map(([t]) => formatMetricTimeLabel(new Date(t))),
     values: sorted.map(([, v]) => v)
   }
