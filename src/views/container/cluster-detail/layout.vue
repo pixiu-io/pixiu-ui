@@ -93,6 +93,7 @@
             <ElMenuItem index="services">服务与路由</ElMenuItem>
             <ElMenuItem index="config">配置管理</ElMenuItem>
             <ElMenuItem index="storage">存储</ElMenuItem>
+            <ElMenuItem index="helm">Helm</ElMenuItem>
           </ElSubMenu>
 
           <ElSubMenu index="group-ops">
@@ -170,6 +171,7 @@
     'services',
     'config',
     'storage',
+    'helm',
     'autoscaling',
     'auth',
     'addon-components',
