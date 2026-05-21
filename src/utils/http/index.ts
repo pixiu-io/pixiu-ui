@@ -27,7 +27,7 @@ const REQUEST_TIMEOUT = 15000
 const MAX_RETRIES = 0
 const RETRY_DELAY = 1000
 const UNAUTHORIZED_DEBOUNCE_TIME = 3000
-const UNAUTHORIZED_PATH = '/exception/401'
+const UNAUTHORIZED_PATH = '/login'
 
 /** 401防抖状态 */
 let isUnauthorizedErrorShown = false
@@ -111,6 +111,7 @@ function handleUnauthorizedError(message?: string): never {
 
   if (!isUnauthorizedErrorShown) {
     isUnauthorizedErrorShown = true
+    showError(error, true)
     redirectToUnauthorizedPage()
 
     unauthorizedTimer = setTimeout(resetUnauthorizedError, UNAUTHORIZED_DEBOUNCE_TIME)
@@ -122,6 +123,10 @@ function handleUnauthorizedError(message?: string): never {
 
 function redirectToUnauthorizedPage() {
   if (router.currentRoute.value.path === UNAUTHORIZED_PATH) return
+  // 清除登录态
+  const userStore = useUserStore()
+  userStore.setLoginStatus(false)
+  userStore.setToken('')
   router.push({ path: UNAUTHORIZED_PATH }).catch(() => undefined)
 }
 

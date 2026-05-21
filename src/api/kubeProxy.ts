@@ -1,5 +1,7 @@
 import axios from 'axios'
+import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/store/modules/user'
+import { router } from '@/router'
 
 const TOKEN_STORAGE_KEY = 'pixiu-access-token'
 
@@ -24,3 +26,21 @@ kubeProxyAxios.interceptors.request.use((config) => {
   if (token) config.headers.set('Authorization', `Bearer ${token}`)
   return config
 })
+
+kubeProxyAxios.interceptors.response.use(
+  (response) => {
+    const body = response.data
+    // pixiu 后端可能以 200 状态码返回业务 401
+    if (body && typeof body === 'object' && (body as any).code === 401) {
+      const message = (body as any).message || '未登陆或者密码被修改，请重新登陆'
+      const userStore = useUserStore()
+      userStore.setLoginStatus(false)
+      userStore.setToken('')
+      ElMessage.error(message)
+      router.push('/login').catch(() => undefined)
+      return Promise.reject(new Error(message))
+    }
+    return response
+  },
+  (error) => Promise.reject(error)
+)

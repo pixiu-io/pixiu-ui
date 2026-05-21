@@ -1,5 +1,7 @@
 import axios from 'axios'
+import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/store/modules/user'
+import { router } from '@/router'
 
 const TOKEN_STORAGE_KEY = 'pixiu-access-token'
 
@@ -65,6 +67,23 @@ pixiuAxios.interceptors.request.use((config) => {
   if (token) config.headers.set('Authorization', `Bearer ${token}`)
   return config
 })
+
+pixiuAxios.interceptors.response.use(
+  (response) => {
+    const { code, message } = response.data
+    if (code === 200) return response
+    if (code === 401) {
+      const userStore = useUserStore()
+      userStore.setLoginStatus(false)
+      userStore.setToken('')
+      ElMessage.error(message || '未登陆或者密码被修改，请重新登陆')
+      router.push('/login').catch(() => undefined)
+      return Promise.reject(new Error(message || '未登陆或者密码被修改，请重新登陆'))
+    }
+    return Promise.reject(new Error(message || '请求失败'))
+  },
+  (error) => Promise.reject(error)
+)
 
 async function pixiuGet<T>(url: string, params?: Record<string, unknown>): Promise<T> {
   const res = await pixiuAxios.get(url, { params })
