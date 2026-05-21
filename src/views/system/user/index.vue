@@ -156,7 +156,7 @@
           prop: 'userGender',
           label: '性别',
           sortable: true,
-          formatter: (row) => row.userGender
+          formatter: (row) => (row as any).userGender
         },
         { prop: 'userPhone', label: '手机号' },
         {

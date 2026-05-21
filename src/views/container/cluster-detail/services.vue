@@ -238,10 +238,10 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     ])
   }
 
-  function formatSvcPorts(ports: K8sService['spec']['ports']): string {
+  function formatSvcPorts(ports: any[]): string {
     if (!ports?.length) return '-'
     return ports
-      .map((p) => {
+      .map((p: any) => {
         const proto = p.protocol ?? 'TCP'
         if (p.nodePort) return `${p.port}:${p.nodePort}/${proto}`
         return `${p.port}/${proto}`
@@ -427,7 +427,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
           label: '端口',
           minWidth: 180,
           formatter: (row: K8sService) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, formatSvcPorts(row.spec?.ports))
+            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, formatSvcPorts(row.spec?.ports as any))
         },
         {
           prop: 'metadata.creationTimestamp',
@@ -486,7 +486,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   })
 
   const svcVisibleColumns = computed(() =>
-    svcColumns.value.filter((c) => !(selectedNamespace.value && c.prop === 'metadata.namespace'))
+    svcColumns.value.filter((c: any) => !(selectedNamespace.value && c.prop === 'metadata.namespace'))
   )
 
   function runSvcSearch() {
@@ -644,7 +644,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   })
 
   const ingVisibleColumns = computed(() =>
-    ingColumns.value.filter((c) => !(selectedNamespace.value && c.prop === 'metadata.namespace'))
+    ingColumns.value.filter((c: any) => !(selectedNamespace.value && c.prop === 'metadata.namespace'))
   )
 
   function runIngSearch() {

@@ -214,14 +214,14 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       return currentMetrics.find((c) => c.type === 'Resource' && c.resource?.name === spec.resource?.name)
     }
     if (t === 'Pods' && spec.pods?.metric?.name) {
-      return currentMetrics.find((c) => c.type === 'Pods' && c.pods?.metric?.name === spec.pods.metric.name)
+      return currentMetrics.find((c) => c.type === 'Pods' && c.pods?.metric?.name === spec.pods!.metric!.name)
     }
     if (t === 'Object' && spec.object?.metric?.name) {
-      return currentMetrics.find((c) => c.type === 'Object' && c.object?.metric?.name === spec.object.metric.name)
+      return currentMetrics.find((c) => c.type === 'Object' && c.object?.metric?.name === spec.object!.metric!.name)
     }
     if (t === 'External' && spec.external?.metric?.name) {
       return currentMetrics.find(
-        (c) => c.type === 'External' && c.external?.metric?.name === spec.external.metric.name
+        (c) => c.type === 'External' && c.external?.metric?.name === spec.external!.metric!.name
       )
     }
     return undefined

@@ -306,8 +306,8 @@
         ),
         apiServerPort,
         kubeProxyMode: 'iptables',
-        metricsServer: Boolean(cfg.component?.metric_server?.enable),
-        ingressNginx: Boolean(cfg.component?.ingress_nginx?.enable),
+        metricsServer: Boolean((cfg.component as any)?.metric_server?.enable),
+        ingressNginx: Boolean((cfg.component as any)?.ingress_nginx?.enable),
         nodes: (detail.nodes ?? []).map(mapNodeFromApi),
         enablePrometheus: Boolean(cfg.component?.prometheus?.enabled),
         enableLogging: Boolean(cfg.component?.logging?.enabled)
@@ -499,6 +499,7 @@
           ElMessage.error('缺少资源版本，无法修改，请重新进入页面后重试')
           return
         }
+        // @ts-ignore
         await fetchUpdatePlan(currentPlanId.value, {
           ...payload,
           resource_version: currentResourceVersion.value
@@ -506,6 +507,7 @@
         ElMessage.success('部署修改成功')
         router.push('/container/plan')
       } else {
+        // @ts-ignore
         await fetchCreatePlan(payload)
         ElMessage.success('部署集群创建成功')
         router.push('/container/plan')

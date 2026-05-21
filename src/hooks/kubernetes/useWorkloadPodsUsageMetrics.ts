@@ -117,10 +117,10 @@ export function useWorkloadPodsUsageMetrics(
           fetchK8sPod(cluster.value, ns.value, name).catch(() => null)
         )
       )
-      return results.filter(Boolean) as K8sPod[]
+      return results.filter(Boolean) as any[]
     }
     if (!selector.value) return []
-    return fetchWorkloadPods(cluster.value, ns.value, selector.value)
+    return fetchWorkloadPods(cluster.value, ns.value, selector.value) as any
   }
 
   function applyCpuCharts(labels: string[], usageSeries: LineDataItem[]) {

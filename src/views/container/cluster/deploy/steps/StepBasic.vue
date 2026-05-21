@@ -63,7 +63,7 @@
           <ElCheckbox
             :model-value="form.customRuntimeDir"
             :disabled="readOnly"
-            @update:model-value="onCustomRuntimeDirChange"
+            @update:model-value="onCustomRuntimeDirChange as any"
           >
             自定义数据目录
           </ElCheckbox>

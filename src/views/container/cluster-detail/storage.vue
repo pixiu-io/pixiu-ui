@@ -458,7 +458,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   })
 
   const pvcVisibleColumns = computed(() =>
-    pvcColumns.value.filter((c) => !(selectedNamespace.value && c.prop === 'metadata.namespace'))
+    pvcColumns.value.filter((c: any) => !(selectedNamespace.value && c.prop === 'metadata.namespace'))
   )
   function runPvcSearch() {
     const name = (pvcSearchForm.value.name ?? '').trim() || undefined

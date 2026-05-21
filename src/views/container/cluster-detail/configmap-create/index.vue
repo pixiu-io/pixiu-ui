@@ -77,7 +77,7 @@
                   @focus="focusedIdx = idx"
                   @blur="focusedIdx = -1"
                 />
-                <ElButton link class="kv-del-btn cm-col-del" @click="() => { form.data.splice(idx, 1); nextTick(() => formRef?.validateField('data')) }">
+                <ElButton link class="kv-del-btn cm-col-del" @click="() => { form.data.splice(idx, 1); $nextTick(() => formRef?.validateField('data')) }">
                   <ElIcon><Close /></ElIcon>
                 </ElButton>
               </div>

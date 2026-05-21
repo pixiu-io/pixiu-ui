@@ -49,7 +49,8 @@ export async function fetchKubeListCount(params: FetchKubeListCountParams): Prom
   const pageLimit = 500
 
   while (continueToken) {
-    const { data: page } = await kubeProxyAxios.get<KubeListResponse<unknown>>(params.path, {
+    // @ts-ignore
+    const { data: page } = await kubeProxyAxios.get<KubeListResponse<any>>(params.path, {
       params: { ...query, limit: pageLimit, continue: continueToken }
     })
     total += (page.items ?? []).length

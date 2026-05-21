@@ -62,7 +62,7 @@
       </div>
     </template>
     <div class="host-ssh-terminal-wrap">
-      <div ref="sshXtermHostRef" class="host-ssh-xterm-host" tabindex="-1" @click="focusSshTerm" />
+      <div ref="sshXtermHostRef" class="host-ssh-xterm-host" tabindex="-1" @click="() => {}" />
     </div>
   </ElDrawer>
 </template>

@@ -287,6 +287,7 @@
   import { ElMessage } from 'element-plus'
   import { ArrowLeft, CircleClose, Close, QuestionFilled, Search } from '@element-plus/icons-vue'
   import { useRoute, useRouter } from 'vue-router'
+import { nextTick } from 'vue'
   import { createK8sSecret } from '@/api/kubernetes/secret'
   import { fetchK8sNamespaceList } from '@/api/kubernetes/namespace'
   import ClusterResourceBreadcrumb from '../components/cluster-resource-breadcrumb.vue'

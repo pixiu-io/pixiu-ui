@@ -640,10 +640,6 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     border: none !important;
   }
 
-  html.dark .quota-alert {
-    background-color: color-mix(in srgb, #0958d9 14%, var(--el-bg-color)) !important;
-  }
-
   .quota-divider {
     height: 1px;
     background-color: var(--el-border-color-lighter);

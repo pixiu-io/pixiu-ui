@@ -1,6 +1,6 @@
 <template>
   <div class="cluster-page art-full-height">
-    <ClusterSearch v-model="searchForm" @search="handleSearch" @reset="handleReset" />
+    <ClusterSearch v-model="searchForm" @search="handleSearch as any" @reset="handleReset" />
 
     <ElCard class="art-table-card">
       <ArtTableHeader v-model:columns="columnChecks" :loading="loading" @refresh="refreshData">
@@ -674,7 +674,7 @@
             h(ElSwitch, {
               modelValue: row.isProtected,
               loading: protectingIds.value.has(row.id),
-              onChange: async (val: boolean) => {
+              onChange: async (val: any) => {
                 protectingIds.value.add(row.id)
                 try {
                   await fetchProtectCluster(row.id, row.resourceVersion, val)

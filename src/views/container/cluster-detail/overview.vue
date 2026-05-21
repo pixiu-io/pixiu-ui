@@ -241,7 +241,7 @@
                   </div>
                   <div class="info-dl__row">
                     <dt>集群描述</dt>
-                    <dd>{{ planDetail?.description || ctx.description || '-' }}</dd>
+                    <dd>{{ planDetail?.description || (ctx as any).description || '-' }}</dd>
                   </div>
                 </dl>
               </ElCol>
@@ -299,7 +299,7 @@
                       <ElButton
                         link
                         class="info-dl__copy"
-                        @click="navigator.clipboard.writeText(basicNetwork.clusterDns); ElMessage.success('已复制')"
+                        @click="copyText(basicNetwork.clusterDns)"
                       >
                         <ArtSvgIcon icon="ri:file-copy-line" style="font-size:13px" />
                       </ElButton>
@@ -342,7 +342,7 @@
                   <ElButton
                     link
                     class="info-dl__copy"
-                    @click="navigator.clipboard.writeText(apiServerAddr); ElMessage.success('已复制')"
+                    @click="copyText(apiServerAddr)"
                   >
                     <ArtSvgIcon icon="ri:file-copy-line" style="font-size:13px" />
                   </ElButton>
@@ -367,7 +367,7 @@
                   <ElButton
                     link
                     class="info-dl__copy"
-                    @click="navigator.clipboard.writeText(kubeconfigPath); ElMessage.success('已复制')"
+                    @click="copyText(kubeconfigPath)"
                   >
                     <ArtSvgIcon icon="ri:file-copy-line" style="font-size:13px" />
                   </ElButton>
@@ -734,6 +734,11 @@
 
   function go(path: string) {
     router.push({ path: `/container/${path}`, query: { ...route.query } })
+  }
+
+  function copyText(text: string) {
+    void navigator.clipboard.writeText(text)
+    ElMessage.success('已复制')
   }
 </script>
 

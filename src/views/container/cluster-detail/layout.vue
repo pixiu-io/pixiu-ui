@@ -335,7 +335,8 @@
       nodeNotReady: 0,
       nodeCount: 0,
       isProtected: false,
-      createTime: ''
+      createTime: '',
+      planId: 0
     }
   }
 

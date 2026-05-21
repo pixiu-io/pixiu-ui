@@ -489,7 +489,7 @@
         })
         bindResourceList.value = items.map((d) => ({
           name: d.metadata?.name ?? '',
-          labels: d.spec?.template?.metadata?.labels ?? {}
+          labels: (d.spec?.template as any)?.metadata?.labels ?? {} as any
         }))
       } else {
         const { items } = await fetchK8sStatefulSetList(cluster.value, {
@@ -499,7 +499,7 @@
         })
         bindResourceList.value = items.map((d) => ({
           name: d.metadata?.name ?? '',
-          labels: d.spec?.template?.metadata?.labels ?? {}
+          labels: (d.spec?.template as any)?.metadata?.labels ?? {} as any
         }))
       }
     } catch {

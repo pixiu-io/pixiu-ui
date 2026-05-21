@@ -665,6 +665,7 @@
   import {
     fetchK8sDaemonSetList,
     fetchK8sDaemonSet,
+    patchK8sDaemonSet,
     deleteK8sDaemonSet,
     type K8sDaemonSet
   } from '@/api/kubernetes/daemonset'
@@ -673,7 +674,6 @@
     fetchK8sJob,
     deleteK8sJob,
     createK8sJob,
-    rerunK8sJob,
     type K8sJob
   } from '@/api/kubernetes/job'
   import {
@@ -820,12 +820,12 @@
   const router = useRouter()
   const allowedTabs = new Set(['deploy', 'sts', 'ds', 'job', 'cj'])
   const queryTab = String(route.query.tab ?? '')
-  function resolveWorkloadKind(q: string, init: string): 'deploy' | 'sts' | 'ds' | 'job' | 'cj' {
-    if (allowedTabs.has(q)) return q as 'deploy' | 'sts' | 'ds' | 'job' | 'cj'
-    if (allowedTabs.has(init)) return init as 'deploy' | 'sts' | 'ds' | 'job' | 'cj'
+  function resolveWorkloadKind(q: string, init: string): string {
+    if (allowedTabs.has(q)) return q
+    if (allowedTabs.has(init)) return init
     return 'deploy'
   }
-  const kind = ref(resolveWorkloadKind(queryTab, String(props.initialTab ?? '')))
+  const kind = ref<string>(resolveWorkloadKind(queryTab, String(props.initialTab ?? '')))
   const deplNamespace = ref('')
   function parseSelectorMap(selector: string): Record<string, string> {
     const out: Record<string, string> = {}
@@ -1520,7 +1520,7 @@
   })
 
   const stsVisibleColumns = computed(() =>
-    stsColumns.value.filter((c) => !(globalNamespace.value && c.prop === 'metadata.namespace'))
+    stsColumns.value.filter((c: any) => !(globalNamespace.value && c.prop === 'metadata.namespace'))
   )
 
   function onStsNsChange() {
@@ -1849,7 +1849,7 @@
   })
 
   const dsVisibleColumns = computed(() =>
-    dsColumns.value.filter((c) => !(globalNamespace.value && c.prop === 'metadata.namespace'))
+    dsColumns.value.filter((c: any) => !(globalNamespace.value && c.prop === 'metadata.namespace'))
   )
 
   function onDsNsChange() {
@@ -2231,7 +2231,7 @@
                   h(
                     'span',
                     { style: 'font-size:12px;color:var(--el-text-color-regular)' },
-                    String(row.spec?.backoffLimit ?? 0)
+                    String((row.spec as any)?.backoffLimit ?? 0)
                   )
               },
               {
@@ -2309,7 +2309,7 @@
               {
                 prop: 'operation',
                 label: '操作',
-                minWidth: 200,
+                minWidth: 120,
                 fixed: 'right',
                 formatter: (row: K8sJob) =>
                   h('div', { class: 'workloads-op-cell' }, [
@@ -2343,17 +2343,22 @@
                       },
                       () => '日志'
                     ),
-                    h(ArtButtonMore, {
-                      list: [
-                        { key: 'rerun', label: '重新执行', icon: 'ri:refresh-line' },
-                        {
-                          key: 'delete',
-                          label: '删除',
-                          icon: 'ri:delete-bin-4-line'
-                        }
-                      ],
-                      onClick: (item: ButtonMoreItem) => jobMoreClick(item, row)
-                    })
+                    h(
+                      ElLink,
+                      {
+                        type: 'primary',
+                        underline: 'never',
+                        style: 'font-size:12px',
+                        onClick: () =>
+                          void deleteWorkload(
+                            'job',
+                            row.metadata?.namespace ?? '',
+                            row.metadata?.name ?? '',
+                            onJobRefresh
+                          )
+                      },
+                      () => '删除'
+                    )
                   ])
               }
             ]
@@ -2361,7 +2366,7 @@
   })
 
   const jobVisibleColumns = computed(() =>
-    jobColumns.value.filter((c) => !(globalNamespace.value && c.prop === 'metadata.namespace'))
+    jobColumns.value.filter((c: any) => !(globalNamespace.value && c.prop === 'metadata.namespace'))
   )
 
   function onJobNsChange() {
@@ -2817,7 +2822,7 @@
   })
 
   const cjVisibleColumns = computed(() =>
-    cjColumns.value.filter((c) => !(globalNamespace.value && c.prop === 'metadata.namespace'))
+    cjColumns.value.filter((c: any) => !(globalNamespace.value && c.prop === 'metadata.namespace'))
   )
 
   function onCjNsChange() {
@@ -3333,7 +3338,7 @@
   })
 
   const deplVisibleColumns = computed(() =>
-    deplColumns.value.filter((c) => !(globalNamespace.value && c.prop === 'metadata.namespace'))
+    deplColumns.value.filter((c: any) => !(globalNamespace.value && c.prop === 'metadata.namespace'))
   )
 
   function onDeplSelectionChange(rows: Array<(K8sDeployment | K8sPod) & { rowKey: string }>) {
@@ -3873,50 +3878,6 @@
       case 'images':
         openWorkloadImageDialog(row.metadata?.namespace ?? '', row.metadata?.name ?? '', 'deploy')
         break
-    }
-  }
-
-  function jobMoreClick(item: ButtonMoreItem, row: K8sJob) {
-    switch (item.key) {
-      case 'rerun':
-        void confirmRerunJob(row)
-        break
-      case 'delete':
-        void deleteWorkload(
-          'job',
-          row.metadata?.namespace ?? '',
-          row.metadata?.name ?? '',
-          onJobRefresh
-        )
-        break
-    }
-  }
-
-  async function confirmRerunJob(row: K8sJob) {
-    const cluster = String(route.query.cluster ?? '')
-    const ns = row.metadata?.namespace ?? ''
-    const name = row.metadata?.name ?? ''
-    const resourceVersion = row.metadata?.resourceVersion ?? ''
-    if (!cluster || !ns || !name) {
-      ElMessage.warning('Job 信息不完整')
-      return
-    }
-    if (!resourceVersion) {
-      ElMessage.warning('缺少 resourceVersion，无法重新执行')
-      return
-    }
-    try {
-      await ElMessageBox.confirm(`确认重新执行 Job「${name}」?`, '重新执行', {
-        type: 'warning',
-        confirmButtonText: '确认',
-        cancelButtonText: '取消'
-      })
-      await rerunK8sJob(cluster, ns, name, resourceVersion)
-      ElMessage.success('已触发重新执行')
-      onJobRefresh()
-    } catch (e: unknown) {
-      if (e === 'cancel') return
-      ElMessage.error(e instanceof Error ? e.message : '重新执行失败')
     }
   }
 
@@ -4624,10 +4585,6 @@
     box-sizing: border-box;
     background-color: #ecf5ff !important;
     border: none !important;
-  }
-
-  html.dark .remote-login-alert {
-    background-color: color-mix(in srgb, #0958d9 14%, var(--el-bg-color)) !important;
   }
 
   .remote-login-alert :deep(.el-alert__icon) {

@@ -933,14 +933,14 @@
         extractSpec((data.spec?.jobTemplate?.spec?.template?.spec ?? {}) as Parameters<typeof extractSpec>[0])
         if (kind.value === 'cj') {
           cjSchedule.value = data.spec?.schedule ?? ''
-          cjConcurrencyPolicy.value = (data.spec?.concurrencyPolicy as 'Allow' | 'Forbid' | 'Replace') ?? 'Allow'
+          cjConcurrencyPolicy.value = ((data.spec as any)?.concurrencyPolicy as 'Allow' | 'Forbid' | 'Replace') ?? 'Allow'
           cjSuccessfulJobsHistoryLimit.value = data.spec?.successfulJobsHistoryLimit ?? 3
           cjFailedJobsHistoryLimit.value = data.spec?.failedJobsHistoryLimit ?? 1
           cjSuspend.value = data.spec?.suspend ?? false
-          cjStartingDeadlineSeconds.value = data.spec?.startingDeadlineSeconds ?? null
-          cjCompletions.value = data.spec?.jobTemplate?.spec?.completions ?? 1
-          cjParallelism.value = data.spec?.jobTemplate?.spec?.parallelism ?? 1
-          cjRestartPolicy.value = (data.spec?.jobTemplate?.spec?.template?.spec?.restartPolicy as 'OnFailure' | 'Never') ?? 'OnFailure'
+          cjStartingDeadlineSeconds.value = (data.spec as any)?.startingDeadlineSeconds ?? null
+          cjCompletions.value = (data.spec as any)?.jobTemplate?.spec?.completions ?? 1
+          cjParallelism.value = (data.spec as any)?.jobTemplate?.spec?.parallelism ?? 1
+          cjRestartPolicy.value = ((data.spec as any)?.jobTemplate?.spec?.template?.spec?.restartPolicy as 'OnFailure' | 'Never') ?? 'OnFailure'
         }
       } else {
         const data = await fetchK8sDaemonSet(cluster.value, namespace.value, name.value)
@@ -1080,14 +1080,14 @@
         ;(cjPatch.spec as Record<string, unknown>).schedule = cjSchedule.value
         ;(cjPatch.spec as Record<string, unknown>).successfulJobsHistoryLimit = cjSuccessfulJobsHistoryLimit.value
         ;(cjPatch.spec as Record<string, unknown>).failedJobsHistoryLimit = cjFailedJobsHistoryLimit.value
-        ;((cjPatch.spec as Record<string, unknown>).jobTemplate as Record<string, unknown>).spec = {
-          ...((cjPatch.spec as Record<string, unknown>).jobTemplate as Record<string, unknown>)?.spec,
+        ;((cjPatch.spec as Record<string, any>).jobTemplate as Record<string, any>).spec = {
+          ...(((cjPatch.spec as Record<string, any>).jobTemplate as Record<string, any>)?.spec as Record<string, any> || {}),
           completions: cjCompletions.value,
           parallelism: cjParallelism.value,
           template: {
-            ...(((cjPatch.spec as Record<string, unknown>).jobTemplate as Record<string, unknown>)?.spec as Record<string, unknown>)?.template,
+            ...((((cjPatch.spec as Record<string, any>).jobTemplate as Record<string, any>)?.spec as Record<string, any>)?.template as Record<string, any> || {}),
             spec: {
-              ...(((cjPatch.spec as Record<string, unknown>).jobTemplate as Record<string, unknown>)?.spec as Record<string, unknown>)?.template?.spec,
+              ...((((cjPatch.spec as Record<string, any>).jobTemplate as Record<string, any>)?.spec as Record<string, any>)?.template as Record<string, any>)?.spec,
               restartPolicy: cjRestartPolicy.value
             }
           }

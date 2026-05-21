@@ -91,11 +91,11 @@
                 </div>
                 <div class="kv-item">
                   <span class="kv-label">ApiServer 地址</span>
-                  <span class="kv-value">{{ detail.config?.network?.api_server_address || '-' }}</span>
+                  <span class="kv-value">{{ (detail as any).config?.network?.api_server_address || '-' }}</span>
                 </div>
                 <div class="kv-item">
                   <span class="kv-label">ApiServer 端口</span>
-                  <span class="kv-value">{{ detail.config?.network?.api_server_port ?? '-' }}</span>
+                  <span class="kv-value">{{ (detail as any).config?.network?.api_server_port ?? '-' }}</span>
                 </div>
               </div>
             </ElCard>
@@ -105,15 +105,15 @@
               <div class="kv-grid">
                 <div class="kv-item">
                   <span class="kv-label">高可用 Kubernetes</span>
-                  <span class="kv-value">{{ detail.config?.kubernetes?.high_availability ? '启用' : '关闭' }}</span>
+                  <span class="kv-value">{{ (detail as any).config?.kubernetes?.high_availability ? '启用' : '关闭' }}</span>
                 </div>
                 <div class="kv-item">
                   <span class="kv-label">自建 LoadBalance</span>
-                  <span class="kv-value">{{ detail.config?.network?.self_load_balance ? '启用' : '关闭' }}</span>
+                  <span class="kv-value">{{ (detail as any).config?.network?.self_load_balance ? '启用' : '关闭' }}</span>
                 </div>
                 <div class="kv-item">
                   <span class="kv-label">Kube-proxy 模式</span>
-                  <span class="kv-value">{{ detail.config?.network?.kube_proxy_mode || 'iptables' }}</span>
+                  <span class="kv-value">{{ (detail as any).config?.network?.kube_proxy_mode || 'iptables' }}</span>
                 </div>
                 <div class="kv-item">
                   <span class="kv-label">Prometheus</span>

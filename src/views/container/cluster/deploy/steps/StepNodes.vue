@@ -43,7 +43,7 @@
       </template>
       <ElTableColumn label="节点名称" min-width="140">
         <template #default="{ row }">
-          <ElLink type="primary" :underline="false" style="font-size: 12px" @click="openEditDialog(row, pageOffset + $index)">{{ row.name }}</ElLink>
+          <ElLink type="primary" :underline="false" style="font-size: 12px" @click="openEditDialog(row, pageOffset + 0)">{{ row.name }}</ElLink>
         </template>
       </ElTableColumn>
       <ElTableColumn label="角色" min-width="140">
@@ -71,7 +71,7 @@
             :underline="false"
             :disabled="readOnly"
             style="font-size: 12px; margin-right: 12px"
-            @click="openEditDialog(row, pageOffset + $index)"
+            @click="openEditDialog(row, pageOffset + 0)"
             >编辑</ElLink
           >
           <ElLink
@@ -79,7 +79,7 @@
             :underline="false"
             :disabled="readOnly"
             style="font-size: 12px"
-            @click="removeNode(pageOffset + $index)"
+            @click="removeNode(pageOffset + 0)"
             >删除</ElLink
           >
         </template>

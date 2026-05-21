@@ -1,4 +1,3 @@
-import { pixiuAxios } from '@/api/container'
 import { kubeProxyAxios } from '@/api/kubeProxy'
 import { fetchKubeListPage } from './list'
 
@@ -7,7 +6,6 @@ export interface K8sJob {
     name?: string
     namespace?: string
     uid?: string
-    resourceVersion?: string
     creationTimestamp?: string
     labels?: Record<string, string>
     annotations?: Record<string, string>
@@ -61,20 +59,4 @@ export async function deleteK8sJob(cluster: string, namespace: string, name: str
 export async function createK8sJob(cluster: string, namespace: string, body: object): Promise<K8sJob> {
   const { data } = await kubeProxyAxios.post<K8sJob>(jobBase(cluster, namespace), body)
   return data
-}
-
-/** 重新执行 Job（Pixiu kubeproxy：action=rerun） */
-export async function rerunK8sJob(
-  cluster: string,
-  namespace: string,
-  name: string,
-  resourceVersion: string
-): Promise<void> {
-  const res = await pixiuAxios.post(
-    `/pixiu/kubeproxy/clusters/${encodeURIComponent(cluster)}/namespaces/${encodeURIComponent(namespace)}/jobs/${encodeURIComponent(name)}`,
-    undefined,
-    { params: { action: 'rerun', resourceVersion } }
-  )
-  const { code, message } = res.data as { code: number; message?: string }
-  if (code !== 200) throw new Error(message || '操作失败')
 }

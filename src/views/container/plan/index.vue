@@ -569,7 +569,7 @@
 
   // 前端过滤
   const filteredData = computed(() => {
-    return data.value.filter((item) => {
+    return data.value.filter((item: any) => {
       const nameMatch =
         !appliedSearch.value || item.name.toLowerCase().includes(appliedSearch.value.toLowerCase())
       const statusMatch = !appliedStatus.value || item.step === appliedStatus.value

@@ -455,7 +455,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   })
 
   const cmVisibleColumns = computed(() =>
-    cmColumns.value.filter((c) => !(selectedNamespace.value && c.prop === 'metadata.namespace'))
+    cmColumns.value.filter((c: any) => !(selectedNamespace.value && c.prop === 'metadata.namespace'))
   )
   function runCmSearch() {
     const name = (cmSearchForm.value.name ?? '').trim() || undefined
@@ -552,7 +552,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   })
 
   const secVisibleColumns = computed(() =>
-    secColumns.value.filter((c) => !(selectedNamespace.value && c.prop === 'metadata.namespace'))
+    secColumns.value.filter((c: any) => !(selectedNamespace.value && c.prop === 'metadata.namespace'))
   )
   function runSecSearch() {
     const name = (secSearchForm.value.name ?? '').trim() || undefined

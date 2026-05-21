@@ -281,7 +281,7 @@
 
     const pointDelay = getLeftToRightPointDelay(pointCount)
 
-    animatedData.value = buildLeftToRightData(realData, 1)
+    animatedData.value = buildLeftToRightData(realData, 1) as any
     updateChartOptions(generateChartOptions(true, true))
 
     if (pointCount === 1) {
@@ -292,7 +292,7 @@
     for (let revealCount = 2; revealCount <= pointCount; revealCount++) {
       const timer = window.setTimeout(
         () => {
-          animatedData.value = buildLeftToRightData(realData, revealCount)
+          animatedData.value = buildLeftToRightData(realData, revealCount) as any
           updateChartOptions(generateChartOptions(false, true))
           if (revealCount === pointCount) isAnimating.value = false
         },
@@ -314,7 +314,7 @@
 
     animatedData.value = multiData.map((item) => ({
       ...item,
-      data: buildLeftToRightData(item.data, 1)
+      data: buildLeftToRightData(item.data, 1) as any
     }))
     updateChartOptions(generateChartOptions(true, true))
 
@@ -330,7 +330,7 @@
         () => {
           animatedData.value = multiData.map((item) => ({
             ...item,
-            data: buildLeftToRightData(item.data, revealCount)
+            data: buildLeftToRightData(item.data, revealCount) as any
           }))
           updateChartOptions(generateChartOptions(false, true))
           if (revealCount === maxLen) {

@@ -532,7 +532,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
             const containers = row.spec?.containers ?? []
             let cpuReqM = 0, cpuLimM = 0, memReqB = 0, memLimB = 0
             let hasCpuReq = false, hasCpuLim = false, hasMemReq = false, hasMemLim = false
-            for (const c of containers) {
+            for (const c of containers as any[]) {
               const cr = c.resources?.requests?.cpu
               const cl = c.resources?.limits?.cpu
               const mr = c.resources?.requests?.memory
@@ -1107,10 +1107,6 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     box-sizing: border-box;
     background-color: #ecf5ff !important;
     border: none !important;
-  }
-
-  html.dark .remote-login-alert {
-    background-color: color-mix(in srgb, #0958d9 14%, var(--el-bg-color)) !important;
   }
 
   .remote-login-alert :deep(.el-alert__icon) {

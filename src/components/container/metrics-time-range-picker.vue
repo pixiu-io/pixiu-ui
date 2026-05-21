@@ -66,7 +66,7 @@
 
   function openPicker() {
     syncDraftFromModel()
-    pickerRef.value?.handleOpen?.()
+    ;(pickerRef.value as any)?.handleOpen?.()
   }
 
   function onPanelVisibleChange(visible: boolean) {

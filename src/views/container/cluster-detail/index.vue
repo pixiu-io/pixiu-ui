@@ -27,7 +27,7 @@
         <ElTableColumn prop="name" label="节点名称" />
         <ElTableColumn prop="role" label="角色" width="100">
           <template #default="{ row }">
-            <ElTag :type="row.role === 'Master' ? 'primary' : 'default'" size="small">
+            <ElTag :type="row.role === 'Master' ? 'primary' : 'info'" size="small">
               {{ row.role }}
             </ElTag>
           </template>
