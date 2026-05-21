@@ -33,7 +33,7 @@
         </div>
       </div>
     </template>
-    <div v-loading="metricsInitialLoading" class="resource-metrics-pane">
+    <div class="resource-metrics-pane">
       <MetricsMonitorToolbar
         v-model:timeRange="timeRange"
         v-model:granularity="granularity"

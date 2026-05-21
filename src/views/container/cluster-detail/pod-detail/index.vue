@@ -235,10 +235,11 @@
       v-model="yamlVisible"
       title="查看 YAML"
       :yaml="yamlContent"
-      read-only
-      show-copy
+      footer-mode="edit"
       width="900px"
       :editor-height="520"
+      :submit-loading="yamlSaving"
+      @save="onPodYamlSave"
     />
 
     <!-- Remote webshell -->
@@ -260,6 +261,7 @@
   import { clusterDetailContextKey } from '../context'
   import { buildClusterRouteQuery } from '@/utils/navigation/cluster-query'
   import { fetchK8sPod, deleteK8sPod } from '@/api/kubernetes/pod'
+  import { updateK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
   import YAML from 'js-yaml'
 
   defineOptions({ name: 'PodDetail' })
@@ -354,6 +356,7 @@
   // ── YAML ──
   const yamlVisible = ref(false)
   const yamlContent = ref('')
+  const yamlSaving = ref(false)
   async function openYamlEditor() {
     try {
       const data = await fetchK8sPod(cluster.value, namespace.value, podName.value)
@@ -363,6 +366,26 @@
       ElMessage.error('获取 YAML 失败')
     }
   }
+
+  function onPodYamlSave(text: string) {
+    yamlContent.value = text
+    void savePodYaml()
+  }
+
+  async function savePodYaml() {
+    yamlSaving.value = true
+    try {
+      await updateK8sResourceFromYaml(cluster.value, yamlContent.value)
+      ElMessage.success('保存成功')
+      yamlVisible.value = false
+      pod.value = await fetchK8sPod(cluster.value, namespace.value, podName.value)
+    } catch (e: unknown) {
+      ElMessage.error(e instanceof Error ? e.message : '保存失败')
+    } finally {
+      yamlSaving.value = false
+    }
+  }
+
   // ── Login ──
   const podWebshellRef = ref<InstanceType<typeof PodRemoteWebshell> | null>(null)
   function openLogin() {

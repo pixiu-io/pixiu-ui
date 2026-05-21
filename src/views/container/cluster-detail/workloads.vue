@@ -565,17 +565,21 @@
       title="选择容器"
       width="520px"
       destroy-on-close
+      align-center
+      class="remote-login-dialog"
+      header-class="remote-login-dialog-header"
+      body-class="remote-login-dialog-body"
       @close="resetPodLogin"
     >
       <ElAlert
         type="info"
         :closable="false"
         show-icon
-        class="mb-3"
+        class="remote-login-alert"
         description="基于 WebShell 提供登录容器的功能。"
       />
-      <ElForm label-width="90px">
-        <ElFormItem label="容器名称">
+      <ElForm label-width="auto" class="remote-login-form">
+        <ElFormItem label="容器名称" class="remote-login-form-item">
           <ElSelect v-model="podLogin.container" class="remote-login-select">
             <ElOption v-for="name in podLogin.containers" :key="name" :value="name" :label="name" />
           </ElSelect>
@@ -669,6 +673,7 @@
     fetchK8sJob,
     deleteK8sJob,
     createK8sJob,
+    rerunK8sJob,
     type K8sJob
   } from '@/api/kubernetes/job'
   import {
@@ -2304,7 +2309,7 @@
               {
                 prop: 'operation',
                 label: '操作',
-                minWidth: 120,
+                minWidth: 200,
                 fixed: 'right',
                 formatter: (row: K8sJob) =>
                   h('div', { class: 'workloads-op-cell' }, [
@@ -2338,22 +2343,17 @@
                       },
                       () => '日志'
                     ),
-                    h(
-                      ElLink,
-                      {
-                        type: 'primary',
-                        underline: 'never',
-                        style: 'font-size:12px',
-                        onClick: () =>
-                          void deleteWorkload(
-                            'job',
-                            row.metadata?.namespace ?? '',
-                            row.metadata?.name ?? '',
-                            onJobRefresh
-                          )
-                      },
-                      () => '删除'
-                    )
+                    h(ArtButtonMore, {
+                      list: [
+                        { key: 'rerun', label: '重新执行', icon: 'ri:refresh-line' },
+                        {
+                          key: 'delete',
+                          label: '删除',
+                          icon: 'ri:delete-bin-4-line'
+                        }
+                      ],
+                      onClick: (item: ButtonMoreItem) => jobMoreClick(item, row)
+                    })
                   ])
               }
             ]
@@ -3876,6 +3876,50 @@
     }
   }
 
+  function jobMoreClick(item: ButtonMoreItem, row: K8sJob) {
+    switch (item.key) {
+      case 'rerun':
+        void confirmRerunJob(row)
+        break
+      case 'delete':
+        void deleteWorkload(
+          'job',
+          row.metadata?.namespace ?? '',
+          row.metadata?.name ?? '',
+          onJobRefresh
+        )
+        break
+    }
+  }
+
+  async function confirmRerunJob(row: K8sJob) {
+    const cluster = String(route.query.cluster ?? '')
+    const ns = row.metadata?.namespace ?? ''
+    const name = row.metadata?.name ?? ''
+    const resourceVersion = row.metadata?.resourceVersion ?? ''
+    if (!cluster || !ns || !name) {
+      ElMessage.warning('Job 信息不完整')
+      return
+    }
+    if (!resourceVersion) {
+      ElMessage.warning('缺少 resourceVersion，无法重新执行')
+      return
+    }
+    try {
+      await ElMessageBox.confirm(`确认重新执行 Job「${name}」?`, '重新执行', {
+        type: 'warning',
+        confirmButtonText: '确认',
+        cancelButtonText: '取消'
+      })
+      await rerunK8sJob(cluster, ns, name, resourceVersion)
+      ElMessage.success('已触发重新执行')
+      onJobRefresh()
+    } catch (e: unknown) {
+      if (e === 'cancel') return
+      ElMessage.error(e instanceof Error ? e.message : '重新执行失败')
+    }
+  }
+
   function stsMoreClick(item: ButtonMoreItem, row: K8sStatefulSet) {
     switch (item.key) {
       case 'logs':
@@ -4573,7 +4617,42 @@
     width: 100%;
   }
 
-  .mb-3 {
-    margin-bottom: 12px;
+  .remote-login-alert {
+    margin: 15px 0;
+    height: 45px;
+    padding: 10px 16px 10px 10px !important;
+    box-sizing: border-box;
+    background-color: #ecf5ff !important;
+    border: none !important;
+  }
+
+  html.dark .remote-login-alert {
+    background-color: color-mix(in srgb, #0958d9 14%, var(--el-bg-color)) !important;
+  }
+
+  .remote-login-alert :deep(.el-alert__icon) {
+    font-size: 20px;
+    color: #0958d9 !important;
+    margin-right: 4px !important;
+  }
+
+  .remote-login-alert :deep(.el-alert__description) {
+    font-size: 12px;
+    color: #0958d9 !important;
+  }
+
+  .remote-login-form-item :deep(.el-form-item__label) {
+    font-size: 13px;
+  }
+</style>
+
+<style>
+  .remote-login-dialog-header {
+    padding: 10px 24px 0 !important;
+    margin-bottom: 0 !important;
+  }
+
+  .remote-login-dialog-body {
+    padding: 0 24px 12px !important;
   }
 </style>

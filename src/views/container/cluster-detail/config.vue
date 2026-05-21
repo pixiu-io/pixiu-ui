@@ -115,9 +115,11 @@
       v-model="yamlVisible"
       title="查看 YAML"
       :yaml="yamlText"
-      read-only
+      footer-mode="edit"
       width="900px"
       :editor-height="480"
+      :submit-loading="yamlSaving"
+      @save="onYamlSave"
     />
   </div>
 </template>
@@ -157,6 +159,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { formatNodeCreationTime } from '@/utils/kubernetes/nodeDisplay'
   import { clusterDetailNamespaceKey } from './context'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
+  import { updateK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
 
   defineOptions({ name: 'ClusterDetailConfig' })
 
@@ -177,6 +180,8 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   // ── YAML dialog state ──
   const yamlVisible = ref(false)
   const yamlText = ref('')
+  const yamlSaving = ref(false)
+  const currentYamlKind = ref<'cm' | 'sec'>('cm')
 
   function goCreateConfigMap() {
     router.push({
@@ -316,6 +321,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   async function openYamlDialog(k: 'cm' | 'sec', ns: string, name: string) {
     const cluster = String(route.query.cluster ?? '')
     if (!cluster || !ns || !name) return
+    currentYamlKind.value = k
     try {
       let resource: unknown
       if (k === 'cm') resource = await fetchK8sConfigMap(cluster, ns, name)
@@ -324,6 +330,27 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       yamlVisible.value = true
     } catch (e: unknown) {
       ElMessage.error(e instanceof Error ? e.message : '加载失败')
+    }
+  }
+
+  function onYamlSave(text: string) {
+    yamlText.value = text
+    void saveYaml()
+  }
+
+  async function saveYaml() {
+    const cluster = String(route.query.cluster ?? '')
+    yamlSaving.value = true
+    try {
+      await updateK8sResourceFromYaml(cluster, yamlText.value)
+      ElMessage.success('保存成功')
+      yamlVisible.value = false
+      if (currentYamlKind.value === 'cm') getCmData()
+      else getSecData()
+    } catch (e: unknown) {
+      ElMessage.error(e instanceof Error ? e.message : '保存失败')
+    } finally {
+      yamlSaving.value = false
     }
   }
 

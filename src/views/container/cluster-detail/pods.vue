@@ -57,10 +57,11 @@
       v-model="yamlVisible"
       title="查看 YAML"
       :yaml="yamlText"
-      read-only
-      show-copy
+      footer-mode="edit"
       width="900px"
       :editor-height="520"
+      :submit-loading="yamlSaving"
+      @save="onPodYamlSave"
     />
 
     <ElDialog
@@ -68,17 +69,21 @@
       title="登录"
       width="520px"
       destroy-on-close
+      align-center
+      class="remote-login-dialog"
+      header-class="remote-login-dialog-header"
+      body-class="remote-login-dialog-body"
       @close="resetRemoteLogin"
     >
       <ElAlert
         type="info"
         :closable="false"
         show-icon
-        class="mb-3"
+        class="remote-login-alert"
         description="基于 WebShell 提供登录容器的功能。"
       />
-      <ElForm label-width="90px">
-        <ElFormItem label="容器名称">
+      <ElForm label-width="auto" class="remote-login-form">
+        <ElFormItem label="容器名称" class="remote-login-form-item">
           <ElSelect v-model="remoteLogin.container" class="remote-login-select">
             <ElOption
               v-for="name in remoteLogin.containers"
@@ -204,6 +209,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { clusterDetailNamespaceKey } from './context'
   import PodRemoteWebshell from './components/pod-remote-webshell.vue'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
+  import { updateK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
   import { resolvePixiuWsOrigin } from '@/utils/pixiu-ws-origin'
   import yaml from 'js-yaml'
 
@@ -224,6 +230,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     }
   )
   const yamlText = ref('')
+  const yamlSaving = ref(false)
   const remoteLoginVisible = ref(false)
   const remoteLogin = ref<{
     pod: string
@@ -643,6 +650,26 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       yamlVisible.value = true
     } catch (e: unknown) {
       ElMessage.error(e instanceof Error ? e.message : '加载失败')
+    }
+  }
+
+  function onPodYamlSave(text: string) {
+    yamlText.value = text
+    void savePodYaml()
+  }
+
+  async function savePodYaml() {
+    const cluster = String(route.query.cluster ?? '')
+    yamlSaving.value = true
+    try {
+      await updateK8sResourceFromYaml(cluster, yamlText.value)
+      ElMessage.success('保存成功')
+      yamlVisible.value = false
+      refreshData()
+    } catch (e: unknown) {
+      ElMessage.error(e instanceof Error ? e.message : '保存失败')
+    } finally {
+      yamlSaving.value = false
     }
   }
 
@@ -1071,5 +1098,44 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   }
   .pod-log-table {
     width: 100%;
+  }
+
+  .remote-login-alert {
+    margin: 15px 0;
+    height: 45px;
+    padding: 10px 16px 10px 10px !important;
+    box-sizing: border-box;
+    background-color: #ecf5ff !important;
+    border: none !important;
+  }
+
+  html.dark .remote-login-alert {
+    background-color: color-mix(in srgb, #0958d9 14%, var(--el-bg-color)) !important;
+  }
+
+  .remote-login-alert :deep(.el-alert__icon) {
+    font-size: 20px;
+    color: #0958d9 !important;
+    margin-right: 4px !important;
+  }
+
+  .remote-login-alert :deep(.el-alert__description) {
+    font-size: 12px;
+    color: #0958d9 !important;
+  }
+
+  .remote-login-form-item :deep(.el-form-item__label) {
+    font-size: 13px;
+  }
+</style>
+
+<style>
+  .remote-login-dialog-header {
+    padding: 10px 24px 0 !important;
+    margin-bottom: 0 !important;
+  }
+
+  .remote-login-dialog-body {
+    padding: 0 24px 12px !important;
   }
 </style>
