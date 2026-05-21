@@ -12,20 +12,11 @@
       <ElFormItem label="手机号" prop="phone">
         <ElInput v-model="formData.phone" placeholder="请输入手机号" />
       </ElFormItem>
-      <ElFormItem label="性别" prop="gender">
-        <ElSelect v-model="formData.gender">
-          <ElOption label="男" value="男" />
-          <ElOption label="女" value="女" />
-        </ElSelect>
-      </ElFormItem>
       <ElFormItem label="角色" prop="role">
-        <ElSelect v-model="formData.role" multiple>
-          <ElOption
-            v-for="role in roleList"
-            :key="role.roleCode"
-            :value="role.roleCode"
-            :label="role.roleName"
-          />
+        <ElSelect v-model="formData.role">
+          <ElOption label="超级管理员" value="1" />
+          <ElOption label="管理员" value="2" />
+          <ElOption label="普通用户" value="3" />
         </ElSelect>
       </ElFormItem>
     </ElForm>
@@ -39,7 +30,6 @@
 </template>
 
 <script setup lang="ts">
-  import { ROLE_LIST_DATA } from '@/mock/temp/formData'
   import type { FormInstance, FormRules } from 'element-plus'
 
   interface Props {
@@ -50,14 +40,11 @@
 
   interface Emits {
     (e: 'update:visible', value: boolean): void
-    (e: 'submit'): void
+    (e: 'submit', data: { username: string; phone: string; role: string }): void
   }
 
   const props = defineProps<Props>()
   const emit = defineEmits<Emits>()
-
-  // 角色列表数据
-  const roleList = ref(ROLE_LIST_DATA)
 
   // 对话框显示控制
   const dialogVisible = computed({
@@ -74,8 +61,7 @@
   const formData = reactive({
     username: '',
     phone: '',
-    gender: '男',
-    role: [] as string[]
+    role: '3'
   })
 
   // 表单验证规则
@@ -88,7 +74,6 @@
       { required: true, message: '请输入手机号', trigger: 'blur' },
       { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号格式', trigger: 'blur' }
     ],
-    gender: [{ required: true, message: '请选择性别', trigger: 'blur' }],
     role: [{ required: true, message: '请选择角色', trigger: 'blur' }]
   }
 
@@ -103,8 +88,7 @@
     Object.assign(formData, {
       username: isEdit && row ? row.userName || '' : '',
       phone: isEdit && row ? row.userPhone || '' : '',
-      gender: isEdit && row ? (row as any).userGender || '男' : '男',
-      role: isEdit && row ? (Array.isArray(row.userRoles) ? row.userRoles : []) : []
+      role: isEdit && row ? (Array.isArray(row.userRoles) ? row.userRoles[0] : '3') : '3'
     })
   }
 
@@ -134,9 +118,8 @@
 
     await formRef.value.validate((valid) => {
       if (valid) {
-        ElMessage.success(dialogType.value === 'add' ? '添加成功' : '更新成功')
         dialogVisible.value = false
-        emit('submit')
+        emit('submit', { ...formData })
       }
     })
   }

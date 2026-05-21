@@ -128,6 +128,7 @@
     .text-wrap {
       position: absolute;
       bottom: 80px;
+      z-index: 20;
       width: 100%;
       text-align: center;
       animation: slideInLeft 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
@@ -146,6 +147,11 @@
     }
 
     .geometric-decorations {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+
       .geo-element {
         position: absolute;
         opacity: 0;
@@ -348,6 +354,7 @@
         top: 3%;
         right: 3%;
         z-index: 100;
+        pointer-events: auto;
         width: 50px;
         height: 50px;
         cursor: pointer;

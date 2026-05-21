@@ -5,24 +5,21 @@
 <!-- useTable 文档：https://www.pixiu-cloud.com/docs/zh/guide/hooks/use-table.html -->
 <template>
   <div class="user-page art-full-height">
-    <!-- 搜索栏 -->
-    <UserSearch v-model="searchForm" @search="handleSearch" @reset="resetSearchParams"></UserSearch>
-
     <ElCard class="art-table-card">
       <!-- 表格头部 -->
       <ArtTableHeader v-model:columns="columnChecks" :loading="loading" @refresh="refreshData">
         <template #left>
-          <ElButton @click="showDialog('add')" v-ripple>新增用户</ElButton>
-          <ElButton
-            type="danger"
-            plain
-            :disabled="selectedRows.length === 0"
-            :loading="batchDeleting"
-            @click="batchDeleteUsers"
-            v-ripple
-          >
-            批量删除
-          </ElButton>
+          <div style="display:flex;align-items:center;justify-content:space-between;width:100%">
+            <ElButton @click="showDialog('add')" v-ripple>新增用户</ElButton>
+            <ElInput
+              v-model="searchForm.userName"
+              clearable
+              placeholder="请输入用户名"
+              style="width: 320px; margin-right: 12px"
+              @keyup.enter="handleSearch"
+              @clear="resetSearchParams"
+            />
+          </div>
         </template>
       </ArtTableHeader>
 
@@ -33,7 +30,7 @@
         :data="data"
         :columns="columns"
         :pagination="pagination"
-        @selection-change="handleSelectionChange"
+        :pagination-options="{ align: 'right' }"
         @pagination:size-change="handleSizeChange"
         @pagination:current-change="handleCurrentChange"
       >
@@ -54,10 +51,9 @@
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import { ACCOUNT_TABLE_DATA } from '@/mock/temp/formData'
   import { useTable } from '@/hooks/core/useTable'
-  import { fetchBatchDeleteUsers, fetchGetUserList } from '@/api/system-manage'
-  import UserSearch from './modules/user-search.vue'
-  import UserDialog from './modules/user-dialog.vue'
-  import { ElTag, ElMessage, ElMessageBox, ElImage } from 'element-plus'
+  import { fetchBatchDeleteUsers, fetchCreateUser, fetchGetUserList, fetchUpdateUser } from '@/api/system-manage'
+    import UserDialog from './modules/user-dialog.vue'
+  import { ElLink, ElMessage } from 'element-plus'
   import { DialogType } from '@/types'
 
   defineOptions({ name: 'User' })
@@ -69,9 +65,6 @@
   const dialogVisible = ref(false)
   const currentUserData = ref<Partial<UserListItem>>({})
 
-  // 选中行
-  const selectedRows = ref<UserListItem[]>([])
-  const batchDeleting = ref(false)
 
   // 搜索表单
   const searchForm = ref({
@@ -79,27 +72,23 @@
     userGender: undefined,
     userPhone: undefined,
     userEmail: undefined,
-    status: '1'
+    status: undefined
   })
 
-  // 用户状态配置
-  const USER_STATUS_CONFIG = {
-    '1': { type: 'success' as const, text: '在线' },
-    '2': { type: 'info' as const, text: '离线' },
-    '3': { type: 'warning' as const, text: '异常' },
-    '4': { type: 'danger' as const, text: '注销' }
-  } as const
+  /** 用户状态：接口 status 字段，0-正常，1-禁用 */
+  const getUserStatusText = (status: string | number | undefined) => {
+    const value = Number(status)
+    if (value === 0) return '正常'
+    if (value === 1) return '禁用'
+    return '未知'
+  }
 
-  /**
-   * 获取用户状态配置
-   */
-  const getUserStatusConfig = (status: string) => {
-    return (
-      USER_STATUS_CONFIG[status as keyof typeof USER_STATUS_CONFIG] || {
-        type: 'info' as const,
-        text: '未知'
-      }
-    )
+  /** 用户角色：接口 role 字段，0-普通用户，1-管理员，2-超级管理员 */
+  const getUserRoleText = (role?: number) => {
+    if (role === 2) return '超级管理员'
+    if (role === 1) return '管理员'
+    if (role === 0) return '普通用户'
+    return '未知'
   }
 
   const {
@@ -129,48 +118,39 @@
       //   size: 'pageSize'
       // },
       columnsFactory: () => [
-        { type: 'selection', width: 30 }, // 勾选列
-        { type: 'index', width: 60, label: '序号' }, // 序号
         {
           prop: 'userInfo',
           label: '用户名',
           width: 280,
           // visible: false, // 默认是否显示列
-          formatter: (row) => {
-            return h('div', { class: 'user flex-c' }, [
-              h(ElImage, {
-                class: 'size-9.5 rounded-md',
-                src: row.avatar,
-                previewSrcList: [row.avatar],
-                // 图片预览是否插入至 body 元素上，用于解决表格内部图片预览样式异常
-                previewTeleported: true
-              }),
-              h('div', { class: 'ml-2' }, [
-                h('p', { class: 'user-name' }, row.userName),
-                h('p', { class: 'email' }, row.userEmail)
-              ])
-            ])
-          }
+          formatter: (row) =>
+            h('span', { class: 'user-name', style: { fontSize: '12px' } }, row.userName)
         },
-        {
-          prop: 'userGender',
-          label: '性别',
-          sortable: true,
-          formatter: (row) => (row as any).userGender
-        },
-        { prop: 'userPhone', label: '手机号' },
         {
           prop: 'status',
           label: '状态',
-          formatter: (row) => {
-            const statusConfig = getUserStatusConfig(row.status)
-            return h(ElTag, { type: statusConfig.type }, () => statusConfig.text)
-          }
+          formatter: (row) =>
+            h('span', { style: { fontSize: '12px' } }, getUserStatusText(row.status))
+        },
+        {
+          prop: 'role',
+          label: '角色',
+          formatter: (row) =>
+            h('span', { class: 'user-role', style: { fontSize: '12px' } }, getUserRoleText(row.role))
+        },
+        { prop: 'userPhone', label: '手机号' },
+        {
+          prop: 'userEmail',
+          label: '邮箱',
+          formatter: (row) =>
+            h('span', { class: 'user-email', style: { fontSize: '12px' } }, row.userEmail || '-')
         },
         {
           prop: 'createTime',
           label: '创建日期',
-          sortable: true
+          sortable: true,
+          formatter: (row) =>
+            h('span', { class: 'create-time', style: { fontSize: '12px' } }, row.createTime ?? '')
         },
         {
           prop: 'operation',
@@ -178,15 +158,19 @@
           width: 120,
           fixed: 'right', // 固定列
           formatter: (row) =>
-            h('div', [
-              h(ArtButtonTable, {
-                type: 'edit',
+            h('div', { style: 'display:flex;align-items:center;gap:12px;flex-wrap:nowrap' }, [
+              h(ElLink, {
+                type: 'primary',
+                underline: 'never',
+                style: 'font-size:12px',
                 onClick: () => showDialog('edit', row)
-              }),
-              h(ArtButtonTable, {
-                type: 'delete',
+              }, () => '编辑'),
+              h(ElLink, {
+                type: 'primary',
+                underline: 'never',
+                style: 'font-size:12px',
                 onClick: () => deleteUser(row)
-              })
+              }, () => '删除')
             ])
         }
       ]
@@ -216,8 +200,8 @@
    * 搜索处理
    * @param params 参数
    */
-  const handleSearch = (params: Api.SystemManage.UserSearchParams) => {
-    replaceSearchParams(params)
+  const handleSearch = () => {
+    replaceSearchParams({ userName: searchForm.value.userName })
     getData()
   }
 
@@ -233,74 +217,68 @@
     })
   }
 
-  /**
-   * 批量删除用户
-   */
-  const batchDeleteUsers = async (): Promise<void> => {
-    if (selectedRows.value.length === 0) {
-      ElMessage.warning('请先选择要删除的用户')
-      return
-    }
-    const rows = [...selectedRows.value]
-    const count = rows.length
-    try {
-      await ElMessageBox.confirm(
-        `确定删除选中的 ${count} 个用户吗？`,
-        '批量删除用户',
-        {
-          confirmButtonText: '确定',
-          cancelButtonText: '取消',
-          type: 'warning'
-        }
-      )
-    } catch {
-      return
-    }
-    batchDeleting.value = true
-    try {
-      const ids = rows.map((r) => r.id)
-      await fetchBatchDeleteUsers(ids)
-      ElMessage.success(`已删除 ${count} 个用户`)
-      selectedRows.value = []
-      await refreshData()
-    } catch {
-      // 错误提示由 HTTP 封装处理
-    } finally {
-      batchDeleting.value = false
-    }
-  }
 
   /**
    * 删除用户
    */
   const deleteUser = (row: UserListItem): void => {
-    console.log('删除用户:', row)
+    if (row.role === 2) {
+      ElMessage.warning('超级管理员不允许删除')
+      return
+    }
     ElMessageBox.confirm(`确定要注销该用户吗？`, '注销用户', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'error'
-    }).then(() => {
-      ElMessage.success('注销成功')
+    }).then(async () => {
+      try {
+        await fetchBatchDeleteUsers([row.id])
+        ElMessage.success('注销成功')
+        await refreshData()
+      } catch {
+        // 错误提示由 HTTP 封装处理
+      }
     })
   }
 
   /**
    * 处理弹窗提交事件
    */
-  const handleDialogSubmit = async () => {
+  const handleDialogSubmit = async (data: { username: string; phone: string; role: string }) => {
     try {
+      if (dialogType.value === 'add') {
+        await fetchCreateUser({
+          name: data.username,
+          password: 'Pixiu@123',
+          phone: data.phone,
+          role: Number(data.role) || 0
+        })
+        ElMessage.success('添加成功')
+      } else {
+        const row = currentUserData.value
+        await fetchUpdateUser({
+          id: row.id!,
+          resourceVersion: row.resourceVersion ?? 0,
+          phone: data.phone,
+          role: Number(data.role) || 0
+        })
+        ElMessage.success('更新成功')
+      }
       dialogVisible.value = false
       currentUserData.value = {}
+      await refreshData()
     } catch (error) {
-      console.error('提交失败:', error)
+      // 错误提示由 HTTP 封装处理
     }
   }
 
-  /**
-   * 处理表格行选择变化
-   */
-  const handleSelectionChange = (selection: UserListItem[]): void => {
-    selectedRows.value = selection
-    console.log('选中行数据:', selectedRows.value)
-  }
 </script>
+
+<style lang="scss" scoped>
+  .user-page :deep(.user-name),
+  .user-page :deep(.user-role),
+  .user-page :deep(.user-email),
+  .user-page :deep(.create-time) {
+    font-size: 12px;
+  }
+</style>
