@@ -1,7 +1,14 @@
-import axios from 'axios'
+import axios, { type InternalAxiosRequestConfig } from 'axios'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/store/modules/user'
 import { router } from '@/router'
+
+declare module 'axios' {
+  interface AxiosRequestConfig {
+    /** 为 true 时，业务码 401（如密码错误）不触发登出跳转 */
+    skipUnauthorizedRedirect?: boolean
+  }
+}
 
 const TOKEN_STORAGE_KEY = 'pixiu-access-token'
 
@@ -56,6 +63,48 @@ export interface ClusterItem {
   createTime: string
 }
 
+/** pixiu 接口错误（notified 为 true 表示拦截器已弹出提示，业务层无需重复提示） */
+export class PixiuApiError extends Error {
+  readonly notified: boolean
+
+  constructor(message: string, notified = false) {
+    super(message)
+    this.name = 'PixiuApiError'
+    this.notified = notified
+  }
+}
+
+/** 业务码 401 但属于接口业务错误（非登录态失效），例如修改密码时当前密码错误 */
+function isBusinessUnauthorized(message?: string): boolean {
+  if (!message) return false
+  return message.includes('密码错误')
+}
+
+/** 是否应按登录失效处理：清空登录态并跳转登录页 */
+function shouldRedirectUnauthorized(
+  code: number | undefined,
+  message: string | undefined,
+  config?: InternalAxiosRequestConfig
+): boolean {
+  if (code !== 401) return false
+  if (config?.skipUnauthorizedRedirect) return false
+  if (isBusinessUnauthorized(message)) return false
+  return true
+}
+
+function rejectPixiuUnauthorized(message: string) {
+  const userStore = useUserStore()
+  userStore.setLoginStatus(false)
+  userStore.setToken('')
+  ElMessage.error(message)
+  router.push('/login').catch(() => undefined)
+  return Promise.reject(new PixiuApiError(message, true))
+}
+
+function rejectPixiuBusinessError(message?: string) {
+  return Promise.reject(new PixiuApiError(message || '请求失败'))
+}
+
 /** 专用于 pixiu 后端的 axios 实例（响应格式为 { code, result, message }） */
 export const pixiuAxios = axios.create({
   baseURL: '/',
@@ -72,17 +121,20 @@ pixiuAxios.interceptors.response.use(
   (response) => {
     const { code, message } = response.data
     if (code === 200) return response
-    if (code === 401) {
-      const userStore = useUserStore()
-      userStore.setLoginStatus(false)
-      userStore.setToken('')
-      ElMessage.error(message || '未登陆或者密码被修改，请重新登陆')
-      router.push('/login').catch(() => undefined)
-      return Promise.reject(new Error(message || '未登陆或者密码被修改，请重新登陆'))
+    if (shouldRedirectUnauthorized(code, message, response.config)) {
+      return rejectPixiuUnauthorized(message || '未登陆或者密码被修改，请重新登陆')
     }
-    return Promise.reject(new Error(message || '请求失败'))
+    return rejectPixiuBusinessError(message)
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    const data = error.response?.data as { code?: number; message?: string } | undefined
+    const code = data?.code
+    const message = data?.message || error.message
+    if (shouldRedirectUnauthorized(code, message, error.config)) {
+      return rejectPixiuUnauthorized(message || '未登陆或者密码被修改，请重新登陆')
+    }
+    return rejectPixiuBusinessError(message)
+  }
 )
 
 async function pixiuGet<T>(url: string, params?: Record<string, unknown>): Promise<T> {

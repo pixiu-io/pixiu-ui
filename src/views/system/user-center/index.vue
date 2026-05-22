@@ -64,11 +64,25 @@
         <div class="art-card-sm my-5">
           <h1 class="p-4 text-xl font-normal border-b border-g-300">更改密码</h1>
           <ElForm ref="pwdFormRef" :model="pwdForm" :rules="pwdRules" class="box-border p-5" label-width="86px" label-position="top">
-            <ElFormItem label="当前密码" prop="old">
-              <ElInput v-model="pwdForm.old" type="password" :disabled="!isEditPwd" show-password placeholder="请输入当前密码" />
+            <ElFormItem label="当前密码" prop="currentPassword">
+              <ElInput
+                v-model="pwdForm.currentPassword"
+                type="password"
+                :disabled="!isEditPwd"
+                show-password
+                placeholder="请输入当前密码"
+                autocomplete="current-password"
+              />
             </ElFormItem>
             <ElFormItem label="新密码" prop="newPassword">
-              <ElInput v-model="pwdForm.newPassword" type="password" :disabled="!isEditPwd" show-password placeholder="至少8位，含大小写字母和数字" />
+              <ElInput
+                v-model="pwdForm.newPassword"
+                type="password"
+                :disabled="!isEditPwd"
+                show-password
+                placeholder="至少8位，含大小写字母和数字"
+                autocomplete="new-password"
+              />
             </ElFormItem>
             <ElFormItem label="确认新密码" prop="confirmPassword">
               <ElInput v-model="pwdForm.confirmPassword" type="password" :disabled="!isEditPwd" show-password placeholder="请再次输入新密码" />
@@ -90,8 +104,19 @@
   import type { FormInstance, FormRules } from 'element-plus'
   import defaultAvatar from '@imgs/user/default-avatar.svg'
   import { ElMessage } from 'element-plus'
-  import { fetchUpdateUser, fetchChangePassword } from '@/api/system-manage'
-  import { fetchGetUserList } from '@/api/system-manage'
+  import { PixiuApiError } from '@/api/container'
+  import {
+    fetchUpdateUser,
+    fetchChangePassword,
+    fetchGetUserById,
+    type PixiuUserProfile
+  } from '@/api/system-manage'
+
+  /** 展示接口错误（拦截器已提示过的不再重复弹出） */
+  function showRequestError(e: unknown, fallback: string) {
+    if (e instanceof PixiuApiError && e.notified) return
+    ElMessage.error(e instanceof Error ? e.message : fallback)
+  }
 
   defineOptions({ name: 'UserCenter' })
 
@@ -131,7 +156,7 @@
   })
 
   const form = reactive({ userName: '', phone: '', email: '', description: '' })
-  const pwdForm = reactive({ old: '', newPassword: '', confirmPassword: '' })
+  const pwdForm = reactive({ currentPassword: '', newPassword: '', confirmPassword: '' })
 
   const rules = reactive<FormRules>({
     email: [{ type: 'email', message: '请输入有效邮箱', trigger: 'blur' }],
@@ -139,7 +164,7 @@
   })
 
   const pwdRules = reactive<FormRules>({
-    old: [{ required: true, message: '请输入当前密码', trigger: 'blur' }],
+    currentPassword: [{ required: true, message: '请输入当前密码', trigger: 'blur' }],
     newPassword: [
       { required: true, message: '请输入新密码', trigger: 'blur' },
       { min: 6, message: '密码至少6位', trigger: 'blur' },
@@ -151,22 +176,36 @@
     ]
   })
 
+  function applyUserProfile(profile: PixiuUserProfile) {
+    form.userName = profile.userName
+    form.phone = profile.userPhone
+    form.email = profile.userEmail
+    form.description = profile.description
+    userResourceVersion.value = profile.resourceVersion
+    userRole.value = profile.role
+    userStatus.value = profile.status
+  }
+
+  function syncUserStore(profile: PixiuUserProfile) {
+    const current = userStore.getUserInfo
+    const roleMap: Record<number, string> = { 0: 'R_USER', 1: 'R_ADMIN', 2: 'R_SUPER' }
+    userStore.setUserInfo({
+      ...current,
+      userId: profile.id,
+      userName: profile.userName,
+      email: profile.userEmail,
+      roles: [roleMap[profile.role] ?? 'R_USER'],
+      buttons: current?.buttons ?? []
+    } as Api.Auth.UserInfo)
+  }
+
   async function loadUserInfo() {
     const u = userStore.getUserInfo
     if (!u?.userId) return
     try {
-      const res = await fetchGetUserList({ current: 1, size: 1, userName: u.userName })
-      const items = (res as any)?.records || []
-      const full = items.find((item: any) => item.id === Number(u.userId))
-      if (full) {
-        form.userName = full.userName || u.userName || ''
-        form.phone = full.userPhone || (u as any).phone || ''
-        form.email = full.userEmail || u.email || ''
-        form.description = full.description || (u as any).description || ''
-        userResourceVersion.value = full.resourceVersion ?? 0
-        userRole.value = full.role as number | undefined
-        userStatus.value = Number(full.status) as number | undefined
-      }
+      const profile = await fetchGetUserById(Number(u.userId))
+      applyUserProfile(profile)
+      syncUserStore(profile)
     } catch {
       form.userName = u.userName || ''
       form.email = u.email || ''
@@ -189,16 +228,20 @@
       saving.value = true
       try {
         const u = userStore.getUserInfo
-        if (u?.userId) await fetchUpdateUser({
-          id: Number(u.userId),
-          resourceVersion: userResourceVersion.value,
-          phone: form.phone,
-          email: form.email
-        })
-        userStore.setUserInfo({ ...userStore.getUserInfo, email: form.email } as Api.Auth.UserInfo)
+        if (u?.userId) {
+          await fetchUpdateUser({
+            id: Number(u.userId),
+            resourceVersion: userResourceVersion.value,
+            phone: form.phone,
+            email: form.email
+          })
+          await loadUserInfo()
+        }
         ElMessage.success('保存成功')
         isEdit.value = false
-      } catch (e: unknown) { ElMessage.error(e instanceof Error ? e.message : '保存失败') }
+      } catch (e: unknown) {
+        showRequestError(e, '保存失败')
+      }
       finally { saving.value = false }
     } else { isEdit.value = true }
   }
@@ -206,24 +249,38 @@
   async function onSavePwd() {
     if (isEditPwd.value) {
       if (!pwdFormRef.value) return
-      try { await pwdFormRef.value.validate() } catch { return }
+      try {
+        await pwdFormRef.value.validate()
+      } catch {
+        return
+      }
+      const u = userStore.getUserInfo
+      if (!u?.userId) {
+        ElMessage.error('未获取到用户信息')
+        return
+      }
       savingPwd.value = true
       try {
-        const u = userStore.getUserInfo
-        if (!u?.userId) { ElMessage.error('未获取到用户信息'); return }
         await fetchChangePassword({
           userId: Number(u.userId),
-          old: pwdForm.old,
-          new: pwdForm.newPassword,
+          currentPassword: pwdForm.currentPassword,
+          newPassword: pwdForm.newPassword,
           resourceVersion: userResourceVersion.value
         })
-        ElMessage.success('密码修改成功，请重新登录')
-        pwdForm.old = ''; pwdForm.newPassword = ''; pwdForm.confirmPassword = ''
+        pwdForm.currentPassword = ''
+        pwdForm.newPassword = ''
+        pwdForm.confirmPassword = ''
         isEditPwd.value = false
+        ElMessage.success('密码修改成功，请重新登录')
         userStore.logOut()
-      } catch (e: unknown) { ElMessage.error(e instanceof Error ? e.message : '修改失败') }
-      finally { savingPwd.value = false }
-    } else { isEditPwd.value = true }
+      } catch (e: unknown) {
+        showRequestError(e, '修改密码失败')
+      } finally {
+        savingPwd.value = false
+      }
+    } else {
+      isEditPwd.value = true
+    }
   }
 </script>
 

@@ -2,21 +2,48 @@ import request from '@/utils/http'
 import { AppRouteRecord } from '@/types/router'
 import { pixiuAxios } from './container'
 
+interface PixiuUserItem {
+  id: number
+  resource_version: number
+  name: string
+  email: string
+  phone: string
+  status: number
+  role: number
+  description?: string
+  gmt_create?: string
+  gmt_modified?: string
+}
+
 interface PixiuListUserResponse {
   total: number
   page?: number
   limit?: number
-  items?: Array<{
-    id: number
-    resource_version: number
-    name: string
-    email: string
-    phone: string
-    status: number
-    role: number
-    gmt_create: string
-    gmt_modified: string
-  }>
+  items?: PixiuUserItem[]
+}
+
+export interface PixiuUserProfile {
+  id: number
+  resourceVersion: number
+  userName: string
+  userPhone: string
+  userEmail: string
+  description: string
+  status: number
+  role: number
+}
+
+function mapPixiuUserItem(item: PixiuUserItem): PixiuUserProfile {
+  return {
+    id: item.id,
+    resourceVersion: item.resource_version ?? 0,
+    userName: item.name || '',
+    userPhone: item.phone || '',
+    userEmail: item.email || '',
+    description: item.description || '',
+    status: item.status ?? 0,
+    role: item.role ?? 0
+  }
 }
 
 interface CreatePixiuUserParams {
@@ -45,6 +72,16 @@ function formatDateTime(dateStr?: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
 
+// 根据 ID 获取用户详情
+export async function fetchGetUserById(userId: number): Promise<PixiuUserProfile> {
+  const res = await pixiuAxios.get(`/pixiu/users/${userId}`)
+  const { code, result, message } = res.data
+  if (code !== 200) {
+    throw new Error(message || '获取用户信息失败')
+  }
+  return mapPixiuUserItem((result || {}) as PixiuUserItem)
+}
+
 // 获取用户列表
 export async function fetchGetUserList(
   params: Api.SystemManage.UserSearchParams
@@ -65,22 +102,25 @@ export async function fetchGetUserList(
   }
 
   const payload = (result || {}) as PixiuListUserResponse
-  const records: Api.SystemManage.UserListItem[] = (payload.items || []).map((item) => ({
-    id: item.id,
-    resourceVersion: item.resource_version ?? 0,
-    avatar: '',
-    status: String(item.status ?? ''),
-    userName: item.name || '',
-    role: item.role ?? 0,
-    nickName: item.name || '',
-    userPhone: item.phone || '',
-    userEmail: item.email || '',
-    userRoles: [],
-    createBy: '',
-    createTime: formatDateTime(item.gmt_create),
-    updateBy: '',
-    updateTime: formatDateTime(item.gmt_modified)
-  }))
+  const records: Api.SystemManage.UserListItem[] = (payload.items || []).map((item) => {
+    const profile = mapPixiuUserItem(item)
+    return {
+      id: profile.id,
+      resourceVersion: profile.resourceVersion,
+      avatar: '',
+      status: String(profile.status),
+      userName: profile.userName,
+      role: profile.role,
+      nickName: profile.userName,
+      userPhone: profile.userPhone,
+      userEmail: profile.userEmail,
+      userRoles: [],
+      createBy: '',
+      createTime: formatDateTime(item.gmt_create),
+      updateBy: '',
+      updateTime: formatDateTime(item.gmt_modified)
+    }
+  })
 
   return {
     records,
@@ -125,19 +165,23 @@ export async function fetchBatchDeleteUsers(userIds: number[]): Promise<void> {
 
 interface ChangePasswordParams {
   userId: number
-  old: string
-  new: string
+  /** 当前密码（对应接口 old） */
+  currentPassword: string
+  /** 新密码（对应接口 new） */
+  newPassword: string
   resourceVersion: number
 }
 
 export async function fetchChangePassword(params: ChangePasswordParams): Promise<void> {
-  const res = await pixiuAxios.put(`/pixiu/users/${params.userId}/password`, {
-    old: params.old,
-    new: params.new,
-    resource_version: params.resourceVersion
-  })
-  const { code, message } = res.data
-  if (code !== 200) throw new Error(message || '修改密码失败')
+  await pixiuAxios.put(
+    `/pixiu/users/${params.userId}/password`,
+    {
+      old: params.currentPassword,
+      new: params.newPassword,
+      resource_version: params.resourceVersion
+    },
+    { skipUnauthorizedRedirect: true }
+  )
 }
 
 export async function fetchResetUserPassword(userId: number, resourceVersion: number, password: string): Promise<void> {
