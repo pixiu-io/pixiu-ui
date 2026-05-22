@@ -48,6 +48,12 @@
   display: none;
 }
 
+// 弹窗打开时 Element Plus 会将 body 宽度设为 calc(100% - 滚动条宽度)，导致整页左移出现右侧空隙
+body.el-popup-parent--hidden {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
 // 语言切换选中样式
 .langDropDownStyle {
   // 选中项背景颜色

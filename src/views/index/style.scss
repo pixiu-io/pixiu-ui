@@ -15,6 +15,7 @@
     min-width: 0;
     height: 100vh;
     overflow: auto;
+    scrollbar-gutter: stable;
 
     #app-header {
       position: sticky;
