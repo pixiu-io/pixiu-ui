@@ -36,11 +36,6 @@
           <ArtIconButton icon="ri:function-line" class="ml-3" />
         </ArtFastEnter>
 
-        <!-- 面包屑 -->
-        <ArtBreadcrumb
-          v-if="(shouldShowBreadcrumb && isLeftMenu) || (shouldShowBreadcrumb && isDualMenu)"
-        />
-
         <!-- 顶部菜单 -->
         <ArtHorizontalMenu v-if="isTopMenu" :list="menuList" />
 
@@ -191,7 +186,6 @@
     shouldShowMenuButton,
     shouldShowRefreshButton,
     shouldShowFastEnter,
-    shouldShowBreadcrumb,
     shouldShowGlobalSearch,
     shouldShowFullscreen,
     shouldShowNotification,
@@ -212,7 +206,6 @@
 
   // 菜单类型判断
   const isLeftMenu = computed(() => menuType.value === MenuTypeEnum.LEFT)
-  const isDualMenu = computed(() => menuType.value === MenuTypeEnum.DUAL_MENU)
   const isTopMenu = computed(() => menuType.value === MenuTypeEnum.TOP)
   const isTopLeftMenu = computed(() => menuType.value === MenuTypeEnum.TOP_LEFT)
 

@@ -138,6 +138,17 @@ export async function fetchChangePassword(params: ChangePasswordParams): Promise
   if (code !== 200) throw new Error(message || '修改密码失败')
 }
 
+export async function fetchResetUserPassword(userId: number, resourceVersion: number, password: string): Promise<void> {
+  const res = await pixiuAxios.put(`/pixiu/users/${userId}/password`, {
+    old: '',
+    new: password,
+    resource_version: resourceVersion,
+    reset: true
+  })
+  const { code, message } = res.data
+  if (code !== 200) throw new Error(message || '重置密码失败')
+}
+
 // 获取角色列表
 export function fetchGetRoleList(params: Api.SystemManage.RoleSearchParams) {
   return request.get<Api.SystemManage.RoleList>({
