@@ -127,12 +127,14 @@ interface ChangePasswordParams {
   userId: number
   old: string
   new: string
+  resourceVersion: number
 }
 
 export async function fetchChangePassword(params: ChangePasswordParams): Promise<void> {
   const res = await pixiuAxios.put(`/pixiu/users/${params.userId}/password`, {
     old: params.old,
-    new: params.new
+    new: params.new,
+    resource_version: params.resourceVersion
   })
   const { code, message } = res.data
   if (code !== 200) throw new Error(message || '修改密码失败')
