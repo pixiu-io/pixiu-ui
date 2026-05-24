@@ -195,12 +195,281 @@ export async function fetchResetUserPassword(userId: number, resourceVersion: nu
   if (code !== 200) throw new Error(message || '重置密码失败')
 }
 
+interface PixiuRoleItem {
+  id: number
+  resource_version: number
+  tenant_id: number
+  name: string
+  description?: string
+  gmt_create?: string
+  gmt_modified?: string
+}
+
+interface PixiuListRoleResponse {
+  total: number
+  page?: number
+  limit?: number
+  items?: PixiuRoleItem[]
+}
+
+function mapPixiuRoleItem(item: PixiuRoleItem): Api.SystemManage.RoleListItem {
+  return {
+    id: item.id,
+    resourceVersion: item.resource_version ?? 0,
+    roleName: item.name || '',
+    tenantId: item.tenant_id ?? 0,
+    description: item.description || '',
+    createTime: formatDateTime(item.gmt_create),
+    updateTime: formatDateTime(item.gmt_modified)
+  }
+}
+
 // 获取角色列表
-export function fetchGetRoleList(params: Api.SystemManage.RoleSearchParams) {
-  return request.get<Api.SystemManage.RoleList>({
-    url: '/api/role/list',
-    params
-  })
+export async function fetchGetRoleList(
+  params: Api.SystemManage.RoleSearchParams
+): Promise<Api.SystemManage.RoleList> {
+  const query: Record<string, unknown> = {
+    page: params.current || 1,
+    limit: params.size || 10
+  }
+  if (params.roleName) query.nameSelector = params.roleName
+  if (params.tenantId !== undefined && params.tenantId !== null) {
+    query.tenant_id = params.tenantId
+  }
+
+  const res = await pixiuAxios.get('/pixiu/roles', { params: query })
+  const { code, result, message } = res.data
+  if (code !== 200) {
+    throw new Error(message || '获取角色列表失败')
+  }
+
+  const payload = (result || {}) as PixiuListRoleResponse
+  const records = (payload.items || []).map((item) => mapPixiuRoleItem(item))
+
+  return {
+    records,
+    total: payload.total || 0,
+    current: params.current || 1,
+    size: params.size || 10
+  }
+}
+
+export async function fetchCreateRole(params: {
+  name: string
+  tenantId?: number
+  description?: string
+}): Promise<void> {
+  const body: Record<string, unknown> = { name: params.name }
+  if (params.tenantId !== undefined && params.tenantId > 0) {
+    body.tenant_id = params.tenantId
+  }
+  if (params.description) body.description = params.description
+  const res = await pixiuAxios.post('/pixiu/roles', body)
+  const { code, message } = res.data
+  if (code !== 200) throw new Error(message || '创建角色失败')
+}
+
+export async function fetchUpdateRole(params: {
+  id: number
+  resourceVersion: number
+  name?: string
+  description?: string
+}): Promise<void> {
+  const body: Record<string, unknown> = {
+    resource_version: params.resourceVersion
+  }
+  if (params.name) body.name = params.name
+  if (params.description !== undefined) body.description = params.description
+  const res = await pixiuAxios.put(`/pixiu/roles/${params.id}`, body)
+  const { code, message } = res.data
+  if (code !== 200) throw new Error(message || '更新角色失败')
+}
+
+export async function fetchDeleteRole(roleId: number): Promise<void> {
+  const res = await pixiuAxios.delete(`/pixiu/roles/${roleId}`)
+  const { code, message } = res.data
+  if (code !== 200) throw new Error(message || '删除角色失败')
+}
+
+interface PixiuTenantItem {
+  id: number
+  resource_version: number
+  name: string
+  description?: string
+  gmt_create?: string
+  gmt_modified?: string
+}
+
+interface PixiuListTenantResponse {
+  total: number
+  page?: number
+  limit?: number
+  items?: PixiuTenantItem[]
+}
+
+function mapPixiuTenantItem(item: PixiuTenantItem): Api.SystemManage.TenantListItem {
+  return {
+    id: item.id,
+    resourceVersion: item.resource_version ?? 0,
+    tenantName: item.name || '',
+    description: item.description || '',
+    createTime: formatDateTime(item.gmt_create),
+    updateTime: formatDateTime(item.gmt_modified)
+  }
+}
+
+export async function fetchGetTenantList(
+  params: Api.SystemManage.TenantSearchParams
+): Promise<Api.SystemManage.TenantList> {
+  const query: Record<string, unknown> = {
+    page: params.current || 1,
+    limit: params.size || 10
+  }
+  if (params.tenantName) query.nameSelector = params.tenantName
+
+  const res = await pixiuAxios.get('/pixiu/tenants', { params: query })
+  const { code, result, message } = res.data
+  if (code !== 200) {
+    throw new Error(message || '获取租户列表失败')
+  }
+
+  const payload = (result || {}) as PixiuListTenantResponse
+  const records = (payload.items || []).map((item) => mapPixiuTenantItem(item))
+
+  return {
+    records,
+    total: payload.total || 0,
+    current: params.current || 1,
+    size: params.size || 10
+  }
+}
+
+export async function fetchCreateTenant(params: {
+  name: string
+  description?: string
+}): Promise<void> {
+  const body: Record<string, unknown> = { name: params.name }
+  if (params.description) body.description = params.description
+  const res = await pixiuAxios.post('/pixiu/tenants', body)
+  const { code, message } = res.data
+  if (code !== 200) throw new Error(message || '创建租户失败')
+}
+
+export async function fetchUpdateTenant(params: {
+  id: number
+  resourceVersion: number
+  name?: string
+  description?: string
+}): Promise<void> {
+  const body: Record<string, unknown> = {
+    resource_version: params.resourceVersion
+  }
+  if (params.name) body.name = params.name
+  if (params.description !== undefined) body.description = params.description
+  const res = await pixiuAxios.put(`/pixiu/tenants/${params.id}`, body)
+  const { code, message } = res.data
+  if (code !== 200) throw new Error(message || '更新租户失败')
+}
+
+export async function fetchDeleteTenant(tenantId: number): Promise<void> {
+  const res = await pixiuAxios.delete(`/pixiu/tenants/${tenantId}`)
+  const { code, message } = res.data
+  if (code !== 200) throw new Error(message || '删除租户失败')
+}
+
+interface PixiuAPIItem {
+  id: number
+  resource_version: number
+  method: string
+  path: string
+  description?: string
+  gmt_create?: string
+  gmt_modified?: string
+}
+
+interface PixiuListAPIResponse {
+  total: number
+  page?: number
+  limit?: number
+  items?: PixiuAPIItem[]
+}
+
+function mapPixiuAPIItem(item: PixiuAPIItem): Api.SystemManage.APIListItem {
+  return {
+    id: item.id,
+    resourceVersion: item.resource_version ?? 0,
+    method: item.method || '',
+    path: item.path || '',
+    description: item.description || '',
+    createTime: formatDateTime(item.gmt_create),
+    updateTime: formatDateTime(item.gmt_modified)
+  }
+}
+
+export async function fetchGetAPIList(
+  params: Api.SystemManage.APISearchParams
+): Promise<Api.SystemManage.APIList> {
+  const query: Record<string, unknown> = {
+    page: params.current || 1,
+    limit: params.size || 10
+  }
+  if (params.path) query.pathSelector = params.path
+  if (params.method) query.method = params.method
+
+  const res = await pixiuAxios.get('/pixiu/apis', { params: query })
+  const { code, result, message } = res.data
+  if (code !== 200) {
+    throw new Error(message || '获取 API 列表失败')
+  }
+
+  const payload = (result || {}) as PixiuListAPIResponse
+  const records = (payload.items || []).map((item) => mapPixiuAPIItem(item))
+
+  return {
+    records,
+    total: payload.total || 0,
+    current: params.current || 1,
+    size: params.size || 10
+  }
+}
+
+export async function fetchCreateAPI(params: {
+  method: string
+  path: string
+  description?: string
+}): Promise<void> {
+  const body: Record<string, unknown> = {
+    method: params.method,
+    path: params.path
+  }
+  if (params.description) body.description = params.description
+  const res = await pixiuAxios.post('/pixiu/apis', body)
+  const { code, message } = res.data
+  if (code !== 200) throw new Error(message || '创建 API 失败')
+}
+
+export async function fetchUpdateAPI(params: {
+  id: number
+  resourceVersion: number
+  method?: string
+  path?: string
+  description?: string
+}): Promise<void> {
+  const body: Record<string, unknown> = {
+    resource_version: params.resourceVersion
+  }
+  if (params.method) body.method = params.method
+  if (params.path) body.path = params.path
+  if (params.description !== undefined) body.description = params.description
+  const res = await pixiuAxios.put(`/pixiu/apis/${params.id}`, body)
+  const { code, message } = res.data
+  if (code !== 200) throw new Error(message || '更新 API 失败')
+}
+
+export async function fetchDeleteAPI(apiId: number): Promise<void> {
+  const res = await pixiuAxios.delete(`/pixiu/apis/${apiId}`)
+  const { code, message } = res.data
+  if (code !== 200) throw new Error(message || '删除 API 失败')
 }
 
 // 获取菜单列表

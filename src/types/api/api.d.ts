@@ -119,23 +119,57 @@ declare namespace Api {
     /** 角色列表 */
     type RoleList = Api.Common.PaginatedResponse<RoleListItem>
 
-    /** 角色列表项 */
+    /** 角色列表项（Pixiu RBAC 角色） */
     interface RoleListItem {
-      roleId: number
+      id: number
+      resourceVersion: number
       roleName: string
-      roleCode: string
+      tenantId: number
       description: string
-      enabled: boolean
       createTime: string
+      updateTime: string
     }
 
     /** 角色搜索参数 */
     type RoleSearchParams = Partial<
-      Pick<RoleListItem, 'roleId' | 'roleName' | 'roleCode' | 'description' | 'enabled'> &
-        Api.Common.CommonSearchParams & {
-          startTime: string | null
-          endTime: string | null
-        }
+      Pick<RoleListItem, 'roleName' | 'tenantId'> & Api.Common.CommonSearchParams
+    >
+
+    /** 租户列表 */
+    type TenantList = Api.Common.PaginatedResponse<TenantListItem>
+
+    /** 租户列表项 */
+    interface TenantListItem {
+      id: number
+      resourceVersion: number
+      tenantName: string
+      description: string
+      createTime: string
+      updateTime: string
+    }
+
+    /** 租户搜索参数 */
+    type TenantSearchParams = Partial<
+      Pick<TenantListItem, 'tenantName'> & Api.Common.CommonSearchParams
+    >
+
+    /** API 列表 */
+    type APIList = Api.Common.PaginatedResponse<APIListItem>
+
+    /** API 列表项 */
+    interface APIListItem {
+      id: number
+      resourceVersion: number
+      method: string
+      path: string
+      description: string
+      createTime: string
+      updateTime: string
+    }
+
+    /** API 搜索参数 */
+    type APISearchParams = Partial<
+      Pick<APIListItem, 'method' | 'path'> & Api.Common.CommonSearchParams
     >
   }
 }

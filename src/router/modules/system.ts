@@ -33,6 +33,28 @@ export const systemRoutes: AppRouteRecord = {
       }
     },
     {
+      path: 'tenant',
+      name: 'Tenant',
+      component: '/system/tenant',
+      meta: {
+        title: 'menus.system.tenant',
+        icon: 'ri:building-line',
+        keepAlive: true,
+        roles: ['R_SUPER']
+      }
+    },
+    {
+      path: 'api',
+      name: 'ApiManage',
+      component: '/system/api',
+      meta: {
+        title: 'menus.system.api',
+        icon: 'ri:links-line',
+        keepAlive: true,
+        roles: ['R_SUPER']
+      }
+    },
+    {
       path: 'user-center',
       name: 'UserCenter',
       component: '/system/user-center',

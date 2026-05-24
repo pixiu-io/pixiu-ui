@@ -231,6 +231,8 @@
       "title": "System Settings",
       "user": "User Manage",
       "role": "Role Manage",
+      "tenant": "Tenant",
+      "api": "API",
       "userCenter": "User Center",
       "menu": "Menu Manage"
     },

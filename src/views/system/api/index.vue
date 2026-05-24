@@ -1,16 +1,16 @@
-<!-- 角色管理页面 -->
+<!-- API 管理页面 -->
 <template>
-  <div class="role-page art-full-height" style="padding-top: 10px">
+  <div class="api-page art-full-height" style="padding-top: 10px">
     <div
-      class="role-toolbar"
+      class="api-toolbar"
       style="margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between"
     >
-      <ElButton @click="showDialog('add')" v-ripple>创建角色</ElButton>
+      <ElButton @click="showDialog('add')" v-ripple>创建 API</ElButton>
       <div style="display: flex; align-items: center; gap: 8px">
         <ElInput
-          v-model="searchForm.roleName"
+          v-model="searchForm.path"
           clearable
-          placeholder="请输入角色名称"
+          placeholder="请输入 API 路径"
           style="width: 240px"
           @keyup.enter="handleSearch"
           @clear="resetSearchParams"
@@ -30,10 +30,10 @@
         @pagination:current-change="handleCurrentChange"
       />
 
-      <RoleDialog
+      <ApiDialog
         v-model:visible="dialogVisible"
         :type="dialogType"
-        :role-data="currentRoleData"
+        :api-data="currentApiData"
         @submit="handleDialogSubmit"
       />
     </ElCard>
@@ -43,30 +43,36 @@
 <script setup lang="ts">
   import { useTable } from '@/hooks/core/useTable'
   import {
-    fetchCreateRole,
-    fetchDeleteRole,
-    fetchGetRoleList,
-    fetchUpdateRole
+    fetchCreateAPI,
+    fetchDeleteAPI,
+    fetchGetAPIList,
+    fetchUpdateAPI
   } from '@/api/system-manage'
-  import RoleDialog from './modules/role-dialog.vue'
+  import ApiDialog from './modules/api-dialog.vue'
   import { ElLink, ElMessage, ElMessageBox, ElTag } from 'element-plus'
   import { DialogType } from '@/types'
 
-  defineOptions({ name: 'Role' })
+  defineOptions({ name: 'ApiManage' })
 
-  type RoleListItem = Api.SystemManage.RoleListItem
+  type APIListItem = Api.SystemManage.APIListItem
 
   const dialogType = ref<DialogType>('add')
   const dialogVisible = ref(false)
-  const currentRoleData = ref<Partial<RoleListItem>>({})
+  const currentApiData = ref<Partial<APIListItem>>({})
 
   const searchForm = ref({
-    roleName: undefined as string | undefined
+    path: undefined as string | undefined
   })
 
-  const getTenantTag = (tenantId?: number) => {
-    if (!tenantId) return { type: 'info' as const, text: '全局角色' }
-    return { type: 'primary' as const, text: `租户 ${tenantId}` }
+  const getMethodTagType = (method: string) => {
+    const map: Record<string, 'primary' | 'success' | 'warning' | 'danger' | 'info'> = {
+      GET: 'primary',
+      POST: 'success',
+      PUT: 'warning',
+      DELETE: 'danger',
+      PATCH: 'info'
+    }
+    return map[method?.toUpperCase()] || 'info'
   }
 
   const {
@@ -83,7 +89,7 @@
     refreshData
   } = useTable({
     core: {
-      apiFn: fetchGetRoleList,
+      apiFn: fetchGetAPIList,
       apiParams: {
         current: 1,
         size: 10,
@@ -91,19 +97,23 @@
       },
       columnsFactory: () => [
         {
-          prop: 'roleName',
-          label: '角色名称',
-          width: 160,
+          prop: 'method',
+          label: '请求方法',
+          width: 100,
           formatter: (row) =>
-            h('span', { class: 'role-name', style: { fontSize: '12px' } }, row.roleName)
+            h(
+              ElTag,
+              { type: getMethodTagType(row.method), size: 'small' },
+              () => row.method
+            )
         },
         {
-          prop: 'tenantId',
-          label: '租户',
-          formatter: (row) => {
-            const tag = getTenantTag(row.tenantId)
-            return h(ElTag, { type: tag.type, size: 'small' }, () => tag.text)
-          }
+          prop: 'path',
+          label: '请求路径',
+          minWidth: 220,
+          showOverflowTooltip: true,
+          formatter: (row) =>
+            h('span', { class: 'api-path', style: { fontSize: '12px' } }, row.path)
         },
         {
           prop: 'description',
@@ -145,7 +155,7 @@
                   type: 'primary',
                   underline: 'never',
                   style: 'font-size:12px',
-                  onClick: () => deleteRole(row)
+                  onClick: () => deleteApi(row)
                 },
                 () => '删除'
               )
@@ -156,26 +166,26 @@
   })
 
   const handleSearch = () => {
-    replaceSearchParams({ roleName: searchForm.value.roleName })
+    replaceSearchParams({ path: searchForm.value.path })
     getData()
   }
 
-  const showDialog = (type: DialogType, row?: RoleListItem): void => {
+  const showDialog = (type: DialogType, row?: APIListItem): void => {
     dialogType.value = type
-    currentRoleData.value = row || {}
+    currentApiData.value = row || {}
     nextTick(() => {
       dialogVisible.value = true
     })
   }
 
-  const deleteRole = (row: RoleListItem): void => {
-    ElMessageBox.confirm(`确定要删除角色「${row.roleName}」吗？`, '删除角色', {
+  const deleteApi = (row: APIListItem): void => {
+    ElMessageBox.confirm(`确定要删除 API「${row.method} ${row.path}」吗？`, '删除 API', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'error'
     }).then(async () => {
       try {
-        await fetchDeleteRole(row.id)
+        await fetchDeleteAPI(row.id)
         ElMessage.success('删除成功')
         await refreshData()
       } catch {
@@ -185,31 +195,31 @@
   }
 
   const handleDialogSubmit = async (data: {
-    roleName: string
-    tenantId?: number
+    method: string
+    path: string
     description: string
   }) => {
     try {
       if (dialogType.value === 'add') {
-        const tenantId = data.tenantId ?? 0
-        await fetchCreateRole({
-          name: data.roleName,
-          tenantId: tenantId > 0 ? tenantId : undefined,
+        await fetchCreateAPI({
+          method: data.method,
+          path: data.path,
           description: data.description || undefined
         })
         ElMessage.success('添加成功')
       } else {
-        const row = currentRoleData.value
-        await fetchUpdateRole({
+        const row = currentApiData.value
+        await fetchUpdateAPI({
           id: row.id!,
           resourceVersion: row.resourceVersion ?? 0,
-          name: data.roleName,
+          method: data.method,
+          path: data.path,
           description: data.description
         })
         ElMessage.success('更新成功')
       }
       dialogVisible.value = false
-      currentRoleData.value = {}
+      currentApiData.value = {}
       await refreshData()
     } catch {
       // 错误提示由 HTTP 封装处理
@@ -218,22 +228,22 @@
 </script>
 
 <style lang="scss" scoped>
-  .role-page :deep(.role-name),
-  .role-page :deep(.create-time) {
+  .api-page :deep(.api-path),
+  .api-page :deep(.create-time) {
     font-size: 12px;
   }
 
-  .role-page :deep(.art-table-card .el-card__body) {
+  .api-page :deep(.art-table-card .el-card__body) {
     padding-top: 8px;
     padding-bottom: 0;
   }
 
-  .role-page :deep(.custom-pagination) {
+  .api-page :deep(.custom-pagination) {
     padding-bottom: 0;
     margin-bottom: 0;
   }
 
-  .role-page :deep(.el-pagination) {
+  .api-page :deep(.el-pagination) {
     padding: 2px 0;
   }
 </style>
