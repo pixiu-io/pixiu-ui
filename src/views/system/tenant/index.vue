@@ -88,9 +88,19 @@
         {
           prop: 'tenantName',
           label: '租户名称',
-          width: 160,
+          width: 280,
+          showOverflowTooltip: true,
           formatter: (row) =>
             h('span', { class: 'tenant-name', style: { fontSize: '12px' } }, row.tenantName)
+        },
+        {
+          prop: 'createTime',
+          label: '创建时间',
+          width: 240,
+          showOverflowTooltip: true,
+          sortable: true,
+          formatter: (row) =>
+            h('span', { class: 'create-time', style: { fontSize: '12px' } }, row.createTime ?? '')
         },
         {
           prop: 'description',
@@ -99,15 +109,6 @@
           showOverflowTooltip: true,
           formatter: (row) =>
             h('span', { style: { fontSize: '12px' } }, row.description || '-')
-        },
-        {
-          prop: 'createTime',
-          label: '创建日期',
-          width: 170,
-          showOverflowTooltip: true,
-          sortable: true,
-          formatter: (row) =>
-            h('span', { class: 'create-time', style: { fontSize: '12px' } }, row.createTime ?? '')
         },
         {
           prop: 'operation',
