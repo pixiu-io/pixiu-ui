@@ -34,22 +34,28 @@
               placeholder="请输入"
             />
             <ElScrollbar class="role-api-picker__body">
-              <ElCollapse :model-value="leftExpandedGroupKeys" class="role-api-picker__collapse">
+              <ElCollapse v-model="leftExpandedKeys" class="role-api-picker__collapse">
                 <ElCollapseItem
                   v-for="group in filteredLeftGroups"
                   :key="group.key"
                   :name="group.key"
                 >
                   <template #title>
-                    <div class="role-api-picker__group-title" @click.stop>
+                    <div class="role-api-picker__group-title">
                       <ElCheckbox
                         :model-value="isGroupFullyChecked(group, 'left')"
                         :indeterminate="isGroupIndeterminate(group, 'left')"
                         @change="(val: boolean) => toggleGroup(group, 'left', val)"
                         @click.stop
                       />
-                      <span class="role-api-picker__group-name">{{ group.label }}</span>
-                      <span class="role-api-picker__group-count">({{ group.apis.length }})</span>
+                      <span
+                        class="role-api-picker__group-name"
+                        @click.stop="toggleGroupExpand(group.key, 'left')"
+                      >{{ group.label }}</span>
+                      <span
+                        class="role-api-picker__group-count"
+                        @click.stop="toggleGroupExpand(group.key, 'left')"
+                      >({{ group.apis.length }})</span>
                     </div>
                   </template>
                   <div class="role-api-picker__items">
@@ -115,22 +121,28 @@
               placeholder="请输入"
             />
             <ElScrollbar class="role-api-picker__body">
-              <ElCollapse :model-value="rightExpandedGroupKeys" class="role-api-picker__collapse">
+              <ElCollapse v-model="rightExpandedKeys" class="role-api-picker__collapse">
                 <ElCollapseItem
                   v-for="group in filteredRightGroups"
                   :key="group.key"
                   :name="group.key"
                 >
                   <template #title>
-                    <div class="role-api-picker__group-title" @click.stop>
+                    <div class="role-api-picker__group-title">
                       <ElCheckbox
                         :model-value="isGroupFullyChecked(group, 'right')"
                         :indeterminate="isGroupIndeterminate(group, 'right')"
                         @change="(val: boolean) => toggleGroup(group, 'right', val)"
                         @click.stop
                       />
-                      <span class="role-api-picker__group-name">{{ group.label }}</span>
-                      <span class="role-api-picker__group-count">({{ group.apis.length }})</span>
+                      <span
+                        class="role-api-picker__group-name"
+                        @click.stop="toggleGroupExpand(group.key, 'right')"
+                      >{{ group.label }}</span>
+                      <span
+                        class="role-api-picker__group-count"
+                        @click.stop="toggleGroupExpand(group.key, 'right')"
+                      >({{ group.apis.length }})</span>
                     </div>
                   </template>
                   <div class="role-api-picker__items">
@@ -218,6 +230,8 @@
   const rightCheckedIds = ref<number[]>([])
   const leftFilter = ref('')
   const rightFilter = ref('')
+  const leftExpandedKeys = ref<string[]>([])
+  const rightExpandedKeys = ref<string[]>([])
 
   const roleName = computed(() => props.roleData?.roleName || '')
 
@@ -243,14 +257,6 @@
   const filteredLeftGroups = computed(() => filterGroups(leftGroups.value, leftFilter.value))
 
   const filteredRightGroups = computed(() => filterGroups(rightGroups.value, rightFilter.value))
-
-  const leftExpandedGroupKeys = computed(() =>
-    getExpandedGroupKeys(filteredLeftGroups.value, leftCheckedIds.value)
-  )
-
-  const rightExpandedGroupKeys = computed(() =>
-    getExpandedGroupKeys(filteredRightGroups.value, rightCheckedIds.value)
-  )
 
   const visibleLeftApiIds = computed(() =>
     filteredLeftGroups.value.flatMap((group) => group.apis.map((api) => api.id))
@@ -286,12 +292,18 @@
     return checkedCount > 0 && checkedCount < visibleRightApiIds.value.length
   })
 
-  /** 仅当分组内存在已勾选子项时展开 */
-  function getExpandedGroupKeys(groups: ApiGroup[], checkedIds: number[]): string[] {
-    const checkedSet = new Set(checkedIds)
-    return groups
-      .filter((group) => group.apis.some((api) => checkedSet.has(api.id)))
-      .map((group) => group.key)
+  function getExpandedKeysRef(side: PanelSide) {
+    return side === 'left' ? leftExpandedKeys : rightExpandedKeys
+  }
+
+  function toggleGroupExpand(groupKey: string, side: PanelSide) {
+    const expanded = getExpandedKeysRef(side)
+    const index = expanded.value.indexOf(groupKey)
+    if (index >= 0) {
+      expanded.value = expanded.value.filter((key) => key !== groupKey)
+    } else {
+      expanded.value = [...expanded.value, groupKey]
+    }
   }
 
   function normalizeGroup(group?: string): { key: string; label: string } {
@@ -471,6 +483,8 @@
       rightCheckedIds.value = []
       leftFilter.value = ''
       rightFilter.value = ''
+      leftExpandedKeys.value = []
+      rightExpandedKeys.value = []
     } catch (e: unknown) {
       const err = e as { message?: string }
       ElMessage.error(err?.message || '获取角色权限失败')
@@ -487,6 +501,8 @@
     rightCheckedIds.value = []
     leftFilter.value = ''
     rightFilter.value = ''
+    leftExpandedKeys.value = []
+    rightExpandedKeys.value = []
   }
 
   async function handleSubmit() {
@@ -640,8 +656,15 @@
     padding: 10px 12px;
     box-sizing: border-box;
 
-    :deep(.el-input__inner),
     :deep(.el-input__wrapper) {
+      height: 30px;
+      min-height: 30px;
+      font-size: 12px;
+    }
+
+    :deep(.el-input__inner) {
+      height: 30px;
+      line-height: 30px;
       font-size: 12px;
     }
   }
@@ -718,12 +741,16 @@
     font-size: 12px;
     font-weight: 500;
     color: var(--el-text-color-primary);
+    cursor: pointer;
+    user-select: none;
   }
 
   .role-api-picker__group-count {
     flex-shrink: 0;
     font-size: 12px;
     color: var(--el-text-color-secondary);
+    cursor: pointer;
+    user-select: none;
   }
 
   .role-api-picker__items {
