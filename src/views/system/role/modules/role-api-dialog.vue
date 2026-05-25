@@ -74,14 +74,7 @@
                       class="role-api-picker__item"
                       @change="(val: boolean) => toggleApiCheck(api.id, 'left', val)"
                     >
-                      <ElTooltip
-                        :content="formatApiTooltip(api)"
-                        placement="top"
-                        :show-after="300"
-                        popper-class="role-api-transfer-tooltip"
-                      >
-                        <span class="role-api-picker__item-label">{{ formatApiDescription(api) }}</span>
-                      </ElTooltip>
+                      <span class="role-api-picker__item-label">{{ formatApiDescription(api) }}</span>
                     </ElCheckbox>
                   </div>
                 </ElCollapseItem>
@@ -169,14 +162,7 @@
                       class="role-api-picker__item"
                       @change="(val: boolean) => toggleApiCheck(api.id, 'right', val)"
                     >
-                      <ElTooltip
-                        :content="formatApiTooltip(api)"
-                        placement="top"
-                        :show-after="300"
-                        popper-class="role-api-transfer-tooltip"
-                      >
-                        <span class="role-api-picker__item-label">{{ formatApiDescription(api) }}</span>
-                      </ElTooltip>
+                      <span class="role-api-picker__item-label">{{ formatApiDescription(api) }}</span>
                     </ElCheckbox>
                   </div>
                 </ElCollapseItem>
@@ -400,10 +386,6 @@
     return api.description?.trim() || api.path
   }
 
-  function formatApiTooltip(api: ApiItem): string {
-    return `${formatApiDescription(api)} (${api.method} ${api.path})`
-  }
-
   function mapApiResource(api: {
     id: number
     method: string
@@ -596,11 +578,6 @@
   :global(.role-api-dialog-body) {
     padding: 20px 16px 12px 20px !important;
     font-size: 12px;
-  }
-
-  :global(.role-api-transfer-tooltip) {
-    max-width: 480px;
-    word-break: break-all;
   }
 
   :global(.role-api-dialog-footer) {
