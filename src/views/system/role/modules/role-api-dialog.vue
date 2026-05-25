@@ -2,7 +2,7 @@
   <ElDialog
     v-model="dialogVisible"
     :title="dialogTitle"
-    width="760px"
+    width="600px"
     class="role-api-dialog"
     header-class="role-api-dialog-header"
     body-class="role-api-dialog-body"
@@ -536,7 +536,7 @@
   }
 
   :global(.role-api-dialog-body) {
-    padding: 20px 20px 12px 30px !important;
+    padding: 20px 16px 12px 20px !important;
     font-size: 12px;
   }
 
@@ -605,7 +605,7 @@
 
   .role-api-picker__panel {
     flex-shrink: 0;
-    width: 280px;
+    width: 240px;
     border: 1px solid var(--el-border-color-lighter);
     border-radius: var(--el-border-radius-base);
     background: var(--el-bg-color-overlay);
@@ -647,7 +647,7 @@
   }
 
   .role-api-picker__body {
-    height: 280px;
+    height: 240px;
     padding: 0 6px 8px;
     box-sizing: border-box;
   }
@@ -772,7 +772,7 @@
     justify-content: center;
     align-self: center;
     gap: 10px;
-    padding: 0 12px;
+    padding: 0 8px;
 
     :deep(.role-api-picker__action-btn.el-button) {
       display: inline-flex;
