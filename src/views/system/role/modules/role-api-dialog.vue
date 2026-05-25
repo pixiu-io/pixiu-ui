@@ -25,6 +25,14 @@
                 未选资源
                 <span class="role-api-picker__count">{{ leftCheckedIds.length }}/{{ leftApiIds.length }}</span>
               </span>
+              <button
+                type="button"
+                class="role-api-picker__expand-btn"
+                :disabled="!filteredLeftGroups.length"
+                @click="togglePanelExpandAll('left')"
+              >
+                {{ isLeftAllExpanded ? '收起' : '展开' }}
+              </button>
             </div>
             <ElInput
               v-model="leftFilter"
@@ -112,6 +120,14 @@
                 已选资源
                 <span class="role-api-picker__count">{{ rightCheckedIds.length }}/{{ rightApiIds.length }}</span>
               </span>
+              <button
+                type="button"
+                class="role-api-picker__expand-btn"
+                :disabled="!filteredRightGroups.length"
+                @click="togglePanelExpandAll('right')"
+              >
+                {{ isRightAllExpanded ? '收起' : '展开' }}
+              </button>
             </div>
             <ElInput
               v-model="rightFilter"
@@ -292,6 +308,18 @@
     return checkedCount > 0 && checkedCount < visibleRightApiIds.value.length
   })
 
+  const isLeftAllExpanded = computed(() => {
+    const keys = filteredLeftGroups.value.map((group) => group.key)
+    if (!keys.length) return false
+    return keys.every((key) => leftExpandedKeys.value.includes(key))
+  })
+
+  const isRightAllExpanded = computed(() => {
+    const keys = filteredRightGroups.value.map((group) => group.key)
+    if (!keys.length) return false
+    return keys.every((key) => rightExpandedKeys.value.includes(key))
+  })
+
   function getExpandedKeysRef(side: PanelSide) {
     return side === 'left' ? leftExpandedKeys : rightExpandedKeys
   }
@@ -304,6 +332,20 @@
     } else {
       expanded.value = [...expanded.value, groupKey]
     }
+  }
+
+  function togglePanelExpandAll(side: PanelSide) {
+    const groups = side === 'left' ? filteredLeftGroups.value : filteredRightGroups.value
+    const expanded = getExpandedKeysRef(side)
+    const allKeys = groups.map((group) => group.key)
+    const isAllExpanded =
+      allKeys.length > 0 && allKeys.every((key) => expanded.value.includes(key))
+
+    if (isAllExpanded) {
+      expanded.value = []
+      return
+    }
+    expanded.value = [...allKeys]
   }
 
   function normalizeGroup(group?: string): { key: string; label: string } {
@@ -650,6 +692,27 @@
     margin-left: 4px;
     font-size: 12px;
     color: var(--el-text-color-secondary);
+  }
+
+  .role-api-picker__expand-btn {
+    flex-shrink: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    font-size: 12px;
+    line-height: 1;
+    color: var(--el-color-primary);
+    cursor: pointer;
+    user-select: none;
+
+    &:hover:not(:disabled) {
+      color: var(--el-color-primary-light-3);
+    }
+
+    &:disabled {
+      color: var(--el-text-color-disabled);
+      cursor: not-allowed;
+    }
   }
 
   .role-api-picker__filter {
