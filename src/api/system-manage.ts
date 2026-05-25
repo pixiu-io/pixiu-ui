@@ -291,6 +291,40 @@ export async function fetchDeleteRole(roleId: number): Promise<void> {
   if (code !== 200) throw new Error(message || '删除角色失败')
 }
 
+interface PixiuAPIResource {
+  id: number
+  resource_version?: number
+  method: string
+  path: string
+  group?: string
+  description?: string
+  gmt_create?: string
+  gmt_modified?: string
+}
+
+export interface RoleAPIsResult {
+  associated: PixiuAPIResource[]
+  unassociated: PixiuAPIResource[]
+}
+
+export async function fetchGetRoleAPIs(roleId: number): Promise<RoleAPIsResult> {
+  const res = await pixiuAxios.get(`/pixiu/roles/${roleId}/apis`)
+  const { code, result, message } = res.data
+  if (code !== 200) throw new Error(message || '获取角色 API 权限失败')
+
+  const payload = (result || {}) as RoleAPIsResult
+  return {
+    associated: payload.associated || [],
+    unassociated: payload.unassociated || []
+  }
+}
+
+export async function fetchUpdateRoleAPIs(roleId: number, apiIds: number[]): Promise<void> {
+  const res = await pixiuAxios.put(`/pixiu/roles/${roleId}/apis`, { api_ids: apiIds })
+  const { code, message } = res.data
+  if (code !== 200) throw new Error(message || '更新角色 API 权限失败')
+}
+
 interface PixiuTenantItem {
   id: number
   resource_version: number
@@ -382,6 +416,7 @@ interface PixiuAPIItem {
   resource_version: number
   method: string
   path: string
+  group?: string
   description?: string
   gmt_create?: string
   gmt_modified?: string
@@ -400,6 +435,7 @@ function mapPixiuAPIItem(item: PixiuAPIItem): Api.SystemManage.APIListItem {
     resourceVersion: item.resource_version ?? 0,
     method: item.method || '',
     path: item.path || '',
+    group: item.group || '',
     description: item.description || '',
     createTime: formatDateTime(item.gmt_create),
     updateTime: formatDateTime(item.gmt_modified)
@@ -436,12 +472,14 @@ export async function fetchGetAPIList(
 export async function fetchCreateAPI(params: {
   method: string
   path: string
+  group?: string
   description?: string
 }): Promise<void> {
   const body: Record<string, unknown> = {
     method: params.method,
     path: params.path
   }
+  if (params.group) body.group = params.group
   if (params.description) body.description = params.description
   const res = await pixiuAxios.post('/pixiu/apis', body)
   const { code, message } = res.data
@@ -453,6 +491,7 @@ export async function fetchUpdateAPI(params: {
   resourceVersion: number
   method?: string
   path?: string
+  group?: string
   description?: string
 }): Promise<void> {
   const body: Record<string, unknown> = {
@@ -460,6 +499,7 @@ export async function fetchUpdateAPI(params: {
   }
   if (params.method) body.method = params.method
   if (params.path) body.path = params.path
+  if (params.group !== undefined) body.group = params.group
   if (params.description !== undefined) body.description = params.description
   const res = await pixiuAxios.put(`/pixiu/apis/${params.id}`, body)
   const { code, message } = res.data

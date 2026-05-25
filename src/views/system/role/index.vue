@@ -36,6 +36,12 @@
         :role-data="currentRoleData"
         @submit="handleDialogSubmit"
       />
+
+      <RoleApiDialog
+        v-model:visible="apiDialogVisible"
+        :role-data="currentRoleData"
+        @success="refreshData"
+      />
     </ElCard>
   </div>
 </template>
@@ -46,9 +52,11 @@
     fetchCreateRole,
     fetchDeleteRole,
     fetchGetRoleList,
+    fetchGetTenantList,
     fetchUpdateRole
   } from '@/api/system-manage'
   import RoleDialog from './modules/role-dialog.vue'
+  import RoleApiDialog from './modules/role-api-dialog.vue'
   import { ElLink, ElMessage, ElMessageBox, ElTag } from 'element-plus'
   import { DialogType } from '@/types'
 
@@ -58,14 +66,33 @@
 
   const dialogType = ref<DialogType>('add')
   const dialogVisible = ref(false)
+  const apiDialogVisible = ref(false)
   const currentRoleData = ref<Partial<RoleListItem>>({})
 
   const searchForm = ref({
     roleName: undefined as string | undefined
   })
 
+  const tenantNameMap = ref<Record<number, string>>({})
+
+  async function loadTenantMap() {
+    try {
+      const { records } = await fetchGetTenantList({ current: 1, size: 500 })
+      const map: Record<number, string> = {}
+      for (const item of records) {
+        map[item.id] = item.tenantName
+      }
+      tenantNameMap.value = map
+    } catch {
+      // ignore
+    }
+  }
+  onMounted(() => { void loadTenantMap() })
+
   const getTenantTag = (tenantId?: number) => {
     if (!tenantId) return { type: 'info' as const, text: '全局角色' }
+    const name = tenantNameMap.value[tenantId]
+    if (name) return { type: 'primary' as const, text: name }
     return { type: 'primary' as const, text: `租户 ${tenantId}` }
   }
 
@@ -106,14 +133,6 @@
           }
         },
         {
-          prop: 'description',
-          label: '描述',
-          minWidth: 160,
-          showOverflowTooltip: true,
-          formatter: (row) =>
-            h('span', { style: { fontSize: '12px' } }, row.description || '-')
-        },
-        {
           prop: 'createTime',
           label: '创建日期',
           width: 170,
@@ -123,12 +142,30 @@
             h('span', { class: 'create-time', style: { fontSize: '12px' } }, row.createTime ?? '')
         },
         {
+          prop: 'description',
+          label: '描述',
+          minWidth: 160,
+          showOverflowTooltip: true,
+          formatter: (row) =>
+            h('span', { style: { fontSize: '12px' } }, row.description || '-')
+        },
+        {
           prop: 'operation',
           label: '操作',
-          width: 120,
+          width: 200,
           fixed: 'right',
           formatter: (row) =>
             h('div', { style: 'display:flex;align-items:center;gap:12px;flex-wrap:nowrap' }, [
+              h(
+                ElLink,
+                {
+                  type: 'primary',
+                  underline: 'never',
+                  style: 'font-size:12px',
+                  onClick: () => showApiDialog(row)
+                },
+                () => '修改权限'
+              ),
               h(
                 ElLink,
                 {
@@ -168,6 +205,13 @@
     })
   }
 
+  const showApiDialog = (row: RoleListItem): void => {
+    currentRoleData.value = row
+    nextTick(() => {
+      apiDialogVisible.value = true
+    })
+  }
+
   const deleteRole = (row: RoleListItem): void => {
     ElMessageBox.confirm(`确定要删除角色「${row.roleName}」吗？`, '删除角色', {
       confirmButtonText: '确定',
@@ -178,8 +222,8 @@
         await fetchDeleteRole(row.id)
         ElMessage.success('删除成功')
         await refreshData()
-      } catch {
-        // 错误提示由 HTTP 封装处理
+      } catch (e: any) {
+        ElMessage.error(e?.message || '删除失败')
       }
     })
   }
@@ -211,8 +255,8 @@
       dialogVisible.value = false
       currentRoleData.value = {}
       await refreshData()
-    } catch {
-      // 错误提示由 HTTP 封装处理
+    } catch (e: any) {
+      ElMessage.error(e?.message || '操作失败')
     }
   }
 </script>

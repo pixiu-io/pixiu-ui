@@ -61,7 +61,8 @@
   const currentApiData = ref<Partial<APIListItem>>({})
 
   const searchForm = ref({
-    path: undefined as string | undefined
+    path: undefined as string | undefined,
+    group: undefined as string | undefined
   })
 
   const getMethodTagType = (method: string) => {
@@ -97,6 +98,13 @@
       },
       columnsFactory: () => [
         {
+          prop: 'group',
+          label: '资源',
+          width: 130,
+          formatter: (row) =>
+            h('span', { style: { fontSize: '12px' } }, row.group || '-')
+        },
+        {
           prop: 'method',
           label: '请求方法',
           width: 100,
@@ -108,20 +116,20 @@
             )
         },
         {
+          prop: 'description',
+          label: '动作',
+          minWidth: 160,
+          showOverflowTooltip: true,
+          formatter: (row) =>
+            h('span', { style: { fontSize: '12px' } }, row.description || '-')
+        },
+        {
           prop: 'path',
           label: '请求路径',
           minWidth: 220,
           showOverflowTooltip: true,
           formatter: (row) =>
             h('span', { class: 'api-path', style: { fontSize: '12px' } }, row.path)
-        },
-        {
-          prop: 'description',
-          label: '描述',
-          minWidth: 160,
-          showOverflowTooltip: true,
-          formatter: (row) =>
-            h('span', { style: { fontSize: '12px' } }, row.description || '-')
         },
         {
           prop: 'createTime',
@@ -197,6 +205,7 @@
   const handleDialogSubmit = async (data: {
     method: string
     path: string
+    group: string
     description: string
   }) => {
     try {
@@ -204,6 +213,7 @@
         await fetchCreateAPI({
           method: data.method,
           path: data.path,
+          group: data.group || undefined,
           description: data.description || undefined
         })
         ElMessage.success('添加成功')

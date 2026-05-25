@@ -18,7 +18,10 @@
       <ElFormItem label="请求路径" prop="path">
         <ElInput v-model="formData.path" placeholder="如 /pixiu/users/:id" />
       </ElFormItem>
-      <ElFormItem label="描述" prop="description">
+      <ElFormItem label="资源" prop="group">
+        <ElInput v-model="formData.group" placeholder="如 /pixiu/users" />
+      </ElFormItem>
+      <ElFormItem label="动作" prop="description">
         <ElInput
           v-model="formData.description"
           type="textarea"
@@ -48,7 +51,7 @@
     (e: 'update:visible', value: boolean): void
     (
       e: 'submit',
-      data: { method: string; path: string; description: string }
+      data: { method: string; path: string; group: string; description: string }
     ): void
   }
 
@@ -67,6 +70,7 @@
   const formData = reactive({
     method: 'GET',
     path: '',
+    group: '',
     description: ''
   })
 
@@ -85,6 +89,7 @@
     Object.assign(formData, {
       method: isEdit && row ? row.method || 'GET' : 'GET',
       path: isEdit && row ? row.path || '' : '',
+      group: isEdit && row ? row.group || '' : '',
       description: isEdit && row ? row.description || '' : ''
     })
   }
