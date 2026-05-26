@@ -33,6 +33,7 @@ export interface CreatePlanParams {
       image_repository?: string
       set_hostname?: boolean
       protect?: boolean
+      change_selinux?: boolean
     }
     network: {
       network_interface: string
@@ -173,11 +174,13 @@ export interface PlanResourcesDetail {
     image_repository?: string
     set_hostname?: boolean
     protect?: boolean
+    change_selinux?: boolean
     kubernetes?: {
       kubernetes_version?: string
       image_repository?: string
       set_hostname?: boolean
       protect?: boolean
+      change_selinux?: boolean
     }
     network?: {
       network_interface?: string

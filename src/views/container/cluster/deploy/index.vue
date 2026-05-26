@@ -212,6 +212,7 @@
     osImage: '',
     description: '',
     protected: true,
+    changeSelinux: true,
     registryMirror: '',
     nodeNamingMode: 'auto' as 'auto' | 'manual',
     networkInterface: 'eth0',
@@ -293,6 +294,7 @@
         osImage,
         description: detail.description ?? '',
         protected: k8s.protect ?? cfg.protect ?? true,
+        changeSelinux: k8s.change_selinux ?? cfg.change_selinux ?? true,
         registryMirror: k8s.image_repository ?? cfg.image_repository ?? '',
         nodeNamingMode: setHostname ? 'auto' : 'manual',
         networkInterface: cfg.network?.network_interface ?? 'eth0',
@@ -446,7 +448,8 @@
           enable_public_ip: Boolean(f.apiServerAddress),
           image_repository: f.registryMirror,
           set_hostname: f.nodeNamingMode === 'auto',
-          protect: f.protected
+          protect: f.protected,
+          change_selinux: f.changeSelinux
         },
         network: {
           network_interface: f.networkInterface,
