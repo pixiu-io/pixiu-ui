@@ -445,6 +445,7 @@
         centos: ['centos7'],
         ubuntu: ['ubuntu20.04', 'ubuntu22.04'],
         debian: ['debian11'],
+        openEuler: ['openEuler22.03', 'openEuler24.03'],
         rocky: ['rocky9.2', 'rocky9.3']
       }
     } finally {

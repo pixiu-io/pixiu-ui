@@ -8,11 +8,12 @@ export interface PixiuNodeItem {
   gmt_create: string
   gmt_modified: string
   name: string
-  plan_id: number
-  role: string
-  cri: string
   ip: string
   auth: string
+  /** 历史数据或计划内节点可能仍有以下字段 */
+  plan_id?: number
+  role?: string
+  cri?: string
 }
 
 export interface PixiuNodeListParams {
@@ -22,21 +23,17 @@ export interface PixiuNodeListParams {
   nameSelector?: string
 }
 
+/** POST /pixiu/nodes（与后端 CreateNodeRequest 对齐，不依赖部署计划） */
 export interface CreatePixiuNodeBody {
   name: string
-  plan_id: number
-  role: string[]
-  cri: 'docker' | 'containerd'
   ip: string
   auth: PlanNodeAuth
 }
 
+/** PUT /pixiu/nodes/:nodeId（与后端 UpdateNodeRequest 对齐） */
 export interface UpdatePixiuNodeBody {
   resource_version: number
   name?: string
-  plan_id?: number
-  role?: string[]
-  cri?: 'docker' | 'containerd'
   ip?: string
   auth?: PlanNodeAuth
 }
