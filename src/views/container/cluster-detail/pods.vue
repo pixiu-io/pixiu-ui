@@ -203,6 +203,8 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute, useRouter } from 'vue-router'
   import { buildClusterRouteQuery } from '@/utils/navigation/cluster-query'
   import { useTable } from '@/hooks/core/useTable'
+  import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
+  import { useWatchAfterTableInit } from '@/hooks/core/useWatchAfterTableInit'
   import { deleteK8sEvent, fetchKubeRawEventList } from '@/api/kubernetes/events'
   import { deleteK8sPod, fetchK8sPod, fetchK8sPodList, type K8sPod } from '@/api/kubernetes/pod'
   import { formatNodeCreationTime } from '@/utils/kubernetes/nodeDisplay'
@@ -347,7 +349,12 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
           data: { records, total, current: params.current, size: params.size }
         }
       },
-      apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
+      apiParams: {
+        current: 1,
+        size: 10,
+        name: undefined,
+        namespace: selectedNamespace.value || undefined
+      },
       columnsFactory: () => [
         { type: 'selection', width: 30 },
         {
@@ -594,10 +601,16 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       : columns.value
   )
 
-  watch(selectedNamespace, (ns) => {
-    replaceSearchParams({ namespace: ns || undefined })
-    getData()
-  }, { immediate: true })
+  useWatchAfterTableInit(
+    selectedNamespace,
+    (ns) => {
+      replaceSearchParams({ namespace: ns || undefined })
+      getData()
+    },
+    { immediate: true }
+  )
+
+  useSkipFirstActivatedRefresh(refreshData)
 
   function onSelectionChange(rows: K8sPod[]) {
     selectedPods.value = rows

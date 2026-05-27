@@ -9,20 +9,17 @@
       <ElFormItem label="角色名称" prop="roleName">
         <ElInput v-model="formData.roleName" placeholder="请输入角色名称" />
       </ElFormItem>
-      <ElFormItem v-if="dialogType === 'add'" label="租户 ID" prop="tenantId">
+      <ElFormItem v-if="dialogType === 'add'" label="租户" prop="tenantId">
         <ElSelect
           v-model="formData.tenantId"
-          placeholder="请选择租户，默认为全局角色"
-          clearable
+          placeholder="请选择租户"
           filterable
           :loading="tenantLoading"
-          @visible-change="handleTenantSelectVisible"
         >
-          <ElOption label="全局角色" :value="0" />
           <ElOption
             v-for="item in tenantOptions"
             :key="item.id"
-            :label="`${item.tenantName} (${item.id})`"
+            :label="item.tenantName"
             :value="item.id"
           />
         </ElSelect>
@@ -31,6 +28,7 @@
         <ElInput
           v-model="formData.description"
           type="textarea"
+          :rows="5"
           placeholder="请输入角色描述"
         />
       </ElFormItem>
@@ -46,6 +44,8 @@
 
 <script setup lang="ts">
   import type { FormInstance, FormRules } from 'element-plus'
+  import { ElMessage } from 'element-plus'
+  import { PixiuApiError } from '@/api/container'
   import { fetchGetTenantList } from '@/api/system-manage'
 
   interface Props {
@@ -75,7 +75,7 @@
 
   const formData = reactive({
     roleName: '',
-    tenantId: 0 as number | undefined,
+    tenantId: undefined as number | undefined,
     description: ''
   })
 
@@ -83,24 +83,37 @@
     roleName: [
       { required: true, message: '请输入角色名称', trigger: 'blur' },
       { min: 2, max: 100, message: '长度在 2 到 100 个字符', trigger: 'blur' }
+    ],
+    tenantId: [
+      { required: true, message: '请选择租户', trigger: 'change' },
+      {
+        validator: (_rule, value, callback) => {
+          if (value === undefined || value === null || Number(value) <= 0) {
+            callback(new Error('请选择租户'))
+            return
+          }
+          callback()
+        },
+        trigger: 'change'
+      }
     ]
   }
 
   async function loadTenantOptions() {
     tenantLoading.value = true
     try {
-      const res = await fetchGetTenantList({ current: 1, size: 200 })
-      tenantOptions.value = res.records
-    } catch {
-      ElMessage.error('获取租户列表失败')
+      const { records } = await fetchGetTenantList({ current: 1, size: 500 })
+      tenantOptions.value = records
+      if (props.type === 'add' && records.length && !formData.tenantId) {
+        formData.tenantId = records[0].id
+      }
+    } catch (e: unknown) {
+      tenantOptions.value = []
+      if (e instanceof PixiuApiError && e.notified) return
+      const err = e as { message?: string }
+      ElMessage.error(err?.message || '获取租户列表失败')
     } finally {
       tenantLoading.value = false
-    }
-  }
-
-  function handleTenantSelectVisible(visible: boolean) {
-    if (visible) {
-      loadTenantOptions()
     }
   }
 
@@ -110,31 +123,35 @@
 
     Object.assign(formData, {
       roleName: isEdit && row ? row.roleName || '' : '',
-      tenantId: 0,
+      tenantId: undefined,
       description: isEdit && row ? row.description || '' : ''
     })
   }
 
   watch(
-    () => [props.visible, props.type, props.roleData],
-    ([visible]) => {
-      if (visible) {
-        initFormData()
-        nextTick(() => {
-          formRef.value?.clearValidate()
-        })
+    () => props.visible,
+    (visible) => {
+      if (!visible) return
+      initFormData()
+      if (dialogType.value === 'add') {
+        void loadTenantOptions()
       }
-    },
-    { immediate: true }
+      nextTick(() => {
+        formRef.value?.clearValidate()
+      })
+    }
   )
 
   const handleSubmit = async () => {
     if (!formRef.value) return
 
-    await formRef.value.validate((valid) => {
-      if (valid) {
-        emit('submit', { ...formData })
-      }
+    const valid = await formRef.value.validate().catch(() => false)
+    if (!valid) return
+
+    emit('submit', {
+      roleName: formData.roleName,
+      tenantId: formData.tenantId,
+      description: formData.description
     })
   }
 </script>

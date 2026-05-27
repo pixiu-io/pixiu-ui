@@ -137,6 +137,7 @@ import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
 import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
+  import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
   import {
     createK8sNamespaceQuota,
     createK8sNamespace,
@@ -367,6 +368,8 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   function onRefresh() {
     refreshData()
   }
+
+  useSkipFirstActivatedRefresh(refreshData)
 
   async function submitCreate() {
     const cluster = String(route.query.cluster ?? '')

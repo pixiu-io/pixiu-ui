@@ -144,7 +144,7 @@
   })
 
   const roleText = computed(() => {
-    if (userRole.value === 2) return '超级管理员'
+    if (userRole.value === 0) return '超级管理员'
     if (userRole.value === 1) return '管理员'
     return '普通用户'
   })
@@ -188,7 +188,7 @@
 
   function syncUserStore(profile: PixiuUserProfile) {
     const current = userStore.getUserInfo
-    const roleMap: Record<number, string> = { 0: 'R_USER', 1: 'R_ADMIN', 2: 'R_SUPER' }
+    const roleMap: Record<number, string> = { 0: 'R_SUPER', 1: 'R_ADMIN', 2: 'R_USER' }
     userStore.setUserInfo({
       ...current,
       userId: profile.id,

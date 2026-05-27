@@ -270,6 +270,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute, useRouter } from 'vue-router'
   import { buildClusterRouteQuery } from '@/utils/navigation/cluster-query'
   import { useTable } from '@/hooks/core/useTable'
+  import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
   import {
     deleteK8sNode,
     drainK8sNodeFetch,
@@ -707,6 +708,8 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   function onRefresh() {
     refreshData()
   }
+
+  useSkipFirstActivatedRefresh(refreshData)
 
   // -- YAML --
   const addNodeDialogVisible = ref(false)

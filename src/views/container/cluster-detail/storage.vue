@@ -208,6 +208,7 @@ import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
 import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
+  import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
   import { fetchK8sPVCList, fetchK8sPVC, deleteK8sPVC, type K8sPVC } from '@/api/kubernetes/pvc'
   import { fetchK8sPVList, fetchK8sPV, deleteK8sPV, type K8sPV } from '@/api/kubernetes/pv'
   import { fetchK8sStorageClassList, fetchK8sStorageClass, deleteK8sStorageClass, putK8sStorageClass, type K8sStorageClass } from '@/api/kubernetes/storageclass'
@@ -724,6 +725,14 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   watch(selectedNamespace, () => {
     if (kind.value === 'pvc') getPvcData()
   })
+
+  function refreshActiveStorageTab() {
+    if (kind.value === 'pvc') refreshPvcData()
+    else if (kind.value === 'sc') refreshScData()
+    else refreshPvData()
+  }
+
+  useSkipFirstActivatedRefresh(refreshActiveStorageTab)
 </script>
 
 <style>

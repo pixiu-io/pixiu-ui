@@ -235,10 +235,13 @@
   }) => {
     try {
       if (dialogType.value === 'add') {
-        const tenantId = data.tenantId ?? 0
+        if (!data.tenantId || data.tenantId <= 0) {
+          ElMessage.warning('请选择租户')
+          return
+        }
         await fetchCreateRole({
           name: data.roleName,
-          tenantId: tenantId > 0 ? tenantId : undefined,
+          tenantId: data.tenantId,
           description: data.description || undefined
         })
         ElMessage.success('添加成功')

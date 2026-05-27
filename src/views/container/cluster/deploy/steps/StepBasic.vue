@@ -300,6 +300,17 @@
         />
         <div class="form-tip">开启后不允许删除该集群</div>
       </ElFormItem>
+      <ElFormItem label="关闭 Selinux">
+        <ElSwitch
+          :model-value="form.changeSelinux"
+          :disabled="readOnly"
+          size="small"
+          @update:model-value="emit('update:form', { ...form, changeSelinux: $event as boolean })"
+        />
+        <div class="form-tip"
+          >开启后将关闭目标主机的 Selinux，推荐开启；如果主机未安装 Selinux（如 openEuler），则需要关闭该配置</div
+        >
+      </ElFormItem>
       <ElFormItem label="Kubernetes 镜像仓库">
         <ElInput
           :model-value="form.registryMirror"
@@ -343,6 +354,7 @@
     osImage: string
     description: string
     protected: boolean
+    changeSelinux: boolean
     registryMirror: string
     nodeNamingMode: 'auto' | 'manual'
     networkInterface: string
@@ -375,9 +387,9 @@
   const showAdvancedOptions = ref(false)
 
   watch(
-    () => [props.form.registryMirror, props.form.protected] as const,
-    ([rm, pt]) => {
-      if (rm || !pt) showAdvancedOptions.value = true
+    () => [props.form.registryMirror, props.form.protected, props.form.changeSelinux] as const,
+    ([rm, pt, cs]) => {
+      if (rm || !pt || !cs) showAdvancedOptions.value = true
     },
     { immediate: true }
   )
@@ -445,6 +457,7 @@
         centos: ['centos7'],
         ubuntu: ['ubuntu20.04', 'ubuntu22.04'],
         debian: ['debian11'],
+        openEuler: ['openEuler22.03', 'openEuler24.03'],
         rocky: ['rocky9.2', 'rocky9.3']
       }
     } finally {

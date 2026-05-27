@@ -641,6 +641,7 @@
   import { buildClusterRouteQuery } from '@/utils/navigation/cluster-query'
   import { useRoute, useRouter } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
+  import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
   import {
     fetchK8sDeploymentList,
     fetchK8sDeployment,
@@ -2908,7 +2909,7 @@
     refreshData: refreshDeplData
   } = useTable({
     core: {
-      immediate: true,
+      immediate: false,
       apiFn: async (params: DeplParams) => {
         const cluster = String(route.query.cluster ?? '')
         if (!cluster) {
@@ -4088,7 +4089,7 @@
     }
   }
 
-  // ── Global namespace watch ──
+  // ── Global namespace watch（非 immediate：首屏由 kind watch 拉数） ──
   watch(globalNamespace, (ns) => {
     const nsVal = ns || undefined
     if (!props.deployNamespace) {
@@ -4104,7 +4105,7 @@
     else if (kind.value === 'ds') getDsData()
     else if (kind.value === 'job') getJobData()
     else if (kind.value === 'cj') getCjData()
-  }, { immediate: true })
+  })
 
   watch(
     () => String(route.query.cluster ?? ''),
@@ -4154,7 +4155,17 @@
       }
       const cluster = String(route.query.cluster ?? '')
       if (!cluster) return
-      if (val === 'sts') getStsData()
+      const nsVal = globalNamespace.value || undefined
+      if (!props.deployNamespace) {
+        deplNamespace.value = globalNamespace.value || ''
+      }
+      replaceDeplSearchParams({ namespace: getDeplNamespaceParam() || nsVal })
+      replaceStsSearchParams({ namespace: nsVal })
+      replaceDsSearchParams({ namespace: nsVal })
+      replaceJobSearchParams({ namespace: nsVal })
+      replaceCjSearchParams({ namespace: nsVal })
+      if (val === 'deploy') getDeplData()
+      else if (val === 'sts') getStsData()
       else if (val === 'ds') {
         if (props.dsDataMode === 'logs') {
           void loadDsLogPods()
@@ -4166,6 +4177,16 @@
     },
     { immediate: true }
   )
+
+  function refreshActiveWorkloadTab() {
+    if (kind.value === 'deploy') refreshDeplData()
+    else if (kind.value === 'sts') refreshStsData()
+    else if (kind.value === 'ds') refreshDsData()
+    else if (kind.value === 'job') refreshJobData()
+    else if (kind.value === 'cj') refreshCjData()
+  }
+
+  useSkipFirstActivatedRefresh(refreshActiveWorkloadTab)
 
   // 父组件异步加载 workload 后 mirrorSelector 才会就绪，需补调一次 loadDsLogPods
   watch(

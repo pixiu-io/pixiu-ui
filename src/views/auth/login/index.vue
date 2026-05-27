@@ -101,6 +101,8 @@
   import { useI18n } from 'vue-i18n'
   import { HttpError } from '@/utils/http/error'
   import { fetchLogin } from '@/api/auth'
+  import { resetRouteInitState } from '@/router/guards/beforeEach'
+  import { resolveLoginRedirect } from '@/utils/navigation/login-redirect'
   import { ElNotification, ElMessage, type FormInstance, type FormRules } from 'element-plus'
   import { useSettingStore } from '@/store/modules/setting'
 
@@ -174,7 +176,7 @@
       userStore.setToken(token)
 
       // 设置用户信息
-      const roleMap: Record<number, string> = { 0: 'R_USER', 1: 'R_ADMIN', 2: 'R_SUPER' }
+      const roleMap: Record<number, string> = { 0: 'R_SUPER', 1: 'R_ADMIN', 2: 'R_USER' }
       userStore.setUserInfo({
         userId: user_id,
         userName: user_name,
@@ -188,9 +190,9 @@
       // 登录成功处理
       showLoginSuccessNotice()
 
-      // 获取 redirect 参数，如果存在则跳转到指定页面，否则跳转到首页
-      const redirect = route.query.redirect as string
-      router.push(redirect || '/')
+      // 重置动态路由状态，避免沿用上次的失败标记；跳转首页或合法 redirect
+      resetRouteInitState()
+      await router.replace(resolveLoginRedirect(route.query.redirect))
     } catch (error) {
       if (error instanceof HttpError) {
         ElMessage.error(error.message || '登录失败，请稍后重试')

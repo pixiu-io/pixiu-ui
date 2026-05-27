@@ -51,6 +51,7 @@ import { useWorktabStore } from '@/store/modules/worktab'
 import { ApiStatus } from '@/utils/http/status'
 import { isHttpError } from '@/utils/http/error'
 import { RouteRegistry, MenuProcessor, IframeRouteManager, RoutePermissionValidator } from '../core'
+import { getFirstMenuPath } from '@/utils'
 
 // 路由注册器实例
 let routeRegistry: RouteRegistry | null = null
@@ -186,6 +187,17 @@ async function handleRouteGuard(
 
   // 5. 处理已匹配的路由
   if (to.matched.length > 0) {
+    // 已登录时避免 catch-all 将 /login、/ 等误渲染为 404
+    if (userStore.isLogin && to.matched.some((r) => r.name === 'NotFound')) {
+      const menuStore = useMenuStore()
+      const fallback =
+        menuStore.getHomePath() || getFirstMenuPath(menuStore.menuList) || RoutesAlias.Login
+      if (fallback && fallback !== to.path) {
+        next({ path: fallback, replace: true })
+        return
+      }
+    }
+
     setWorktab(to)
     setPageTitle(to)
     next()
@@ -205,7 +217,14 @@ function handleLoginStatus(
   userStore: ReturnType<typeof useUserStore>,
   next: NavigationGuardNext
 ): boolean {
-  if (to.path === RoutesAlias.Login) {
+  if (to.path === RoutesAlias.Login || to.path === '/login') {
+    const hasToken = Boolean(
+      userStore.accessToken || localStorage.getItem('pixiu-access-token')
+    )
+    if (hasToken && userStore.isLogin) {
+      next({ path: '/', replace: true })
+      return false
+    }
     return true
   }
 
@@ -314,8 +333,17 @@ async function handleDynamicRoutes(
     // 7. 验证工作标签页
     useWorktabStore().validateWorktabs(router)
 
-    // 8. 静态路由不依赖菜单权限，初始化后直接恢复目标地址。
-    if (isStaticRoute(to.path)) {
+    const resolvedHome =
+      menuStore.getHomePath() || getFirstMenuPath(menuList) || ''
+
+    // 登录后默认去首页，避免停留在 / 或登录页触发 catch-all 404
+    let navigationPath = to.path
+    if (navigationPath === '/' || navigationPath === RoutesAlias.Login || navigationPath === '/login') {
+      navigationPath = resolvedHome
+    }
+
+    // 8. 静态路由不依赖菜单权限，初始化后直接恢复目标地址（登录页除外）。
+    if (isStaticRoute(to.path) && to.path !== RoutesAlias.Login && to.path !== '/login') {
       routeInitInProgress = false
       next({
         path: to.path,
@@ -326,39 +354,35 @@ async function handleDynamicRoutes(
       return
     }
 
-    // 8. 验证目标路径权限
-    const { homePath } = useCommon()
+    if (!navigationPath) {
+      throw new Error('无法获取首页路径，请检查菜单配置')
+    }
+
+    // 9. 验证目标路径权限
     const { path: validatedPath, hasPermission } = RoutePermissionValidator.validatePath(
-      to.path,
+      navigationPath,
       menuList,
-      homePath.value || '/'
+      resolvedHome || '/'
     )
 
     // 初始化成功，重置进行中标记
     routeInitInProgress = false
 
-    // 9. 重新导航到目标路由
+    const targetPath = hasPermission ? navigationPath : validatedPath
+    const useOriginalQuery = targetPath === to.path
+
+    // 10. 重新导航到目标路由
     if (!hasPermission) {
-      // 无权限访问，跳转到首页
       closeLoading()
-
-      // 输出警告信息
       console.warn(`[RouteGuard] 用户无权限访问路径: ${to.path}，已跳转到首页`)
-
-      // 直接跳转到首页
-      next({
-        path: validatedPath,
-        replace: true
-      })
-    } else {
-      // 有权限，正常导航
-      next({
-        path: to.path,
-        query: to.query,
-        hash: to.hash,
-        replace: true
-      })
     }
+
+    next({
+      path: targetPath,
+      query: useOriginalQuery ? to.query : {},
+      hash: useOriginalQuery ? to.hash : undefined,
+      replace: true
+    })
   } catch (error) {
     console.error('[RouteGuard] 动态路由注册失败:', error)
 
@@ -425,9 +449,12 @@ function handleRootPathRedirect(to: RouteLocationNormalized, next: NavigationGua
     return false
   }
 
-  const { homePath } = useCommon()
-  if (homePath.value && homePath.value !== '/') {
-    next({ path: homePath.value, replace: true })
+  const menuStore = useMenuStore()
+  const target =
+    menuStore.getHomePath() || getFirstMenuPath(menuStore.menuList) || ''
+
+  if (target && target !== '/') {
+    next({ path: target, replace: true })
     return true
   }
 

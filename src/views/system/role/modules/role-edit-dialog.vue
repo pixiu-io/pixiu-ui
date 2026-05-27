@@ -17,7 +17,7 @@
         <ElInput
           v-model="form.description"
           type="textarea"
-          :rows="3"
+          :rows="5"
           placeholder="请输入角色描述"
         />
       </ElFormItem>

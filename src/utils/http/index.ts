@@ -21,13 +21,14 @@ import { HttpError, handleError, showError, showSuccess } from './error'
 import { $t } from '@/locales'
 import { BaseResponse } from '@/types'
 import { router } from '@/router'
+import { RoutesAlias } from '@/router/routesAlias'
 
 /** 请求配置常量 */
 const REQUEST_TIMEOUT = 15000
 const MAX_RETRIES = 0
 const RETRY_DELAY = 1000
 const UNAUTHORIZED_DEBOUNCE_TIME = 3000
-const UNAUTHORIZED_PATH = '/login'
+const UNAUTHORIZED_PATH = RoutesAlias.Login
 /** 登录接口：业务码 401 表示密码错误，不应走会话失效的全局处理 */
 const LOGIN_API_PATH = '/pixiu/users/login'
 
@@ -131,12 +132,13 @@ function handleUnauthorizedError(message?: string): never {
 }
 
 function redirectToUnauthorizedPage() {
-  if (router.currentRoute.value.path === UNAUTHORIZED_PATH) return
+  const currentPath = router.currentRoute.value.path
+  if (currentPath === UNAUTHORIZED_PATH || currentPath === '/login') return
   // 清除登录态
   const userStore = useUserStore()
   userStore.setLoginStatus(false)
   userStore.setToken('')
-  router.push({ path: UNAUTHORIZED_PATH }).catch(() => undefined)
+  router.push({ name: 'Login' }).catch(() => undefined)
 }
 
 /** 重置401防抖状态 */

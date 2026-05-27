@@ -144,6 +144,7 @@ import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
 import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
+  import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
   import {
     fetchK8sConfigMapList,
     fetchK8sConfigMap,
@@ -590,6 +591,13 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     if (kind.value === 'cm') getCmData()
     if (kind.value === 'sec') getSecData()
   })
+
+  function refreshActiveConfigTab() {
+    if (kind.value === 'cm') refreshCmData()
+    else refreshSecData()
+  }
+
+  useSkipFirstActivatedRefresh(refreshActiveConfigTab)
 </script>
 
 <style>

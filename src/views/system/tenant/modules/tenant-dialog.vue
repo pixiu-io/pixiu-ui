@@ -13,6 +13,7 @@
         <ElInput
           v-model="formData.description"
           type="textarea"
+          :rows="5"
           placeholder="请输入描述"
         />
       </ElFormItem>

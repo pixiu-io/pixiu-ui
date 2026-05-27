@@ -189,6 +189,7 @@
     type ButtonMoreItem
   } from '@/components/core/forms/art-button-more/index.vue'
   import { useTable } from '@/hooks/core/useTable'
+  import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
   import { useRouter } from 'vue-router'
   import ClusterSearch from './modules/cluster-search.vue'
   import ClusterAddDialog from './modules/cluster-add-dialog.vue'
@@ -197,7 +198,8 @@
     fetchClusterList,
     fetchDeleteCluster,
     fetchUpdateClusterAlias,
-    fetchProtectCluster
+    fetchProtectCluster,
+    PixiuApiError
   } from '@/api/container'
   import { fetchDestroyPlan, fetchPlanTasks } from '@/api/plan'
   import { confirmDestroyPlan } from '../utils/destroy-plan-dialog'
@@ -681,6 +683,7 @@
                   ElMessage.success(val ? '已开启保护' : '已关闭保护')
                   refreshData()
                 } catch (e: any) {
+                  if (e instanceof PixiuApiError && e.notified) return
                   ElMessage.error(e.message || '操作失败')
                 } finally {
                   protectingIds.value.delete(row.id)
@@ -819,6 +822,7 @@
       renameVisible.value = false
       refreshData()
     } catch (e: any) {
+      if (e instanceof PixiuApiError && e.notified) return
       ElMessage.error(e.message || '修改失败')
     } finally {
       renameLoading.value = false
@@ -870,6 +874,7 @@
       refreshData()
     } catch (e: unknown) {
       if (e === 'cancel') return
+      if (e instanceof PixiuApiError && e.notified) return
       ElMessage.error(getErrorMessage(e, '删除失败'))
     }
   }
@@ -922,13 +927,7 @@
     }
   }
 
-  onMounted(() => {
-    refreshData()
-  })
-
-  onActivated(() => {
-    refreshData()
-  })
+  useSkipFirstActivatedRefresh(refreshData)
 
   onBeforeUnmount(() => {
     stopTaskPolling()

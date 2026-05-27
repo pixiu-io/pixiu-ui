@@ -13,10 +13,20 @@
         <ElInput v-model="formData.password" type="password" placeholder="请输入密码" show-password />
       </ElFormItem>
       <ElFormItem label="用户类型" prop="role">
-        <ElSelect v-model="formData.role">
-          <ElOption label="超级管理员" value="2" />
-          <ElOption label="管理员" value="1" />
-          <ElOption label="普通用户" value="0" />
+        <ElSelect
+          v-model="formData.role"
+          :loading="roleLoading"
+          :disabled="isSuperAdmin"
+          placeholder="请选择用户类型"
+          clearable
+        >
+          <ElOption v-if="isSuperAdmin" label="超级管理员" value="0" />
+          <ElOption
+            v-for="r in roleList"
+            :key="r.id"
+            :label="r.roleName"
+            :value="String(r.id)"
+          />
         </ElSelect>
       </ElFormItem>
       <ElFormItem v-if="dialogType === 'edit'" label="状态" prop="status">
@@ -32,7 +42,12 @@
         <ElInput v-model="formData.email" placeholder="请输入邮箱" />
       </ElFormItem>
       <ElFormItem label="描述" prop="description">
-        <ElInput v-model="formData.description" type="textarea" placeholder="请输入描述" />
+        <ElInput
+          v-model="formData.description"
+          type="textarea"
+          :rows="5"
+          placeholder="请输入描述"
+        />
       </ElFormItem>
     </ElForm>
     <template #footer>
@@ -46,6 +61,9 @@
 
 <script setup lang="ts">
   import type { FormInstance, FormRules } from 'element-plus'
+  import { ElMessage } from 'element-plus'
+  import { PixiuApiError } from '@/api/container'
+  import { fetchGetRoleList } from '@/api/system-manage'
 
   interface Props {
     visible: boolean
@@ -68,6 +86,7 @@
   })
 
   const dialogType = computed(() => props.type)
+  const isSuperAdmin = computed(() => props.type === 'edit' && props.userData?.role === 0)
 
   // 表单实例
   const formRef = ref<FormInstance>()
@@ -79,9 +98,41 @@
     phone: '',
     email: '',
     description: '',
-    role: '0',
+    role: '',
     status: '0'
   })
+
+  const roleList = ref<Api.SystemManage.RoleListItem[]>([])
+  const roleLoading = ref(false)
+
+  async function loadRoleList() {
+    roleLoading.value = true
+    try {
+      const { records } = await fetchGetRoleList({ current: 1, size: 500 })
+      roleList.value = records
+      ensureRoleSelection()
+    } catch (e: unknown) {
+      roleList.value = []
+      if (e instanceof PixiuApiError && e.notified) return
+      const err = e as { message?: string }
+      ElMessage.error(err?.message || '获取角色列表失败')
+    } finally {
+      roleLoading.value = false
+    }
+  }
+
+  /** 创建时默认选第一项；编辑时若当前 role 不在列表中则保留原值 */
+  function ensureRoleSelection() {
+    if (isSuperAdmin.value) {
+      formData.role = '0'
+      return
+    }
+    const current = String(formData.role ?? '')
+    if (current && roleList.value.some((r) => String(r.id) === current)) return
+    if (props.type === 'add' && roleList.value.length) {
+      formData.role = String(roleList.value[0].id)
+    }
+  }
 
   // 表单验证规则
   const rules: FormRules = {
@@ -113,33 +164,31 @@
       phone: isEdit && row ? row.userPhone || '' : '',
       email: isEdit && row ? row.userEmail || '' : '',
       description: '',
-      role: isEdit && row ? String(row.role ?? '0') : '0',
+      role: isEdit && row ? String(row.role ?? '') : '',
       status: isEdit && row ? String(row.status ?? '0') : '0'
     })
   }
 
   watch(
-    () => [props.visible, props.type, props.userData],
-    ([visible]) => {
-      if (visible) {
-        initFormData()
-        nextTick(() => {
-          formRef.value?.clearValidate()
-        })
-      }
-    },
-    { immediate: true }
+    () => props.visible,
+    (visible) => {
+      if (!visible) return
+      initFormData()
+      void loadRoleList()
+      nextTick(() => {
+        formRef.value?.clearValidate()
+      })
+    }
   )
 
   const handleSubmit = async () => {
     if (!formRef.value) return
 
-    await formRef.value.validate((valid) => {
-      if (valid) {
-        dialogVisible.value = false
-        emit('submit', { ...formData } as any)
-      }
-    })
+    const valid = await formRef.value.validate().catch(() => false)
+    if (!valid) return
+
+    // 成功后再由父组件关闭弹窗，失败时保持打开以便修改
+    emit('submit', { ...formData } as any)
   }
 </script>
 

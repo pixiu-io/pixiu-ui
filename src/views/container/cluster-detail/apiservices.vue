@@ -72,6 +72,7 @@
   import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
   import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useTable } from '@/hooks/core/useTable'
+  import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
   import { fetchK8sAPIService, fetchK8sAPIServiceList, type K8sAPIService } from '@/api/kubernetes/apiservice'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
   import { updateK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
@@ -230,6 +231,8 @@
   function forceSearch() { runSearch() }
 
   watch(() => route.query.cluster, (c) => { if (c) getData() }, { immediate: true })
+
+  useSkipFirstActivatedRefresh(refreshData)
 </script>
 
 <style>

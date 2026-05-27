@@ -40,7 +40,11 @@ const clusterDetailChildren: AppRouteRecord[] = [
       path: '',
       name: c.name,
       component: c.component,
-      meta: { title: 'menus.container.clusterDetail', tabGroup: 'clusterDetail' }
+      meta: {
+        title: 'menus.container.clusterDetail',
+        tabGroup: 'clusterDetail',
+        keepAlive: true
+      }
     }
   ]
 }))

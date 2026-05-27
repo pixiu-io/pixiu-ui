@@ -59,6 +59,7 @@ import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
 import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
+  import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
 
   defineOptions({ name: 'ClusterDetailAddonComponents' })
 
@@ -207,6 +208,8 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       if (cluster) getData()
     }
   )
+
+  useSkipFirstActivatedRefresh(refreshData)
 </script>
 
 <style>

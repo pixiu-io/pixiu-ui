@@ -64,7 +64,8 @@
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import { ACCOUNT_TABLE_DATA } from '@/mock/temp/formData'
   import { useTable } from '@/hooks/core/useTable'
-  import { fetchBatchDeleteUsers, fetchCreateUser, fetchGetUserList, fetchResetUserPassword, fetchUpdateUser } from '@/api/system-manage'
+  import { PixiuApiError } from '@/api/container'
+  import { fetchBatchDeleteUsers, fetchCreateUser, fetchGetRoleList, fetchGetUserList, fetchResetUserPassword, fetchUpdateUser } from '@/api/system-manage'
     import UserDialog from './modules/user-dialog.vue'
   import { ElLink, ElMessage } from 'element-plus'
   import { DialogType } from '@/types'
@@ -115,12 +116,28 @@
     return { type: 'info' as const, text: '未知' }
   }
 
-  /** 用户角色：接口 role 字段，0-普通用户，1-管理员，2-超级管理员 */
+  /** 角色 ID → 名称映射 */
+  const roleNameMap = ref<Record<number, string>>({})
+
+  async function loadRoleMap() {
+    try {
+      const { records } = await fetchGetRoleList({ current: 1, size: 500 })
+      const map: Record<number, string> = {}
+      for (const r of records) {
+        map[r.id] = r.roleName
+      }
+      roleNameMap.value = map
+    } catch {
+      // ignore
+    }
+  }
+  onMounted(() => { void loadRoleMap() })
+
+  /** 用户角色显示：0=超级管理员，其他查角色表 */
   const getUserRoleText = (role?: number) => {
-    if (role === 2) return '超级管理员'
-    if (role === 1) return '管理员'
-    if (role === 0) return '普通用户'
-    return '未知'
+    if (role === 0) return '超级管理员'
+    if (role === undefined || role === null) return '未知'
+    return roleNameMap.value[role] || `角色 ${role}`
   }
 
   const {
@@ -210,7 +227,8 @@
               h(ElLink, {
                 type: 'primary',
                 underline: 'never',
-                style: 'font-size:12px',
+                disabled: row.role === 0,
+                style: { fontSize: '12px', color: row.role === 0 ? 'var(--el-text-color-disabled)' : undefined },
                 onClick: () => deleteUser(row)
               }, () => '删除')
             ])
@@ -291,7 +309,7 @@
   }
 
   const deleteUser = (row: UserListItem): void => {
-    if (row.role === 2) {
+    if (row.role === 0) {
       ElMessage.warning('超级管理员不允许删除')
       return
     }
@@ -339,8 +357,10 @@
       dialogVisible.value = false
       currentUserData.value = {}
       await refreshData()
-    } catch (error) {
-      // 错误提示由 HTTP 封装处理
+    } catch (error: unknown) {
+      if (error instanceof PixiuApiError && error.notified) return
+      const err = error as { message?: string }
+      ElMessage.error(err?.message || '操作失败')
     }
   }
 

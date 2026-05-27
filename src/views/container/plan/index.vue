@@ -165,6 +165,7 @@
     type ButtonMoreItem
   } from '@/components/core/forms/art-button-more/index.vue'
   import { useTable } from '@/hooks/core/useTable'
+  import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
   import { useRouter } from 'vue-router'
   import {
     fetchPlanList,
@@ -703,9 +704,7 @@
     selectedRows.value = rows
   }
 
-  onActivated(() => {
-    refreshData()
-  })
+  useSkipFirstActivatedRefresh(refreshData)
 
   onBeforeUnmount(() => {
     stopTaskPolling()

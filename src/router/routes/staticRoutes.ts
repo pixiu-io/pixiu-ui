@@ -19,6 +19,10 @@ export const staticRoutes: AppRouteRecordRaw[] = [
   //   meta: { title: 'menus.dashboard.title' }
   // },
   {
+    path: '/login',
+    redirect: '/auth/login'
+  },
+  {
     path: '/auth/login',
     name: 'Login',
     component: () => import('@views/auth/login/index.vue'),

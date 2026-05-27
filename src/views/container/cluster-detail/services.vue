@@ -142,6 +142,7 @@ import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
 import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
+  import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
   import {
     fetchK8sServiceList,
     fetchK8sService,
@@ -749,6 +750,13 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     },
     { immediate: true }
   )
+
+  function refreshActiveServicesTab() {
+    if (kind.value === 'svc') refreshSvcData()
+    else refreshIngData()
+  }
+
+  useSkipFirstActivatedRefresh(refreshActiveServicesTab)
 </script>
 
 <style>

@@ -122,9 +122,11 @@
       </aside>
 
       <main class="cluster-detail-main">
-        <RouterView v-slot="{ Component }">
+        <RouterView v-slot="{ Component, route: childRoute }">
           <Transition name="fade-slide" mode="out-in">
-            <component :is="Component" />
+            <KeepAlive>
+              <component :is="Component" :key="childRoute.name ?? childRoute.path" />
+            </KeepAlive>
           </Transition>
         </RouterView>
       </main>

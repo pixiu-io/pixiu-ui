@@ -2,6 +2,7 @@ import axios, { type InternalAxiosRequestConfig } from 'axios'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/store/modules/user'
 import { router } from '@/router'
+import { RoutesAlias } from '@/router/routesAlias'
 
 declare module 'axios' {
   interface AxiosRequestConfig {
@@ -11,6 +12,13 @@ declare module 'axios' {
 }
 
 const TOKEN_STORAGE_KEY = 'pixiu-access-token'
+const LOGIN_PATH = RoutesAlias.Login
+const DEFAULT_UNAUTHORIZED_MSG = '未登陆或者密码被修改，请重新登陆'
+const UNAUTHORIZED_DEBOUNCE_MS = 3000
+
+/** 登录失效处理防抖，避免并发请求重复弹窗 */
+let isPixiuUnauthorizedHandling = false
+let pixiuUnauthorizedTimer: ReturnType<typeof setTimeout> | null = null
 
 function resolveAccessToken(): string {
   const userStore = useUserStore()
@@ -92,17 +100,34 @@ function shouldRedirectUnauthorized(
   return true
 }
 
-function rejectPixiuUnauthorized(message: string) {
+/** 统一处理 Pixiu 登录失效：仅首次弹窗并跳转，并发 401 不再重复提示 */
+export function handlePixiuSessionExpired(message?: string): Promise<never> {
+  const msg = message || DEFAULT_UNAUTHORIZED_MSG
   const userStore = useUserStore()
   userStore.setLoginStatus(false)
   userStore.setToken('')
-  ElMessage.error(message)
-  router.push('/login').catch(() => undefined)
-  return Promise.reject(new PixiuApiError(message, true))
+
+  if (!isPixiuUnauthorizedHandling) {
+    isPixiuUnauthorizedHandling = true
+    ElMessage.error(msg)
+    const currentPath = router.currentRoute.value.path
+    if (currentPath !== LOGIN_PATH && currentPath !== '/login') {
+      router.push({ name: 'Login' }).catch(() => undefined)
+    }
+    if (pixiuUnauthorizedTimer) clearTimeout(pixiuUnauthorizedTimer)
+    pixiuUnauthorizedTimer = setTimeout(() => {
+      isPixiuUnauthorizedHandling = false
+      pixiuUnauthorizedTimer = null
+    }, UNAUTHORIZED_DEBOUNCE_MS)
+  }
+
+  return Promise.reject(new PixiuApiError(msg, true))
 }
 
 function rejectPixiuBusinessError(message?: string) {
-  return Promise.reject(new PixiuApiError(message || '请求失败'))
+  const msg = message || '请求失败'
+  ElMessage.error(msg)
+  return Promise.reject(new PixiuApiError(msg, true))
 }
 
 /** 专用于 pixiu 后端的 axios 实例（响应格式为 { code, result, message }） */
@@ -122,7 +147,7 @@ pixiuAxios.interceptors.response.use(
     const { code, message } = response.data
     if (code === 200) return response
     if (shouldRedirectUnauthorized(code, message, response.config)) {
-      return rejectPixiuUnauthorized(message || '未登陆或者密码被修改，请重新登陆')
+      return handlePixiuSessionExpired(message)
     }
     return rejectPixiuBusinessError(message)
   },
@@ -131,7 +156,7 @@ pixiuAxios.interceptors.response.use(
     const code = data?.code
     const message = data?.message || error.message
     if (shouldRedirectUnauthorized(code, message, error.config)) {
-      return rejectPixiuUnauthorized(message || '未登陆或者密码被修改，请重新登陆')
+      return handlePixiuSessionExpired(message)
     }
     return rejectPixiuBusinessError(message)
   }

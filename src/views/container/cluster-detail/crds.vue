@@ -89,6 +89,7 @@
   import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
   import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useTable } from '@/hooks/core/useTable'
+  import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
   import {
     fetchK8sCustomResourceDefinition,
     fetchK8sCustomResourceDefinitionList,
@@ -378,6 +379,8 @@
     },
     { immediate: true }
   )
+
+  useSkipFirstActivatedRefresh(refreshData)
 </script>
 
 <style>

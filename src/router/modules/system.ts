@@ -65,22 +65,6 @@ export const systemRoutes: AppRouteRecord = {
         keepAlive: true,
         isHideTab: true
       }
-    },
-    {
-      path: 'menu',
-      name: 'Menus',
-      component: '/system/menu',
-      meta: {
-        title: 'menus.system.menu',
-        icon: 'ri:menu-line',
-        keepAlive: true,
-        roles: ['R_SUPER'],
-        authList: [
-          { title: '新增', authMark: 'add' },
-          { title: '编辑', authMark: 'edit' },
-          { title: '删除', authMark: 'delete' }
-        ]
-      }
     }
   ]
 }

@@ -66,6 +66,7 @@ import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
 import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
+  import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
   import { deleteK8sEvent, fetchKubeRawEventList } from '@/api/kubernetes/events'
   import { formatNodeCreationTime } from '@/utils/kubernetes/nodeDisplay'
   import { clusterDetailNamespaceKey } from './context'
@@ -256,6 +257,8 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     selectedEvents.value = []
     refreshData()
   }
+
+  useSkipFirstActivatedRefresh(onRefresh)
 
   async function deleteSingleEvent(row: K8sEventRow) {
     const cluster = String(route.query.cluster ?? '')

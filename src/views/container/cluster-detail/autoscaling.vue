@@ -93,6 +93,7 @@ import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
 import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
+  import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
   import ArtButtonMore, { type ButtonMoreItem } from '@/components/core/forms/art-button-more/index.vue'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
   import { updateK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
@@ -501,6 +502,8 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   function onRefresh() {
     refreshData()
   }
+
+  useSkipFirstActivatedRefresh(refreshData)
 
   function onCreateHpaHint() {
     ElMessage.info('请通过集群详情页右上角「YAML创建」提交 HorizontalPodAutoscaler 资源（API 版本 autoscaling/v2）。')
