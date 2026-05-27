@@ -187,6 +187,7 @@
   const clusterListItems = ref<ClusterItem[]>([])
   const clusterListLoading = ref(false)
   const clusterListLoaded = ref(false)
+  let clusterListPromise: Promise<void> | null = null
   const yamlCreateVisible = ref(false)
 
   const selectedNamespace = ref('default')
@@ -234,26 +235,58 @@
 
   async function loadClusterListForSelect(force = false) {
     if (clusterListLoaded.value && !force) return
-    clusterListLoading.value = true
+    if (clusterListPromise && !force) return clusterListPromise
+
+    clusterListPromise = (async () => {
+      clusterListLoading.value = true
+      try {
+        const limit = 500
+        let page = 1
+        const acc: ClusterItem[] = []
+        let total = 0
+        do {
+          const res = await fetchClusterList({ page, limit })
+          total = res.total
+          acc.push(...res.items)
+          if (acc.length >= total || res.items.length === 0) break
+          page++
+          if (page > 40) break
+        } while (true)
+        clusterListItems.value = acc
+        clusterListLoaded.value = true
+      } catch {
+        clusterListItems.value = []
+        clusterListLoaded.value = false
+      } finally {
+        clusterListLoading.value = false
+        clusterListPromise = null
+      }
+    })()
+
+    return clusterListPromise
+  }
+
+  function findClusterInList(name: string): ClusterItem | undefined {
+    if (!name) return undefined
+    return clusterListItems.value.find((c) => c.name === name)
+  }
+
+  /** 优先用已加载的集群列表解析当前集群，避免与 loadClusterListForSelect 重复请求列表 */
+  async function loadClusterRow(name: string) {
+    if (!name) {
+      clusterRow.value = null
+      return
+    }
+    await loadClusterListForSelect()
+    const fromList = findClusterInList(name)
+    if (fromList) {
+      clusterRow.value = fromList
+      return
+    }
     try {
-      const limit = 500
-      let page = 1
-      const acc: ClusterItem[] = []
-      let total = 0
-      do {
-        const res = await fetchClusterList({ page, limit })
-        total = res.total
-        acc.push(...res.items)
-        if (acc.length >= total || res.items.length === 0) break
-        page++
-        if (page > 40) break
-      } while (true)
-      clusterListItems.value = acc
-      clusterListLoaded.value = true
+      clusterRow.value = await fetchClusterByName(name)
     } catch {
-      clusterListItems.value = []
-    } finally {
-      clusterListLoading.value = false
+      clusterRow.value = null
     }
   }
 
@@ -262,11 +295,10 @@
   }
 
   function refreshClusterList() {
+    clusterListLoaded.value = false
+    clusterListPromise = null
     void loadClusterListForSelect(true)
   }
-
-  // 初始化时预加载集群列表，首次打开下拉时即时显示
-  void loadClusterListForSelect()
 
   function onClusterSelectChange(name: string | number | boolean | undefined) {
     if (name === undefined || name === null || name === '') return
@@ -280,14 +312,8 @@
 
   watch(
     () => String(route.query.cluster ?? ''),
-    async (name) => {
-      clusterRow.value = null
-      if (!name) return
-      try {
-        clusterRow.value = await fetchClusterByName(name)
-      } catch {
-        clusterRow.value = null
-      }
+    (name) => {
+      void loadClusterRow(name)
     },
     { immediate: true }
   )
@@ -360,6 +386,14 @@
     const name = String(route.query.cluster ?? '')
     if (!name) {
       clusterRow.value = null
+      return
+    }
+    clusterListLoaded.value = false
+    clusterListPromise = null
+    await loadClusterListForSelect(true)
+    const fromList = findClusterInList(name)
+    if (fromList) {
+      clusterRow.value = fromList
       return
     }
     try {
