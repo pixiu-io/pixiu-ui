@@ -1,5 +1,6 @@
 import axios from 'axios'
-import { handlePixiuSessionExpired } from './container'
+import { ElMessage } from 'element-plus'
+import { PixiuApiError, rejectIfPixiuBusinessError } from './container'
 import { useUserStore } from '@/store/modules/user'
 
 const TOKEN_STORAGE_KEY = 'pixiu-access-token'
@@ -14,7 +15,7 @@ function resolveAccessToken(): string {
   return token
 }
 
-/** 直连 `/pixiu/proxy/...` 的 K8s API，响应体为原生 JSON（非 { code, result }） */
+/** 直连 `/pixiu/proxy/...` 的 K8s API；代理失败时后端仍可能返回 HTTP 200 + Pixiu 业务包 */
 export const kubeProxyAxios = axios.create({
   baseURL: '/',
   timeout: 120000
@@ -28,13 +29,23 @@ kubeProxyAxios.interceptors.request.use((config) => {
 
 kubeProxyAxios.interceptors.response.use(
   (response) => {
-    const body = response.data
-    // pixiu 后端可能以 200 状态码返回业务 401
-    if (body && typeof body === 'object' && (body as { code?: number }).code === 401) {
-      const message = (body as { message?: string }).message
-      return handlePixiuSessionExpired(message)
-    }
+    const rejected = rejectIfPixiuBusinessError(response.data, response.config)
+    if (rejected) return rejected
     return response
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    const data = error.response?.data
+    const rejected = rejectIfPixiuBusinessError(data, error.config)
+    if (rejected) return rejected
+
+    if (data && typeof data === 'object' && (data as { kind?: string }).kind === 'Status') {
+      const message = (data as { message?: string }).message
+      if (message) {
+        ElMessage.error(message)
+        return Promise.reject(new PixiuApiError(message, true))
+      }
+    }
+
+    return Promise.reject(error)
+  }
 )

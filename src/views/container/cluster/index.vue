@@ -197,6 +197,7 @@
   import {
     fetchClusterList,
     fetchDeleteCluster,
+    fetchGetCluster,
     fetchUpdateClusterAlias,
     fetchProtectCluster,
     PixiuApiError
@@ -216,6 +217,29 @@
     const aliasName = row.aliasName || row.name
     setClusterAliasCache(row.name, aliasName)
     return { cluster: row.name, aliasName }
+  }
+
+  /** 先校验集群详情可访问（GET /pixiu/clusters/:id），成功后再跳转 */
+  async function ensureClusterDetailThen(
+    row: ClusterItem,
+    navigate: () => void
+  ): Promise<void> {
+    try {
+      await fetchGetCluster(row.id)
+      navigate()
+    } catch (e: unknown) {
+      if (e instanceof PixiuApiError && e.notified) return
+      const msg = e instanceof Error ? e.message : '获取集群详情失败'
+      ElMessage.error(msg)
+    }
+  }
+
+  /** 点击集群名称进入概览 */
+  function goToClusterOverview(row: ClusterItem) {
+    if (isCustomClusterNotRunning(row)) return
+    void ensureClusterDetailThen(row, () => {
+      router.push({ path: '/container/overview', query: clusterDetailQuery(row) })
+    })
   }
 
   /** 集群详情 - 概览页「API Server」标签（与 overview 内 overviewTab=api 一致） */
@@ -525,8 +549,7 @@
                         type: 'primary',
                         underline: 'never',
                         style: 'font-size:12px',
-                        onClick: () =>
-                          router.push({ path: '/container/overview', query: clusterDetailQuery(row) })
+                        onClick: () => goToClusterOverview(row)
                       },
                       () => row.aliasName
                     ),

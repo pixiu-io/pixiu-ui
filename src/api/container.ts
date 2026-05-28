@@ -130,6 +130,34 @@ function rejectPixiuBusinessError(message?: string) {
   return Promise.reject(new PixiuApiError(msg, true))
 }
 
+/** 是否为 Pixiu `{ code, message, result? }` 业务包（区别于 K8s 原生 JSON） */
+export function isPixiuApiEnvelope(body: unknown): body is { code: number; message?: string } {
+  if (!body || typeof body !== 'object') return false
+  const o = body as Record<string, unknown>
+  if (typeof o.code !== 'number') return false
+  if (o.kind === 'Status') return false
+  if (Array.isArray(o.items)) return false
+  if (typeof o.apiVersion === 'string' && typeof o.kind === 'string') return false
+  return true
+}
+
+/**
+ * HTTP 200 且响应体为 Pixiu 业务包时：业务码非 200 则弹错并 reject。
+ * 集群详情页 kubeProxy 与 pixiu 接口共用此逻辑。
+ */
+export function rejectIfPixiuBusinessError(
+  body: unknown,
+  config?: InternalAxiosRequestConfig
+): Promise<never> | null {
+  if (!isPixiuApiEnvelope(body)) return null
+  const { code, message } = body
+  if (code === 200) return null
+  if (shouldRedirectUnauthorized(code, message, config)) {
+    return handlePixiuSessionExpired(message)
+  }
+  return rejectPixiuBusinessError(message)
+}
+
 /** 专用于 pixiu 后端的 axios 实例（响应格式为 { code, result, message }） */
 export const pixiuAxios = axios.create({
   baseURL: '/',
@@ -144,20 +172,17 @@ pixiuAxios.interceptors.request.use((config) => {
 
 pixiuAxios.interceptors.response.use(
   (response) => {
-    const { code, message } = response.data
-    if (code === 200) return response
-    if (shouldRedirectUnauthorized(code, message, response.config)) {
-      return handlePixiuSessionExpired(message)
-    }
-    return rejectPixiuBusinessError(message)
+    const rejected = rejectIfPixiuBusinessError(response.data, response.config)
+    if (rejected) return rejected
+    return response
   },
   (error) => {
-    const data = error.response?.data as { code?: number; message?: string } | undefined
-    const code = data?.code
-    const message = data?.message || error.message
-    if (shouldRedirectUnauthorized(code, message, error.config)) {
-      return handlePixiuSessionExpired(message)
-    }
+    const data = error.response?.data
+    const rejected = rejectIfPixiuBusinessError(data, error.config)
+    if (rejected) return rejected
+    const message =
+      (data && typeof data === 'object' ? (data as { message?: string }).message : undefined) ||
+      error.message
     return rejectPixiuBusinessError(message)
   }
 )

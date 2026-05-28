@@ -400,7 +400,7 @@
 
 <script setup lang="ts">
   import { ElMessage } from 'element-plus'
-  import { inject, computed, onUnmounted, ref, watch } from 'vue'
+  import { inject, computed, onActivated, onDeactivated, onUnmounted, ref, watch } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { fetchProtectCluster, fetchUpdateClusterAlias, fetchGetCluster } from '@/api/container'
   import { fetchPlanWithResources, type PlanResourcesDetail } from '@/api/plan'
@@ -428,6 +428,9 @@
 
   const innerTab = ref('main')
 
+  const OVERVIEW_ROUTE_NAME = 'ClusterDetailOverview'
+  const isOverviewRoute = computed(() => route.name === OVERVIEW_ROUTE_NAME)
+
   const OVERVIEW_TAB_NAMES = new Set(['main', 'basic', 'api', 'monitor'])
 
   watch(
@@ -453,7 +456,7 @@
 
   async function loadClusterResourceOverview() {
     const cluster = String(route.query.cluster ?? '')
-    if (!cluster || innerTab.value !== 'main') return
+    if (!cluster || !isOverviewRoute.value || innerTab.value !== 'main') return
     resourceOverviewLoading.value = true
     fetchClusterOverviewK8sStats(cluster).then(stats => {
       k8sOverview.value = stats
@@ -497,7 +500,7 @@
   }
 
   async function loadApiServerInfo() {
-    if (!ctx.value.id) return
+    if (!isOverviewRoute.value || !ctx.value.id) return
     try {
       const cluster = await fetchGetCluster(ctx.value.id)
       const kcText = (cluster as { kube_config?: string }).kube_config ?? ''
@@ -529,7 +532,7 @@
 
   async function loadBasicInfo() {
     const cluster = String(route.query.cluster ?? '')
-    if (!cluster || innerTab.value !== 'basic') return
+    if (!cluster || !isOverviewRoute.value || innerTab.value !== 'basic') return
     basicLoading.value = true
     // 并行发起所有请求，不互相阻塞
     Promise.all([
@@ -697,30 +700,53 @@
     if (ready && !usageChartSilentUpdate.value) scheduleUsageChartSilentUpdate()
   })
 
+  function stopOverviewBackgroundLoads() {
+    stopUsageOverviewRefresh()
+    resetUsageOverviewCharts()
+    usageChartSilentUpdate.value = false
+    if (usageChartAnimateTimer) {
+      clearTimeout(usageChartAnimateTimer)
+      usageChartAnimateTimer = null
+    }
+  }
+
+  /** 仅在概览路由且 KeepAlive 激活时拉取各 Tab 数据，避免切到节点管理等页仍发统计请求 */
+  function syncOverviewTabLoads() {
+    if (!isOverviewRoute.value) {
+      stopOverviewBackgroundLoads()
+      return
+    }
+
+    const cluster = ctx.value.name
+    const tab = innerTab.value
+    if (tab === 'main' && cluster) {
+      void loadClusterResourceOverview()
+      startUsageOverviewRefresh()
+    } else {
+      stopOverviewBackgroundLoads()
+    }
+    if (tab === 'basic' && cluster) void loadBasicInfo()
+    if (tab === 'api' && cluster) void loadApiServerInfo()
+  }
+
   watch(
-    () => [ctx.value.name, innerTab.value] as const,
-    ([cluster, tab]) => {
-      if (tab === 'main' && cluster) {
-        void loadClusterResourceOverview()
-        startUsageOverviewRefresh()
-      } else {
-        stopUsageOverviewRefresh()
-        resetUsageOverviewCharts()
-        usageChartSilentUpdate.value = false
-        if (usageChartAnimateTimer) {
-          clearTimeout(usageChartAnimateTimer)
-          usageChartAnimateTimer = null
-        }
-      }
-      if (tab === 'basic' && cluster) void loadBasicInfo()
-      if (tab === 'api' && cluster) void loadApiServerInfo()
+    () => [ctx.value.name, innerTab.value, route.name] as const,
+    () => {
+      syncOverviewTabLoads()
     },
     { immediate: true }
   )
 
+  onActivated(() => {
+    syncOverviewTabLoads()
+  })
+
+  onDeactivated(() => {
+    stopOverviewBackgroundLoads()
+  })
+
   onUnmounted(() => {
-    stopUsageOverviewRefresh()
-    if (usageChartAnimateTimer) clearTimeout(usageChartAnimateTimer)
+    stopOverviewBackgroundLoads()
   })
 
   const qpsSeries = computed(() => wave(seed.value + 1, 24).map((n) => n * 8))
