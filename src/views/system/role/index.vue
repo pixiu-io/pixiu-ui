@@ -40,6 +40,7 @@
       <RoleApiDialog
         v-model:visible="apiDialogVisible"
         :role-data="currentRoleData"
+        :mode="apiDialogMode"
         @success="refreshData"
       />
     </ElCard>
@@ -67,6 +68,7 @@
   const dialogType = ref<DialogType>('add')
   const dialogVisible = ref(false)
   const apiDialogVisible = ref(false)
+  const apiDialogMode = ref<'api' | 'kubernetes'>('api')
   const currentRoleData = ref<Partial<RoleListItem>>({})
 
   const searchForm = ref({
@@ -152,7 +154,7 @@
         {
           prop: 'operation',
           label: '操作',
-          width: 200,
+          width: 320,
           fixed: 'right',
           formatter: (row) =>
             h('div', { style: 'display:flex;align-items:center;gap:12px;flex-wrap:nowrap' }, [
@@ -162,7 +164,17 @@
                   type: 'primary',
                   underline: 'never',
                   style: 'font-size:12px',
-                  onClick: () => showApiDialog(row)
+                  onClick: () => showDialog('edit', row)
+                },
+                () => '编辑'
+              ),
+              h(
+                ElLink,
+                {
+                  type: 'primary',
+                  underline: 'never',
+                  style: 'font-size:12px',
+                  onClick: () => showApiDialog(row, 'api')
                 },
                 () => '修改权限'
               ),
@@ -172,9 +184,9 @@
                   type: 'primary',
                   underline: 'never',
                   style: 'font-size:12px',
-                  onClick: () => showDialog('edit', row)
+                  onClick: () => showApiDialog(row, 'kubernetes')
                 },
-                () => '编辑'
+                () => 'kubernetes 权限'
               ),
               h(
                 ElLink,
@@ -205,7 +217,8 @@
     })
   }
 
-  const showApiDialog = (row: RoleListItem): void => {
+  const showApiDialog = (row: RoleListItem, mode: 'api' | 'kubernetes' = 'api'): void => {
+    apiDialogMode.value = mode
     currentRoleData.value = row
     nextTick(() => {
       apiDialogVisible.value = true

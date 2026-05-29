@@ -690,4 +690,12 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     font-size: 12px;
     color: #0958d9 !important;
   }
+
+  html.dark .quota-alert {
+    background-color: rgba(64, 158, 255, 0.12) !important;
+  }
+
+  html.dark .quota-alert :deep(.el-alert__description) {
+    color: #a8cfff !important;
+  }
 </style>
