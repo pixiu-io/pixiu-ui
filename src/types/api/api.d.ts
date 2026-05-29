@@ -163,6 +163,7 @@ declare namespace Api {
       method: string
       path: string
       group: string
+      subGroup: string
       description: string
       createTime: string
       updateTime: string
@@ -170,7 +171,7 @@ declare namespace Api {
 
     /** API 搜索参数 */
     type APISearchParams = Partial<
-      Pick<APIListItem, 'method' | 'path' | 'group'> & Api.Common.CommonSearchParams
+      Pick<APIListItem, 'method' | 'path' | 'group' | 'subGroup'> & Api.Common.CommonSearchParams
     >
   }
 }

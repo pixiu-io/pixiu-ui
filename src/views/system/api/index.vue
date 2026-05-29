@@ -93,7 +93,7 @@
       apiFn: fetchGetAPIList,
       apiParams: {
         current: 1,
-        size: 10,
+        size: 20,
         ...searchForm.value
       },
       columnsFactory: () => [
@@ -114,6 +114,13 @@
               { type: getMethodTagType(row.method), size: 'small' },
               () => row.method
             )
+        },
+        {
+          prop: 'subGroup',
+          label: '子资源',
+          width: 140,
+          formatter: (row) =>
+            h('span', { style: { fontSize: '12px' } }, row.subGroup || '-')
         },
         {
           prop: 'description',

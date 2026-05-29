@@ -297,6 +297,7 @@ interface PixiuAPIResource {
   method: string
   path: string
   group?: string
+  sub_group?: string
   description?: string
   gmt_create?: string
   gmt_modified?: string
@@ -417,6 +418,7 @@ interface PixiuAPIItem {
   method: string
   path: string
   group?: string
+  sub_group?: string
   description?: string
   gmt_create?: string
   gmt_modified?: string
@@ -436,6 +438,7 @@ function mapPixiuAPIItem(item: PixiuAPIItem): Api.SystemManage.APIListItem {
     method: item.method || '',
     path: item.path || '',
     group: item.group || '',
+    subGroup: item.sub_group || '',
     description: item.description || '',
     createTime: formatDateTime(item.gmt_create),
     updateTime: formatDateTime(item.gmt_modified)
@@ -473,6 +476,7 @@ export async function fetchCreateAPI(params: {
   method: string
   path: string
   group?: string
+  subGroup?: string
   description?: string
 }): Promise<void> {
   const body: Record<string, unknown> = {
@@ -480,6 +484,7 @@ export async function fetchCreateAPI(params: {
     path: params.path
   }
   if (params.group) body.group = params.group
+  if (params.subGroup) body.sub_group = params.subGroup
   if (params.description) body.description = params.description
   const res = await pixiuAxios.post('/pixiu/apis', body)
   const { code, message } = res.data
@@ -492,6 +497,7 @@ export async function fetchUpdateAPI(params: {
   method?: string
   path?: string
   group?: string
+  subGroup?: string
   description?: string
 }): Promise<void> {
   const body: Record<string, unknown> = {
@@ -500,6 +506,7 @@ export async function fetchUpdateAPI(params: {
   if (params.method) body.method = params.method
   if (params.path) body.path = params.path
   if (params.group !== undefined) body.group = params.group
+  if (params.subGroup !== undefined) body.sub_group = params.subGroup
   if (params.description !== undefined) body.description = params.description
   const res = await pixiuAxios.put(`/pixiu/apis/${params.id}`, body)
   const { code, message } = res.data
