@@ -340,6 +340,7 @@
   const allApis = ref<ApiItem[]>([])
   const selectedApiIds = ref<number[]>([])
   const selectedScopes = ref<RoleAPIScopeItem[]>([])
+  const initialScopes = ref<RoleAPIScopeItem[]>([])
   const leftTransferScopeKeys = ref<string[]>([])
   const rightTransferScopeKeys = ref<string[]>([])
   const leftCheckedIds = ref<number[]>([])
@@ -832,6 +833,34 @@
     }
   }
 
+  function sanitizeScopes(items: Array<RoleAPIScopeItem | null | undefined>): RoleAPIScopeItem[] {
+    if (!Array.isArray(items) || items.length === 0) return []
+
+    const seen = new Set<string>()
+    const result: RoleAPIScopeItem[] = []
+
+    for (const item of items) {
+      if (!item) continue
+      const apiId = Number(item.api_id)
+      const cluster = String(item.cluster || '').trim()
+      const namespace = String(item.namespace || '').trim()
+      if (!Number.isFinite(apiId) || apiId <= 0 || !cluster || !namespace) continue
+
+      const normalized: RoleAPIScopeItem = {
+        api_id: apiId,
+        cluster,
+        namespace,
+        resource_name: normalizeResourceName(item.resource_name)
+      }
+      const key = scopeItemToKey(normalized)
+      if (seen.has(key)) continue
+      seen.add(key)
+      result.push(normalized)
+    }
+
+    return result
+  }
+
   function getCheckedIds(side: PanelSide) {
     return side === 'left' ? leftCheckedIds : rightCheckedIds
   }
@@ -903,7 +932,7 @@
   function moveToRight() {
     if (props.mode === 'kubernetes') {
       const existing = new Set(selectedScopeKeys.value)
-      const next = [...selectedScopes.value]
+      const next = sanitizeScopes(selectedScopes.value)
       leftTransferScopeKeys.value.forEach((key) => {
         if (existing.has(key)) return
         const item = keyToScopeItem(key)
@@ -936,12 +965,15 @@
   async function loadK8sScopes(roleId: number) {
     const { scopes, apis } = await fetchGetRoleAPIScopes(roleId)
     allApis.value = apis.map(mapApiResource)
-    selectedScopes.value = scopes.map((scope) => ({
-      api_id: scope.api_id,
-      cluster: scope.cluster,
-      namespace: scope.namespace,
-      resource_name: normalizeResourceName(scope.resource_name)
-    }))
+    selectedScopes.value = sanitizeScopes(
+      (scopes || []).map((scope) => ({
+        api_id: scope.api_id,
+        cluster: scope.cluster,
+        namespace: scope.namespace,
+        resource_name: normalizeResourceName(scope.resource_name)
+      }))
+    )
+    initialScopes.value = sanitizeScopes(selectedScopes.value)
     selectedApiIds.value = []
     leftTransferScopeKeys.value = []
     rightTransferScopeKeys.value = []
@@ -1010,6 +1042,7 @@
     allApis.value = []
     selectedApiIds.value = []
     selectedScopes.value = []
+    initialScopes.value = []
     leftTransferScopeKeys.value = []
     rightTransferScopeKeys.value = []
     leftCheckedIds.value = []
@@ -1076,14 +1109,42 @@
     submitting.value = true
     try {
       if (props.mode === 'kubernetes') {
-        await fetchUpdateRoleAPIScopes(
-          roleId,
-          selectedScopes.value.map((scope) => ({
+        const current = sanitizeScopes(selectedScopes.value)
+        const initial = sanitizeScopes(initialScopes.value)
+        const initialMap = new Map(initial.map((item) => [scopeItemToKey(item), item]))
+        const currentMap = new Map(current.map((item) => [scopeItemToKey(item), item]))
+
+        const addScopes = current
+          .filter((item) => !initialMap.has(scopeItemToKey(item)))
+          .map((scope) => ({
             api_id: scope.api_id,
             cluster: scope.cluster,
             namespace: scope.namespace,
             resource_name: normalizeResourceName(scope.resource_name)
           }))
+
+        const removeScopes = initial
+          .filter((item) => !currentMap.has(scopeItemToKey(item)))
+          .map((scope) => ({
+            api_id: scope.api_id,
+            cluster: scope.cluster,
+            namespace: scope.namespace,
+            resource_name: normalizeResourceName(scope.resource_name)
+          }))
+
+        if (addScopes.length === 0 && removeScopes.length === 0) {
+          ElMessage.success('权限更新成功')
+          emit('success')
+          dialogVisible.value = false
+          return
+        }
+
+        await fetchUpdateRoleAPIScopes(
+          roleId,
+          {
+            add_scopes: addScopes,
+            remove_scopes: removeScopes
+          }
         )
       } else {
         await fetchUpdateRoleAPIs(roleId, selectedApiIds.value)

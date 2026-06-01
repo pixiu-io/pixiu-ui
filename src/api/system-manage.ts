@@ -338,6 +338,12 @@ export interface RoleAPIScopesResult {
   apis: PixiuAPIResource[]
 }
 
+export interface UpdateRoleAPIScopesPayload {
+  scopes?: RoleAPIScopeRecord[]
+  add_scopes?: RoleAPIScopeRecord[]
+  remove_scopes?: RoleAPIScopeRecord[]
+}
+
 export async function fetchGetRoleAPIScopes(roleId: number): Promise<RoleAPIScopesResult> {
   const res = await pixiuAxios.get(`/pixiu/roles/${roleId}/api-scopes`)
   const { code, result, message } = res.data
@@ -352,9 +358,9 @@ export async function fetchGetRoleAPIScopes(roleId: number): Promise<RoleAPIScop
 
 export async function fetchUpdateRoleAPIScopes(
   roleId: number,
-  scopes: RoleAPIScopeRecord[]
+  payload: UpdateRoleAPIScopesPayload
 ): Promise<void> {
-  const res = await pixiuAxios.put(`/pixiu/roles/${roleId}/api-scopes`, { scopes })
+  const res = await pixiuAxios.put(`/pixiu/roles/${roleId}/api-scopes`, payload)
   const { code, message } = res.data
   if (code !== 200) throw new Error(message || '更新角色 Kubernetes 权限失败')
 }

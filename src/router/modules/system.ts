@@ -33,6 +33,42 @@ export const systemRoutes: AppRouteRecord = {
       }
     },
     {
+      path: 'permission',
+      name: 'Permission',
+      component: '/system/permission',
+      meta: {
+        title: 'menus.system.permission',
+        icon: 'ri:shield-keyhole-line',
+        keepAlive: true,
+        roles: ['R_SUPER']
+      }
+    },
+    {
+      path: 'user-center',
+      name: 'UserCenter',
+      component: '/system/user-center',
+      meta: {
+        title: 'menus.system.userCenter',
+        icon: 'ri:user-line',
+        isHide: true,
+        keepAlive: true,
+        isHideTab: true
+      }
+    }
+  ]
+}
+
+export const systemMgrRoutes: AppRouteRecord = {
+  path: '/system-mgr',
+  name: 'SystemMgr',
+  component: '/index/index',
+  meta: {
+    title: 'menus.system.sysMgr',
+    icon: 'ri:settings-3-line',
+    roles: ['R_SUPER']
+  },
+  children: [
+    {
       path: 'tenant',
       name: 'Tenant',
       component: '/system/tenant',
@@ -52,18 +88,6 @@ export const systemRoutes: AppRouteRecord = {
         icon: 'ri:links-line',
         keepAlive: true,
         roles: ['R_SUPER']
-      }
-    },
-    {
-      path: 'user-center',
-      name: 'UserCenter',
-      component: '/system/user-center',
-      meta: {
-        title: 'menus.system.userCenter',
-        icon: 'ri:user-line',
-        isHide: true,
-        keepAlive: true,
-        isHideTab: true
       }
     }
   ]

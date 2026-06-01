@@ -228,9 +228,11 @@
       "ecommerce": "电子商务"
     },
     "system": {
-      "title": "系统管理",
+      "title": "用户与权限",
       "user": "用户管理",
       "role": "角色管理",
+      "permission": "授权管理",
+      "sysMgr": "系统管理",
       "tenant": "租户",
       "api": "API",
       "userCenter": "个人中心",

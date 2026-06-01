@@ -68,7 +68,6 @@
   const dialogType = ref<DialogType>('add')
   const dialogVisible = ref(false)
   const apiDialogVisible = ref(false)
-  const apiDialogMode = ref<'api' | 'kubernetes'>('api')
   const currentRoleData = ref<Partial<RoleListItem>>({})
 
   const searchForm = ref({
@@ -154,7 +153,7 @@
         {
           prop: 'operation',
           label: '操作',
-          width: 320,
+          width: 180,
           fixed: 'right',
           formatter: (row) =>
             h('div', { style: 'display:flex;align-items:center;gap:12px;flex-wrap:nowrap' }, [
@@ -174,19 +173,9 @@
                   type: 'primary',
                   underline: 'never',
                   style: 'font-size:12px',
-                  onClick: () => showApiDialog(row, 'api')
+                  onClick: () => showApiDialog(row)
                 },
                 () => '修改权限'
-              ),
-              h(
-                ElLink,
-                {
-                  type: 'primary',
-                  underline: 'never',
-                  style: 'font-size:12px',
-                  onClick: () => showApiDialog(row, 'kubernetes')
-                },
-                () => 'kubernetes 权限'
               ),
               h(
                 ElLink,

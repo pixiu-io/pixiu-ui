@@ -34,7 +34,7 @@
                     @click.stop
                   />
                   <span class="role-api-picker__ns-name">{{ ns.label }}</span>
-                  <span class="role-api-picker__ns-count">({{ ns.apis.length }})</span>
+                  <span class="role-api-picker__ns-count">({{ countVisibleScopes(cluster, ns) }})</span>
                 </div>
               </template>
               <ElCollapse
@@ -56,12 +56,12 @@
                         @click.stop
                       />
                       <span class="role-api-picker__subgroup-name">{{ subgroup.label }}</span>
-                      <span class="role-api-picker__subgroup-count">({{ subgroup.apis.length }})</span>
+                      <span class="role-api-picker__subgroup-count">({{ getVisibleSubgroupApis(cluster, ns, subgroup).length }})</span>
                     </div>
                   </template>
                   <div class="role-api-picker__items">
                     <ElCheckbox
-                      v-for="api in subgroup.apis"
+                      v-for="api in getVisibleSubgroupApis(cluster, ns, subgroup)"
                       :key="api.id"
                       :model-value="isApiChecked(api.id, cluster.name, ns.name)"
                       class="role-api-picker__item"
@@ -230,6 +230,25 @@
     return keys
   }
 
+  function filterApisByScopeVisibility(apis: ApiItem[], clusterName: string, namespaceName: string): ApiItem[] {
+    if (!props.useScopeMode) return apis
+    return apis.filter((api) => isScopeVisible(api.id, clusterName, namespaceName))
+  }
+
+  function countVisibleScopes(cluster: ClusterPickerNode, ns?: NamespacePickerNode): number {
+    if (!props.useScopeMode) {
+      return ns ? ns.apis.length : cluster.apis.length
+    }
+    if (ns) {
+      return filterApisByScopeVisibility(
+        ns.apis.length ? ns.apis : sortedGroupApis.value,
+        cluster.name,
+        ns.name
+      ).length
+    }
+    return getNamespaceNodes(cluster).reduce((sum, namespace) => sum + countVisibleScopes(cluster, namespace), 0)
+  }
+
   const clusterNodes = computed(() => {
     if (!showK8sClusters.value) return []
     const text = props.filterText.trim().toLowerCase()
@@ -258,6 +277,13 @@
         return { ...cluster, apis: clusterApis }
       })
       .filter((cluster) => {
+        if (props.useScopeMode) {
+          const namespaces = props.namespaceMap[cluster.name]
+          if (namespaces === undefined || isNamespaceLoading(cluster.name)) {
+            return true
+          }
+          return getNamespaceNodes(cluster).length > 0
+        }
         if (props.clustersOnly && !text) return true
         if (cluster.apis.length > 0) return true
         if (!text) return false
@@ -316,6 +342,14 @@
     })
   }
 
+  function getVisibleSubgroupApis(
+    cluster: ClusterPickerNode,
+    ns: NamespacePickerNode,
+    subgroup: SubGroupNode
+  ): ApiItem[] {
+    return filterApisByScopeVisibility(subgroup.apis, cluster.name, ns.name)
+  }
+
   function getNamespaceNodes(cluster: ClusterPickerNode): NamespacePickerNode[] {
     const namespaces = props.namespaceMap[cluster.name] ?? []
     const text = props.filterText.trim().toLowerCase()
@@ -340,9 +374,16 @@
             })
           }
         }
+        apis = filterApisByScopeVisibility(apis, cluster.name, ns.name)
         return { ...ns, apis }
       })
-      .filter((ns) => ns.apis.length > 0)
+      .filter((ns) => {
+        if (ns.apis.length === 0) return false
+        if (props.useScopeMode) {
+          return getSubGroupNodes(cluster, ns).length > 0
+        }
+        return true
+      })
   }
 
   function getSubGroupNodes(cluster: ClusterPickerNode, ns: NamespacePickerNode): SubGroupNode[] {
@@ -367,6 +408,7 @@
         )
       }))
       .filter((item) => {
+        if (item.apis.length === 0) return false
         if (!text) return true
         const clusterMatched =
           cluster.label.toLowerCase().includes(text) || cluster.name.toLowerCase().includes(text)
@@ -385,6 +427,11 @@
   }
 
   function clusterCountLabel(cluster: ClusterPickerNode): string | number {
+    if (props.useScopeMode) {
+      const loaded = props.namespaceMap[cluster.name]
+      if (loaded) return getNamespaceNodes(cluster).length
+      return cluster.apis.length
+    }
     const loaded = props.namespaceMap[cluster.name]
     if (loaded) return getNamespaceNodes(cluster).length
     return cluster.apis.length
