@@ -3,7 +3,7 @@
   <ElDrawer
     v-model="visible"
     direction="rtl"
-    size="56%"
+    size="60%"
     destroy-on-close
     :show-close="false"
     class="permission-grant-drawer"
@@ -51,49 +51,49 @@
             <span class="col-role">权限管理</span>
             <span class="col-action">操作</span>
           </div>
-          <div v-for="(row, index) in rows" :key="row.key" class="permission-grant-table-row">
-            <div class="col-cluster">
-              <ElSelect
-                v-if="clusterOptions.length"
-                v-model="row.cluster"
-                placeholder="请选择集群"
-                filterable
-                @change="() => onClusterChange(row)"
-              >
-                <ElOption
-                  v-for="c in clusterOptions"
-                  :key="c.name"
-                  :label="c.aliasName || c.name"
-                  :value="c.name"
-                />
-              </ElSelect>
-              <span v-else class="permission-grant-empty-hint">暂无可用集群</span>
-            </div>
-            <div class="col-namespace">
-              <ElSelect
-                v-if="row.cluster && namespaceOptions(row).length"
-                v-model="row.namespaces"
-                multiple
-                collapse-tags
-                collapse-tags-tooltip
-                :max-collapse-tags="2"
-                placeholder="请选择命名空间"
-                filterable
-                :loading="row.nsLoading"
-                @change="(val: string[]) => onNamespacesChange(row, val)"
-              >
-                <ElOption
-                  v-if="row.allNamespaces.length > 1"
-                  label="全部命名空间"
-                  value="__all__"
-                />
-                <ElOption v-for="ns in row.allNamespaces" :key="ns" :label="ns" :value="ns" />
-              </ElSelect>
-              <span v-else-if="row.cluster" class="permission-grant-empty-hint">暂无命名空间</span>
-              <span v-else class="permission-grant-empty-hint">请先选择集群</span>
-            </div>
-            <div class="col-role">
-              <div class="permission-grant-role-cell">
+          <template v-for="(row, index) in rows" :key="row.key">
+            <div class="permission-grant-table-row">
+              <div class="col-cluster">
+                <ElSelect
+                  v-if="clusterOptions.length"
+                  v-model="row.cluster"
+                  placeholder="请选择集群"
+                  filterable
+                  @change="() => onClusterChange(row)"
+                >
+                  <ElOption
+                    v-for="c in clusterOptions"
+                    :key="c.name"
+                    :label="c.aliasName || c.name"
+                    :value="c.name"
+                  />
+                </ElSelect>
+                <span v-else class="permission-grant-empty-hint">暂无可用集群</span>
+              </div>
+              <div class="col-namespace">
+                <ElSelect
+                  v-if="row.cluster && namespaceOptions(row).length"
+                  v-model="row.namespaces"
+                  multiple
+                  collapse-tags
+                  collapse-tags-tooltip
+                  :max-collapse-tags="2"
+                  placeholder="请选择命名空间"
+                  filterable
+                  :loading="row.nsLoading"
+                  @change="(val: string[]) => onNamespacesChange(row, val)"
+                >
+                  <ElOption
+                    v-if="row.allNamespaces.length > 1"
+                    label="全部命名空间"
+                    value="__all__"
+                  />
+                  <ElOption v-for="ns in row.allNamespaces" :key="ns" :label="ns" :value="ns" />
+                </ElSelect>
+                <span v-else-if="row.cluster" class="permission-grant-empty-hint">暂无命名空间</span>
+                <span v-else class="permission-grant-empty-hint">请先选择集群</span>
+              </div>
+              <div class="col-role">
                 <ElSelect
                   v-model="row.preset"
                   placeholder="权限类型"
@@ -107,35 +107,28 @@
                     :value="p.value"
                   />
                 </ElSelect>
-                <template v-if="row.preset === 'custom'">
-                  <ElInput
-                    v-model="row.customRoleName"
-                    placeholder="clusterrole 名称"
-                    class="permission-grant-custom-input"
-                  />
-                  <ElLink
-                    type="primary"
-                    :underline="false"
-                    class="permission-grant-yaml-link"
-                    @click="openYamlDialog(row)"
-                  >
-                    查看YAML
-                  </ElLink>
-                </template>
+              </div>
+              <div class="col-action">
+                <ElLink
+                  type="primary"
+                  :underline="false"
+                  class="permission-grant-delete-link"
+                  :disabled="rows.length <= 1"
+                  @click="removeRow(index)"
+                >
+                  删除
+                </ElLink>
               </div>
             </div>
-            <div class="col-action">
-              <ElLink
-                type="primary"
-                :underline="false"
-                class="permission-grant-delete-link"
-                :disabled="rows.length <= 1"
-                @click="removeRow(index)"
-              >
-                删除
-              </ElLink>
+            <div v-if="row.preset === 'custom'" class="permission-grant-rules-panel">
+              <PermissionRulesMatrix
+                v-model="row.ruleMatrixRows"
+                :loading="row.rulesLoading"
+                role-name="view"
+                @change="() => syncRulesFromMatrix(row)"
+              />
             </div>
-          </div>
+          </template>
         </div>
         <ElButton
           text
@@ -179,27 +172,6 @@
       </div>
     </template>
   </ElDrawer>
-
-  <ElDialog
-    v-model="yamlVisible"
-    title="自定义权限 YAML"
-    width="640px"
-    align-center
-    destroy-on-close
-    append-to-body
-  >
-    <ElInput
-      v-model="yamlContent"
-      type="textarea"
-      :rows="14"
-      placeholder="PolicyRule 列表（JSON 数组）"
-      class="permission-grant-yaml-editor"
-    />
-    <template #footer>
-      <ElButton @click="yamlVisible = false">关闭</ElButton>
-      <ElButton type="primary" @click="applyYaml">应用</ElButton>
-    </template>
-  </ElDialog>
 </template>
 
 <script setup lang="ts">
@@ -207,9 +179,17 @@
   import { ElIcon, ElMessage } from 'element-plus'
   import { ref, watch } from 'vue'
   import { fetchClusterList, type ClusterItem } from '@/api/container'
+  import { fetchK8sClusterRole } from '@/api/kubernetes/rbac'
   import { fetchK8sNamespaceList } from '@/api/kubernetes/namespace'
   import { fetchGetUserList } from '@/api/system-manage'
   import { useUserStore } from '@/store/modules/user'
+  import PermissionRulesMatrix from './permission-rules-matrix.vue'
+  import {
+    type K8sPolicyRule,
+    type RbacRuleMatrixRow,
+    matrixToPolicyRules,
+    policyRulesToMatrix
+  } from '@/utils/kubernetes/rbac-rules-matrix'
 
   defineOptions({ name: 'PermissionGrantDrawer' })
 
@@ -223,8 +203,12 @@
     nsLoading: boolean
     preset: PermissionPreset
     customRoleName: string
+    ruleMatrixRows: RbacRuleMatrixRow[]
+    rulesLoading: boolean
     rulesJson: string
   }
+
+  const CUSTOM_CLUSTER_ROLE = 'view'
 
   const visible = defineModel<boolean>({ default: false })
 
@@ -295,16 +279,14 @@
       allNamespaces: [],
       nsLoading: false,
       preset: 'readonly',
-      customRoleName: '',
+      customRoleName: CUSTOM_CLUSTER_ROLE,
+      ruleMatrixRows: [],
+      rulesLoading: false,
       rulesJson: '[]'
     }
   }
 
   const rows = ref<GrantRow[]>([createRow()])
-
-  const yamlVisible = ref(false)
-  const yamlContent = ref('[]')
-  let yamlTargetRow: GrantRow | null = null
 
   function namespaceOptions(row: GrantRow) {
     if (!row.cluster) return []
@@ -353,8 +335,39 @@
     return []
   }
 
+  function syncRulesFromMatrix(row: GrantRow) {
+    row.rulesJson = JSON.stringify(matrixToPolicyRules(row.ruleMatrixRows))
+  }
+
+  async function loadViewClusterRoleRules(row: GrantRow) {
+    if (!row.cluster) {
+      row.ruleMatrixRows = []
+      row.rulesJson = '[]'
+      return
+    }
+    row.rulesLoading = true
+    try {
+      const data = (await fetchK8sClusterRole(row.cluster, CUSTOM_CLUSTER_ROLE)) as {
+        rules?: K8sPolicyRule[]
+      }
+      const rules = data.rules ?? []
+      row.customRoleName = CUSTOM_CLUSTER_ROLE
+      row.ruleMatrixRows = policyRulesToMatrix(rules)
+      row.rulesJson = JSON.stringify(rules)
+    } catch {
+      row.ruleMatrixRows = []
+      row.rulesJson = '[]'
+      ElMessage.warning(`获取 ClusterRole ${CUSTOM_CLUSTER_ROLE} 失败`)
+    } finally {
+      row.rulesLoading = false
+    }
+  }
+
   function parseRules(row: GrantRow): object[] {
     if (row.preset === 'custom') {
+      if (row.ruleMatrixRows.length) {
+        return matrixToPolicyRules(row.ruleMatrixRows)
+      }
       try {
         const parsed = JSON.parse(row.rulesJson || '[]')
         return Array.isArray(parsed) ? parsed : []
@@ -402,6 +415,9 @@
   function onClusterChange(row: GrantRow) {
     row.namespaces = []
     loadNamespacesForRow(row)
+    if (row.preset === 'custom') {
+      void loadViewClusterRoleRules(row)
+    }
   }
 
   function onNamespacesChange(row: GrantRow, val: string[]) {
@@ -413,9 +429,16 @@
   }
 
   function onPresetChange(row: GrantRow) {
-    if (row.preset !== 'custom') {
-      row.rulesJson = JSON.stringify(defaultRulesForPreset(row.preset), null, 2)
+    if (row.preset === 'custom') {
+      if (!row.cluster) {
+        ElMessage.warning('请先选择集群')
+        return
+      }
+      void loadViewClusterRoleRules(row)
+      return
     }
+    row.ruleMatrixRows = []
+    row.rulesJson = JSON.stringify(defaultRulesForPreset(row.preset), null, 2)
   }
 
   function addRow() {
@@ -430,19 +453,6 @@
   function removeRow(index: number) {
     if (rows.value.length <= 1) return
     rows.value.splice(index, 1)
-  }
-
-  function openYamlDialog(row: GrantRow) {
-    yamlTargetRow = row
-    yamlContent.value = row.rulesJson || '[]'
-    yamlVisible.value = true
-  }
-
-  function applyYaml() {
-    if (yamlTargetRow) {
-      yamlTargetRow.rulesJson = yamlContent.value
-    }
-    yamlVisible.value = false
   }
 
   function resetForm() {
@@ -473,8 +483,8 @@
         ElMessage.warning(`${label}：请选择命名空间`)
         return false
       }
-      if (row.preset === 'custom' && !row.customRoleName.trim() && !parseRules(row).length) {
-        ElMessage.warning(`${label}：自定义权限需填写 ClusterRole 或 PolicyRule`)
+      if (row.preset === 'custom' && !parseRules(row).length) {
+        ElMessage.warning(`${label}：自定义权限加载失败，请重新选择集群`)
         return false
       }
     }
@@ -505,7 +515,7 @@
           expiration_seconds: expirationSeconds.value,
           rules: parseRules(row)
         }
-        if (row.preset === 'custom' && row.customRoleName.trim()) {
+        if (row.preset === 'custom') {
           payload.p_type = 1
         }
         await pixiuAxios.post(
@@ -632,7 +642,7 @@
   .permission-grant-table-head,
   .permission-grant-table-row {
     display: grid;
-    grid-template-columns: minmax(140px, 1.1fr) minmax(200px, 1.4fr) minmax(220px, 1.6fr) 56px;
+    grid-template-columns: minmax(140px, 1.1fr) minmax(200px, 1.4fr) minmax(120px, 0.9fr) 56px;
     gap: 8px;
     align-items: center;
     padding: 10px 12px;
@@ -689,26 +699,14 @@
     border-top: 1px solid var(--el-border-color-lighter);
   }
 
-  .permission-grant-role-cell {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px;
+  .permission-grant-rules-panel {
+    padding: 8px 12px 12px;
+    border-top: 1px solid var(--el-border-color-lighter);
+    background: var(--el-fill-color-blank);
   }
 
   .permission-grant-preset-select {
-    width: 108px;
-    flex-shrink: 0;
-  }
-
-  .permission-grant-custom-input {
-    flex: 1;
-    min-width: 100px;
-  }
-
-  .permission-grant-yaml-link {
-    font-size: 12px;
-    white-space: nowrap;
+    width: 100%;
   }
 
   .permission-grant-delete-link {
@@ -739,12 +737,5 @@
     display: flex;
     justify-content: flex-end;
     gap: 8px;
-  }
-
-  .permission-grant-yaml-editor :deep(textarea) {
-    font-family:
-      'JetBrains Mono', 'SF Mono', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
-      monospace;
-    font-size: 12px;
   }
 </style>
