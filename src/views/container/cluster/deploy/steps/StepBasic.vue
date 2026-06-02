@@ -31,7 +31,7 @@
         allow-create
         default-first-option
         :reserve-keyword="false"
-        :disabled="readOnly || lockImmutableFields"
+        :disabled="readOnly"
         @update:model-value="emit('update:form', { ...form, kubernetesVersion: $event })"
       >
         <ElOption v-for="v in k8sVersions" :key="v" :label="v" :value="v" />
@@ -51,13 +51,16 @@
           <ElRadio value="containerd">
             <span class="runtime-label">containerd</span>
           </ElRadio>
-          <ElRadio value="docker" :disabled="k8sGt124">
+          <ElRadio value="docker">
             <span class="runtime-label">docker</span>
           </ElRadio>
         </ElRadioGroup>
         <div class="form-tip">
           Kubernetes 1.24.0 通过 Dockershim 对 Docker 的支持已移除，新建节点的容器运行时请使用
           Containerd
+        </div>
+        <div v-if="form.runtime === 'docker' && k8sGt124" class="form-tip form-tip--danger">
+          通过 cri-dockerd 服务对 Docker 进行的支持（不推荐）
         </div>
         <div class="runtime-custom-dir-row">
           <ElCheckbox
@@ -308,7 +311,8 @@
           @update:model-value="emit('update:form', { ...form, changeSelinux: $event as boolean })"
         />
         <div class="form-tip"
-          >开启后将关闭目标主机的 Selinux，推荐开启；如果主机未安装 Selinux（如 openEuler），则需要关闭该配置</div
+          >开启后将关闭目标主机的 Selinux，推荐开启；如果主机未安装 Selinux（如
+          openEuler），则需要关闭该配置</div
         >
       </ElFormItem>
       <ElFormItem label="Kubernetes 镜像仓库">
@@ -782,6 +786,10 @@
     font-size: 12px;
     color: var(--el-text-color-placeholder);
     line-height: 1.5;
+  }
+
+  .form-tip--danger {
+    color: var(--el-color-danger);
   }
 
   .cidr-block {

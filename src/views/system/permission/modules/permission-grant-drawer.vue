@@ -66,7 +66,21 @@
                     :key="c.name"
                     :label="c.aliasName || c.name"
                     :value="c.name"
-                  />
+                    :disabled="isClusterUnavailable(c)"
+                  >
+                    <ElTooltip
+                      v-if="isClusterUnavailable(c)"
+                      content="集群不可用"
+                      placement="right"
+                    >
+                      <span class="permission-grant-cluster-option is-disabled">
+                        {{ c.aliasName || c.name }}
+                      </span>
+                    </ElTooltip>
+                    <span v-else class="permission-grant-cluster-option">
+                      {{ c.aliasName || c.name }}
+                    </span>
+                  </ElOption>
                 </ElSelect>
                 <span v-else class="permission-grant-empty-hint">暂无可用集群</span>
               </div>
@@ -124,19 +138,12 @@
               <PermissionRulesMatrix
                 v-model="row.ruleMatrixRows"
                 :loading="row.rulesLoading"
-                role-name="view"
                 @change="() => syncRulesFromMatrix(row)"
               />
             </div>
           </template>
         </div>
-        <ElButton
-          text
-          type="primary"
-          class="permission-grant-add-btn"
-          :disabled="!clusterOptions.length"
-          @click="addRow"
-        >
+        <ElButton text type="primary" class="permission-grant-add-btn" disabled>
           + 添加权限
         </ElButton>
       </div>
@@ -353,7 +360,7 @@
       const rules = data.rules ?? []
       row.customRoleName = CUSTOM_CLUSTER_ROLE
       row.ruleMatrixRows = policyRulesToMatrix(rules)
-      row.rulesJson = JSON.stringify(rules)
+      row.rulesJson = JSON.stringify(matrixToPolicyRules(row.ruleMatrixRows))
     } catch {
       row.ruleMatrixRows = []
       row.rulesJson = '[]'
@@ -380,7 +387,7 @@
 
   function resolveTargetNamespaces(row: GrantRow): string[] {
     if (row.namespaces.includes('__all__')) {
-      return [...row.allNamespaces]
+      return []
     }
     return row.namespaces.filter((n) => n !== '__all__')
   }
@@ -392,6 +399,10 @@
     } catch {
       clusterOptions.value = []
     }
+  }
+
+  function isClusterUnavailable(cluster: ClusterItem): boolean {
+    return Number(cluster.status) !== 0
   }
 
   async function loadNamespacesForRow(row: GrantRow) {
@@ -439,15 +450,6 @@
     }
     row.ruleMatrixRows = []
     row.rulesJson = JSON.stringify(defaultRulesForPreset(row.preset), null, 2)
-  }
-
-  function addRow() {
-    const row = createRow()
-    if (clusterOptions.value.length === 1) {
-      row.cluster = clusterOptions.value[0].name
-      loadNamespacesForRow(row)
-    }
-    rows.value.push(row)
   }
 
   function removeRow(index: number) {
@@ -508,6 +510,7 @@
       for (let i = 0; i < rows.value.length; i++) {
         const row = rows.value[i]
         const payload: Record<string, unknown> = {
+          cluster: row.cluster,
           name: buildGrantName(row, i),
           user_id: userId,
           p_type: presetToPType(row.preset),
@@ -527,8 +530,10 @@
       visible.value = false
       emit('success')
     } catch (e: unknown) {
-      const err = e as { message?: string }
-      ElMessage.error(err?.message || '创建失败')
+      const err = e as { notified?: boolean; message?: string }
+      if (!err.notified) {
+        ElMessage.error(err?.message || '创建失败')
+      }
     } finally {
       submitting.value = false
     }
@@ -717,12 +722,26 @@
     margin-top: 8px;
     padding-left: 0;
     font-size: 12px;
+    cursor: not-allowed;
+  }
+
+  .permission-grant-add-btn.is-disabled {
+    color: var(--el-text-color-placeholder);
   }
 
   .permission-grant-empty-hint {
     font-size: 12px;
     color: var(--el-text-color-placeholder);
     line-height: 32px;
+  }
+
+  .permission-grant-cluster-option {
+    display: inline-block;
+    width: 100%;
+  }
+
+  .permission-grant-cluster-option.is-disabled {
+    cursor: not-allowed;
   }
 
   .permission-grant-legend-table {

@@ -14,12 +14,12 @@ export interface RbacRuleMatrixRow {
   actions: Record<RbacActionKey, boolean>
 }
 
-export const RBAC_ACTION_COLUMNS: Array<{ key: RbacActionKey; label: string; color: string }> = [
-  { key: 'view', label: '查看', color: '#67c23a' },
-  { key: 'list', label: '列表', color: '#409eff' },
-  { key: 'create', label: '创建', color: '#e6a23c' },
-  { key: 'modify', label: '修改', color: '#f5a623' },
-  { key: 'delete', label: '删除', color: '#f56c6c' }
+export const RBAC_ACTION_COLUMNS: Array<{ key: RbacActionKey; label: string }> = [
+  { key: 'view', label: '查看' },
+  { key: 'list', label: '列表' },
+  { key: 'create', label: '创建' },
+  { key: 'modify', label: '修改' },
+  { key: 'delete', label: '删除' }
 ]
 
 const ACTION_VERBS: Record<RbacActionKey, string[]> = {
@@ -104,31 +104,39 @@ export function policyRulesToMatrix(rules: K8sPolicyRule[]): RbacRuleMatrixRow[]
   })
 }
 
-/** 将权限矩阵还原为 PolicyRule，供提交后端 */
-export function matrixToPolicyRules(rows: RbacRuleMatrixRow[]): K8sPolicyRule[] {
-  const grouped = new Map<string, { resources: Set<string>; verbs: Set<string> }>()
-
-  for (const row of rows) {
-    const apiGroup = parseApiGroup(row.apiGroup)
-    if (!grouped.has(apiGroup)) {
-      grouped.set(apiGroup, { resources: new Set(), verbs: new Set() })
-    }
-    const entry = grouped.get(apiGroup)!
-    entry.resources.add(row.resource)
-
-    for (const col of RBAC_ACTION_COLUMNS) {
-      if (!row.actions[col.key]) continue
-      for (const verb of ACTION_VERBS[col.key]) {
-        entry.verbs.add(verb)
-      }
+function rowSelectedVerbs(row: RbacRuleMatrixRow): Set<string> {
+  const verbs = new Set<string>()
+  for (const col of RBAC_ACTION_COLUMNS) {
+    if (!row.actions[col.key]) continue
+    for (const verb of ACTION_VERBS[col.key]) {
+      verbs.add(verb)
     }
   }
+  return verbs
+}
 
-  return Array.from(grouped.entries())
-    .filter(([, v]) => v.verbs.size > 0)
-    .map(([apiGroup, value]) => ({
-      apiGroups: [apiGroup],
-      resources: [...value.resources],
-      verbs: [...value.verbs]
-    }))
+/** 将权限矩阵还原为 PolicyRule，供提交后端（仅包含已勾选操作的资源行） */
+export function matrixToPolicyRules(rows: RbacRuleMatrixRow[]): K8sPolicyRule[] {
+  const grouped = new Map<
+    string,
+    { apiGroups: string[]; resources: Set<string>; verbs: Set<string> }
+  >()
+
+  for (const row of rows) {
+    const verbs = rowSelectedVerbs(row)
+    if (verbs.size === 0) continue
+
+    const apiGroup = parseApiGroup(row.apiGroup)
+    const key = `${apiGroup}\0${[...verbs].sort().join(',')}`
+    if (!grouped.has(key)) {
+      grouped.set(key, { apiGroups: [apiGroup], resources: new Set(), verbs })
+    }
+    grouped.get(key)!.resources.add(row.resource)
+  }
+
+  return Array.from(grouped.values()).map((value) => ({
+    apiGroups: value.apiGroups,
+    resources: [...value.resources],
+    verbs: [...value.verbs]
+  }))
 }
