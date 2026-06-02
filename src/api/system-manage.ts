@@ -558,6 +558,76 @@ export async function fetchDeleteAPI(apiId: number): Promise<void> {
   if (code !== 200) throw new Error(message || '删除 API 失败')
 }
 
+interface BackendPermission {
+  id: number
+  resource_version: number
+  user_id: number
+  cluster_name: string
+  name: string
+  sa_name: string
+  sa_namespace: string
+  kube_config?: string
+  content?: string
+  gmt_create?: string
+}
+
+export interface PermissionListItem {
+  id: number
+  resourceVersion: number
+  name: string
+  cluster: string
+  saName: string
+  saNamespace: string
+  content: string
+  createTime: string
+}
+
+function mapPermissionItem(item: BackendPermission): PermissionListItem {
+  return {
+    id: item.id,
+    resourceVersion: item.resource_version ?? 0,
+    name: item.name || '',
+    cluster: item.cluster_name || '',
+    saName: item.sa_name || '',
+    saNamespace: item.sa_namespace || '',
+    content: item.content || item.kube_config || '',
+    createTime: formatDateTime(item.gmt_create)
+  }
+}
+
+/** 权限列表（分页） */
+export async function fetchPermissionList(params: {
+  page: number
+  limit: number
+  clusterName?: string
+}): Promise<{ total: number; items: PermissionListItem[] }> {
+  const query: Record<string, unknown> = { page: params.page, limit: params.limit }
+  if (params.clusterName) query.clusterName = params.clusterName
+  const res = await pixiuAxios.get('/pixiu/clusters/permissions', { params: query })
+  const { code, result, message } = res.data
+  if (code !== 200) throw new Error(message || '获取权限列表失败')
+  const data = result as { total: number; items?: BackendPermission[] }
+  return {
+    total: data.total ?? 0,
+    items: (data.items ?? []).map(mapPermissionItem)
+  }
+}
+
+/** 权限详情 */
+export async function fetchGetPermission(permissionId: number): Promise<PermissionListItem> {
+  const res = await pixiuAxios.get(`/pixiu/clusters/permissions/${permissionId}`)
+  const { code, result, message } = res.data
+  if (code !== 200) throw new Error(message || '获取权限详情失败')
+  return mapPermissionItem(result as BackendPermission)
+}
+
+/** 删除权限 */
+export async function fetchDeletePermission(permissionId: number): Promise<void> {
+  const res = await pixiuAxios.delete(`/pixiu/clusters/permissions/${permissionId}`)
+  const { code, message } = res.data
+  if (code !== 200) throw new Error(message || '删除权限失败')
+}
+
 // 获取菜单列表
 export function fetchGetMenuList() {
   return request.get<AppRouteRecord[]>({

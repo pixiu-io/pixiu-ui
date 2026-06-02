@@ -37,7 +37,8 @@
 
 <script setup lang="ts">
   import { useTable } from '@/hooks/core/useTable'
-  import { ElLink, ElMessage } from 'element-plus'
+  import { ElLink, ElMessage, ElMessageBox } from 'element-plus'
+  import { fetchDeletePermission, fetchGetPermission, fetchPermissionList } from '@/api/system-manage'
   import PermissionGrantDrawer from './modules/permission-grant-drawer.vue'
 
   defineOptions({ name: 'PermissionManage' })
@@ -59,8 +60,16 @@
     refreshData
   } = useTable({
     core: {
-      apiFn: async () => {
-        return { code: 200, data: { records: [], total: 0, current: 1, size: 10 } }
+      apiFn: async (params: { current: number; size: number; clusterName?: string }) => {
+        const { total, items } = await fetchPermissionList({
+          page: params.current,
+          limit: params.size,
+          clusterName: params.clusterName
+        })
+        return {
+          code: 200,
+          data: { records: items, total, current: params.current, size: params.size }
+        }
       },
       apiParams: { current: 1, size: 10 },
       columnsFactory: () => [
@@ -94,18 +103,46 @@
     grantDrawerVisible.value = true
   }
 
-  function viewKubeconfig(row: any) { ElMessage.info('kubeconfig 内容: ' + (row.content || '-')) }
+  async function viewKubeconfig(row: { id: number; content?: string }) {
+    try {
+      const detail = await fetchGetPermission(row.id)
+      ElMessage.info('kubeconfig 内容: ' + (detail.content || '-'))
+    } catch (e: unknown) {
+      const err = e as { message?: string }
+      ElMessage.error(err?.message || '获取 kubeconfig 失败')
+    }
+  }
 
-  function downloadKubeconfig(row: any) {
-    if (!row.content) { ElMessage.warning('暂无内容'); return }
+  function downloadKubeconfig(row: { name?: string; content?: string }) {
+    if (!row.content) {
+      ElMessage.warning('暂无内容')
+      return
+    }
     const blob = new Blob([row.content], { type: 'text/yaml' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
-    a.href = url; a.download = `${row.name || 'kubeconfig'}.yaml`; a.click()
+    a.href = url
+    a.download = `${row.name || 'kubeconfig'}.yaml`
+    a.click()
     URL.revokeObjectURL(url)
   }
 
-  function deletePermission(row: any) { ElMessage.info('删除功能暂未实现') }
+  async function deletePermission(row: { id: number; name?: string }) {
+    try {
+      await ElMessageBox.confirm(`确定删除授权「${row.name || row.id}」吗？`, '删除确认', {
+        type: 'warning',
+        confirmButtonText: '删除',
+        cancelButtonText: '取消'
+      })
+      await fetchDeletePermission(row.id)
+      ElMessage.success('删除成功')
+      refreshData()
+    } catch (e: unknown) {
+      if (e === 'cancel' || e === 'close') return
+      const err = e as { message?: string }
+      ElMessage.error(err?.message || '删除失败')
+    }
+  }
 </script>
 
 <style lang="scss" scoped>
