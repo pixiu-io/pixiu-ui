@@ -509,8 +509,13 @@
       const { pixiuAxios } = await import('@/api/container')
       for (let i = 0; i < rows.value.length; i++) {
         const row = rows.value[i]
+        const cluster = clusterOptions.value.find((c) => c.name === row.cluster)
+        if (!cluster) {
+          ElMessage.warning(`第 ${i + 1} 行：未找到集群 ${row.cluster}`)
+          return
+        }
         const payload: Record<string, unknown> = {
-          cluster: row.cluster,
+          cluster_id: cluster.id,
           name: buildGrantName(row, i),
           user_id: userId,
           p_type: presetToPType(row.preset),
@@ -522,7 +527,7 @@
           payload.p_type = 1
         }
         await pixiuAxios.post(
-          `/pixiu/clusters/${encodeURIComponent(row.cluster)}/permissions`,
+          `/pixiu/clusters/${cluster.id}/permissions`,
           payload
         )
       }

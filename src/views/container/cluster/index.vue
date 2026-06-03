@@ -490,7 +490,8 @@
   }
 
   function shouldShowDeployProgress(row: ClusterItem): boolean {
-    return isCustomClusterNotRunning(row)
+    // 集群失联（status=4）不展示部署进度入口
+    return isCustomClusterNotRunning(row) && Number(row.status) !== 4
   }
 
   const {

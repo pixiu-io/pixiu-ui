@@ -208,7 +208,7 @@
 
   // 重置拖拽验证
   const resetDragVerify = () => {
-    dragVerify.value.reset()
+    dragVerify.value?.reset()
   }
 
   // 登录成功提示

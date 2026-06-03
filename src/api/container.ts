@@ -233,6 +233,9 @@ export async function fetchClusterList(params: {
   const query: Record<string, unknown> = { page: params.page, limit: params.limit }
   if (params.nameSelector) query.nameSelector = params.nameSelector
   if (params.status !== undefined && params.status !== '') query.status = Number(params.status)
+  const userStore = useUserStore()
+  const userId = userStore.getUserInfo?.userId
+  if (userId) query.user_id = Number(userId)
   const res = await pixiuGet<{ total: number; items: BackendCluster[] }>(
     '/pixiu/clusters',
     query
@@ -301,12 +304,15 @@ export async function fetchCreateCluster(params: {
   protected?: boolean
   cluster_type?: number
 }): Promise<void> {
+  const userStore = useUserStore()
+  const userId = userStore.getUserInfo?.userId
   const res = await pixiuAxios.post('/pixiu/clusters', {
     alias_name: params.alias_name,
     kube_config: params.kube_config,
     description: params.description ?? '',
     protected: params.protected ?? true,
-    cluster_type: params.cluster_type ?? 0
+    cluster_type: params.cluster_type ?? 0,
+    user_id: userId ?? 0
   })
   const { code, message } = res.data
   if (code !== 200) throw new Error(message || '创建失败')

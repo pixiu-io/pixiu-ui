@@ -68,6 +68,7 @@
   const dialogType = ref<DialogType>('add')
   const dialogVisible = ref(false)
   const apiDialogVisible = ref(false)
+	const apiDialogMode = ref<'api' | 'kubernetes'>('api')
   const currentRoleData = ref<Partial<RoleListItem>>({})
 
   const searchForm = ref({
