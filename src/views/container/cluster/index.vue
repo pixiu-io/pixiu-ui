@@ -554,6 +554,9 @@
                       },
                       () => row.aliasName
                     ),
+                row.permissionId
+                  ? h(ElTag, { type: 'warning', size: 'small' }, () => '授权')
+                  : null,
                 h(
                   'span',
                   {
@@ -745,8 +748,8 @@
                 {
                   type: 'primary',
                   underline: 'never',
-                  style: 'font-size:12px',
-                  onClick: () => deleteCluster(row)
+                  style: `font-size:12px;${row.permissionId ? 'cursor:not-allowed;color:var(--el-text-color-disabled)' : ''}`,
+                  onClick: () => { if (!row.permissionId) deleteCluster(row) }
                 },
                 () => '删除'
               ),
@@ -756,13 +759,13 @@
                     key: 'alert',
                     label: '配置告警',
                     icon: 'ri:alarm-warning-line',
-                    disabled: isCustomClusterNotRunning(row)
+                    disabled: isCustomClusterNotRunning(row) || !!row.permissionId
                   },
                   {
                     key: 'logs',
                     label: '采集日志',
                     icon: 'ri:file-list-3-line',
-                    disabled: isCustomClusterNotRunning(row)
+                    disabled: isCustomClusterNotRunning(row) || !!row.permissionId
                   },
                   {
                     key: 'destroy',

@@ -40,7 +40,6 @@
       <RoleApiDialog
         v-model:visible="apiDialogVisible"
         :role-data="currentRoleData"
-        :mode="apiDialogMode"
         @success="refreshData"
       />
     </ElCard>
@@ -68,7 +67,6 @@
   const dialogType = ref<DialogType>('add')
   const dialogVisible = ref(false)
   const apiDialogVisible = ref(false)
-	const apiDialogMode = ref<'api' | 'kubernetes'>('api')
   const currentRoleData = ref<Partial<RoleListItem>>({})
 
   const searchForm = ref({
@@ -207,8 +205,7 @@
     })
   }
 
-  const showApiDialog = (row: RoleListItem, mode: 'api' | 'kubernetes' = 'api'): void => {
-    apiDialogMode.value = mode
+  const showApiDialog = (row: RoleListItem): void => {
     currentRoleData.value = row
     nextTick(() => {
       apiDialogVisible.value = true

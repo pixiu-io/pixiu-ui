@@ -100,14 +100,14 @@
         {
           prop: 'group',
           label: '资源',
-          width: 130,
+          minWidth: 120,
           formatter: (row) =>
             h('span', { style: { fontSize: '12px' } }, row.group || '-')
         },
         {
           prop: 'method',
           label: '请求方法',
-          width: 100,
+          minWidth: 120,
           formatter: (row) =>
             h(
               ElTag,
@@ -116,16 +116,9 @@
             )
         },
         {
-          prop: 'subGroup',
-          label: '子资源',
-          width: 140,
-          formatter: (row) =>
-            h('span', { style: { fontSize: '12px' } }, row.subGroup || '-')
-        },
-        {
           prop: 'description',
           label: '动作',
-          minWidth: 160,
+          minWidth: 200,
           showOverflowTooltip: true,
           formatter: (row) =>
             h('span', { style: { fontSize: '12px' } }, row.description || '-')
@@ -133,7 +126,7 @@
         {
           prop: 'path',
           label: '请求路径',
-          minWidth: 220,
+          minWidth: 240,
           showOverflowTooltip: true,
           formatter: (row) =>
             h('span', { class: 'api-path', style: { fontSize: '12px' } }, row.path)

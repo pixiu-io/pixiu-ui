@@ -45,6 +45,7 @@ interface BackendCluster {
   kubernetes_version: string
   nodes: { ready: string[]; not_ready: string[] }
   protected: boolean
+  permission_id: number
   description: string
   kube_config?: string
   gmt_create: string
@@ -68,6 +69,7 @@ export interface ClusterItem {
   nodeNotReady: number
   nodeCount: number
   isProtected: boolean
+  permissionId: number
   createTime: string
 }
 
@@ -219,6 +221,7 @@ function toClusterItem(c: BackendCluster): ClusterItem {
     nodeNotReady,
     nodeCount: nodeReady + nodeNotReady,
     isProtected: c.protected,
+    permissionId: c.permission_id ?? 0,
     createTime: formatDate(c.gmt_create)
   }
 }

@@ -5,7 +5,12 @@
       class="permission-toolbar"
       style="margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between"
     >
-      <ElButton @click="showGrantDrawer" v-ripple>添加权限</ElButton>
+      <div style="display: flex; align-items: center; gap: 8px">
+        <ElButton @click="showGrantDrawer" v-ripple>添加权限</ElButton>
+        <ElButton v-if="selectedIds.length > 0" type="danger" plain @click="handleBatchDelete" v-ripple>
+          批量删除 ({{ selectedIds.length }})
+        </ElButton>
+      </div>
       <div style="display: flex; align-items: center; gap: 8px">
         <ElInput
           v-model="searchForm.clusterName"
@@ -26,6 +31,7 @@
         :columns="columns"
         :pagination="pagination"
         :pagination-options="{ align: 'right' }"
+        @selection-change="handleSelectionChange"
         @pagination:size-change="handleSizeChange"
         @pagination:current-change="handleCurrentChange"
       />
@@ -38,13 +44,23 @@
 <script setup lang="ts">
   import { useTable } from '@/hooks/core/useTable'
   import { ElLink, ElMessage, ElMessageBox } from 'element-plus'
-  import { fetchDeletePermission, fetchGetPermission, fetchPermissionList } from '@/api/system-manage'
+  import {
+    fetchDeletePermission,
+    fetchGetPermission,
+    fetchPermissionList,
+    fetchBatchDeletePermissions
+  } from '@/api/system-manage'
   import PermissionGrantDrawer from './modules/permission-grant-drawer.vue'
 
   defineOptions({ name: 'PermissionManage' })
 
   const searchForm = ref({ clusterName: undefined as string | undefined })
   const grantDrawerVisible = ref(false)
+  const selectedIds = ref<number[]>([])
+
+  const handleSelectionChange = (selection: any[]) => {
+    selectedIds.value = selection.map((item) => item.id)
+  }
 
   const {
     columns,
@@ -73,11 +89,12 @@
       },
       apiParams: { current: 1, size: 10 },
       columnsFactory: () => [
-        { prop: 'name', label: '授权名称', width: 160, formatter: (row: any) => h('span', { style: { fontSize: '12px' } }, row.name) },
-        { prop: 'cluster', label: '集群', width: 150, formatter: (row: any) => h('span', { style: { fontSize: '12px' } }, row.cluster) },
-        { prop: 'saNamespace', label: 'SA 命名空间', width: 150, formatter: (row: any) => h('span', { style: { fontSize: '12px' } }, row.saNamespace) },
-        { prop: 'saName', label: 'SA 名称', width: 180, formatter: (row: any) => h('span', { style: { fontSize: '12px' } }, row.saName) },
-        { prop: 'createTime', label: '创建日期', width: 170, formatter: (row: any) => h('span', { style: { fontSize: '12px' } }, row.createTime ?? '-') },
+        { type: 'selection', width: 50 },
+        { prop: 'name', label: '授权名称', minWidth: 160, formatter: (row: any) => h('span', { style: { fontSize: '12px' } }, row.name) },
+        { prop: 'cluster', label: '集群', minWidth: 150, formatter: (row: any) => h('span', { style: { fontSize: '12px' } }, row.cluster) },
+        { prop: 'saNamespace', label: 'SA 命名空间', minWidth: 160, formatter: (row: any) => h('span', { style: { fontSize: '12px' } }, row.saNamespace) },
+        { prop: 'saName', label: 'SA 名称', minWidth: 180, formatter: (row: any) => h('span', { style: { fontSize: '12px' } }, row.saName) },
+        { prop: 'createTime', label: '创建日期', minWidth: 170, formatter: (row: any) => h('span', { style: { fontSize: '12px' } }, row.createTime ?? '-') },
         {
           prop: 'operation',
           label: '操作',
@@ -136,11 +153,32 @@
       })
       await fetchDeletePermission(row.id)
       ElMessage.success('删除成功')
+      selectedIds.value = selectedIds.value.filter((id) => id !== row.id)
       refreshData()
     } catch (e: unknown) {
       if (e === 'cancel' || e === 'close') return
       const err = e as { message?: string }
       ElMessage.error(err?.message || '删除失败')
+    }
+  }
+
+  async function handleBatchDelete() {
+    if (selectedIds.value.length === 0) return
+
+    try {
+      await ElMessageBox.confirm(`确定删除选中的 ${selectedIds.value.length} 个授权吗？`, '批量删除确认', {
+        type: 'warning',
+        confirmButtonText: '删除',
+        cancelButtonText: '取消'
+      })
+      await fetchBatchDeletePermissions(selectedIds.value)
+      ElMessage.success('批量删除成功')
+      selectedIds.value = []
+      refreshData()
+    } catch (e: unknown) {
+      if (e === 'cancel' || e === 'close') return
+      const err = e as { message?: string }
+      ElMessage.error(err?.message || '批量删除失败')
     }
   }
 </script>
