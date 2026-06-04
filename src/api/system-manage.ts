@@ -517,35 +517,49 @@ interface BackendPermission {
   resource_version: number
   user_id: number
   cluster_name: string
+  cluster_id: number
   name: string
   sa_name: string
   sa_namespace: string
   kube_config?: string
   content?: string
   gmt_create?: string
+  p_type: number
+  namespace: string
+  expiration_seconds: number
 }
 
 export interface PermissionListItem {
   id: number
   resourceVersion: number
+  userId: number
   name: string
   cluster: string
+  clusterId: number
   saName: string
   saNamespace: string
   content: string
   createTime: string
+  pType: number
+  namespace: string
+  expirationSeconds: number
 }
 
 function mapPermissionItem(item: BackendPermission): PermissionListItem {
   return {
     id: item.id,
     resourceVersion: item.resource_version ?? 0,
+    userId: item.user_id ?? 0,
     name: item.name || '',
     cluster: item.cluster_name || '',
+    clusterId: item.cluster_id ?? 0,
     saName: item.sa_name || '',
     saNamespace: item.sa_namespace || '',
     content: item.content || item.kube_config || '',
-    createTime: formatDateTime(item.gmt_create)
+    createTime: formatDateTime(item.gmt_create),
+    pType: item.p_type ?? 0,
+    namespace: item.namespace || '',
+    expirationSeconds: item.expiration_seconds ?? 0
   }
 }
 

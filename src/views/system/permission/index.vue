@@ -43,7 +43,7 @@
 
 <script setup lang="ts">
   import { useTable } from '@/hooks/core/useTable'
-  import { ElLink, ElMessage, ElMessageBox } from 'element-plus'
+  import { ElLink, ElMessage, ElMessageBox, ElTag } from 'element-plus'
   import {
     fetchDeletePermission,
     fetchGetPermission,
@@ -60,6 +60,44 @@
 
   const handleSelectionChange = (selection: any[]) => {
     selectedIds.value = selection.map((item) => item.id)
+  }
+
+  const formatExpiration = (seconds: number) => {
+    if (!seconds || seconds <= 0) return '-'
+    const units = [
+      { label: '年', value: 365 * 24 * 3600 },
+      { label: '月', value: 30 * 24 * 3600 },
+      { label: '天', value: 24 * 3600 },
+      { label: '时', value: 3600 }
+    ]
+
+    let remaining = seconds
+    let result = ''
+
+    for (const unit of units) {
+      const val = Math.floor(remaining / unit.value)
+      if (val > 0) {
+        result += `${val}${unit.label}`
+        remaining %= unit.value
+      }
+    }
+
+    return result || '不足1小时'
+  }
+
+  const checkIsExpired = (createTime: string, expirationSeconds: number) => {
+    if (!createTime || !expirationSeconds) return false
+    const createDate = new Date(createTime)
+    if (isNaN(createDate.getTime())) return false
+
+    const expireTime = createDate.getTime() + expirationSeconds * 1000
+    return Date.now() > expireTime
+  }
+
+  const pTypeMap: Record<number, string> = {
+    0: '只读',
+    1: '自定义',
+    2: '管理员'
   }
 
   const {
@@ -90,11 +128,62 @@
       apiParams: { current: 1, size: 10 },
       columnsFactory: () => [
         { type: 'selection', width: 50 },
-        { prop: 'name', label: '授权名称', minWidth: 160, formatter: (row: any) => h('span', { style: { fontSize: '12px' } }, row.name) },
-        { prop: 'cluster', label: '集群', minWidth: 150, formatter: (row: any) => h('span', { style: { fontSize: '12px' } }, row.cluster) },
-        { prop: 'saNamespace', label: 'SA 命名空间', minWidth: 160, formatter: (row: any) => h('span', { style: { fontSize: '12px' } }, row.saNamespace) },
-        { prop: 'saName', label: 'SA 名称', minWidth: 180, formatter: (row: any) => h('span', { style: { fontSize: '12px' } }, row.saName) },
-        { prop: 'createTime', label: '创建日期', minWidth: 170, formatter: (row: any) => h('span', { style: { fontSize: '12px' } }, row.createTime ?? '-') },
+        {
+          prop: 'name',
+          label: '授权名称',
+          minWidth: 160,
+          formatter: (row: any) => h('span', { style: { fontSize: '12px' } }, row.name)
+        },
+        {
+          prop: 'clusterId',
+          label: '集群',
+          minWidth: 100,
+          formatter: (row: any) => h('span', { style: { fontSize: '12px' } }, row.clusterId)
+        },
+        {
+          prop: 'userId',
+          label: '用户',
+          minWidth: 100,
+          formatter: (row: any) => h('span', { style: { fontSize: '12px' } }, row.userId)
+        },
+        {
+          prop: 'pType',
+          label: '授权类型',
+          minWidth: 100,
+          formatter: (row: any) => h('span', { style: { fontSize: '12px' } }, pTypeMap[row.pType] ?? row.pType)
+        },
+        {
+          prop: 'namespace',
+          label: '命名空间',
+          minWidth: 120,
+          formatter: (row: any) => h('span', { style: { fontSize: '12px' } }, row.namespace || '-')
+        },
+        {
+          prop: 'expirationSeconds',
+          label: '有效期',
+          minWidth: 200,
+          formatter: (row: any) => {
+            const isExpired = checkIsExpired(row.createTime, row.expirationSeconds)
+            return h('div', { style: 'display:flex;align-items:center;gap:8px' }, [
+              h('span', { style: { fontSize: '12px' } }, formatExpiration(row.expirationSeconds)),
+              h(
+                ElTag,
+                {
+                  type: isExpired ? 'danger' : 'primary',
+                  size: 'small',
+                  effect: 'light'
+                },
+                () => (isExpired ? '已过期' : '有效')
+              )
+            ])
+          }
+        },
+        {
+          prop: 'createTime',
+          label: '创建日期',
+          minWidth: 160,
+          formatter: (row: any) => h('span', { style: { fontSize: '12px' } }, row.createTime ?? '-')
+        },
         {
           prop: 'operation',
           label: '操作',
@@ -153,7 +242,7 @@
       })
       await fetchDeletePermission(row.id)
       ElMessage.success('删除成功')
-      selectedIds.value = selectedIds.value.filter((id) => id !== row.id)
+      selectedIds.value = selectedIds.value.filter((id: number) => id !== row.id)
       refreshData()
     } catch (e: unknown) {
       if (e === 'cancel' || e === 'close') return
