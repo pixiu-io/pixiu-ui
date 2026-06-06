@@ -377,23 +377,6 @@
           </ElCard>
         </div>
       </ElTabPane>
-
-      <ElTabPane label="监控" name="monitor">
-        <ElRow :gutter="16" class="mt-2">
-          <ElCol :span="12">
-            <ElCard shadow="never">
-              <template #header>API 请求 QPS（Mock）</template>
-              <ArtLineChart height="200px" :data="qpsSeries" :x-axis-data="hourLabels" />
-            </ElCard>
-          </ElCol>
-          <ElCol :span="12">
-            <ElCard shadow="never">
-              <template #header>etcd 延迟 ms（Mock）</template>
-              <ArtLineChart height="200px" :data="etcdSeries" :x-axis-data="hourLabels" />
-            </ElCard>
-          </ElCol>
-        </ElRow>
-      </ElTabPane>
     </ElTabs>
   </div>
 </template>
@@ -413,7 +396,6 @@
     type ClusterOverviewK8sStats
   } from '@/api/kubernetes/cluster-overview-stats'
   import { useClusterNodesUsageMetrics } from '@/hooks/kubernetes/useClusterNodesUsageMetrics'
-  import ArtLineChart from '@/components/core/charts/art-line-chart/index.vue'
   import MetricChartPanel from '@/components/container/metric-chart-panel.vue'
   import ArtRingChart from '@/components/core/charts/art-ring-chart/index.vue'
   import { clusterDetailContextKey, clusterDetailRefreshKey } from './context'
@@ -431,7 +413,7 @@
   const OVERVIEW_ROUTE_NAME = 'ClusterDetailOverview'
   const isOverviewRoute = computed(() => route.name === OVERVIEW_ROUTE_NAME)
 
-  const OVERVIEW_TAB_NAMES = new Set(['main', 'basic', 'api', 'monitor'])
+  const OVERVIEW_TAB_NAMES = new Set(['main', 'basic', 'api'])
 
   watch(
     () => route.query.overviewTab,
@@ -654,17 +636,6 @@
     ])
   )
 
-  const hourLabels = computed(() =>
-    Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`)
-  )
-
-  function wave(seed: number, len: number) {
-    return Array.from({ length: len }, (_, i) => {
-      const t = (i / len) * Math.PI * 2
-      return Math.round(35 + seed * 3 + Math.sin(t + seed) * 12 + (i % 5))
-    })
-  }
-
   const clusterName = computed(() => ctx.value.name)
 
   const {
@@ -748,9 +719,6 @@
   onUnmounted(() => {
     stopOverviewBackgroundLoads()
   })
-
-  const qpsSeries = computed(() => wave(seed.value + 1, 24).map((n) => n * 8))
-  const etcdSeries = computed(() => wave(seed.value + 3, 24).map((n) => n / 10))
 
   const compSummary = computed(() => ({
     total: 18 + (seed.value % 7),

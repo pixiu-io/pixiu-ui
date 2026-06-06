@@ -565,12 +565,15 @@
                   'span',
                   {
                     class: 'icon-action',
-                    style:
-                      'cursor:pointer;color:var(--el-text-color-secondary);display:inline-flex;align-items:center',
-                    title: '编辑名称',
+                    style: row.permissionId
+                      ? 'cursor:not-allowed;color:var(--el-text-color-disabled);display:inline-flex;align-items:center'
+                      : 'cursor:pointer;color:var(--el-text-color-secondary);display:inline-flex;align-items:center',
+                    title: row.permissionId ? '授权集群不可修改名称' : '编辑名称',
                     onClick: (e: MouseEvent) => {
                       e.stopPropagation()
-                      openRenameDialog(row)
+                      if (!row.permissionId) {
+                        openRenameDialog(row)
+                      }
                     }
                   },
                   [h(Edit, { style: 'width:12px;height:12px' })]
@@ -706,6 +709,7 @@
           formatter: (row: ClusterItem) =>
             h(ElSwitch, {
               modelValue: row.isProtected,
+              disabled: !!row.permissionId,
               loading: protectingIds.value.has(row.id),
               onChange: async (val: any) => {
                 protectingIds.value.add(row.id)
