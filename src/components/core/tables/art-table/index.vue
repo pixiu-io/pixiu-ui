@@ -171,7 +171,7 @@
   })
 
   // 默认分页常量
-  const DEFAULT_PAGINATION_OPTIONS: PaginationOptions = {
+  const defaultPaginationOptions = computed<PaginationOptions>(() => ({
     pageSizes: [10, 20, 30, 50, 100],
     align: 'center',
     background: true,
@@ -180,11 +180,11 @@
     hideOnEmpty: true,
     size: 'default',
     pagerCount: width.value > 1200 ? 7 : 5
-  }
+  }))
 
   // 合并分页配置
   const mergedPaginationOptions = computed(() => ({
-    ...DEFAULT_PAGINATION_OPTIONS,
+    ...defaultPaginationOptions.value,
     ...props.paginationOptions
   }))
 

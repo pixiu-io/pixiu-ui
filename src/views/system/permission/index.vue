@@ -5,12 +5,7 @@
       class="permission-toolbar"
       style="margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between"
     >
-      <div style="display: flex; align-items: center; gap: 8px">
-        <ElButton @click="showGrantDrawer" v-ripple>添加权限</ElButton>
-        <ElButton v-if="selectedIds.length > 0" type="danger" plain @click="handleBatchDelete" v-ripple>
-          批量删除 ({{ selectedIds.length }})
-        </ElButton>
-      </div>
+      <ElButton @click="showGrantDrawer" v-ripple>添加权限</ElButton>
       <div style="display: flex; align-items: center; gap: 8px">
         <ElInput
           v-model="searchForm.clusterName"
@@ -30,8 +25,11 @@
         :data="data"
         :columns="columns"
         :pagination="pagination"
-        :pagination-options="{ align: 'right' }"
-        @selection-change="handleSelectionChange"
+        :pagination-options="{ 
+          align: 'right',
+          hideOnEmpty: false,
+          layout: 'total, prev, pager, next, sizes, jumper'
+        }"
         @pagination:size-change="handleSizeChange"
         @pagination:current-change="handleCurrentChange"
       />
@@ -56,11 +54,6 @@
 
   const searchForm = ref({ clusterName: undefined as string | undefined })
   const grantDrawerVisible = ref(false)
-  const selectedIds = ref<number[]>([])
-
-  const handleSelectionChange = (selection: any[]) => {
-    selectedIds.value = selection.map((item) => item.id)
-  }
 
   const formatExpiration = (seconds: number) => {
     if (!seconds || seconds <= 0) return '-'
@@ -121,42 +114,42 @@
           clusterName: params.clusterName
         })
         return {
-          code: 200,
-          data: { records: items, total, current: params.current, size: params.size }
+          records: items,
+          total,
+          current: params.current,
+          size: params.size
         }
       },
-      apiParams: { current: 1, size: 10 },
+      apiParams: {
+        current: 1,
+        size: 10,
+        ...searchForm.value
+      },
       columnsFactory: () => [
-        { type: 'selection', width: 50 },
         {
-          prop: 'name',
-          label: '授权名称',
-          minWidth: 160,
-          formatter: (row: any) => h('span', { style: { fontSize: '12px' } }, row.name)
-        },
-        {
-          prop: 'clusterId',
-          label: '集群',
-          minWidth: 100,
-          formatter: (row: any) => h('span', { style: { fontSize: '12px' } }, row.clusterId)
-        },
-        {
-          prop: 'userId',
+          prop: 'userName',
           label: '用户',
-          minWidth: 100,
-          formatter: (row: any) => h('span', { style: { fontSize: '12px' } }, row.userId)
+          minWidth: 120,
+          formatter: (row: any) => h('span', { class: 'user-name', style: { fontSize: '12px' } }, row.userName)
+        },
+        {
+          prop: 'clusterAliasName',
+          label: '集群',
+          minWidth: 120,
+          formatter: (row: any) =>
+            h('span', { class: 'cluster-name', style: { fontSize: '12px' } }, row.clusterAliasName || row.clusterName)
         },
         {
           prop: 'pType',
           label: '授权类型',
           minWidth: 100,
-          formatter: (row: any) => h('span', { style: { fontSize: '12px' } }, pTypeMap[row.pType] ?? row.pType)
+          formatter: (row: any) => h('span', { class: 'p-type', style: { fontSize: '12px' } }, pTypeMap[row.pType] ?? row.pType)
         },
         {
           prop: 'namespace',
           label: '命名空间',
           minWidth: 120,
-          formatter: (row: any) => h('span', { style: { fontSize: '12px' } }, row.namespace || '-')
+          formatter: (row: any) => h('span', { class: 'namespace', style: { fontSize: '12px' } }, row.namespace || '-')
         },
         {
           prop: 'expirationSeconds',
@@ -182,7 +175,7 @@
           prop: 'createTime',
           label: '创建日期',
           minWidth: 160,
-          formatter: (row: any) => h('span', { style: { fontSize: '12px' } }, row.createTime ?? '-')
+          formatter: (row: any) => h('span', { class: 'create-time', style: { fontSize: '12px' } }, row.createTime ?? '-')
         },
         {
           prop: 'operation',
@@ -242,7 +235,6 @@
       })
       await fetchDeletePermission(row.id)
       ElMessage.success('删除成功')
-      selectedIds.value = selectedIds.value.filter((id: number) => id !== row.id)
       refreshData()
     } catch (e: unknown) {
       if (e === 'cancel' || e === 'close') return
@@ -250,29 +242,17 @@
       ElMessage.error(err?.message || '删除失败')
     }
   }
-
-  async function handleBatchDelete() {
-    if (selectedIds.value.length === 0) return
-
-    try {
-      await ElMessageBox.confirm(`确定删除选中的 ${selectedIds.value.length} 个授权吗？`, '批量删除确认', {
-        type: 'warning',
-        confirmButtonText: '删除',
-        cancelButtonText: '取消'
-      })
-      await fetchBatchDeletePermissions(selectedIds.value)
-      ElMessage.success('批量删除成功')
-      selectedIds.value = []
-      refreshData()
-    } catch (e: unknown) {
-      if (e === 'cancel' || e === 'close') return
-      const err = e as { message?: string }
-      ElMessage.error(err?.message || '批量删除失败')
-    }
-  }
 </script>
 
 <style lang="scss" scoped>
+  .permission-page :deep(.user-name),
+  .permission-page :deep(.cluster-name),
+  .permission-page :deep(.p-type),
+  .permission-page :deep(.namespace),
+  .permission-page :deep(.create-time) {
+    font-size: 12px;
+  }
+
   .permission-page :deep(.art-table-card .el-card__body) { padding-top: 8px; padding-bottom: 0; }
   .permission-page :deep(.custom-pagination) { padding-bottom: 0; margin-bottom: 0; }
   .permission-page :deep(.el-pagination) { padding: 2px 0; }

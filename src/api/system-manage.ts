@@ -516,7 +516,9 @@ interface BackendPermission {
   id: number
   resource_version: number
   user_id: number
+  user_name: string
   cluster_name: string
+  cluster_alias_name: string
   cluster_id: number
   name: string
   sa_name: string
@@ -533,8 +535,11 @@ export interface PermissionListItem {
   id: number
   resourceVersion: number
   userId: number
+  userName: string
   name: string
   cluster: string
+  clusterName: string
+  clusterAliasName: string
   clusterId: number
   saName: string
   saNamespace: string
@@ -550,8 +555,11 @@ function mapPermissionItem(item: BackendPermission): PermissionListItem {
     id: item.id,
     resourceVersion: item.resource_version ?? 0,
     userId: item.user_id ?? 0,
+    userName: item.user_name || '',
     name: item.name || '',
     cluster: item.cluster_name || '',
+    clusterName: item.cluster_name || '',
+    clusterAliasName: item.cluster_alias_name || '',
     clusterId: item.cluster_id ?? 0,
     saName: item.sa_name || '',
     saNamespace: item.sa_namespace || '',

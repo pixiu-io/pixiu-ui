@@ -148,7 +148,7 @@
       <div class="rename-form">
         <div class="rename-row">
           <span class="rename-label">原名称</span>
-          <span class="rename-value">{{ renameRow?.aliasName }}</span>
+          <span class="rename-value">{{ renameRow?.aliasName || '-' }}</span>
         </div>
         <div class="rename-row">
           <span class="rename-label">新名称</span>
@@ -542,7 +542,7 @@
                         style:
                           'font-size:12px;color:var(--el-color-primary);cursor:not-allowed'
                       },
-                      row.aliasName
+                      row.aliasName || '-'
                     )
                   : h(
                       ElLink,
@@ -552,10 +552,14 @@
                         style: 'font-size:12px',
                         onClick: () => goToClusterOverview(row)
                       },
-                      () => row.aliasName
+                      () => row.aliasName || '-'
                     ),
                 row.permissionId
-                  ? h(ElTag, { type: 'warning', size: 'small' }, () => '授权')
+                  ? h(
+                      ElTag,
+                      { type: 'warning', size: 'small', style: 'font-size: 10px' },
+                      () => '授权'
+                    )
                   : null,
                 h(
                   'span',

@@ -55,14 +55,14 @@
             <div class="permission-grant-table-row">
               <div class="col-cluster">
                 <ElSelect
-                  v-if="clusterOptions.length"
+                  v-if="filteredClusterOptions.length"
                   v-model="row.cluster"
                   placeholder="请选择集群"
                   filterable
                   @change="() => onClusterChange(row)"
                 >
                   <ElOption
-                    v-for="c in clusterOptions"
+                    v-for="c in filteredClusterOptions"
                     :key="c.name"
                     :label="c.aliasName || c.name"
                     :value="c.name"
@@ -232,6 +232,10 @@
   const expirationSeconds = ref(31536000)
 
   let rowKeySeq = 0
+
+  const filteredClusterOptions = computed(() => {
+    return clusterOptions.value.filter((c) => Number(c.permissionId) === 0)
+  })
 
   const permissionPresets = [
     { label: '管理员', value: 'admin' as const },

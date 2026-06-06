@@ -211,7 +211,7 @@ function toClusterItem(c: BackendCluster): ClusterItem {
     id: c.id,
     resourceVersion: c.resource_version,
     name: c.name,
-    aliasName: c.alias_name || c.name,
+    aliasName: c.alias_name,
     clusterName: c.alias_name || c.name,
     version: c.kubernetes_version || '-',
     status: c.status,
