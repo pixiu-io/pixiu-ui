@@ -57,6 +57,9 @@
               </span>
             </ElOption>
           </ElSelect>
+          <ElTag v-if="ctx.permissionId" type="success" effect="plain" style="margin-left: 8px">
+            授权
+          </ElTag>
         </div>
       </div>
       <div class="cluster-detail-header__right">
@@ -141,6 +144,7 @@
   import { fetchClusterByName, fetchClusterList } from '@/api/container'
   import type { ClusterItem } from '@/api/container'
   import { fetchK8sNamespaceList } from '@/api/kubernetes/namespace'
+  import { fetchGetPermission, type PermissionListItem } from '@/api/system-manage'
   import ClusterYamlCreateDialog from './modules/cluster-yaml-create-dialog.vue'
   import {
     clusterDetailContextKey,
@@ -193,6 +197,7 @@
   const selectedNamespace = ref('default')
   const namespaceOptions = ref<string[]>([])
   const nsLoading = ref(false)
+  const permissionDetail = ref<PermissionListItem | null>(null)
 
   function getNsCacheKey(cluster: string) { return `pixiu-ns-${cluster}` }
   function loadCachedNamespace(cluster: string): string | null {
@@ -211,14 +216,31 @@
   async function loadNamespaceOptions(clusterName: string) {
     if (!clusterName) {
       namespaceOptions.value = []
+      permissionDetail.value = null
       return
     }
     nsLoading.value = true
     try {
-      const { items } = await fetchK8sNamespaceList(clusterName, { page: 1, limit: 500 })
-      namespaceOptions.value = items.map((n) => n.metadata.name).sort()
+      // 这里的 clusterRow 对应的是正在加载或已加载的集群信息
+      const row = clusterRow.value || findClusterInList(clusterName)
+      if (row?.permissionId) {
+        // 如果是授权集群，获取权限详情以得到授权的命名空间列表
+        const detail = await fetchGetPermission(row.permissionId)
+        permissionDetail.value = detail
+        namespaceOptions.value = (detail.targetNamespaces || []).sort()
+
+        // 如果当前选中的命名空间不在授权范围内，切换到第一个可用命名空间
+        if (selectedNamespace.value && !namespaceOptions.value.includes(selectedNamespace.value)) {
+          selectedNamespace.value = namespaceOptions.value[0] || ''
+        }
+      } else {
+        permissionDetail.value = null
+        const { items } = await fetchK8sNamespaceList(clusterName, { page: 1, limit: 500 })
+        namespaceOptions.value = items.map((n) => n.metadata.name).sort()
+      }
     } catch {
       namespaceOptions.value = []
+      permissionDetail.value = null
     } finally {
       nsLoading.value = false
     }
@@ -312,17 +334,20 @@
 
   watch(
     () => String(route.query.cluster ?? ''),
-    (name) => {
-      void loadClusterRow(name)
-    },
-    { immediate: true }
-  )
+    async (name) => {
+      if (!name) {
+        clusterRow.value = null
+        namespaceOptions.value = []
+        permissionDetail.value = null
+        return
+      }
 
-  watch(
-    () => String(route.query.cluster ?? ''),
-    (name) => {
+      // 1. 优先加载集群基本信息（确保拿到正确的 permissionId）
+      await loadClusterRow(name)
+
+      // 2. 加载对应的命名空间选项
       selectedNamespace.value = loadCachedNamespace(name) ?? 'default'
-      void loadNamespaceOptions(name)
+      await loadNamespaceOptions(name)
     },
     { immediate: true }
   )
@@ -344,6 +369,7 @@
       nodeCount: row?.nodeCount ?? 0,
       nodeReady: row?.nodeReady ?? 0,
       nodeNotReady: row?.nodeNotReady ?? 0,
+      permissionId: row?.permissionId ?? 0,
       seed: clusterNameSeed(name)
     }
   })
@@ -363,6 +389,7 @@
       nodeNotReady: 0,
       nodeCount: 0,
       isProtected: false,
+      permissionId: 0,
       createTime: '',
       planId: 0
     }

@@ -20,6 +20,7 @@ export interface ClusterDetailContext {
   nodeCount: number
   nodeReady: number
   nodeNotReady: number
+  permissionId: number
   /** 由 name 派生的稳定整数，用于 Mock 图表/表格 */
   seed: number
 }
