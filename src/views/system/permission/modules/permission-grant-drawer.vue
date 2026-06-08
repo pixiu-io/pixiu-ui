@@ -38,6 +38,7 @@
             :key="u.id"
             :label="u.userName"
             :value="u.id"
+            :disabled="u.id === Number(userStore.getUserInfo?.userId)"
           />
         </ElSelect>
       </div>
@@ -235,7 +236,7 @@
   let rowKeySeq = 0
 
   const filteredClusterOptions = computed(() => {
-    return clusterOptions.value.filter((c) => Number(c.permissionId) === 0)
+    return clusterOptions.value.filter((c: ClusterItem) => Number(c.permissionId) === 0)
   })
 
   const permissionPresets = [
@@ -270,9 +271,11 @@
       const { records } = await fetchGetUserList({ current: 1, size: 500 })
       userOptions.value = records
       if (selectedUserId.value == null) {
-        const defaultId = defaultSelectedUserId()
-        if (defaultId != null && records.some((u) => u.id === defaultId)) {
-          selectedUserId.value = defaultId
+        const currentUserId = Number(userStore.getUserInfo?.userId)
+        // 默认选中第一个非当前用户
+        const defaultUser = records.find((u) => u.id !== currentUserId)
+        if (defaultUser) {
+          selectedUserId.value = defaultUser.id
         }
       }
     } catch {
@@ -526,7 +529,7 @@
       const { pixiuAxios } = await import('@/api/container')
       for (let i = 0; i < rows.value.length; i++) {
         const row = rows.value[i]
-        const cluster = clusterOptions.value.find((c) => c.name === row.cluster)
+        const cluster = clusterOptions.value.find((c: ClusterItem) => c.name === row.cluster)
         if (!cluster) {
           ElMessage.warning(`第 ${i + 1} 行：未找到集群 ${row.cluster}`)
           return
@@ -561,7 +564,7 @@
     }
   }
 
-  watch(visible, (open) => {
+  watch(visible, (open: boolean) => {
     if (open) {
       void Promise.all([loadClusters(), loadUsers()]).then(() => resetForm())
     }

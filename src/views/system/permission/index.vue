@@ -206,9 +206,9 @@
     try {
       const detail = await fetchGetPermission(row.id)
       ElMessage.info('kubeconfig 内容: ' + (detail.content || '-'))
-    } catch (e: unknown) {
-      const err = e as { message?: string }
-      ElMessage.error(err?.message || '获取 kubeconfig 失败')
+    } catch (e: any) {
+      if (e.notified) return
+      ElMessage.error(e.message || '获取 kubeconfig 失败')
     }
   }
 
@@ -236,10 +236,10 @@
       await fetchDeletePermission(row.id)
       ElMessage.success('删除成功')
       refreshData()
-    } catch (e: unknown) {
+    } catch (e: any) {
       if (e === 'cancel' || e === 'close') return
-      const err = e as { message?: string }
-      ElMessage.error(err?.message || '删除失败')
+      if (e.notified) return
+      ElMessage.error(e.message || '删除失败')
     }
   }
 </script>
