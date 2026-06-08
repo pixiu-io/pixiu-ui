@@ -228,7 +228,7 @@
       "ecommerce": "电子商务"
     },
     "system": {
-      "title": "用户与权限",
+      "title": "安全管理",
       "user": "用户管理",
       "role": "角色管理",
       "permission": "授权管理",

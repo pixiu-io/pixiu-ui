@@ -228,7 +228,7 @@
       "ecommerce": "Ecommerce"
     },
     "system": {
-      "title": "System Settings",
+      "title": "Security Management",
       "user": "User Manage",
       "role": "Role Manage",
       "tenant": "Tenant",
