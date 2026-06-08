@@ -3,6 +3,7 @@ import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/store/modules/user'
 import { router } from '@/router'
 import { RoutesAlias } from '@/router/routesAlias'
+import { shortenError } from '@/utils/http/error'
 
 declare module 'axios' {
   interface AxiosRequestConfig {
@@ -126,8 +127,8 @@ export function handlePixiuSessionExpired(message?: string): Promise<never> {
   return Promise.reject(new PixiuApiError(msg, true))
 }
 
-function rejectPixiuBusinessError(message?: string) {
-  const msg = message || '请求失败'
+function rejectPixiuBusinessError(message?: string, code?: number) {
+  const msg = shortenError(message || '请求失败', code)
   ElMessage.error(msg)
   return Promise.reject(new PixiuApiError(msg, true))
 }
@@ -157,7 +158,7 @@ export function rejectIfPixiuBusinessError(
   if (shouldRedirectUnauthorized(code, message, config)) {
     return handlePixiuSessionExpired(message)
   }
-  return rejectPixiuBusinessError(message)
+  return rejectPixiuBusinessError(message, code)
 }
 
 /** 专用于 pixiu 后端的 axios 实例（响应格式为 { code, result, message }） */
@@ -185,7 +186,7 @@ pixiuAxios.interceptors.response.use(
     const message =
       (data && typeof data === 'object' ? (data as { message?: string }).message : undefined) ||
       error.message
-    return rejectPixiuBusinessError(message)
+    return rejectPixiuBusinessError(message, error.response?.status)
   }
 )
 

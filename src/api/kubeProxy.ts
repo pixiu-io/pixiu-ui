@@ -2,6 +2,7 @@ import axios from 'axios'
 import { ElMessage } from 'element-plus'
 import { PixiuApiError, rejectIfPixiuBusinessError } from './container'
 import { useUserStore } from '@/store/modules/user'
+import { shortenError } from '@/utils/http/error'
 
 const TOKEN_STORAGE_KEY = 'pixiu-access-token'
 
@@ -41,8 +42,9 @@ kubeProxyAxios.interceptors.response.use(
     if (data && typeof data === 'object' && (data as { kind?: string }).kind === 'Status') {
       const message = (data as { message?: string }).message
       if (message) {
-        ElMessage.error(message)
-        return Promise.reject(new PixiuApiError(message, true))
+        const finalMsg = shortenError(message, error.response?.status)
+        ElMessage.error(finalMsg)
+        return Promise.reject(new PixiuApiError(finalMsg, true))
       }
     }
 

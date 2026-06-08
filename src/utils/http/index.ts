@@ -17,7 +17,7 @@
 import axios, { AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import { useUserStore } from '@/store/modules/user'
 import { ApiStatus } from './status'
-import { HttpError, handleError, showError, showSuccess } from './error'
+import { HttpError, handleError, showError, showSuccess, shortenError } from './error'
 import { $t } from '@/locales'
 import { BaseResponse } from '@/types'
 import { router } from '@/router'
@@ -102,7 +102,9 @@ axiosInstance.interceptors.response.use(
     if (code === ApiStatus.unauthorized && !isLoginRequest(response.config.url)) {
       handleUnauthorizedError(msg)
     }
-    throw createHttpError(msg || $t('httpMsg.requestFailed'), code)
+    // 业务错误也进行消息精简
+    const finalMsg = shortenError(msg || $t('httpMsg.requestFailed'), code)
+    throw createHttpError(finalMsg, code)
   },
   (error) => {
     if (error.response?.status === ApiStatus.unauthorized) handleUnauthorizedError()

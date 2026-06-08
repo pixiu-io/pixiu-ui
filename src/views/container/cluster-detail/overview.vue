@@ -436,20 +436,28 @@
     }
   })
 
-  async function loadClusterResourceOverview() {
+  // 缓存当前已加载的集群概览数据，避免重复请求
+  const loadedOverviewCluster = ref('')
+
+  async function loadClusterResourceOverview(force = false) {
     const cluster = String(route.query.cluster ?? '')
-    if (!cluster || !isOverviewRoute.value || innerTab.value !== 'main') return
+    if (!cluster || !isOverviewRoute.value) return
+    if (!force && loadedOverviewCluster.value === cluster) return
+
     resourceOverviewLoading.value = true
-    fetchClusterOverviewK8sStats(cluster).then(stats => {
+    try {
+      const stats = await fetchClusterOverviewK8sStats(cluster, force)
       k8sOverview.value = stats
-    }).catch(() => {
+      loadedOverviewCluster.value = cluster
+    } catch {
       k8sOverview.value = {
         nodes: { controlPlane: 0, worker: 0, total: 0 },
         workloads: { deployment: 0, statefulSet: 0, daemonSet: 0, cronJob: 0, job: 0 }
       }
-    }).finally(() => {
+      loadedOverviewCluster.value = ''
+    } finally {
       resourceOverviewLoading.value = false
-    })
+    }
   }
 
   const basicLoading = ref(false)
@@ -473,21 +481,68 @@
   const aliasSaving = ref(false)
   const protectSaving = ref(false)
 
+  // 缓存当前已加载的基本信息集群，避免重复请求
+  const loadedBasicCluster = ref('')
+
+  async function loadBasicInfo(force = false) {
+    const cluster = String(route.query.cluster ?? '')
+    if (!cluster || !isOverviewRoute.value) return
+    if (!force && loadedBasicCluster.value === cluster) return
+
+    basicLoading.value = true
+    // 并行发起统计和网络信息请求
+    try {
+      const [stats, network] = await Promise.all([
+        fetchClusterOverviewK8sStats(cluster, force),
+        fetchClusterBasicNetwork(cluster)
+      ])
+      k8sOverview.value = stats
+      basicNetwork.value = network
+      loadedOverviewCluster.value = cluster
+      loadedBasicCluster.value = cluster
+    } catch {
+      // 失败不更新 loadedBasicCluster，允许重试
+    } finally {
+      basicLoading.value = false
+    }
+
+    fetchClusterDetailInfo(cluster, undefined).then(detail => {
+      clusterDetail.value = detail
+    }).catch(() => {})
+
+    if (ctx.value.clusterType === 1 && ctx.value.planId) {
+      planLoading.value = true
+      fetchPlanWithResources(ctx.value.planId).then(plan => {
+        planDetail.value = plan
+      }).catch(() => {
+        planDetail.value = null
+      }).finally(() => {
+        planLoading.value = false
+      })
+    }
+  }
+
   const kubeconfigPath = computed(() => `~/.kube/${ctx.value.name || 'config'}`)
   const apiServerAddr = ref('加载中...')
+  const loadedApiCluster = ref('')
 
   function parseKubeConfigServer(kcText: string): string {
     const match = kcText.match(/server:\s*(\S+)/)
     return match?.[1] ?? ''
   }
 
-  async function loadApiServerInfo() {
+  async function loadApiServerInfo(force = false) {
     if (!isOverviewRoute.value || !ctx.value.id) return
+    if (!force && loadedApiCluster.value === ctx.value.name) return
+
     try {
       const cluster = await fetchGetCluster(ctx.value.id)
       const kcText = (cluster as { kube_config?: string }).kube_config ?? ''
       const server = parseKubeConfigServer(kcText)
-      if (server) apiServerAddr.value = server
+      if (server) {
+        apiServerAddr.value = server
+        loadedApiCluster.value = ctx.value.name
+      }
     } catch {
       // keep default
     }
@@ -511,35 +566,6 @@
   const basicNodeTotal = computed(() =>
     Math.max(ctx.value.nodeCount, k8sOverview.value.nodes.total)
   )
-
-  async function loadBasicInfo() {
-    const cluster = String(route.query.cluster ?? '')
-    if (!cluster || !isOverviewRoute.value || innerTab.value !== 'basic') return
-    basicLoading.value = true
-    // 并行发起所有请求，不互相阻塞
-    Promise.all([
-      fetchClusterOverviewK8sStats(cluster),
-      fetchClusterBasicNetwork(cluster)
-    ]).then(([stats, network]) => {
-      k8sOverview.value = stats
-      basicNetwork.value = network
-    }).catch(() => {}).finally(() => { basicLoading.value = false })
-
-    fetchClusterDetailInfo(cluster, undefined).then(detail => {
-      clusterDetail.value = detail
-    }).catch(() => {})
-
-    if (ctx.value.clusterType === 1 && ctx.value.planId) {
-      planLoading.value = true
-      fetchPlanWithResources(ctx.value.planId).then(plan => {
-        planDetail.value = plan
-      }).catch(() => {
-        planDetail.value = null
-      }).finally(() => {
-        planLoading.value = false
-      })
-    }
-  }
 
   function openAliasDialog() {
     aliasEditValue.value = ctx.value.aliasName
@@ -689,15 +715,17 @@
     }
 
     const cluster = ctx.value.name
+    if (!cluster) return
+
     const tab = innerTab.value
-    if (tab === 'main' && cluster) {
+    if (tab === 'main') {
       void loadClusterResourceOverview()
       startUsageOverviewRefresh()
     } else {
       stopOverviewBackgroundLoads()
     }
-    if (tab === 'basic' && cluster) void loadBasicInfo()
-    if (tab === 'api' && cluster) void loadApiServerInfo()
+    if (tab === 'basic') void loadBasicInfo()
+    if (tab === 'api') void loadApiServerInfo()
   }
 
   watch(
@@ -709,6 +737,8 @@
   )
 
   onActivated(() => {
+    // watch(immediate:true) 在初次挂载时已执行。
+    // 如果是 KeepAlive 重新激活，且 watch 依赖没变，则手动触发一次同步
     syncOverviewTabLoads()
   })
 

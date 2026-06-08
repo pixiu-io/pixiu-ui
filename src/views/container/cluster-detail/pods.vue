@@ -206,7 +206,13 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
   import { useWatchAfterTableInit } from '@/hooks/core/useWatchAfterTableInit'
   import { deleteK8sEvent, fetchKubeRawEventList } from '@/api/kubernetes/events'
-  import { deleteK8sPod, fetchK8sPod, fetchK8sPodList, type K8sPod } from '@/api/kubernetes/pod'
+  import {
+    deleteK8sPod,
+    fetchK8sPod,
+    fetchK8sPodList,
+    type K8sPod
+  } from '@/api/kubernetes/pod'
+  import { PixiuApiError } from '@/api/container'
   import { formatNodeCreationTime } from '@/utils/kubernetes/nodeDisplay'
   import { clusterDetailNamespaceKey } from './context'
   import PodRemoteWebshell from './components/pod-remote-webshell.vue'
@@ -702,6 +708,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       onRefresh()
     } catch (e: unknown) {
       if (e === 'cancel') return
+      if (e instanceof PixiuApiError && e.notified) return
       ElMessage.error(e instanceof Error ? e.message : '删除失败')
     }
   }
@@ -842,7 +849,8 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       }
       ElMessage.success('已删除')
       await loadEventList()
-    } catch (e: unknown) {
+    } catch (e: any) {
+      if (e instanceof PixiuApiError && e.notified) return
       ElMessage.error(e instanceof Error ? e.message : '删除失败')
     }
   }

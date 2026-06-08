@@ -76,8 +76,11 @@ export async function fetchClusterBasicNetwork(cluster: string): Promise<Cluster
   }
 }
 
+const statsPromiseMap = new Map<string, Promise<ClusterOverviewK8sStats>>()
+
 export async function fetchClusterOverviewK8sStats(
-  cluster: string
+  cluster: string,
+  force = false
 ): Promise<ClusterOverviewK8sStats> {
   const emptyNodes: ClusterOverviewK8sNodeSplit = { controlPlane: 0, worker: 0, total: 0 }
   const emptyWl: ClusterOverviewK8sWorkloadCounts = {
@@ -92,54 +95,72 @@ export async function fetchClusterOverviewK8sStats(
     return { nodes: emptyNodes, workloads: emptyWl }
   }
 
-  const paths = proxyPaths(cluster)
-
-  const [
-    nodeTotal,
-    cpLabelCount,
-    masterLabelCount,
-    deployment,
-    statefulSet,
-    daemonSet,
-    cronJob,
-    job
-  ] = await Promise.all([
-    fetchKubeListCount({ path: paths.nodes }),
-    fetchKubeListCount({
-      path: paths.nodes,
-      labelSelector: 'node-role.kubernetes.io/control-plane'
-    }),
-    fetchKubeListCount({
-      path: paths.nodes,
-      labelSelector: 'node-role.kubernetes.io/master'
-    }),
-    fetchKubeListCount({ path: paths.deployments }),
-    fetchKubeListCount({ path: paths.statefulSets }),
-    fetchKubeListCount({ path: paths.daemonSets }),
-    fetchKubeListCount({ path: paths.cronJobs }),
-    fetchKubeListCount({ path: paths.jobs })
-  ])
-
-  let controlPlane = cpLabelCount + masterLabelCount
-  if (controlPlane > nodeTotal) {
-    controlPlane = Math.max(cpLabelCount, masterLabelCount)
+  if (!force && statsPromiseMap.has(cluster)) {
+    return statsPromiseMap.get(cluster)!
   }
-  const worker = Math.max(0, nodeTotal - controlPlane)
 
-  return {
-    nodes: {
-      controlPlane,
-      worker,
-      total: nodeTotal
-    },
-    workloads: {
-      deployment,
-      statefulSet,
-      daemonSet,
-      cronJob,
-      job
+  const promise = (async () => {
+    try {
+      const paths = proxyPaths(cluster)
+
+      const [
+        nodeTotal,
+        cpLabelCount,
+        masterLabelCount,
+        deployment,
+        statefulSet,
+        daemonSet,
+        cronJob,
+        job
+      ] = await Promise.all([
+        fetchKubeListCount({ path: paths.nodes }),
+        fetchKubeListCount({
+          path: paths.nodes,
+          labelSelector: 'node-role.kubernetes.io/control-plane'
+        }),
+        fetchKubeListCount({
+          path: paths.nodes,
+          labelSelector: 'node-role.kubernetes.io/master'
+        }),
+        fetchKubeListCount({ path: paths.deployments }),
+        fetchKubeListCount({ path: paths.statefulSets }),
+        fetchKubeListCount({ path: paths.daemonSets }),
+        fetchKubeListCount({ path: paths.cronJobs }),
+        fetchKubeListCount({ path: paths.jobs })
+      ])
+
+      let controlPlane = cpLabelCount + masterLabelCount
+      if (controlPlane > nodeTotal) {
+        controlPlane = Math.max(cpLabelCount, masterLabelCount)
+      }
+      const worker = Math.max(0, nodeTotal - controlPlane)
+
+      return {
+        nodes: {
+          controlPlane,
+          worker,
+          total: nodeTotal
+        },
+        workloads: {
+          deployment,
+          statefulSet,
+          daemonSet,
+          cronJob,
+          job
+        }
+      }
+    } finally {
+      // 短暂保留缓存，避免极短时间内的重复调用。长期的由业务层控制。
+      setTimeout(() => {
+        if (statsPromiseMap.get(cluster) === promise) {
+          statsPromiseMap.delete(cluster)
+        }
+      }, 5000)
     }
-  }
+  })()
+
+  statsPromiseMap.set(cluster, promise)
+  return promise
 }
 
 export interface ClusterDetailInfo {

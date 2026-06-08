@@ -114,6 +114,41 @@ const getErrorMessage = (status: number): string => {
 }
 
 /**
+ * 精简 K8s 相关的长错误消息
+ * @param message 原始错误消息
+ * @param code 状态码
+ * @returns 精简后的消息
+ */
+export function shortenError(message: string, code?: number): string {
+  if (!message) return message
+
+  // 1. 如果包含 K8s 典型的权限禁止关键字，说明是 K8s 代理报错，统一精简
+  const isK8sForbidden =
+    message.includes('is forbidden') ||
+    message.includes('cannot list resource') ||
+    message.includes('cannot get resource') ||
+    message.includes('cannot create resource') ||
+    message.includes('cannot update resource') ||
+    message.includes('cannot delete resource')
+
+  if (isK8sForbidden) {
+    return $t('httpMsg.forbidden')
+  }
+
+  // 2. 如果是 403 状态码，但消息内容不是 K8s 风格的，则保留原始消息（例如 Pixiu 业务层的“已开启集群保护”）
+  // 除非消息内容本身就是通用的 "forbidden" 或 "Forbidden"
+  if (code === ApiStatus.forbidden) {
+    const lowerMsg = message.toLowerCase()
+    if (lowerMsg === 'forbidden' || lowerMsg === 'access denied') {
+      return $t('httpMsg.forbidden')
+    }
+    return message
+  }
+
+  return message
+}
+
+/**
  * 处理错误
  * @param error 错误对象
  * @returns 错误对象
@@ -126,7 +161,18 @@ export function handleError(error: AxiosError<ErrorResponse>): never {
   }
 
   const statusCode = error.response?.status
-  const errorMessage = error.response?.data?.msg || error.message
+  const responseData = error.response?.data as any
+
+  // 提取错误消息：优先从响应体提取，支持对象格式和字符串格式
+  let errorMessage = error.message
+  if (responseData) {
+    if (typeof responseData === 'string') {
+      errorMessage = responseData
+    } else if (typeof responseData === 'object') {
+      errorMessage = responseData.msg || responseData.message || error.message
+    }
+  }
+
   const requestConfig = error.config
 
   // 处理网络错误
@@ -137,10 +183,14 @@ export function handleError(error: AxiosError<ErrorResponse>): never {
     })
   }
 
-  // 处理 HTTP 状态码错误
-  const message = statusCode
-    ? getErrorMessage(statusCode)
-    : errorMessage || $t('httpMsg.requestFailed')
+  // 确定最终显示的 message
+  // 1. 如果有状态码，先尝试获取状态码对应的通用翻译
+  // 2. 如果通用翻译没覆盖到，或者需要根据内容进一步精简，则走 shortenError
+  let message = statusCode ? getErrorMessage(statusCode) : errorMessage || $t('httpMsg.requestFailed')
+
+  // 针对 K8s 代理请求或其他权限报错进行二次精简
+  message = shortenError(message || errorMessage, statusCode)
+
   throw new HttpError(message, statusCode || ApiStatus.error, {
     data: error.response.data,
     url: requestConfig?.url,

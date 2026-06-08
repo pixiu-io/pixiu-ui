@@ -227,11 +227,19 @@
         // 如果是授权集群，获取权限详情以得到授权的命名空间列表
         const detail = await fetchGetPermission(row.permissionId)
         permissionDetail.value = detail
-        namespaceOptions.value = (detail.targetNamespaces || []).sort()
 
-        // 如果当前选中的命名空间不在授权范围内，切换到第一个可用命名空间
-        if (selectedNamespace.value && !namespaceOptions.value.includes(selectedNamespace.value)) {
-          selectedNamespace.value = namespaceOptions.value[0] || ''
+        // p_type 为 1 (自定义) 时，使用授权的命名空间列表
+        if (detail.pType === 1) {
+          namespaceOptions.value = (detail.targetNamespaces || []).sort()
+
+          // 如果当前选中的命名空间不在授权范围内，切换到第一个可用命名空间
+          if (selectedNamespace.value && !namespaceOptions.value.includes(selectedNamespace.value)) {
+            selectedNamespace.value = namespaceOptions.value[0] || ''
+          }
+        } else {
+          // p_type 为 0 (只读) 或 2 (管理员) 时，展示集群所有命名空间
+          const { items } = await fetchK8sNamespaceList(clusterName, { page: 1, limit: 500 })
+          namespaceOptions.value = items.map((n) => n.metadata.name).sort()
         }
       } else {
         permissionDetail.value = null

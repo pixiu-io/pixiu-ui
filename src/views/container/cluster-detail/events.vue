@@ -68,6 +68,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useTable } from '@/hooks/core/useTable'
   import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
   import { deleteK8sEvent, fetchKubeRawEventList } from '@/api/kubernetes/events'
+  import { PixiuApiError } from '@/api/container'
   import { formatNodeCreationTime } from '@/utils/kubernetes/nodeDisplay'
   import { clusterDetailNamespaceKey } from './context'
 
@@ -224,7 +225,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
                 {
                   type: 'primary',
                   underline: 'never',
-                  style: 'font-size:12px;color:var(--el-text-color-regular)',
+                  style: 'font-size:12px',
                   onClick: () => void deleteSingleEvent(row)
                 },
                 () => '删除'
@@ -276,6 +277,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       onRefresh()
     } catch (e: unknown) {
       if (e === 'cancel') return
+      if (e instanceof PixiuApiError && e.notified) return
       ElMessage.error(e instanceof Error ? e.message : '删除失败')
     }
   }
@@ -306,6 +308,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       onRefresh()
     } catch (e: unknown) {
       if (e === 'cancel') return
+      if (e instanceof PixiuApiError && e.notified) return
       ElMessage.error(e instanceof Error ? e.message : '删除失败')
     }
   }

@@ -1,7 +1,7 @@
 {
   "httpMsg": {
     "unauthorized": "未授权访问，请重新登录",
-    "forbidden": "禁止访问该资源",
+    "forbidden": "无操作权限",
     "notFound": "请求的资源不存在",
     "methodNotAllowed": "请求方法不允许",
     "requestTimeout": "请求超时，请稍后重试",

@@ -95,6 +95,7 @@
                   placeholder="请选择命名空间"
                   filterable
                   :loading="row.nsLoading"
+                  :disabled="row.preset === 'admin' || row.preset === 'readonly'"
                   @change="(val: string[]) => onNamespacesChange(row, val)"
                 >
                   <ElOption
@@ -419,6 +420,9 @@
     try {
       const { items } = await fetchK8sNamespaceList(row.cluster, { page: 1, limit: 500 })
       row.allNamespaces = items.map((n) => n.metadata.name).filter(Boolean)
+      if (row.preset === 'admin' || row.preset === 'readonly') {
+        row.namespaces = ['__all__']
+      }
     } catch {
       row.allNamespaces = []
       ElMessage.warning(`加载集群 ${row.cluster} 命名空间失败`)
@@ -436,15 +440,18 @@
   }
 
   function onNamespacesChange(row: GrantRow, val: string[]) {
-    if (val.includes('__all__') && val.length > 1) {
-      row.namespaces = ['__all__']
-    } else if (val.includes('__all__')) {
+    if (val.includes('__all__')) {
       row.namespaces = ['__all__']
     }
   }
 
   function onPresetChange(row: GrantRow) {
+    if (row.preset === 'admin' || row.preset === 'readonly') {
+      row.namespaces = ['__all__']
+    }
+
     if (row.preset === 'custom') {
+      row.namespaces = [] // 选择自定义时清空命名空间
       if (!row.cluster) {
         ElMessage.warning('请先选择集群')
         return
@@ -484,8 +491,14 @@
         ElMessage.warning(`${label}：请选择集群`)
         return false
       }
+
+      if (row.preset === 'admin' || row.preset === 'readonly') {
+        // 管理员和只读用户强制全命名空间，不走常规验证
+        continue
+      }
+
       const ns = resolveTargetNamespaces(row)
-      if (!ns.length) {
+      if (!ns.length && !row.namespaces.includes('__all__')) {
         ElMessage.warning(`${label}：请选择命名空间`)
         return false
       }
