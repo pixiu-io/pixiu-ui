@@ -21,16 +21,6 @@ export const safeguardRoutes: AppRouteRecord = {
       }
     },
     {
-      path: 'audit',
-      name: 'SafeguardAudit',
-      component: '/safeguard/audit',
-      meta: {
-        title: 'menus.safeguard.audit',
-        icon: 'ri:shield-check-line',
-        keepAlive: true
-      }
-    },
-    {
       path: 'agent',
       name: 'SafeguardAgent',
       component: '/safeguard/agent',

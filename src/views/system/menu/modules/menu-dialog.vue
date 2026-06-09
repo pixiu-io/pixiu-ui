@@ -225,7 +225,7 @@
           ),
           key: 'activePath',
           type: 'input',
-          props: { placeholder: '如：/system/user' }
+          props: { placeholder: '如：/system-mgr/user' }
         },
         { label: '是否启用', key: 'isEnable', type: 'switch', span: switchSpan },
         { label: '页面缓存', key: 'keepAlive', type: 'switch', span: switchSpan },

@@ -188,7 +188,7 @@
           data: { records: items, total, current: params.current, size: params.size },
         }
       },
-      apiParams: { current: 1, size: 10 },
+      apiParams: { current: 1, size: 20 },
       columnsFactory: () => [
         {
           label: '操作人',

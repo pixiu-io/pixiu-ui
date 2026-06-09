@@ -22,6 +22,11 @@
           @click="visibleMenu"
         />
 
+        <!-- 快速入口 -->
+        <ArtFastEnter v-if="shouldShowFastEnter && width >= headerBarFastEnterMinWidth">
+          <ArtIconButton icon="ri:function-line" class="ml-3" />
+        </ArtFastEnter>
+
         <!-- 刷新按钮 -->
         <ArtIconButton
           v-if="shouldShowRefreshButton"
@@ -30,11 +35,6 @@
           :style="{ marginLeft: !isLeftMenu ? '10px' : '0' }"
           @click="reload"
         />
-
-        <!-- 快速入口 -->
-        <ArtFastEnter v-if="shouldShowFastEnter && width >= headerBarFastEnterMinWidth">
-          <ArtIconButton icon="ri:function-line" class="ml-3" />
-        </ArtFastEnter>
 
         <!-- 顶部菜单 -->
         <ArtHorizontalMenu v-if="isTopMenu" :list="menuList" />

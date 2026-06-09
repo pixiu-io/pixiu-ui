@@ -345,6 +345,7 @@ async function handleDynamicRoutes(
     // 8. 静态路由不依赖菜单权限，初始化后直接恢复目标地址（登录页除外）。
     if (isStaticRoute(to.path) && to.path !== RoutesAlias.Login && to.path !== '/login') {
       routeInitInProgress = false
+      closeLoading()
       next({
         path: to.path,
         query: to.query,
@@ -373,10 +374,10 @@ async function handleDynamicRoutes(
 
     // 10. 重新导航到目标路由
     if (!hasPermission) {
-      closeLoading()
       console.warn(`[RouteGuard] 用户无权限访问路径: ${to.path}，已跳转到首页`)
     }
 
+    closeLoading()
     next({
       path: targetPath,
       query: useOriginalQuery ? to.query : {},

@@ -229,8 +229,8 @@
     },
     "system": {
       "title": "Security Management",
-      "user": "User Manage",
-      "role": "Role Manage",
+      "user": "User",
+      "role": "Role",
       "tenant": "Tenant",
       "api": "API",
       "userCenter": "User Center",

@@ -229,9 +229,9 @@
     },
     "system": {
       "title": "安全管理",
-      "user": "用户管理",
-      "role": "角色管理",
-      "permission": "授权管理",
+      "user": "用户",
+      "role": "角色",
+      "permission": "授权",
       "sysMgr": "系统管理",
       "tenant": "租户",
       "api": "API",
@@ -241,7 +241,7 @@
     "safeguard": {
       "title": "运维管理",
       "host": "主机管理",
-      "audit": "操作审计",
+      "audit": "审计",
       "agent": "Agent"
     },
     "appstore": {

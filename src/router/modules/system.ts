@@ -6,28 +6,17 @@ export const systemRoutes: AppRouteRecord = {
   component: '/index/index',
   meta: {
     title: 'menus.system.title',
-    icon: 'ri:user-3-line',
+    icon: 'ri:shield-user-line',
     roles: ['R_SUPER', 'R_ADMIN']
   },
   children: [
-    {
-      path: 'user',
-      name: 'User',
-      component: '/system/user',
-      meta: {
-        title: 'menus.system.user',
-        icon: 'ri:user-line',
-        keepAlive: true,
-        roles: ['R_SUPER', 'R_ADMIN']
-      }
-    },
     {
       path: 'role',
       name: 'Role',
       component: '/system/role',
       meta: {
         title: 'menus.system.role',
-        icon: 'ri:user-settings-line',
+        icon: 'ri:admin-line',
         keepAlive: true,
         roles: ['R_SUPER', 'R_ADMIN']
       }
@@ -41,6 +30,17 @@ export const systemRoutes: AppRouteRecord = {
         icon: 'ri:shield-keyhole-line',
         keepAlive: true,
         roles: ['R_SUPER']
+      }
+    },
+    {
+      path: 'audit',
+      name: 'SafeguardAudit',
+      component: '/safeguard/audit',
+      meta: {
+        title: 'menus.safeguard.audit',
+        icon: 'ri:shield-check-line',
+        keepAlive: true,
+        roles: ['R_SUPER', 'R_ADMIN']
       }
     },
     {
@@ -65,9 +65,20 @@ export const systemMgrRoutes: AppRouteRecord = {
   meta: {
     title: 'menus.system.sysMgr',
     icon: 'ri:settings-3-line',
-    roles: ['R_SUPER']
+    roles: ['R_SUPER', 'R_ADMIN']
   },
   children: [
+    {
+      path: 'user',
+      name: 'User',
+      component: '/system/user',
+      meta: {
+        title: 'menus.system.user',
+        icon: 'ri:user-line',
+        keepAlive: true,
+        roles: ['R_SUPER', 'R_ADMIN']
+      }
+    },
     {
       path: 'tenant',
       name: 'Tenant',
