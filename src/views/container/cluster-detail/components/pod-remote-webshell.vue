@@ -294,7 +294,7 @@
     const s = session.value
     if (!s) return ''
     return (
-      `${base}/pixiu/kubeproxy/ws` +
+      `${base}/pixiu/kubeproxy/pods/ws` +
       `?cluster=${encodeURIComponent(s.cluster)}` +
       `&namespace=${encodeURIComponent(s.namespace)}` +
       `&pod=${encodeURIComponent(s.pod)}` +
