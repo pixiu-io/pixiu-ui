@@ -475,9 +475,17 @@
   }
 
   async function onSubmit() {
-    // 新建模式：提交前逐步校验；编辑模式：直接提交，由后端做最终校验
+    // 提交前校验基础配置（含 Kubernetes 版本）；新建模式逐步校验全部步骤
+    const basicRef = getStepRef(0)
+    if (basicRef) {
+      const basicValid = await basicRef.validate()
+      if (!basicValid) {
+        activeTabName.value = '0'
+        return
+      }
+    }
     if (!isEditMode.value) {
-      for (let i = 0; i < 4; i++) {
+      for (let i = 1; i < 4; i++) {
         const ref = getStepRef(i)
         if (ref) {
           const valid = await ref.validate()
