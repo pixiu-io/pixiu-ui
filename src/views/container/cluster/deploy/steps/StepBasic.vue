@@ -36,7 +36,9 @@
       >
         <ElOption v-for="v in k8sVersions" :key="v" :label="v" :value="v" />
       </ElSelect>
-      <div class="form-tip">选择需要的 Kubernetes 版本，如果下拉选择中不存在，可手动输入版本</div>
+      <div class="form-tip"
+        >选择需要的 Kubernetes 版本，如果下拉选择中不存在，可手动输入版本，格式为 1.28.6（不含 v 前缀）</div
+      >
     </ElFormItem>
 
     <ElFormItem label="容器运行时" prop="runtime">
@@ -565,6 +567,23 @@
     })
   }
 
+  function validateKubernetesVersion(_r: unknown, value: string, cb: (err?: Error) => void) {
+    const v = (value ?? '').trim()
+    if (!v) {
+      cb(new Error('请选择 Kubernetes 版本'))
+      return
+    }
+    if (/^[vV]/.test(v)) {
+      cb(new Error('版本不能以 v 开头，请使用类似 1.23.16 的格式'))
+      return
+    }
+    if (!/^\d+\.\d+\.\d+$/.test(v)) {
+      cb(new Error('版本格式不正确，请使用类似 1.23.16 的格式（不含 v 前缀）'))
+      return
+    }
+    cb()
+  }
+
   function validateCidr(_r: unknown, value: string, cb: (err?: Error) => void) {
     const cidrRe = /^(\d{1,3}\.){3}\d{1,3}\/\d{1,2}$/
     if (!value || !cidrRe.test(value)) {
@@ -605,7 +624,7 @@
 
   const rules: FormRules = {
     name: [{ required: true, message: '请输入集群名称', trigger: 'blur' }],
-    kubernetesVersion: [{ required: true, message: '请选择 Kubernetes 版本', trigger: 'change' }],
+    kubernetesVersion: [{ required: true, validator: validateKubernetesVersion, trigger: ['change', 'blur'] }],
     runtime: [{ required: true, message: '请选择容器运行时', trigger: 'change' }],
     runtimeDir: [{ validator: validateRuntimeDir, trigger: ['blur', 'change'] }],
     osType: [{ required: true, message: '请选择操作系统', trigger: 'change' }],
