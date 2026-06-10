@@ -150,7 +150,12 @@
   } from 'element-plus'
   import { UploadFilled } from '@element-plus/icons-vue'
   import { useRouter } from 'vue-router'
-  import { encodeKubeConfigBase64, fetchCreateCluster, fetchPingCluster } from '@/api/container'
+  import {
+    encodeKubeConfigBase64,
+    fetchCreateCluster,
+    fetchPingCluster,
+    PixiuApiError
+  } from '@/api/container'
 
   defineOptions({ name: 'ClusterAddDialog' })
 
@@ -267,8 +272,10 @@
       const b64 = encodeKubeConfigBase64(importForm.kubeRaw.trim())
       await fetchPingCluster(b64)
       ElMessage.success('Kubernetes API 连接正常')
-    } catch (e: any) {
-      ElMessage.error(e.message || '连接失败')
+    } catch (e: unknown) {
+      if (e instanceof PixiuApiError && e.notified) return
+      const msg = e instanceof Error ? e.message : '连接失败'
+      ElMessage.error(msg || '连接失败')
     } finally {
       pingLoading.value = false
     }
@@ -296,8 +303,10 @@
         ElMessage.success('集群导入成功')
         visibleInner.value = false
         emit('success')
-      } catch (e: any) {
-        ElMessage.error(e.message || '创建失败')
+      } catch (e: unknown) {
+        if (e instanceof PixiuApiError && e.notified) return
+        const msg = e instanceof Error ? e.message : '创建失败'
+        ElMessage.error(msg || '创建失败')
       } finally {
         submitLoading.value = false
       }

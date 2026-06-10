@@ -117,9 +117,11 @@ export function useClusterNodesUsageMetrics(
 
     if (!silent) loading.value = true
     try {
-      const nodes = await fetchKubeListAll<K8sNode>({
-        path: `/pixiu/proxy/${encodeURIComponent(name)}/api/v1/nodes`
-      })
+      const nodesResult = await fetchKubeListAll<K8sNode>(
+        name,
+        `/pixiu/proxy/${encodeURIComponent(name)}/api/v1/nodes`
+      )
+      const nodes = nodesResult.items ?? []
       const nodeNames = nodes
         .map((n) => n.metadata?.name)
         .filter((nodeName): nodeName is string => Boolean(nodeName))
