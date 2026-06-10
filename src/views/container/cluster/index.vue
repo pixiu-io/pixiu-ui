@@ -52,17 +52,17 @@
       size="48%"
       :destroy-on-close="true"
       class="plan-task-drawer"
+      body-class="plan-task-drawer-body"
       @open="handleTaskDrawerOpen"
       @close="handleTaskDrawerClose"
     >
       <div class="task-drawer">
         <ElAlert
-          title="获取部署计划的部署情况"
           type="info"
           :closable="false"
           show-icon
-          effect="light"
-          class="task-alert"
+          class="quota-alert"
+          description="获取部署计划的部署情况"
         />
         <ElTable
           :data="tasks"
@@ -1005,13 +1005,8 @@
   }
 
   .task-drawer {
-    padding: 4px 0;
+    padding: 0;
     overflow: hidden;
-  }
-
-  .task-alert {
-    margin-top: 0;
-    margin-bottom: 12px;
   }
 
   .task-status {

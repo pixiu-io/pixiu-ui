@@ -128,7 +128,7 @@
         <RouterView v-slot="{ Component, route: childRoute }">
           <Transition name="fade-slide" mode="out-in">
             <KeepAlive>
-              <component :is="Component" :key="childRoute.name ?? childRoute.path" />
+              <component :is="Component" :key="clusterChildViewKey(childRoute)" />
             </KeepAlive>
           </Transition>
         </RouterView>
@@ -140,7 +140,7 @@
 <script setup lang="ts">
   import { ArrowLeft, Refresh } from '@element-plus/icons-vue'
   import { computed, provide, ref, watch } from 'vue'
-  import { useRoute, useRouter } from 'vue-router'
+  import { useRoute, useRouter, type RouteLocationNormalizedLoaded } from 'vue-router'
   import { fetchClusterByName, fetchClusterList } from '@/api/container'
   import type { ClusterItem } from '@/api/container'
   import { fetchK8sNamespaceList } from '@/api/kubernetes/namespace'
@@ -496,6 +496,13 @@
     const seg = m?.[1] ?? 'overview'
     return DETAIL_SEGMENTS.has(seg) ? seg : 'overview'
   })
+
+  /** 切换集群时强制重建子页面，避免 KeepAlive 复用旧集群数据 */
+  function clusterChildViewKey(childRoute: RouteLocationNormalizedLoaded): string {
+    const cluster = String(childRoute.query.cluster ?? '')
+    const routeKey = String(childRoute.name ?? childRoute.path)
+    return cluster ? `${routeKey}::${cluster}` : routeKey
+  }
 
   function preservedQuery(): Record<string, string> {
     return buildClusterRouteQuery(route)

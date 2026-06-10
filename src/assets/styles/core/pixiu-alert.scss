@@ -1,0 +1,215 @@
+/**
+ * Pixiu 统一提示框（参考配额管理 quota-alert 样式，供部署进度等场景使用）
+ * 用法：<ElAlert type="info" :closable="false" show-icon class="pixiu-alert" description="..." />
+ */
+.pixiu-alert.el-alert {
+  margin: 15px 0;
+  height: 45px;
+  padding: 10px 16px 10px 10px !important;
+  box-sizing: border-box;
+  border: none !important;
+  border-radius: 4px;
+  align-items: center;
+}
+
+.pixiu-alert.el-alert .el-alert__content {
+  padding: 0;
+  line-height: 1.5;
+}
+
+.pixiu-alert.el-alert .el-alert__title,
+.pixiu-alert.el-alert .el-alert__description {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.pixiu-alert.el-alert .el-alert__icon {
+  margin-right: 4px !important;
+  font-size: 20px;
+  width: 20px;
+}
+
+/* info */
+.pixiu-alert.el-alert--info {
+  background-color: #ecf5ff !important;
+}
+
+.pixiu-alert.el-alert--info .el-alert__icon {
+  color: #0958d9 !important;
+}
+
+.pixiu-alert.el-alert--info .el-alert__title,
+.pixiu-alert.el-alert--info .el-alert__description {
+  color: #0958d9 !important;
+}
+
+/* warning */
+.pixiu-alert.el-alert--warning {
+  background-color: #fdf6ec !important;
+}
+
+.pixiu-alert.el-alert--warning .el-alert__icon {
+  color: #e6a23c !important;
+}
+
+.pixiu-alert.el-alert--warning .el-alert__title,
+.pixiu-alert.el-alert--warning .el-alert__description {
+  color: #b88230 !important;
+}
+
+/* success */
+.pixiu-alert.el-alert--success {
+  background-color: #f0f9eb !important;
+}
+
+.pixiu-alert.el-alert--success .el-alert__icon {
+  color: #67c23a !important;
+}
+
+.pixiu-alert.el-alert--success .el-alert__title,
+.pixiu-alert.el-alert--success .el-alert__description {
+  color: #529b2e !important;
+}
+
+/* error */
+.pixiu-alert.el-alert--error {
+  background-color: #fef0f0 !important;
+}
+
+.pixiu-alert.el-alert--error .el-alert__icon {
+  color: #f56c6c !important;
+}
+
+.pixiu-alert.el-alert--error .el-alert__title,
+.pixiu-alert.el-alert--error .el-alert__description {
+  color: #c45656 !important;
+}
+
+/* dark mode - info 与 quota-alert 保持一致 */
+html.dark {
+  .pixiu-alert.el-alert--info {
+    background-color: rgb(64 158 255 / 12%) !important;
+  }
+
+  .pixiu-alert.el-alert--info .el-alert__description {
+    color: #a8cfff !important;
+  }
+
+  .pixiu-alert.el-alert--warning {
+    background-color: rgb(230 162 60 / 12%) !important;
+  }
+
+  .pixiu-alert.el-alert--warning .el-alert__icon {
+    color: #e6a23c !important;
+  }
+
+  .pixiu-alert.el-alert--warning .el-alert__title,
+  .pixiu-alert.el-alert--warning .el-alert__description {
+    color: #f0c78a !important;
+  }
+
+  .pixiu-alert.el-alert--success {
+    background-color: rgb(103 194 58 / 12%) !important;
+  }
+
+  .pixiu-alert.el-alert--success .el-alert__icon {
+    color: #95d475 !important;
+  }
+
+  .pixiu-alert.el-alert--success .el-alert__title,
+  .pixiu-alert.el-alert--success .el-alert__description {
+    color: #b3e19d !important;
+  }
+
+  .pixiu-alert.el-alert--error {
+    background-color: rgb(245 108 108 / 12%) !important;
+  }
+
+  .pixiu-alert.el-alert--error .el-alert__icon {
+    color: #f89898 !important;
+  }
+
+  .pixiu-alert.el-alert--error .el-alert__title,
+  .pixiu-alert.el-alert--error .el-alert__description {
+    color: #fab6b6 !important;
+  }
+}
+
+/* 部署进度抽屉：与配额管理弹窗内容区内边距一致 */
+.plan-task-drawer-body {
+  padding: 0 24px 12px !important;
+}
+
+/* 部署进度抽屉：标题与提示框间距 */
+.plan-task-drawer .el-drawer__header {
+  margin-bottom: 0 !important;
+  padding: 20px 24px 0 !important;
+}
+
+/* 配额管理提示框（全局复用） */
+.quota-alert.el-alert {
+  margin: 15px 0;
+  height: 45px;
+  padding: 10px 16px 10px 10px !important;
+  box-sizing: border-box;
+  background-color: #ecf5ff !important;
+  border: none !important;
+  border-radius: 4px;
+  align-items: center;
+}
+
+.quota-alert.el-alert .el-alert__content {
+  padding: 0;
+  line-height: 1.5;
+}
+
+.quota-alert.el-alert .el-alert__icon {
+  font-size: 20px !important;
+  width: 20px !important;
+  height: 20px !important;
+  margin-right: 4px !important;
+  color: #0958d9 !important;
+  flex-shrink: 0;
+}
+
+.quota-alert.el-alert .el-alert__icon .el-icon,
+.quota-alert.el-alert .el-alert__icon svg {
+  width: 20px !important;
+  height: 20px !important;
+  font-size: 20px !important;
+  color: #0958d9 !important;
+}
+
+.quota-alert.el-alert .el-alert__description {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #0958d9 !important;
+}
+
+html.dark .quota-alert.el-alert {
+  background-color: rgb(64 158 255 / 12%) !important;
+}
+
+html.dark .quota-alert.el-alert .el-alert__description {
+  color: #a8cfff !important;
+}
+
+html.dark .quota-alert.el-alert .el-alert__icon,
+html.dark .quota-alert.el-alert .el-alert__icon .el-icon,
+html.dark .quota-alert.el-alert .el-alert__icon svg {
+  color: #0958d9 !important;
+}
+
+/* 弹窗/抽屉内提示框：与配额管理弹窗内容区一致 */
+.quota-dialog-body .quota-alert.el-alert,
+.remote-login-dialog-body .quota-alert.el-alert {
+  margin: 15px 0;
+  align-items: center;
+}
+
+.plan-task-drawer-body .quota-alert.el-alert {
+  margin: 20px 0 12px !important;
+  align-items: center;
+}

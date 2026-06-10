@@ -79,7 +79,7 @@
         type="info"
         :closable="false"
         show-icon
-        class="remote-login-alert"
+        class="quota-alert"
         description="基于 WebShell 提供登录容器的功能。"
       />
       <ElForm label-width="auto" class="remote-login-form">
@@ -104,7 +104,13 @@
       <template #header>
         <span class="drawer-title">事件查询</span>
       </template>
-      <ElAlert type="info" :closable="false" show-icon class="mb-4">获取 Pod 相关事件（与 dashboard 一致）。</ElAlert>
+      <ElAlert
+        type="info"
+        :closable="false"
+        show-icon
+        class="quota-alert"
+        description="获取 Pod 相关事件（与 dashboard 一致）。"
+      />
       <div class="event-toolbar">
         <ElButton type="primary" @click="loadEventList">查询</ElButton>
         <ElButton :disabled="!eventSelection.length" @click="batchDeleteEvents">批量删除</ElButton>
@@ -1119,26 +1125,6 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   }
   .pod-log-table {
     width: 100%;
-  }
-
-  .remote-login-alert {
-    margin: 15px 0;
-    height: 45px;
-    padding: 10px 16px 10px 10px !important;
-    box-sizing: border-box;
-    background-color: #ecf5ff !important;
-    border: none !important;
-  }
-
-  .remote-login-alert :deep(.el-alert__icon) {
-    font-size: 20px;
-    color: #0958d9 !important;
-    margin-right: 4px !important;
-  }
-
-  .remote-login-alert :deep(.el-alert__description) {
-    font-size: 12px;
-    color: #0958d9 !important;
   }
 
   .remote-login-form-item :deep(.el-form-item__label) {

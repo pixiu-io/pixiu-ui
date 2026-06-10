@@ -61,9 +61,13 @@
       destroy-on-close
       @close="resetLabelForm"
     >
-      <ElAlert type="info" :closable="false" show-icon class="mb-3">
-        附加到 Kubernetes 对象上的键值对，用于标识与筛选对象。
-      </ElAlert>
+      <ElAlert
+        type="info"
+        :closable="false"
+        show-icon
+        class="pixiu-alert"
+        description="附加到 Kubernetes 对象上的键值对，用于标识与筛选对象。"
+      />
       <div v-for="(item, index) in labelRows" :key="index" class="label-row">
         <ElInput v-model="item.key" placeholder="键" class="label-row__key" />
         <ElInput v-model="item.value" placeholder="值" class="label-row__val" />
@@ -80,9 +84,13 @@
 
     <!-- 清空节点 -->
     <ElDialog v-model="drainVisible" title="清空节点" width="520px" destroy-on-close>
-      <ElAlert type="warning" :closable="false" show-icon>
-        此操作将按当前后端能力与 dashboard 一致发起节点信息校验（与 dashboard drain 接口相同）。
-      </ElAlert>
+      <ElAlert
+        type="warning"
+        :closable="false"
+        show-icon
+        class="pixiu-alert"
+        description="此操作将按当前后端能力与 dashboard 一致发起节点信息校验（与 dashboard drain 接口相同）。"
+      />
       <template #footer>
         <ElButton @click="drainVisible = false">取消</ElButton>
         <ElButton type="primary" :loading="drainLoading" @click="confirmDrain">确认</ElButton>
@@ -94,9 +102,13 @@
       <template #header>
         <span class="drawer-title">资源监控</span>
       </template>
-      <ElAlert type="info" :closable="false" show-icon class="mb-4"
-        >查看 Node 的资源指标（与 dashboard 相同 metrics 接口）。</ElAlert
-      >
+      <ElAlert
+        type="info"
+        :closable="false"
+        show-icon
+        class="pixiu-alert"
+        description="查看 Node 的资源指标（与 dashboard 相同 metrics 接口）。"
+      />
       <div class="monitor-charts">
         <MetricChartPanel
           title="CPU 使用率（%）"
@@ -122,9 +134,13 @@
       <template #header>
         <span class="drawer-title">事件查询</span>
       </template>
-      <ElAlert type="info" :closable="false" show-icon class="mb-4"
-        >获取 Node 相关事件（与 dashboard 相同 events 接口）。</ElAlert
-      >
+      <ElAlert
+        type="info"
+        :closable="false"
+        show-icon
+        class="pixiu-alert"
+        description="获取 Node 相关事件（与 dashboard 相同 events 接口）。"
+      />
       <div class="event-toolbar">
         <ElButton type="primary" @click="loadEventList">查询</ElButton>
         <ElButton :disabled="!eventSelection.length" @click="batchDeleteEvents">批量删除</ElButton>

@@ -414,7 +414,10 @@
     clearAnimationTimers()
     isAnimating.value = false
     emptyStateManager.remove()
-    initChartWithAnimation()
+    void nextTick().then(() => {
+      if (!hasRenderableData()) return
+      initChartWithAnimation()
+    })
   }
 
   // 图表渲染：静默刷新直接更新；非静默则从左到右逐点展开
@@ -429,8 +432,11 @@
       clearAnimationTimers()
       isAnimating.value = false
       emptyStateManager.remove()
-      animatedData.value = copyRealData()
-      updateChartOptions(generateChartOptions(false))
+      void nextTick().then(() => {
+        if (!hasRenderableData()) return
+        animatedData.value = copyRealData()
+        updateChartOptions(generateChartOptions(false))
+      })
       return
     }
 

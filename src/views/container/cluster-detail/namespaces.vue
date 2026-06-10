@@ -634,15 +634,6 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     margin-bottom: 12px;
   }
 
-  .quota-alert {
-    margin: 15px 0;
-    height: 45px;
-    padding: 10px 16px 10px 10px !important;
-    box-sizing: border-box;
-    background-color: #ecf5ff !important;
-    border: none !important;
-  }
-
   .quota-divider {
     height: 1px;
     background-color: var(--el-border-color-lighter);
@@ -678,24 +669,5 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
 
   :global(.quota-dialog-body) {
     padding: 0 24px 12px !important;
-  }
-
-  .quota-alert :deep(.el-alert__icon) {
-    font-size: 20px;
-    color: #0958d9 !important;
-    margin-right: 4px !important;
-  }
-
-  .quota-alert :deep(.el-alert__description) {
-    font-size: 12px;
-    color: #0958d9 !important;
-  }
-
-  html.dark .quota-alert {
-    background-color: rgba(64, 158, 255, 0.12) !important;
-  }
-
-  html.dark .quota-alert :deep(.el-alert__description) {
-    color: #a8cfff !important;
   }
 </style>
