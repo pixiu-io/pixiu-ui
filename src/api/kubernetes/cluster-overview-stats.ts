@@ -30,7 +30,7 @@ export interface ClusterOverviewK8sStats {
   workloads: ClusterOverviewK8sWorkloadCounts
 }
 
-function proxyPaths(cluster: string, cronJobApiVersion = 'batch/v1') {
+function proxyPaths(cluster: string, cronJobApiVersion = '') {
   const c = encodeURIComponent(cluster)
   const base = `/pixiu/proxy/${c}`
   return {

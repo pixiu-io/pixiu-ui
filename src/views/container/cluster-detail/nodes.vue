@@ -584,6 +584,36 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
               h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, formatContainerRuntime(row))
           },
           {
+            prop: 'ip',
+            label: 'IP地址',
+            minWidth: 170,
+            formatter: (row: K8sNode) => {
+              const addresses = row.status?.addresses ?? []
+              const internalIp = addresses.find((a) => a.type === 'InternalIP')?.address
+              const externalIp = addresses.find((a) => a.type === 'ExternalIP')?.address
+              const parts = [internalIp, externalIp].filter(Boolean) as string[]
+              if (!parts.length) return h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, '-')
+              return h(
+                'div',
+                { style: 'line-height:1.6' },
+                parts.map((ip) =>
+                  h('div', { style: 'display:flex;align-items:center;gap:4px;font-size:12px;color:var(--el-text-color-regular);white-space:nowrap' }, [
+                    h('span', ip),
+                    h(CopyDocument, {
+                      class: 'icon-action',
+                      style: 'width:12px;height:12px;cursor:pointer;color:var(--el-text-color-secondary);flex-shrink:0',
+                      onClick: (e: MouseEvent) => {
+                        e.stopPropagation()
+                        void navigator.clipboard.writeText(ip)
+                        ElMessage.success('已复制')
+                      }
+                    })
+                  ])
+                )
+              )
+            }
+          },
+          {
             prop: 'os',
             label: '操作系统',
             minWidth: 160,
@@ -591,6 +621,16 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
             formatter: (row: K8sNode) => {
               const os = row.status?.nodeInfo?.osImage ?? '-'
               return h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, os)
+            }
+          },
+          {
+            prop: 'kernel',
+            label: '内核版本',
+            minWidth: 160,
+            showOverflowTooltip: true,
+            formatter: (row: K8sNode) => {
+              const kernel = row.status?.nodeInfo?.kernelVersion ?? '-'
+              return h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, kernel)
             }
           },
           {

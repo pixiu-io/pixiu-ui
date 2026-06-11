@@ -28,6 +28,12 @@ function cjBase(cluster: string, namespace: string, apiVersion: string) {
   return `/pixiu/proxy/${encodeURIComponent(cluster)}/apis/${apiVersion}/namespaces/${encodeURIComponent(namespace)}/cronjobs`
 }
 
+function resolveApiVersion(v?: string): string {
+  const apiVersion = v || ''
+  if (!apiVersion) throw new Error('集群版本未知，无法操作 CronJob')
+  return apiVersion
+}
+
 export async function fetchK8sCronJobList(
   cluster: string,
   params: { page: number; limit: number; namespace?: string; name?: string; cronJobApiVersion?: string }
@@ -52,7 +58,7 @@ export async function fetchK8sCronJob(
   name: string,
   cronJobApiVersion?: string
 ): Promise<K8sCronJob> {
-  const apiVersion = cronJobApiVersion || 'batch/v1'
+  const apiVersion = resolveApiVersion(cronJobApiVersion)
   const { data } = await kubeProxyAxios.get<K8sCronJob>(
     `${cjBase(cluster, namespace, apiVersion)}/${encodeURIComponent(name)}`
   )
@@ -65,7 +71,7 @@ export async function deleteK8sCronJob(
   name: string,
   cronJobApiVersion?: string
 ): Promise<void> {
-  const apiVersion = cronJobApiVersion || 'batch/v1'
+  const apiVersion = resolveApiVersion(cronJobApiVersion)
   await kubeProxyAxios.delete(`${cjBase(cluster, namespace, apiVersion)}/${encodeURIComponent(name)}`)
 }
 
@@ -76,7 +82,7 @@ export async function patchK8sCronJob(
   patch: object,
   cronJobApiVersion?: string
 ): Promise<K8sCronJob> {
-  const apiVersion = cronJobApiVersion || 'batch/v1'
+  const apiVersion = resolveApiVersion(cronJobApiVersion)
   const { data } = await kubeProxyAxios.patch<K8sCronJob>(
     `${cjBase(cluster, namespace, apiVersion)}/${encodeURIComponent(name)}`,
     patch,
@@ -91,7 +97,7 @@ export async function createK8sCronJob(
   body: object,
   cronJobApiVersion?: string
 ): Promise<K8sCronJob> {
-  const apiVersion = cronJobApiVersion || 'batch/v1'
+  const apiVersion = resolveApiVersion(cronJobApiVersion)
   const { data } = await kubeProxyAxios.post<K8sCronJob>(cjBase(cluster, namespace, apiVersion), body)
   return data
 }
