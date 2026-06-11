@@ -30,16 +30,6 @@ export const dashboardRoutes: AppRouteRecord = {
         icon: 'ri:align-item-bottom-line',
         keepAlive: false
       }
-    },
-    {
-      path: 'ecommerce',
-      name: 'Ecommerce',
-      component: '/dashboard/ecommerce',
-      meta: {
-        title: 'menus.dashboard.ecommerce',
-        icon: 'ri:bar-chart-box-line',
-        keepAlive: false
-      }
     }
   ]
 }

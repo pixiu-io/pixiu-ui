@@ -40,7 +40,7 @@ function svcBase(cluster: string, namespace: string) {
 
 export async function fetchK8sServiceList(
   cluster: string,
-  params: { page: number; limit: number; namespace?: string; name?: string }
+  params: { page: number; limit: number; namespace?: string }
 ): Promise<{ items: K8sService[]; total: number }> {
   const base = params.namespace
     ? `/pixiu/proxy/${encodeURIComponent(cluster)}/api/v1/namespaces/${encodeURIComponent(params.namespace)}/services`
@@ -48,8 +48,7 @@ export async function fetchK8sServiceList(
   return fetchKubeListPage<K8sService>({
     path: base,
     page: params.page,
-    limit: params.limit,
-    fieldSelector: params.name ? `metadata.name=${params.name}` : undefined
+    limit: params.limit
   })
 }
 

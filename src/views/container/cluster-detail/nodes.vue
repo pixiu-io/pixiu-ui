@@ -430,13 +430,22 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
               size: params.size
             }
           }
-        const { items, total } = await fetchK8sNodeList(cluster, {
-          page: params.current,
-          limit: params.size,
-          name: (params.name ?? '').trim() || undefined
+        // 拉取全部节点（不带 fieldSelector），本地模糊搜索
+        const { items: allItems } = await fetchK8sNodeList(cluster, {
+          page: 1,
+          limit: 999999
         })
-        const list = items
-        const records = list.map((n, i) => ({
+
+        // 本地模糊筛选
+        const keyword = (params.name ?? '').trim().toLowerCase()
+        const filtered = keyword
+          ? allItems.filter((n) => (n.metadata?.name ?? '').toLowerCase().includes(keyword))
+          : allItems
+
+        // 本地分页
+        const start = (params.current - 1) * params.size
+        const end = start + params.size
+        const records = filtered.slice(start, end).map((n, i) => ({
           ...n,
           rowKey: n.metadata?.uid ?? n.metadata?.name ?? `node-${i}`
         }))
@@ -444,7 +453,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
           code: 200,
           data: {
             records,
-            total,
+            total: filtered.length,
             current: params.current,
             size: params.size
           }

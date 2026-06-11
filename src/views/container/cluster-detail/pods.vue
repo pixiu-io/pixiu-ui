@@ -346,19 +346,29 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
             data: { records: [] as (K8sPod & { rowKey?: string })[], total: 0, current: 1, size: params.size }
           }
         }
-        const { items, total } = await fetchK8sPodList(cluster, {
-          page: params.current,
-          limit: params.size,
-          namespace: params.namespace || undefined,
-          name: (params.name ?? '').trim() || undefined
+        // 拉取全部 pod（不带 fieldSelector），本地模糊搜索
+        const { items: allItems } = await fetchK8sPodList(cluster, {
+          page: 1,
+          limit: 999999,
+          namespace: params.namespace || undefined
         })
-        const records = items.map((row, i) => ({
+
+        // 本地模糊筛选
+        const keyword = (params.name ?? '').trim().toLowerCase()
+        const filtered = keyword
+          ? allItems.filter((p) => (p.metadata?.name ?? '').toLowerCase().includes(keyword))
+          : allItems
+
+        // 本地分页
+        const start = (params.current - 1) * params.size
+        const end = start + params.size
+        const records = filtered.slice(start, end).map((row, i) => ({
           ...row,
           rowKey: `${row.metadata?.namespace ?? 'default'}:${row.metadata?.name ?? `r-${i}`}`
         }))
         return {
           code: 200,
-          data: { records, total, current: params.current, size: params.size }
+          data: { records, total: filtered.length, current: params.current, size: params.size }
         }
       },
       apiParams: {
@@ -656,7 +666,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
 
   function runSearch() {
     const name = (searchForm.value.name ?? '').trim() || undefined
-    replaceSearchParams({ name })
+    replaceSearchParams({ name, namespace: selectedNamespace.value || undefined })
     getData()
   }
 

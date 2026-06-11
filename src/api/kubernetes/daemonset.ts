@@ -39,7 +39,7 @@ function dsBase(cluster: string, namespace: string) {
 
 export async function fetchK8sDaemonSetList(
   cluster: string,
-  params: { page: number; limit: number; namespace?: string; name?: string }
+  params: { page: number; limit: number; namespace?: string }
 ): Promise<{ items: K8sDaemonSet[]; total: number }> {
   const base = params.namespace
     ? `/pixiu/proxy/${encodeURIComponent(cluster)}/apis/apps/v1/namespaces/${encodeURIComponent(params.namespace)}/daemonsets`
@@ -47,8 +47,7 @@ export async function fetchK8sDaemonSetList(
   return fetchKubeListPage<K8sDaemonSet>({
     path: base,
     page: params.page,
-    limit: params.limit,
-    fieldSelector: params.name ? `metadata.name=${params.name}` : undefined
+    limit: params.limit
   })
 }
 

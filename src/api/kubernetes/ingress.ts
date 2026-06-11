@@ -41,7 +41,7 @@ function ingressBase(cluster: string, namespace: string) {
 
 export async function fetchK8sIngressList(
   cluster: string,
-  params: { page: number; limit: number; namespace?: string; name?: string }
+  params: { page: number; limit: number; namespace?: string }
 ): Promise<{ items: K8sIngress[]; total: number }> {
   const base = params.namespace
     ? `/pixiu/proxy/${encodeURIComponent(cluster)}/apis/networking.k8s.io/v1/namespaces/${encodeURIComponent(params.namespace)}/ingresses`
@@ -49,8 +49,7 @@ export async function fetchK8sIngressList(
   return fetchKubeListPage<K8sIngress>({
     path: base,
     page: params.page,
-    limit: params.limit,
-    fieldSelector: params.name ? `metadata.name=${params.name}` : undefined
+    limit: params.limit
   })
 }
 

@@ -351,13 +351,21 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
               size: params.size
             }
           }
-        const { items, total } = await fetchK8sServiceList(cluster, {
-          page: params.current,
-          limit: params.size,
-          namespace: selectedNamespace.value || undefined,
-          name: (params.name ?? '').trim() || undefined
+        // 拉取全部资源（不带 fieldSelector），本地模糊搜索
+        const { items: allItems } = await fetchK8sServiceList(cluster, {
+          page: 1,
+          limit: 999999,
+          namespace: selectedNamespace.value || undefined
         })
-        let list = items.map((d, i) => ({
+        // 本地模糊筛选
+        const keyword = (params.name ?? '').trim().toLowerCase()
+        const filtered = keyword
+          ? allItems.filter((r) => (r.metadata?.name ?? '').toLowerCase().includes(keyword))
+          : allItems
+        // 本地分页
+        const start = (params.current - 1) * params.size
+        const end = start + params.size
+        let list = filtered.slice(start, end).map((d, i) => ({
           ...d,
           rowKey: d.metadata?.uid ?? d.metadata?.name ?? `svc-${i}`
         }))
@@ -370,7 +378,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
         }
         return {
           code: 200,
-          data: { records: list, total, current: params.current, size: params.size }
+          data: { records: list, total: filtered.length, current: params.current, size: params.size }
         }
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
@@ -538,13 +546,21 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
               size: params.size
             }
           }
-        const { items, total } = await fetchK8sIngressList(cluster, {
-          page: params.current,
-          limit: params.size,
-          namespace: selectedNamespace.value || undefined,
-          name: (params.name ?? '').trim() || undefined
+        // 拉取全部资源（不带 fieldSelector），本地模糊搜索
+        const { items: allItems } = await fetchK8sIngressList(cluster, {
+          page: 1,
+          limit: 999999,
+          namespace: selectedNamespace.value || undefined
         })
-        let list = items.map((d, i) => ({
+        // 本地模糊筛选
+        const keyword = (params.name ?? '').trim().toLowerCase()
+        const filtered = keyword
+          ? allItems.filter((r) => (r.metadata?.name ?? '').toLowerCase().includes(keyword))
+          : allItems
+        // 本地分页
+        const start = (params.current - 1) * params.size
+        const end = start + params.size
+        let list = filtered.slice(start, end).map((d, i) => ({
           ...d,
           rowKey: d.metadata?.uid ?? d.metadata?.name ?? `ing-${i}`
         }))
@@ -557,7 +573,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
         }
         return {
           code: 200,
-          data: { records: list, total, current: params.current, size: params.size }
+          data: { records: list, total: filtered.length, current: params.current, size: params.size }
         }
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },

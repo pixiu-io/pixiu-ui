@@ -163,7 +163,6 @@ const targets = [
   'src/views/widgets',
   'src/views/template',
   'src/views/dashboard/analysis',
-  'src/views/dashboard/ecommerce',
   'src/mock/json',
   'src/mock/temp/articleList.ts',
   'src/mock/temp/commentDetail.ts',
@@ -479,9 +478,6 @@ async function cleanLanguageFiles() {
         if (langData.menus.dashboard) {
           if (langData.menus.dashboard.analysis) {
             delete langData.menus.dashboard.analysis
-          }
-          if (langData.menus.dashboard.ecommerce) {
-            delete langData.menus.dashboard.ecommerce
           }
         }
 

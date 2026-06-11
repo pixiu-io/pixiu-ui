@@ -320,7 +320,7 @@
     try {
       const { items } = await fetchK8sServiceList(cluster.value, {
         page: 1,
-        limit: 500,
+        limit: 999999,
         namespace: ns
       })
       serviceOptions.value = items.map((s: K8sService) => ({

@@ -127,10 +127,12 @@ export function handlePixiuSessionExpired(message?: string): Promise<never> {
   return Promise.reject(new PixiuApiError(msg, true))
 }
 
-function rejectPixiuBusinessError(message?: string, code?: number) {
+function rejectPixiuBusinessError(message?: string, code?: number, skipNotify = false) {
   const msg = shortenError(message || '请求失败', code)
-  ElMessage.error(msg)
-  return Promise.reject(new PixiuApiError(msg, true))
+  if (!skipNotify) {
+    ElMessage.error(msg)
+  }
+  return Promise.reject(new PixiuApiError(msg, !skipNotify))
 }
 
 /** 是否为 Pixiu `{ code, message, result? }` 业务包（区别于 K8s 原生 JSON） */
@@ -158,7 +160,8 @@ export function rejectIfPixiuBusinessError(
   if (shouldRedirectUnauthorized(code, message, config)) {
     return handlePixiuSessionExpired(message)
   }
-  return rejectPixiuBusinessError(message, code)
+  const skipNotify = !!(config as Record<string, unknown> | undefined)?.skipErrorNotification
+  return rejectPixiuBusinessError(message, code, skipNotify)
 }
 
 /** 专用于 pixiu 后端的 axios 实例（响应格式为 { code, result, message }） */
@@ -186,7 +189,8 @@ pixiuAxios.interceptors.response.use(
     const message =
       (data && typeof data === 'object' ? (data as { message?: string }).message : undefined) ||
       error.message
-    return rejectPixiuBusinessError(message, error.response?.status)
+    const skipNotify = !!(error.config as Record<string, unknown> | undefined)?.skipErrorNotification
+    return rejectPixiuBusinessError(message, error.response?.status, skipNotify)
   }
 )
 

@@ -385,7 +385,8 @@
   import { ElMessage } from 'element-plus'
   import { inject, computed, onActivated, onDeactivated, onUnmounted, ref, watch } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
-  import { fetchProtectCluster, fetchUpdateClusterAlias, fetchGetCluster } from '@/api/container'
+  import yaml from 'js-yaml'
+  import { fetchProtectCluster, fetchUpdateClusterAlias, fetchGetCluster, fetchClusterByName } from '@/api/container'
   import { fetchPlanWithResources, type PlanResourcesDetail } from '@/api/plan'
   import {
     fetchClusterBasicNetwork,
@@ -529,17 +530,36 @@
   const loadedApiCluster = ref('')
 
   function parseKubeConfigServer(kcText: string): string {
-    const match = kcText.match(/server:\s*(\S+)/)
-    return match?.[1] ?? ''
+    if (!kcText) return ''
+    try {
+      const kc = yaml.load(kcText) as { clusters?: Array<{ cluster?: { server?: string } }> }
+      return kc?.clusters?.[0]?.cluster?.server ?? ''
+    } catch {
+      // fallback to regex for malformed yaml
+      const match = kcText.match(/server:\s*(\S+)/)
+      return match?.[1] ?? ''
+    }
   }
 
-  async function loadApiServerInfo(force = false) {
-    if (!isOverviewRoute.value || !ctx.value.id) return
-    if (!force && loadedApiCluster.value === ctx.value.name) return
+  async function loadApiServerInfo() {
+    if (!ctx.value.name) return
+    if (loadedApiCluster.value === ctx.value.name) return
 
     try {
-      const cluster = await fetchGetCluster(ctx.value.id)
-      const kcText = (cluster as { kube_config?: string }).kube_config ?? ''
+      let kcText = ''
+      // 通过集群 ID 获取 kubeconfig
+      if (ctx.value.id) {
+        const cluster = await fetchGetCluster(ctx.value.id)
+        kcText = (cluster as { kube_config?: string }).kube_config ?? ''
+      }
+      // 若 ID 方式获取不到，通过集群名称获取
+      if (!kcText) {
+        const item = await fetchClusterByName(ctx.value.name)
+        if (item?.id) {
+          const cluster = await fetchGetCluster(item.id)
+          kcText = (cluster as { kube_config?: string }).kube_config ?? ''
+        }
+      }
       const server = parseKubeConfigServer(kcText)
       if (server) {
         apiServerAddr.value = server

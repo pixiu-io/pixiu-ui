@@ -1704,7 +1704,7 @@
     try {
       const { items } = await fetchK8sSecretList(cluster.value, {
         page: 1,
-        limit: 500,
+        limit: 999999,
         namespace: form.value.namespace
       })
       pullSecrets.value = items

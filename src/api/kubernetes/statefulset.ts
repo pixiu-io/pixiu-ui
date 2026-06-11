@@ -38,7 +38,7 @@ function stsBase(cluster: string, namespace: string) {
 
 export async function fetchK8sStatefulSetList(
   cluster: string,
-  params: { page: number; limit: number; namespace?: string; name?: string }
+  params: { page: number; limit: number; namespace?: string }
 ): Promise<{ items: K8sStatefulSet[]; total: number }> {
   const base = params.namespace
     ? `/pixiu/proxy/${encodeURIComponent(cluster)}/apis/apps/v1/namespaces/${encodeURIComponent(params.namespace)}/statefulsets`
@@ -46,8 +46,7 @@ export async function fetchK8sStatefulSetList(
   return fetchKubeListPage<K8sStatefulSet>({
     path: base,
     page: params.page,
-    limit: params.limit,
-    fieldSelector: params.name ? `metadata.name=${params.name}` : undefined
+    limit: params.limit
   })
 }
 

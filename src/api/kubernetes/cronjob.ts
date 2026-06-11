@@ -36,7 +36,7 @@ function resolveApiVersion(v?: string): string {
 
 export async function fetchK8sCronJobList(
   cluster: string,
-  params: { page: number; limit: number; namespace?: string; name?: string; cronJobApiVersion?: string }
+  params: { page: number; limit: number; namespace?: string; cronJobApiVersion?: string }
 ): Promise<{ items: K8sCronJob[]; total: number }> {
   const apiVersion = params.cronJobApiVersion || ''
   // 版本未知时跳过请求，避免 batch/v1 在旧集群 404
@@ -47,8 +47,7 @@ export async function fetchK8sCronJobList(
   return fetchKubeListPage<K8sCronJob>({
     path: base,
     page: params.page,
-    limit: params.limit,
-    fieldSelector: params.name ? `metadata.name=${params.name}` : undefined
+    limit: params.limit
   })
 }
 

@@ -143,7 +143,7 @@
 
         const total = filtered.length
         const start = (params.current - 1) * params.size
-        const list = filtered.slice(start, start + params.size).map((e, i) => ({
+        let list = filtered.slice(start, start + params.size).map((e, i) => ({
           ...e,
           rowKey: e.metadata?.uid ?? `${e.reason ?? 'event'}-${start + i}`
         }))

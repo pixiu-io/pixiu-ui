@@ -225,13 +225,23 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
               size: params.size
             }
           }
-        const { items, total } = await fetchK8sNamespaceList(cluster, {
-          page: params.current,
-          limit: params.size,
-          name: (params.name ?? '').trim() || undefined
+        // 拉取全部命名空间（不带 fieldSelector），本地模糊搜索
+        const { items: allItems } = await fetchK8sNamespaceList(cluster, {
+          page: 1,
+          limit: 999999
         })
-        const records = items.map((row, i) => ({ ...row, rowKey: row.metadata?.name ?? `ns-${i}` }))
-        return { code: 200, data: { records, total, current: params.current, size: params.size } }
+
+        // 本地模糊筛选
+        const keyword = (params.name ?? '').trim().toLowerCase()
+        const filtered = keyword
+          ? allItems.filter((n) => (n.metadata?.name ?? '').toLowerCase().includes(keyword))
+          : allItems
+
+        // 本地分页
+        const start = (params.current - 1) * params.size
+        const end = start + params.size
+        const records = filtered.slice(start, end).map((row, i) => ({ ...row, rowKey: row.metadata?.name ?? `ns-${i}` }))
+        return { code: 200, data: { records, total: filtered.length, current: params.current, size: params.size } }
       },
       apiParams: { current: 1, size: 10, name: undefined },
       columnsFactory: () => [

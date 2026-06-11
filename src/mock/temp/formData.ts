@@ -40,7 +40,7 @@ export const ACCOUNT_TABLE_DATA: User[] = [
     gender: 1,
     mobile: '17766664444',
     email: 'sophiabaker@company.com',
-    dep: '电商部',
+    dep: '市场部',
     status: '1',
     create_time: '2020-10-10 13:01:12',
     avatar: avatar2

@@ -1240,7 +1240,7 @@
           const ns = props.mirrorNamespace || params.namespace || undefined
           const { items } = await fetchK8sServiceList(cluster, {
             page: 1,
-            limit: 500,
+            limit: 999999,
             namespace: ns
           })
           const selector = parseSelectorMap(props.mirrorSelector || '')
@@ -1258,7 +1258,7 @@
             )
           const total = filtered.length
           const start = (params.current - 1) * params.size
-          const list = filtered.slice(start, start + params.size).map((s, i) => ({
+          let list = filtered.slice(start, start + params.size).map((s, i) => ({
             ...s,
             rowKey: s.metadata?.uid ?? s.metadata?.name ?? `svc-${start + i}`
           }))
@@ -1267,13 +1267,21 @@
             data: { records: list, total, current: params.current, size: params.size }
           }
         }
-        const { items, total } = await fetchK8sStatefulSetList(cluster, {
-          page: params.current,
-          limit: params.size,
-          namespace: params.namespace || undefined,
-          name: (params.name ?? '').trim() || undefined
+        // 拉取全部资源（不带 fieldSelector），本地模糊搜索
+        const { items: allItems } = await fetchK8sStatefulSetList(cluster, {
+          page: 1,
+          limit: 999999,
+          namespace: params.namespace || undefined
         })
-        let list = items.map((d, i) => ({
+        // 本地模糊筛选
+        const keyword = (params.name ?? '').trim().toLowerCase()
+        const filtered = keyword
+          ? allItems.filter((r) => (r.metadata?.name ?? '').toLowerCase().includes(keyword))
+          : allItems
+        // 本地分页
+        const start = (params.current - 1) * params.size
+        const end = start + params.size
+        let list = filtered.slice(start, end).map((d, i) => ({
           ...d,
           rowKey: d.metadata?.uid ?? d.metadata?.name ?? `sts-${i}`
         }))
@@ -1286,7 +1294,7 @@
         }
         return {
           code: 200,
-          data: { records: list, total, current: params.current, size: params.size }
+          data: { records: list, total: filtered.length, current: params.current, size: params.size }
         }
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
@@ -1610,13 +1618,21 @@
             data: { records: list, total, current: params.current, size: params.size }
           }
         }
-        const { items, total } = await fetchK8sDaemonSetList(cluster, {
-          page: params.current,
-          limit: params.size,
-          namespace: params.namespace || undefined,
-          name: (params.name ?? '').trim() || undefined
+        // 拉取全部资源（不带 fieldSelector），本地模糊搜索
+        const { items: allItems } = await fetchK8sDaemonSetList(cluster, {
+          page: 1,
+          limit: 999999,
+          namespace: params.namespace || undefined
         })
-        let list = items.map((d, i) => ({
+        // 本地模糊筛选
+        const keyword = (params.name ?? '').trim().toLowerCase()
+        const filtered = keyword
+          ? allItems.filter((r) => (r.metadata?.name ?? '').toLowerCase().includes(keyword))
+          : allItems
+        // 本地分页
+        const start = (params.current - 1) * params.size
+        const end = start + params.size
+        let list = filtered.slice(start, end).map((d, i) => ({
           ...d,
           rowKey: d.metadata?.uid ?? d.metadata?.name ?? `ds-${i}`
         }))
@@ -1629,7 +1645,7 @@
         }
         return {
           code: 200,
-          data: { records: list, total, current: params.current, size: params.size }
+          data: { records: list, total: filtered.length, current: params.current, size: params.size }
         }
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
@@ -2076,7 +2092,7 @@
           }
           const total = filtered.length
           const start = (params.current - 1) * params.size
-          const list = filtered.slice(start, start + params.size).map((e, i) => ({
+          let list = filtered.slice(start, start + params.size).map((e, i) => ({
             ...e,
             rowKey: e.metadata?.uid ?? `${e.reason ?? 'event'}-${start + i}`
           }))
@@ -2085,13 +2101,21 @@
             data: { records: list, total, current: params.current, size: params.size }
           }
         }
-        const { items, total } = await fetchK8sJobList(cluster, {
-          page: params.current,
-          limit: params.size,
-          namespace: params.namespace || undefined,
-          name: (params.name ?? '').trim() || undefined
+        // 拉取全部资源（不带 fieldSelector），本地模糊搜索
+        const { items: allItems } = await fetchK8sJobList(cluster, {
+          page: 1,
+          limit: 999999,
+          namespace: params.namespace || undefined
         })
-        let list = items.map((d, i) => ({
+        // 本地模糊筛选
+        const keyword = (params.name ?? '').trim().toLowerCase()
+        const filtered = keyword
+          ? allItems.filter((r) => (r.metadata?.name ?? '').toLowerCase().includes(keyword))
+          : allItems
+        // 本地分页
+        const start = (params.current - 1) * params.size
+        const end = start + params.size
+        let list = filtered.slice(start, end).map((d, i) => ({
           ...d,
           rowKey: d.metadata?.uid ?? d.metadata?.name ?? `job-${i}`
         }))
@@ -2104,7 +2128,7 @@
         }
         return {
           code: 200,
-          data: { records: list, total, current: params.current, size: params.size }
+          data: { records: list, total: filtered.length, current: params.current, size: params.size }
         }
       },
       apiParams: { current: 1, size: 10, name: undefined, type: undefined, namespace: undefined },
@@ -2536,20 +2560,28 @@
           }
           const total = filtered.length
           const start = (params.current - 1) * params.size
-          const list = filtered.slice(start, start + params.size)
+          let list = filtered.slice(start, start + params.size)
           return {
             code: 200,
             data: { records: list, total, current: params.current, size: params.size }
           }
         }
-        const { items, total } = await fetchK8sCronJobList(cluster, {
-          page: params.current,
-          limit: params.size,
+        // 拉取全部资源（不带 fieldSelector），本地模糊搜索
+        const { items: allItems } = await fetchK8sCronJobList(cluster, {
+          page: 1,
+          limit: 999999,
           namespace: params.namespace || undefined,
-          name: (params.name ?? '').trim() || undefined,
           cronJobApiVersion: cronJobApiVersion.value
         })
-        let list = items.map((d, i) => ({
+        // 本地模糊筛选
+        const keyword = (params.name ?? '').trim().toLowerCase()
+        const filtered = keyword
+          ? allItems.filter((r) => (r.metadata?.name ?? '').toLowerCase().includes(keyword))
+          : allItems
+        // 本地分页
+        const start = (params.current - 1) * params.size
+        const end = start + params.size
+        let list = filtered.slice(start, end).map((d, i) => ({
           ...d,
           rowKey: d.metadata?.uid ?? d.metadata?.name ?? `cj-${i}`
         }))
@@ -2562,7 +2594,7 @@
         }
         return {
           code: 200,
-          data: { records: list, total, current: params.current, size: params.size }
+          data: { records: list, total: filtered.length, current: params.current, size: params.size }
         }
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
@@ -2985,13 +3017,21 @@
             data: { records: list, total, current: params.current, size: params.size }
           }
         }
-        const { items, total } = await fetchK8sDeploymentList(cluster, {
-          page: params.current,
-          limit: params.size,
-          namespace: params.namespace || undefined,
-          name: (params.name ?? '').trim() || undefined
+        // 拉取全部资源（不带 fieldSelector），本地模糊搜索
+        const { items: allItems } = await fetchK8sDeploymentList(cluster, {
+          page: 1,
+          limit: 999999,
+          namespace: params.namespace || undefined
         })
-        let list = items.map((d, i) => ({
+        // 本地模糊筛选
+        const keyword = (params.name ?? '').trim().toLowerCase()
+        const filtered = keyword
+          ? allItems.filter((r) => (r.metadata?.name ?? '').toLowerCase().includes(keyword))
+          : allItems
+        // 本地分页
+        const start = (params.current - 1) * params.size
+        const end = start + params.size
+        let list = filtered.slice(start, end).map((d, i) => ({
           ...d,
           rowKey: d.metadata?.uid ?? d.metadata?.name ?? `deploy-${i}`
         }))
@@ -3004,7 +3044,7 @@
         }
         return {
           code: 200,
-          data: { records: list, total, current: params.current, size: params.size }
+          data: { records: list, total: filtered.length, current: params.current, size: params.size }
         }
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },

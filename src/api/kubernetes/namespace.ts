@@ -25,13 +25,12 @@ export interface K8sResourceQuota {
 
 export async function fetchK8sNamespaceList(
   cluster: string,
-  params: { page: number; limit: number; name?: string }
+  params: { page: number; limit: number }
 ): Promise<{ items: K8sNamespace[]; total: number }> {
   return fetchKubeListPage<K8sNamespace>({
     path: `/pixiu/proxy/${encodeURIComponent(cluster)}/api/v1/namespaces`,
     page: params.page,
-    limit: params.limit,
-    fieldSelector: params.name ? `metadata.name=${params.name}` : undefined
+    limit: params.limit
   })
 }
 

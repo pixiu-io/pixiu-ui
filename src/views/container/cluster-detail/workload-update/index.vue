@@ -969,7 +969,7 @@
   async function loadPullSecrets() {
     if (!cluster.value || !namespace.value) return
     try {
-      const { items } = await fetchK8sSecretList(cluster.value, { page: 1, limit: 500, namespace: namespace.value })
+      const { items } = await fetchK8sSecretList(cluster.value, { page: 1, limit: 999999, namespace: namespace.value })
       pullSecrets.value = items
         .filter((s) => s.type === 'kubernetes.io/dockerconfigjson' || s.type === 'kubernetes.io/dockercfg')
         .map((s) => s.metadata?.name ?? '')

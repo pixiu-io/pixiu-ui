@@ -224,8 +224,7 @@
     "dashboard": {
       "title": "Dashboard",
       "console": "Console",
-      "analysis": "Analysis",
-      "ecommerce": "Ecommerce"
+      "analysis": "Analysis"
     },
     "system": {
       "title": "Security Management",

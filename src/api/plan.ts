@@ -355,7 +355,7 @@ export async function fetchCreatePlan(params: CreatePlanParams): Promise<void> {
   const res = await pixiuAxios.post('/pixiu/plans', {
     ...params,
     user_id: userStore.getUserInfo?.userId ?? 0
-  })
+  }, { skipErrorNotification: true } as any)
   const { code, message } = res.data
   if (code !== 200) throw new Error(message || '创建部署计划失败')
 }

@@ -365,12 +365,12 @@
       return !singleData.length || singleData.every((val) => val === 0)
     }
 
-    // 检查多数据情况
+    // 检查多数据情况：只有全部系列无数据点或全部为 null 才视为空
     if (Array.isArray(props.data) && typeof props.data[0] === 'object') {
       const multiData = props.data as LineDataItem[]
       return (
         !multiData.length ||
-        multiData.every((item) => !item.data?.length || item.data.every((val) => val === 0))
+        multiData.every((item) => !item.data?.length || item.data.every((val) => val == null))
       )
     }
 

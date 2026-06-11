@@ -389,19 +389,27 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       apiFn: async (params: PvcParams) => {
         const cluster = String(route.query.cluster ?? '')
         if (!cluster) return { code: 200, data: { records: [] as (K8sPVC & { rowKey: string })[], total: 0, current: 1, size: params.size } }
-        const { items, total } = await fetchK8sPVCList(cluster, {
-          page: params.current, limit: params.size,
-          namespace: selectedNamespace.value || undefined,
-          name: (params.name ?? '').trim() || undefined
+        // 拉取全部资源（不带 fieldSelector），本地模糊搜索
+        const { items: allItems } = await fetchK8sPVCList(cluster, {
+          page: 1, limit: 999999,
+          namespace: selectedNamespace.value || undefined
         })
-        let list = items.map((d, i) => ({ ...d, rowKey: d.metadata?.uid ?? d.metadata?.name ?? `pvc-${i}` }))
+        // 本地模糊筛选
+        const keyword = (params.name ?? '').trim().toLowerCase()
+        const filtered = keyword
+          ? allItems.filter((r) => (r.metadata?.name ?? '').toLowerCase().includes(keyword))
+          : allItems
+        // 本地分页
+        const start = (params.current - 1) * params.size
+        const end = start + params.size
+        let list = filtered.slice(start, end).map((d, i) => ({ ...d, rowKey: d.metadata?.uid ?? d.metadata?.name ?? `pvc-${i}` }))
         if (pvcSortOrder.value) {
           list = [...list].sort((a, b) => {
             const ta = a.metadata?.creationTimestamp ?? '', tb = b.metadata?.creationTimestamp ?? ''
             return pvcSortOrder.value === 'ascending' ? ta.localeCompare(tb) : tb.localeCompare(ta)
           })
         }
-        return { code: 200, data: { records: list, total, current: params.current, size: params.size } }
+        return { code: 200, data: { records: list, total: filtered.length, current: params.current, size: params.size } }
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
       columnsFactory: () => [
@@ -495,18 +503,26 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       apiFn: async (params: PvParams) => {
         const cluster = String(route.query.cluster ?? '')
         if (!cluster) return { code: 200, data: { records: [] as (K8sPV & { rowKey: string })[], total: 0, current: 1, size: params.size } }
-        const { items, total } = await fetchK8sPVList(cluster, {
-          page: params.current, limit: params.size,
-          name: (params.name ?? '').trim() || undefined
+        // 拉取全部资源（不带 fieldSelector），本地模糊搜索
+        const { items: allItems } = await fetchK8sPVList(cluster, {
+          page: 1, limit: 999999
         })
-        let list = items.map((d, i) => ({ ...d, rowKey: d.metadata?.uid ?? d.metadata?.name ?? `pv-${i}` }))
+        // 本地模糊筛选
+        const keyword = (params.name ?? '').trim().toLowerCase()
+        const filtered = keyword
+          ? allItems.filter((r) => (r.metadata?.name ?? '').toLowerCase().includes(keyword))
+          : allItems
+        // 本地分页
+        const start = (params.current - 1) * params.size
+        const end = start + params.size
+        let list = filtered.slice(start, end).map((d, i) => ({ ...d, rowKey: d.metadata?.uid ?? d.metadata?.name ?? `pv-${i}` }))
         if (pvSortOrder.value) {
           list = [...list].sort((a, b) => {
             const ta = a.metadata?.creationTimestamp ?? '', tb = b.metadata?.creationTimestamp ?? ''
             return pvSortOrder.value === 'ascending' ? ta.localeCompare(tb) : tb.localeCompare(ta)
           })
         }
-        return { code: 200, data: { records: list, total, current: params.current, size: params.size } }
+        return { code: 200, data: { records: list, total: filtered.length, current: params.current, size: params.size } }
       },
       apiParams: { current: 1, size: 10, name: undefined },
       columnsFactory: () => [
@@ -604,18 +620,26 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       apiFn: async (params: ScParams) => {
         const cluster = String(route.query.cluster ?? '')
         if (!cluster) return { code: 200, data: { records: [] as (K8sStorageClass & { rowKey: string })[], total: 0, current: 1, size: params.size } }
-        const { items, total } = await fetchK8sStorageClassList(cluster, {
-          page: params.current, limit: params.size,
-          name: (params.name ?? '').trim() || undefined
+        // 拉取全部资源（不带 fieldSelector），本地模糊搜索
+        const { items: allItems } = await fetchK8sStorageClassList(cluster, {
+          page: 1, limit: 999999
         })
-        let list = items.map((d, i) => ({ ...d, rowKey: d.metadata?.uid ?? d.metadata?.name ?? `sc-${i}` }))
+        // 本地模糊筛选
+        const keyword = (params.name ?? '').trim().toLowerCase()
+        const filtered = keyword
+          ? allItems.filter((r) => (r.metadata?.name ?? '').toLowerCase().includes(keyword))
+          : allItems
+        // 本地分页
+        const start = (params.current - 1) * params.size
+        const end = start + params.size
+        let list = filtered.slice(start, end).map((d, i) => ({ ...d, rowKey: d.metadata?.uid ?? d.metadata?.name ?? `sc-${i}` }))
         if (scSortOrder.value) {
           list = [...list].sort((a, b) => {
             const ta = a.metadata?.creationTimestamp ?? '', tb = b.metadata?.creationTimestamp ?? ''
             return scSortOrder.value === 'ascending' ? ta.localeCompare(tb) : tb.localeCompare(ta)
           })
         }
-        return { code: 200, data: { records: list, total, current: params.current, size: params.size } }
+        return { code: 200, data: { records: list, total: filtered.length, current: params.current, size: params.size } }
       },
       apiParams: { current: 1, size: 10, name: undefined },
       columnsFactory: () => [
