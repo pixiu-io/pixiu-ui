@@ -37,6 +37,8 @@
                     v-model="deplNamespace"
                     placeholder="所有命名空间"
                     class="workloads-toolbar__namespace"
+                    filterable
+                    :reserve-keyword="false"
                     :fit-input-width="true"
                     popper-class="workloads-toolbar__namespace-popper"
                     @change="onDeplNamespaceChange"

@@ -41,7 +41,23 @@
             :loading="nsLoading"
             :fit-input-width="true"
             popper-class="cluster-detail-ns-select-popper"
+            @visible-change="onNamespaceSelectVisibleChange"
           >
+            <template #header>
+              <ElInput
+                ref="namespaceSearchInputRef"
+                v-model="namespaceSearchKeyword"
+                class="cluster-detail-ns-search"
+                placeholder="搜索命名空间"
+                clearable
+                @click.stop
+                @keydown.stop
+              >
+                <template #prefix>
+                  <ElIcon><Search /></ElIcon>
+                </template>
+              </ElInput>
+            </template>
             <template #label="{ label, value }">
               <span style="display: inline-flex; align-items: center; gap: 4px">
                 <span class="ns-selected-label">{{ label }}</span>
@@ -50,12 +66,15 @@
                 >
               </span>
             </template>
-            <ElOption v-for="ns in namespaceOptions" :key="ns" :value="ns" :label="ns">
+            <ElOption v-for="ns in filteredNamespaceOptions" :key="ns" :value="ns" :label="ns">
               <span style="display: inline-flex; align-items: center; gap: 0">
                 <span class="ns-option-name">{{ ns }}</span>
                 <span v-if="isSystemNamespace(ns)" class="ns-system-tag">系统</span>
               </span>
             </ElOption>
+            <template #empty>
+              <span class="cluster-detail-ns-empty">无匹配命名空间</span>
+            </template>
           </ElSelect>
           <ElTag v-if="ctx.permissionId" type="success" effect="plain" style="margin-left: 8px">
             授权
@@ -138,8 +157,9 @@
 </template>
 
 <script setup lang="ts">
-  import { ArrowLeft, Refresh } from '@element-plus/icons-vue'
-  import { computed, provide, ref, watch } from 'vue'
+  import type { InputInstance } from 'element-plus'
+  import { ArrowLeft, Refresh, Search } from '@element-plus/icons-vue'
+  import { computed, nextTick, provide, ref, watch } from 'vue'
   import { useRoute, useRouter, type RouteLocationNormalizedLoaded } from 'vue-router'
   import { fetchClusterByName, fetchClusterList } from '@/api/container'
   import type { ClusterItem } from '@/api/container'
@@ -196,8 +216,24 @@
 
   const selectedNamespace = ref('default')
   const namespaceOptions = ref<string[]>([])
+  const namespaceSearchKeyword = ref('')
+  const namespaceSearchInputRef = ref<InputInstance>()
   const nsLoading = ref(false)
   const permissionDetail = ref<PermissionListItem | null>(null)
+
+  const filteredNamespaceOptions = computed(() => {
+    const kw = namespaceSearchKeyword.value.trim().toLowerCase()
+    if (!kw) return namespaceOptions.value
+    return namespaceOptions.value.filter((ns) => ns.toLowerCase().includes(kw))
+  })
+
+  function onNamespaceSelectVisibleChange(visible: boolean) {
+    if (!visible) {
+      namespaceSearchKeyword.value = ''
+      return
+    }
+    void nextTick(() => namespaceSearchInputRef.value?.focus())
+  }
 
   function getNsCacheKey(cluster: string) { return `pixiu-ns-${cluster}` }
   function loadCachedNamespace(cluster: string): string | null {
@@ -833,6 +869,30 @@
     overflow: visible;
     text-overflow: clip;
     white-space: nowrap;
+  }
+
+  .cluster-detail-ns-select-popper .el-select-dropdown__header {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+  }
+
+  .cluster-detail-ns-select-popper .cluster-detail-ns-search .el-input__wrapper {
+    min-height: 30px;
+    height: 30px;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .cluster-detail-ns-select-popper .cluster-detail-ns-search .el-input__inner {
+    font-size: 13px;
+  }
+
+  .cluster-detail-ns-select-popper .cluster-detail-ns-empty {
+    display: block;
+    padding: 8px 0;
+    font-size: 12px;
+    color: var(--el-text-color-placeholder);
+    text-align: center;
   }
 
   .cluster-detail-ns-select-popper .el-select-dropdown__list {
