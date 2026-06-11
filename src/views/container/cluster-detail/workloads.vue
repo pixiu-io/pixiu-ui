@@ -4201,6 +4201,11 @@
       }
     }
   )
+
+  // 集群版本就绪后，重新拉取 CronJob 列表（此前因版本未知被跳过）
+  watch(cronJobApiVersion, (v, prev) => {
+    if (v && !prev && kind.value === 'cj') getCjData()
+  })
 </script>
 
 <style>

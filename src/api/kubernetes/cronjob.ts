@@ -32,7 +32,9 @@ export async function fetchK8sCronJobList(
   cluster: string,
   params: { page: number; limit: number; namespace?: string; name?: string; cronJobApiVersion?: string }
 ): Promise<{ items: K8sCronJob[]; total: number }> {
-  const apiVersion = params.cronJobApiVersion || 'batch/v1'
+  const apiVersion = params.cronJobApiVersion || ''
+  // 版本未知时跳过请求，避免 batch/v1 在旧集群 404
+  if (!apiVersion) return { items: [], total: 0 }
   const base = params.namespace
     ? `/pixiu/proxy/${encodeURIComponent(cluster)}/apis/${apiVersion}/namespaces/${encodeURIComponent(params.namespace)}/cronjobs`
     : `/pixiu/proxy/${encodeURIComponent(cluster)}/apis/${apiVersion}/cronjobs`

@@ -738,6 +738,11 @@
     { immediate: true }
   )
 
+  // 集群版本就绪后，重新加载 CronJob 统计（此前因版本未知被跳过）
+  watch(cronJobApiVersion, (v, prev) => {
+    if (v && !prev) syncOverviewTabLoads()
+  })
+
   onActivated(() => {
     // watch(immediate:true) 在初次挂载时已执行。
     // 如果是 KeepAlive 重新激活，且 watch 依赖没变，则手动触发一次同步

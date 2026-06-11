@@ -102,18 +102,9 @@ export async function fetchClusterOverviewK8sStats(
 
   const promise = (async () => {
     try {
-      const paths = proxyPaths(cluster, cronJobApiVersion || 'batch/v1')
+      const paths = proxyPaths(cluster, cronJobApiVersion || '')
 
-      const [
-        nodeTotal,
-        cpLabelCount,
-        masterLabelCount,
-        deployment,
-        statefulSet,
-        daemonSet,
-        cronJob,
-        job
-      ] = await Promise.all([
+      const counts = await Promise.all([
         fetchKubeListCount({ path: paths.nodes }),
         fetchKubeListCount({
           path: paths.nodes,
@@ -126,9 +117,12 @@ export async function fetchClusterOverviewK8sStats(
         fetchKubeListCount({ path: paths.deployments }),
         fetchKubeListCount({ path: paths.statefulSets }),
         fetchKubeListCount({ path: paths.daemonSets }),
-        fetchKubeListCount({ path: paths.cronJobs }),
+        // 版本未知时跳过 CronJob 请求，避免 batch/v1 在旧集群 404
+        cronJobApiVersion ? fetchKubeListCount({ path: paths.cronJobs }) : Promise.resolve(0),
         fetchKubeListCount({ path: paths.jobs })
       ])
+
+      const [nodeTotal, cpLabelCount, masterLabelCount, deployment, statefulSet, daemonSet, cronJob, job] = counts
 
       let controlPlane = cpLabelCount + masterLabelCount
       if (controlPlane > nodeTotal) {
