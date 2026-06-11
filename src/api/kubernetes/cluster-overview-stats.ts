@@ -30,7 +30,7 @@ export interface ClusterOverviewK8sStats {
   workloads: ClusterOverviewK8sWorkloadCounts
 }
 
-function proxyPaths(cluster: string) {
+function proxyPaths(cluster: string, cronJobApiVersion = 'batch/v1') {
   const c = encodeURIComponent(cluster)
   const base = `/pixiu/proxy/${c}`
   return {
@@ -38,7 +38,7 @@ function proxyPaths(cluster: string) {
     deployments: `${base}/apis/apps/v1/deployments`,
     statefulSets: `${base}/apis/apps/v1/statefulsets`,
     daemonSets: `${base}/apis/apps/v1/daemonsets`,
-    cronJobs: `${base}/apis/batch/v1/cronjobs`,
+    cronJobs: `${base}/apis/${cronJobApiVersion}/cronjobs`,
     jobs: `${base}/apis/batch/v1/jobs`
   }
 }
@@ -80,7 +80,8 @@ const statsPromiseMap = new Map<string, Promise<ClusterOverviewK8sStats>>()
 
 export async function fetchClusterOverviewK8sStats(
   cluster: string,
-  force = false
+  force = false,
+  cronJobApiVersion?: string
 ): Promise<ClusterOverviewK8sStats> {
   const emptyNodes: ClusterOverviewK8sNodeSplit = { controlPlane: 0, worker: 0, total: 0 }
   const emptyWl: ClusterOverviewK8sWorkloadCounts = {
@@ -101,7 +102,7 @@ export async function fetchClusterOverviewK8sStats(
 
   const promise = (async () => {
     try {
-      const paths = proxyPaths(cluster)
+      const paths = proxyPaths(cluster, cronJobApiVersion || 'batch/v1')
 
       const [
         nodeTotal,

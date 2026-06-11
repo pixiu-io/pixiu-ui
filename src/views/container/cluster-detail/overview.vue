@@ -399,6 +399,7 @@
   import MetricChartPanel from '@/components/container/metric-chart-panel.vue'
   import ArtRingChart from '@/components/core/charts/art-ring-chart/index.vue'
   import { clusterDetailContextKey, clusterDetailRefreshKey } from './context'
+  import { getCronJobApiVersion } from '@/utils/kubernetes/cronjob'
 
   defineOptions({ name: 'ClusterDetailOverview' })
 
@@ -407,6 +408,7 @@
   const ctxRef = inject(clusterDetailContextKey)
   const refreshCluster = inject(clusterDetailRefreshKey)
   const ctx = computed(() => ctxRef!.value)
+  const cronJobApiVersion = computed(() => getCronJobApiVersion(ctx.value?.version))
 
   const innerTab = ref('main')
 
@@ -446,7 +448,7 @@
 
     resourceOverviewLoading.value = true
     try {
-      const stats = await fetchClusterOverviewK8sStats(cluster, force)
+      const stats = await fetchClusterOverviewK8sStats(cluster, force, cronJobApiVersion.value)
       k8sOverview.value = stats
       loadedOverviewCluster.value = cluster
     } catch {
@@ -493,7 +495,7 @@
     // 并行发起统计和网络信息请求
     try {
       const [stats, network] = await Promise.all([
-        fetchClusterOverviewK8sStats(cluster, force),
+        fetchClusterOverviewK8sStats(cluster, force, cronJobApiVersion.value),
         fetchClusterBasicNetwork(cluster)
       ])
       k8sOverview.value = stats

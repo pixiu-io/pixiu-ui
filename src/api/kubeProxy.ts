@@ -43,8 +43,11 @@ kubeProxyAxios.interceptors.response.use(
       const message = (data as { message?: string }).message
       if (message) {
         const finalMsg = shortenError(message, error.response?.status)
-        ElMessage.error(finalMsg)
-        return Promise.reject(new PixiuApiError(finalMsg, true))
+        const skipNotify = (error.config as Record<string, unknown> | undefined)?.skipErrorNotification
+        if (!skipNotify) {
+          ElMessage.error(finalMsg)
+        }
+        return Promise.reject(new PixiuApiError(finalMsg, !skipNotify))
       }
     }
 

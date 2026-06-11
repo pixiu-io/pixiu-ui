@@ -696,7 +696,8 @@
   } from '@/api/kubernetes/events'
   import { updateK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
   import { formatNodeCreationTime } from '@/utils/kubernetes/nodeDisplay'
-  import { clusterDetailNamespaceKey } from './context'
+  import { clusterDetailContextKey, clusterDetailNamespaceKey } from './context'
+  import { getCronJobApiVersion } from '@/utils/kubernetes/cronjob'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
 
   defineOptions({ name: 'ClusterDetailWorkloads' })
@@ -853,6 +854,8 @@
   }
 
   const globalNs = inject(clusterDetailNamespaceKey, undefined)
+  const ctx = inject(clusterDetailContextKey, undefined)
+  const cronJobApiVersion = computed(() => getCronJobApiVersion(ctx?.value?.version))
   const globalNamespace = computed(() => globalNs?.namespace.value ?? '')
   const ctxNsOptions = computed(() => globalNs?.namespaceOptions.value ?? [])
   const localNsOptions = ref<string[]>([])
@@ -2543,7 +2546,8 @@
           page: params.current,
           limit: params.size,
           namespace: params.namespace || undefined,
-          name: (params.name ?? '').trim() || undefined
+          name: (params.name ?? '').trim() || undefined,
+          cronJobApiVersion: cronJobApiVersion.value
         })
         let list = items.map((d, i) => ({
           ...d,
@@ -2886,7 +2890,7 @@
     const name = row.metadata?.name
     if (!cluster || !ns || !name) return
     try {
-      await patchK8sCronJob(cluster, ns, name, { spec: { suspend: !row.spec?.suspend } })
+      await patchK8sCronJob(cluster, ns, name, { spec: { suspend: !row.spec?.suspend } }, cronJobApiVersion.value)
       ElMessage.success(row.spec?.suspend ? '已恢复' : '已暂停')
       onCjRefresh()
     } catch (e: unknown) {
@@ -3741,7 +3745,7 @@
       if (kind === 'sts') await deleteK8sStatefulSet(cluster, namespace, name)
       else if (kind === 'ds') await deleteK8sDaemonSet(cluster, namespace, name)
       else if (kind === 'job') await deleteK8sJob(cluster, namespace, name)
-      else if (kind === 'cj') await deleteK8sCronJob(cluster, namespace, name)
+      else if (kind === 'cj') await deleteK8sCronJob(cluster, namespace, name, cronJobApiVersion.value)
       else if (kind === 'pod') await deleteK8sPod(cluster, namespace, name)
       ElMessage.success('删除成功')
       refresh()
@@ -3763,7 +3767,7 @@
       if (kind === 'sts') resource = await fetchK8sStatefulSet(cluster, namespace, name)
       else if (kind === 'ds') resource = await fetchK8sDaemonSet(cluster, namespace, name)
       else if (kind === 'job') resource = await fetchK8sJob(cluster, namespace, name)
-      else resource = await fetchK8sCronJob(cluster, namespace, name)
+      else resource = await fetchK8sCronJob(cluster, namespace, name, cronJobApiVersion.value)
       yamlText.value = yaml.dump(resource, { quotingType: '"' })
       yamlReadonly.value = true
       yamlVisible.value = true
@@ -4072,7 +4076,7 @@
           namespace: ns,
           ownerReferences: [
             {
-              apiVersion: 'batch/v1',
+              apiVersion: cronJobApiVersion.value,
               kind: 'CronJob',
               name: name,
               uid: row.metadata?.uid

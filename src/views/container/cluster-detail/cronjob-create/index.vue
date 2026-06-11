@@ -1158,6 +1158,8 @@
   import { createK8sCronJob } from '@/api/kubernetes/cronjob'
   import { fetchK8sNamespaceList } from '@/api/kubernetes/namespace'
   import { fetchK8sSecretList } from '@/api/kubernetes/secret'
+  import { fetchClusterByName } from '@/api/container'
+  import { getCronJobApiVersion } from '@/utils/kubernetes/cronjob'
   import ClusterResourceBreadcrumb from '../components/cluster-resource-breadcrumb.vue'
 
   defineOptions({ name: 'CronJobCreatePage' })
@@ -1166,6 +1168,8 @@
   const router = useRouter()
   const cluster = computed(() => String(route.query.cluster ?? ''))
   const defaultNamespace = computed(() => String(route.query.namespace ?? ''))
+  const clusterVersion = ref<string>('')
+  const cronJobApiVersion = computed(() => getCronJobApiVersion(clusterVersion.value))
 
   // 定时规则
   /** 按星期：Cron 星期字段 0=周日 … 6=周六 */
@@ -1832,7 +1836,7 @@
     })
 
     return {
-      apiVersion: 'batch/v1',
+      apiVersion: cronJobApiVersion.value,
       kind: 'CronJob',
       metadata: {
         name: form.value.name.trim(),
@@ -1891,7 +1895,7 @@
     submitting.value = true
     try {
       const manifest = buildCronJobManifest()
-      await createK8sCronJob(cluster.value, form.value.namespace, manifest)
+      await createK8sCronJob(cluster.value, form.value.namespace, manifest, cronJobApiVersion.value)
       ElMessage.success(`CronJob(${form.value.name}) 创建成功`)
       goBack()
     } catch (e: unknown) {
@@ -2002,7 +2006,18 @@
 
   onMounted(() => {
     void loadNamespaces()
+    void loadClusterVersion()
   })
+
+  async function loadClusterVersion() {
+    if (!cluster.value) return
+    try {
+      const info = await fetchClusterByName(cluster.value)
+      clusterVersion.value = info?.version || ''
+    } catch {
+      clusterVersion.value = ''
+    }
+  }
 
   watch(
     () => form.value.namespace,

@@ -685,6 +685,8 @@
   import { fetchK8sDaemonSet, patchK8sDaemonSet } from '@/api/kubernetes/daemonset'
   import { fetchK8sCronJob, patchK8sCronJob } from '@/api/kubernetes/cronjob'
   import { fetchK8sSecretList } from '@/api/kubernetes/secret'
+  import { fetchClusterByName } from '@/api/container'
+  import { getCronJobApiVersion } from '@/utils/kubernetes/cronjob'
   import ClusterResourceBreadcrumb from '../components/cluster-resource-breadcrumb.vue'
 
   defineOptions({ name: 'WorkloadUpdatePage' })
@@ -696,6 +698,8 @@
   const namespace = computed(() => String(route.query.namespace ?? ''))
   const name = computed(() => String(route.query.name ?? ''))
   const kind = computed(() => String(route.query.kind ?? 'deploy') as 'deploy' | 'sts' | 'ds' | 'cj' | 'job')
+  const clusterVersion = ref<string>('')
+  const cronJobApiVersion = computed(() => getCronJobApiVersion(clusterVersion.value))
   const mode = computed(() => String(route.query.mode ?? '') as 'schedule' | 'strategy' | '')
 
   const breadcrumbCurrentLabel = computed(() => {
@@ -928,7 +932,7 @@
         basicInfo.value = { name: name.value, namespace: namespace.value }
         extractSpec(data.spec?.template?.spec as Parameters<typeof extractSpec>[0])
       } else if (kind.value === 'cj' || kind.value === 'job') {
-        const data = await fetchK8sCronJob(cluster.value, namespace.value, name.value)
+        const data = await fetchK8sCronJob(cluster.value, namespace.value, name.value, cronJobApiVersion.value)
         basicInfo.value = { name: name.value, namespace: namespace.value }
         extractSpec((data.spec?.jobTemplate?.spec?.template?.spec ?? {}) as Parameters<typeof extractSpec>[0])
         if (kind.value === 'cj') {
@@ -1120,7 +1124,7 @@
       } else if (kind.value === 'sts') {
         await patchK8sStatefulSet(cluster.value, namespace.value, name.value, patch)
       } else if (kind.value === 'cj' || kind.value === 'job') {
-        await patchK8sCronJob(cluster.value, namespace.value, name.value, patch)
+        await patchK8sCronJob(cluster.value, namespace.value, name.value, patch, cronJobApiVersion.value)
       } else {
         await patchK8sDaemonSet(cluster.value, namespace.value, name.value, patch)
       }
@@ -1181,7 +1185,17 @@
   function addPreStop() { containers.value[activeContainerIdx.value].preStopCommands.push('') }
   function removePreStop(idx: number) { containers.value[activeContainerIdx.value].preStopCommands.splice(idx, 1) }
 
-  onMounted(() => { void loadWorkload() })
+  onMounted(() => { void loadWorkload(); void loadClusterVersion() })
+
+  async function loadClusterVersion() {
+    if (!cluster.value) return
+    try {
+      const info = await fetchClusterByName(cluster.value)
+      clusterVersion.value = info?.version || ''
+    } catch {
+      clusterVersion.value = ''
+    }
+  }
 </script>
 
 <style scoped>

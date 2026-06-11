@@ -556,6 +556,7 @@
   } from '@/components/core/forms/art-button-more/index.vue'
   import ClusterDetailWorkloads from '../workloads.vue'
   import { clusterDetailContextKey } from '../context'
+  import { getCronJobApiVersion } from '@/utils/kubernetes/cronjob'
   import { buildClusterRouteQuery } from '@/utils/navigation/cluster-query'
   import { kubeProxyAxios } from '@/api/kubeProxy'
   import {
@@ -619,6 +620,7 @@
   const isSystemNamespace = computed(() => namespace.value === 'default' || namespace.value.startsWith('kube-'))
 
   const clusterDetailCtx = inject(clusterDetailContextKey, undefined)
+  const cronJobApiVersion = computed(() => getCronJobApiVersion(clusterDetailCtx?.value?.version))
   const clusterAlias = computed(() => clusterDetailCtx?.value?.aliasName || cluster.value)
   const clusterDisplayName = computed(() => {
     const name = cluster.value
@@ -1037,7 +1039,7 @@
         await deleteK8sDaemonSet(cluster.value, namespace.value, name.value)
       else if (workloadKind.value === 'Job') await deleteK8sJob(cluster.value, namespace.value, name.value)
       else if (workloadKind.value === 'CronJob')
-        await deleteK8sCronJob(cluster.value, namespace.value, name.value)
+        await deleteK8sCronJob(cluster.value, namespace.value, name.value, cronJobApiVersion.value)
       ElMessage.success('已删除')
       goBack()
     } catch {
@@ -1066,7 +1068,7 @@
       } else if (workloadKind.value === 'Job') {
         obj = await fetchK8sJob(cluster.value, namespace.value, name.value)
       } else {
-        obj = await fetchK8sCronJob(cluster.value, namespace.value, name.value)
+        obj = await fetchK8sCronJob(cluster.value, namespace.value, name.value, cronJobApiVersion.value)
       }
       yamlContent.value = YAML.dump(obj)
       yamlVisible.value = true
@@ -1132,7 +1134,7 @@
       } else if (workloadKind.value === 'Job') {
         workload.value = await fetchK8sJob(cluster.value, namespace.value, name.value)
       } else {
-        workload.value = await fetchK8sCronJob(cluster.value, namespace.value, name.value)
+        workload.value = await fetchK8sCronJob(cluster.value, namespace.value, name.value, cronJobApiVersion.value)
       }
       scaleTarget.value = ((workload.value as K8sDeployment | K8sStatefulSet | undefined)?.spec?.replicas ?? 0)
     } catch (e: any) {

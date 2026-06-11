@@ -1,6 +1,7 @@
 import { isAxiosError } from 'axios'
 import yaml from 'js-yaml'
 import { kubeProxyAxios } from '@/api/kubeProxy'
+import { PixiuApiError } from '@/api/container'
 
 interface K8sAPIResource {
   name: string
@@ -56,7 +57,10 @@ async function resolveResourceUrl(
 
   const name = metadata.name as string
   const base = `/pixiu/proxy/${encodeURIComponent(cluster)}`
-  const APIPaths = ['/apis', '/api'] as const
+
+  // apiVersion 为 "v1" 属于 core group (/api)，含 "/" 的属于 named group (/apis)
+  const apiVersionStr = apiVersion as string
+  const APIPaths = apiVersionStr.includes('/') ? (['/apis'] as const) : (['/api'] as const)
 
   let found = false
   let wantedAPIPath = ''
@@ -65,8 +69,8 @@ async function resolveResourceUrl(
   for (const APIPath of APIPaths) {
     try {
       const { data } = await kubeProxyAxios.get<APIResourceList>(`${base}${APIPath}/${apiVersion}`, {
-        params: { timeout: '30s' }
-      })
+        skipErrorNotification: true
+      } as any)
       for (const resource of data.resources ?? []) {
         if (resource.kind === kind) {
           found = true
@@ -98,28 +102,21 @@ async function resolveResourceUrl(
 }
 
 /**
- * 与 dashboard `pixiuyaml/index.vue` 一致：解析 YAML → 查 API 资源列表 → 存在则报错 → 否则 POST 创建
+ * 与 dashboard `pixiuyaml/index.vue` 一致：解析 YAML → 查 API 资源列表 → POST 创建
+ * k8s API 资源已存在时返回 409 Conflict，直接依赖此状态码判断，无需额外 GET 探测
  */
 export async function createK8sResourceFromYaml(cluster: string, yamlText: string): Promise<void> {
   const yamlData = parseYamlObject(yamlText)
-  const { url, kind, apiVersion, name } = await resolveResourceUrl(cluster, yamlData)
+  const { url } = await resolveResourceUrl(cluster, yamlData)
 
   try {
-    await kubeProxyAxios.get(`${url}/${encodeURIComponent(name)}`)
-    throw new Error(`${kind}: ${name}(${apiVersion}) 已存在`)
-  } catch (error: unknown) {
-    if (isAxiosError(error) && error.response?.status === 404) {
-      try {
-        await kubeProxyAxios.post(url, yamlData)
-      } catch (postErr) {
-        throw new Error(k8sErrorMessage(postErr))
-      }
-      return
+    await kubeProxyAxios.post(url, yamlData, { skipErrorNotification: true } as any)
+  } catch (postErr) {
+    if (postErr instanceof PixiuApiError) throw postErr
+    if (isAxiosError(postErr) && postErr.response?.status === 409) {
+      throw new Error(k8sErrorMessage(postErr) || '资源已存在')
     }
-    if (error instanceof Error && error.message.includes('已存在')) {
-      throw error
-    }
-    throw new Error(k8sErrorMessage(error))
+    throw new Error(k8sErrorMessage(postErr))
   }
 }
 
@@ -130,8 +127,9 @@ export async function updateK8sResourceFromYaml(cluster: string, yamlText: strin
   const yamlData = parseYamlObject(yamlText)
   const { url, name } = await resolveResourceUrl(cluster, yamlData)
   try {
-    await kubeProxyAxios.put(`${url}/${encodeURIComponent(name)}`, yamlData)
+    await kubeProxyAxios.put(`${url}/${encodeURIComponent(name)}`, yamlData, { skipErrorNotification: true } as any)
   } catch (e) {
+    if (e instanceof PixiuApiError) throw e
     throw new Error(k8sErrorMessage(e))
   }
 }

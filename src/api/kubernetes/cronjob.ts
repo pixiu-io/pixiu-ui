@@ -24,17 +24,18 @@ export interface K8sCronJob {
   }
 }
 
-function cjBase(cluster: string, namespace: string) {
-  return `/pixiu/proxy/${encodeURIComponent(cluster)}/apis/batch/v1/namespaces/${encodeURIComponent(namespace)}/cronjobs`
+function cjBase(cluster: string, namespace: string, apiVersion: string) {
+  return `/pixiu/proxy/${encodeURIComponent(cluster)}/apis/${apiVersion}/namespaces/${encodeURIComponent(namespace)}/cronjobs`
 }
 
 export async function fetchK8sCronJobList(
   cluster: string,
-  params: { page: number; limit: number; namespace?: string; name?: string }
+  params: { page: number; limit: number; namespace?: string; name?: string; cronJobApiVersion?: string }
 ): Promise<{ items: K8sCronJob[]; total: number }> {
+  const apiVersion = params.cronJobApiVersion || 'batch/v1'
   const base = params.namespace
-    ? `/pixiu/proxy/${encodeURIComponent(cluster)}/apis/batch/v1/namespaces/${encodeURIComponent(params.namespace)}/cronjobs`
-    : `/pixiu/proxy/${encodeURIComponent(cluster)}/apis/batch/v1/cronjobs`
+    ? `/pixiu/proxy/${encodeURIComponent(cluster)}/apis/${apiVersion}/namespaces/${encodeURIComponent(params.namespace)}/cronjobs`
+    : `/pixiu/proxy/${encodeURIComponent(cluster)}/apis/${apiVersion}/cronjobs`
   return fetchKubeListPage<K8sCronJob>({
     path: base,
     page: params.page,
@@ -43,27 +44,52 @@ export async function fetchK8sCronJobList(
   })
 }
 
-export async function fetchK8sCronJob(cluster: string, namespace: string, name: string): Promise<K8sCronJob> {
+export async function fetchK8sCronJob(
+  cluster: string,
+  namespace: string,
+  name: string,
+  cronJobApiVersion?: string
+): Promise<K8sCronJob> {
+  const apiVersion = cronJobApiVersion || 'batch/v1'
   const { data } = await kubeProxyAxios.get<K8sCronJob>(
-    `${cjBase(cluster, namespace)}/${encodeURIComponent(name)}`
+    `${cjBase(cluster, namespace, apiVersion)}/${encodeURIComponent(name)}`
   )
   return data
 }
 
-export async function deleteK8sCronJob(cluster: string, namespace: string, name: string): Promise<void> {
-  await kubeProxyAxios.delete(`${cjBase(cluster, namespace)}/${encodeURIComponent(name)}`)
+export async function deleteK8sCronJob(
+  cluster: string,
+  namespace: string,
+  name: string,
+  cronJobApiVersion?: string
+): Promise<void> {
+  const apiVersion = cronJobApiVersion || 'batch/v1'
+  await kubeProxyAxios.delete(`${cjBase(cluster, namespace, apiVersion)}/${encodeURIComponent(name)}`)
 }
 
-export async function patchK8sCronJob(cluster: string, namespace: string, name: string, patch: object): Promise<K8sCronJob> {
+export async function patchK8sCronJob(
+  cluster: string,
+  namespace: string,
+  name: string,
+  patch: object,
+  cronJobApiVersion?: string
+): Promise<K8sCronJob> {
+  const apiVersion = cronJobApiVersion || 'batch/v1'
   const { data } = await kubeProxyAxios.patch<K8sCronJob>(
-    `${cjBase(cluster, namespace)}/${encodeURIComponent(name)}`,
+    `${cjBase(cluster, namespace, apiVersion)}/${encodeURIComponent(name)}`,
     patch,
     { headers: { 'Content-Type': 'application/merge-patch+json' } }
   )
   return data
 }
 
-export async function createK8sCronJob(cluster: string, namespace: string, body: object): Promise<K8sCronJob> {
-  const { data } = await kubeProxyAxios.post<K8sCronJob>(cjBase(cluster, namespace), body)
+export async function createK8sCronJob(
+  cluster: string,
+  namespace: string,
+  body: object,
+  cronJobApiVersion?: string
+): Promise<K8sCronJob> {
+  const apiVersion = cronJobApiVersion || 'batch/v1'
+  const { data } = await kubeProxyAxios.post<K8sCronJob>(cjBase(cluster, namespace, apiVersion), body)
   return data
 }
