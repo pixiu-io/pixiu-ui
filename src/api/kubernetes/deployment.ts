@@ -89,7 +89,8 @@ export async function deleteK8sDeployment(
   name: string
 ): Promise<void> {
   await kubeProxyAxios.delete(
-    `${deployBase(cluster, namespace)}/${encodeURIComponent(name)}`
+    `${deployBase(cluster, namespace)}/${encodeURIComponent(name)}`,
+    { skipErrorNotification: true } as any
   )
 }
 
@@ -102,7 +103,7 @@ export async function patchK8sDeployment(
   const { data } = await kubeProxyAxios.patch<K8sDeployment>(
     `${deployBase(cluster, namespace)}/${encodeURIComponent(name)}`,
     patch,
-    { headers: { 'Content-Type': 'application/merge-patch+json' } }
+    { headers: { 'Content-Type': 'application/merge-patch+json' }, skipErrorNotification: true } as any
   )
   return data
 }

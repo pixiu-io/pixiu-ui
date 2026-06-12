@@ -644,6 +644,7 @@
   import { useRoute, useRouter } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
   import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
+  import { useClusterDetailActiveMenuKey } from '@/hooks/core/useClusterDetailNamespaceRefresh'
   import {
     fetchK8sDeploymentList,
     fetchK8sDeployment,
@@ -689,7 +690,6 @@
   } from '@/api/kubernetes/cronjob'
   import { fetchK8sReplicaSetList, type K8sReplicaSet } from '@/api/kubernetes/replicaset'
   import { fetchK8sServiceList, type K8sService } from '@/api/kubernetes/service'
-  import { fetchK8sNamespaceList } from '@/api/kubernetes/namespace'
   import {
     deleteK8sEvent,
     fetchAggregatedEventList,
@@ -859,24 +859,7 @@
   const ctx = inject(clusterDetailContextKey, undefined)
   const cronJobApiVersion = computed(() => getCronJobApiVersion(ctx?.value?.version))
   const globalNamespace = computed(() => globalNs?.namespace.value ?? '')
-  const ctxNsOptions = computed(() => globalNs?.namespaceOptions.value ?? [])
-  const localNsOptions = ref<string[]>([])
-  const nsOptions = computed(() =>
-    ctxNsOptions.value.length ? ctxNsOptions.value : localNsOptions.value
-  )
-
-  async function loadLocalNamespaceOptions(cluster: string) {
-    if (!cluster) {
-      localNsOptions.value = []
-      return
-    }
-    try {
-      const { items } = await fetchK8sNamespaceList(cluster, { page: 1, limit: 500 })
-      localNsOptions.value = items.map((n) => n.metadata.name).sort()
-    } catch {
-      localNsOptions.value = []
-    }
-  }
+  const nsOptions = computed(() => globalNs?.namespaceOptions.value ?? [])
 
   // ── Deployment tab state ──
   const deplSearchForm = ref<{ name?: string }>({})
@@ -3791,8 +3774,9 @@
       else if (kind === 'pod') await deleteK8sPod(cluster, namespace, name)
       ElMessage.success('删除成功')
       refresh()
-    } catch {
-      // user cancel
+    } catch (e: unknown) {
+      if (e === 'cancel' || e === 'close') return
+      ElMessage.error(e instanceof Error ? e.message : '删除失败')
     }
   }
 
@@ -3832,8 +3816,9 @@
       await deleteK8sDeployment(cluster, ns, name)
       ElMessage.success(`Deployment(${name}) 删除成功`)
       onDeplRefresh()
-    } catch {
-      // user cancel
+    } catch (e: unknown) {
+      if (e === 'cancel' || e === 'close') return
+      ElMessage.error(e instanceof Error ? e.message : '删除失败')
     }
   }
 
@@ -4135,8 +4120,11 @@
     }
   }
 
+  const activeMenuKey = useClusterDetailActiveMenuKey()
+
   // ── Global namespace watch（非 immediate：首屏由 kind watch 拉数） ──
   watch(globalNamespace, (ns) => {
+    if (activeMenuKey?.value !== 'workloads') return
     const nsVal = ns || undefined
     if (!props.deployNamespace) {
       deplNamespace.value = ns ?? ''
@@ -4152,15 +4140,6 @@
     else if (kind.value === 'job') getJobData()
     else if (kind.value === 'cj') getCjData()
   })
-
-  watch(
-    () => String(route.query.cluster ?? ''),
-    (cluster) => {
-      if (ctxNsOptions.value.length) return
-      void loadLocalNamespaceOptions(cluster)
-    },
-    { immediate: true }
-  )
 
   watch(
     () => [props.deployDataMode, props.deployNamespace, props.deployLabelSelector] as const,

@@ -54,11 +54,11 @@ export async function fetchK8sJob(cluster: string, namespace: string, name: stri
 }
 
 export async function deleteK8sJob(cluster: string, namespace: string, name: string): Promise<void> {
-  await kubeProxyAxios.delete(`${jobBase(cluster, namespace)}/${encodeURIComponent(name)}`)
+  await kubeProxyAxios.delete(`${jobBase(cluster, namespace)}/${encodeURIComponent(name)}`, { skipErrorNotification: true } as any)
 }
 
 export async function createK8sJob(cluster: string, namespace: string, body: object): Promise<K8sJob> {
-  const { data } = await kubeProxyAxios.post<K8sJob>(jobBase(cluster, namespace), body)
+  const { data } = await kubeProxyAxios.post<K8sJob>(jobBase(cluster, namespace), body, { skipErrorNotification: true } as any)
   return data
 }
 

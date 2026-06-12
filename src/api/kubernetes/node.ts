@@ -41,7 +41,8 @@ export async function fetchK8sNodeList(
 
 export async function fetchK8sNode(cluster: string, name: string): Promise<K8sNode> {
   const { data } = await kubeProxyAxios.get<K8sNode>(
-    `/pixiu/proxy/${encodeURIComponent(cluster)}/api/v1/nodes/${encodeURIComponent(name)}`
+    `/pixiu/proxy/${encodeURIComponent(cluster)}/api/v1/nodes/${encodeURIComponent(name)}`,
+    { skipErrorNotification: true } as any
   )
   return data
 }
@@ -52,8 +53,9 @@ export async function patchK8sNode(cluster: string, name: string, body: unknown)
     `/pixiu/proxy/${encodeURIComponent(cluster)}/api/v1/nodes/${encodeURIComponent(name)}`,
     body,
     {
-      headers: { 'Content-Type': 'application/strategic-merge-patch+json' }
-    }
+      headers: { 'Content-Type': 'application/strategic-merge-patch+json' },
+      skipErrorNotification: true
+    } as any
   )
 }
 
@@ -64,6 +66,7 @@ export async function drainK8sNodeFetch(cluster: string, name: string): Promise<
 
 export async function deleteK8sNode(cluster: string, name: string): Promise<void> {
   await kubeProxyAxios.delete(
-    `/pixiu/proxy/${encodeURIComponent(cluster)}/api/v1/nodes/${encodeURIComponent(name)}`
+    `/pixiu/proxy/${encodeURIComponent(cluster)}/api/v1/nodes/${encodeURIComponent(name)}`,
+    { skipErrorNotification: true } as any
   )
 }

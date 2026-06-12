@@ -143,6 +143,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
   import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
+  import { useClusterDetailNamespaceRefresh } from '@/hooks/core/useClusterDetailNamespaceRefresh'
   import {
     fetchK8sServiceList,
     fetchK8sService,
@@ -753,7 +754,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     else if (val === 'ing') getIngData()
   })
 
-  watch(selectedNamespace, () => {
+  useClusterDetailNamespaceRefresh('services', () => {
     if (kind.value === 'svc') getSvcData()
     if (kind.value === 'ing') getIngData()
   })

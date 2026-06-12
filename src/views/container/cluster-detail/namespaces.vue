@@ -132,7 +132,7 @@
     type ButtonMoreItem
   } from '@/components/core/forms/art-button-more/index.vue'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
-  import { h, ref, watch } from 'vue'
+  import { h, inject, ref, watch } from 'vue'
 import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
 import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute } from 'vue-router'
@@ -145,10 +145,11 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     deleteK8sNamespace,
     fetchK8sNamespace,
     fetchK8sNamespaceQuotaList,
-    fetchK8sNamespaceList,
     patchK8sNamespaceQuota,
+    resolveClusterNamespaces,
     type K8sNamespace
   } from '@/api/kubernetes/namespace'
+  import { clusterDetailContextKey } from './context'
   import { fetchK8sPodList } from '@/api/kubernetes/pod'
   import { updateK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
   import { formatNodeCreationTime } from '@/utils/kubernetes/nodeDisplay'
@@ -156,6 +157,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   defineOptions({ name: 'ClusterDetailNamespaces' })
 
   const route = useRoute()
+  const ctx = inject(clusterDetailContextKey)
 
   const searchForm = ref<{ name?: string }>({})
   const createDialogVisible = ref(false)
@@ -225,11 +227,8 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
               size: params.size
             }
           }
-        // 拉取全部命名空间（不带 fieldSelector），本地模糊搜索
-        const { items: allItems } = await fetchK8sNamespaceList(cluster, {
-          page: 1,
-          limit: 999999
-        })
+        const permissionId = Number(ctx?.value?.permissionId) || 0
+        const { items: allItems } = await resolveClusterNamespaces(cluster, permissionId)
 
         // 本地模糊筛选
         const keyword = (params.name ?? '').trim().toLowerCase()
@@ -380,6 +379,13 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   }
 
   useSkipFirstActivatedRefresh(refreshData)
+
+  watch(
+    () => Number(ctx?.value?.permissionId) || 0,
+    (permissionId, prev) => {
+      if (permissionId > 0 && permissionId !== prev) refreshData()
+    }
+  )
 
   async function submitCreate() {
     const cluster = String(route.query.cluster ?? '')

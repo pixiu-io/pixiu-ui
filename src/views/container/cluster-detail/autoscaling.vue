@@ -94,6 +94,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
   import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
+  import { useClusterDetailNamespaceRefresh } from '@/hooks/core/useClusterDetailNamespaceRefresh'
   import ArtButtonMore, { type ButtonMoreItem } from '@/components/core/forms/art-button-more/index.vue'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
   import { updateK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
@@ -481,8 +482,8 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       : columns.value
   )
 
-  watch(selectedNamespace, (ns) => {
-    replaceSearchParams({ namespace: ns || undefined })
+  useClusterDetailNamespaceRefresh('autoscaling', () => {
+    replaceSearchParams({ namespace: selectedNamespace.value || undefined })
     getData()
   })
 

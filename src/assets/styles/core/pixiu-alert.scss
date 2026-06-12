@@ -204,7 +204,9 @@ html.dark .quota-alert.el-alert .el-alert__icon svg {
 
 /* 弹窗/抽屉内提示框：与配额管理弹窗内容区一致 */
 .quota-dialog-body .quota-alert.el-alert,
-.remote-login-dialog-body .quota-alert.el-alert {
+.remote-login-dialog-body .quota-alert.el-alert,
+.label-dialog-body .quota-alert.el-alert,
+.drain-dialog-body .quota-alert.el-alert {
   margin: 15px 0;
   align-items: center;
 }

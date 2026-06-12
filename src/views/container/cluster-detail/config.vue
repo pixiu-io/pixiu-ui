@@ -145,6 +145,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
   import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
+  import { useClusterDetailNamespaceRefresh } from '@/hooks/core/useClusterDetailNamespaceRefresh'
   import {
     fetchK8sConfigMapList,
     fetchK8sConfigMap,
@@ -603,7 +604,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     { immediate: true }
   )
 
-  watch(selectedNamespace, () => {
+  useClusterDetailNamespaceRefresh('config', () => {
     if (kind.value === 'cm') getCmData()
     if (kind.value === 'sec') getSecData()
   })

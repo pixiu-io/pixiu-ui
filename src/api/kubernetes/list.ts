@@ -10,6 +10,7 @@ type FetchKubeListBaseParams = {
   fieldSelector?: string
   labelSelector?: string
   extraQuery?: Record<string, unknown>
+  silence403?: boolean
 }
 
 type FetchKubeListPageParams = FetchKubeListBaseParams & {
@@ -39,8 +40,10 @@ export async function fetchKubeListCount(params: FetchKubeListCountParams): Prom
   const promise = (async () => {
     try {
       const { data } = await kubeProxyAxios.get<KubeListResponse<unknown>>(params.path, {
-        params: query
-      })
+        params: query,
+        silence403: params.silence403,
+        skipErrorNotification: params.silence403
+      } as any)
       const pageSize = (data.items ?? []).length
       const remaining = data.metadata?.remainingItemCount
 
@@ -59,8 +62,10 @@ export async function fetchKubeListCount(params: FetchKubeListCountParams): Prom
       while (continueToken) {
         // @ts-ignore
         const { data: page } = await kubeProxyAxios.get<KubeListResponse<any>>(params.path, {
-          params: { ...query, limit: pageLimit, continue: continueToken }
-        })
+          params: { ...query, limit: pageLimit, continue: continueToken },
+          silence403: params.silence403,
+          skipErrorNotification: params.silence403
+        } as any)
         total += (page.items ?? []).length
         continueToken = page.metadata?.continue || undefined
         const pageRemaining = page.metadata?.remainingItemCount
@@ -114,20 +119,30 @@ export async function fetchKubeListPage<T>(
 
 const listAllPromiseMap = new Map<string, Promise<any>>()
 
+type FetchKubeListAllOptions = {
+  labelSelector?: string
+  /** 无 list 权限时不弹错误（如授权用户访问概览页） */
+  silence403?: boolean
+}
+
 /** 统一获取 K8s 资源列表（带 5s 缓存去重） */
 export async function fetchKubeListAll<T = any>(
   cluster: string,
   path: string,
-  labelSelector?: string
+  options?: FetchKubeListAllOptions
 ): Promise<{ items: T[] }> {
-  const cacheKey = `${cluster}:${path}:${labelSelector || ''}`
+  const labelSelector = options?.labelSelector
+  const silence403 = options?.silence403 ?? false
+  const cacheKey = `${cluster}:${path}:${labelSelector || ''}:${silence403}`
   if (listAllPromiseMap.has(cacheKey)) return listAllPromiseMap.get(cacheKey)!
 
   const promise = (async () => {
     try {
       const { data } = await kubeProxyAxios.get<{ items: T[] }>(path, {
-        params: { limit: 500, labelSelector }
-      })
+        params: { limit: 500, labelSelector },
+        silence403,
+        skipErrorNotification: silence403
+      } as any)
       return data
     } finally {
       setTimeout(() => {

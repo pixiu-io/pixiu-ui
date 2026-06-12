@@ -58,19 +58,19 @@ export async function fetchK8sStatefulSet(cluster: string, namespace: string, na
 }
 
 export async function deleteK8sStatefulSet(cluster: string, namespace: string, name: string): Promise<void> {
-  await kubeProxyAxios.delete(`${stsBase(cluster, namespace)}/${encodeURIComponent(name)}`)
+  await kubeProxyAxios.delete(`${stsBase(cluster, namespace)}/${encodeURIComponent(name)}`, { skipErrorNotification: true } as any)
 }
 
 export async function patchK8sStatefulSet(cluster: string, namespace: string, name: string, patch: object): Promise<K8sStatefulSet> {
   const { data } = await kubeProxyAxios.patch<K8sStatefulSet>(
     `${stsBase(cluster, namespace)}/${encodeURIComponent(name)}`,
     patch,
-    { headers: { 'Content-Type': 'application/merge-patch+json' } }
+    { headers: { 'Content-Type': 'application/merge-patch+json' }, skipErrorNotification: true } as any
   )
   return data
 }
 
 export async function createK8sStatefulSet(cluster: string, namespace: string, body: object): Promise<K8sStatefulSet> {
-  const { data } = await kubeProxyAxios.post<K8sStatefulSet>(stsBase(cluster, namespace), body)
+  const { data } = await kubeProxyAxios.post<K8sStatefulSet>(stsBase(cluster, namespace), body, { skipErrorNotification: true } as any)
   return data
 }

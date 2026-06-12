@@ -19,12 +19,30 @@
             @visible-change="onClusterSelectVisible"
             @change="onClusterSelectChange"
           >
+            <template #header>
+              <ElInput
+                ref="clusterSearchInputRef"
+                v-model="clusterSearchKeyword"
+                class="cluster-detail-cluster-search"
+                placeholder="搜索集群"
+                clearable
+                @click.stop
+                @keydown.stop
+              >
+                <template #prefix>
+                  <ElIcon><Search /></ElIcon>
+                </template>
+              </ElInput>
+            </template>
             <ElOption
-              v-for="c in clusterSelectOptions"
+              v-for="c in filteredClusterSelectOptions"
               :key="c.name"
               :label="c.aliasName || c.name"
               :value="c.name"
             />
+            <template #empty>
+              <span class="cluster-detail-cluster-empty">无匹配集群</span>
+            </template>
           </ElSelect>
         </div>
         <ElTag :type="statusTag.type" effect="light" class="cluster-detail-status">
@@ -163,10 +181,11 @@
   import { useRoute, useRouter, type RouteLocationNormalizedLoaded } from 'vue-router'
   import { fetchClusterByName, fetchClusterList } from '@/api/container'
   import type { ClusterItem } from '@/api/container'
-  import { fetchK8sNamespaceList } from '@/api/kubernetes/namespace'
-  import { fetchGetPermission, type PermissionListItem } from '@/api/system-manage'
+  import { resolveClusterNamespaces } from '@/api/kubernetes/namespace'
+  import type { PermissionListItem } from '@/api/system-manage'
   import ClusterYamlCreateDialog from './modules/cluster-yaml-create-dialog.vue'
   import {
+    clusterDetailActiveMenuKey,
     clusterDetailContextKey,
     clusterDetailNamespaceKey,
     clusterDetailRefreshKey,
@@ -218,6 +237,8 @@
   const namespaceOptions = ref<string[]>([])
   const namespaceSearchKeyword = ref('')
   const namespaceSearchInputRef = ref<InputInstance>()
+  const clusterSearchKeyword = ref('')
+  const clusterSearchInputRef = ref<InputInstance>()
   const nsLoading = ref(false)
   const permissionDetail = ref<PermissionListItem | null>(null)
 
@@ -231,6 +252,11 @@
     if (!visible) {
       namespaceSearchKeyword.value = ''
       return
+    }
+    const cluster = String(route.query.cluster ?? '')
+    const permissionId = Number(clusterRow.value?.permissionId) || 0
+    if (cluster && permissionId > 0) {
+      void loadNamespaceOptions(cluster)
     }
     void nextTick(() => namespaceSearchInputRef.value?.focus())
   }
@@ -257,30 +283,17 @@
     }
     nsLoading.value = true
     try {
-      // 这里的 clusterRow 对应的是正在加载或已加载的集群信息
       const row = clusterRow.value || findClusterInList(clusterName)
-      if (row?.permissionId) {
-        // 如果是授权集群，获取权限详情以得到授权的命名空间列表
-        const detail = await fetchGetPermission(row.permissionId)
-        permissionDetail.value = detail
+      const permissionId = Number(row?.permissionId) || 0
+      const { names, permissionDetail: detail } = await resolveClusterNamespaces(
+        clusterName,
+        permissionId
+      )
+      permissionDetail.value = detail
+      namespaceOptions.value = names
 
-        // p_type 为 1 (自定义) 时，使用授权的命名空间列表
-        if (detail.pType === 1) {
-          namespaceOptions.value = (detail.targetNamespaces || []).sort()
-
-          // 如果当前选中的命名空间不在授权范围内，切换到第一个可用命名空间
-          if (selectedNamespace.value && !namespaceOptions.value.includes(selectedNamespace.value)) {
-            selectedNamespace.value = namespaceOptions.value[0] || ''
-          }
-        } else {
-          // p_type 为 0 (只读) 或 2 (管理员) 时，展示集群所有命名空间
-          const { items } = await fetchK8sNamespaceList(clusterName, { page: 1, limit: 500 })
-          namespaceOptions.value = items.map((n) => n.metadata.name).sort()
-        }
-      } else {
-        permissionDetail.value = null
-        const { items } = await fetchK8sNamespaceList(clusterName, { page: 1, limit: 500 })
-        namespaceOptions.value = items.map((n) => n.metadata.name).sort()
+      if (selectedNamespace.value && !namespaceOptions.value.includes(selectedNamespace.value)) {
+        selectedNamespace.value = namespaceOptions.value[0] || ''
       }
     } catch {
       namespaceOptions.value = []
@@ -357,7 +370,12 @@
   }
 
   function onClusterSelectVisible(visible: boolean) {
-    if (visible) void loadClusterListForSelect()
+    if (!visible) {
+      clusterSearchKeyword.value = ''
+      return
+    }
+    void loadClusterListForSelect()
+    void nextTick(() => clusterSearchInputRef.value?.focus())
   }
 
   function refreshClusterList() {
@@ -394,6 +412,15 @@
       await loadNamespaceOptions(name)
     },
     { immediate: true }
+  )
+
+  watch(
+    () => Number(clusterRow.value?.permissionId) || 0,
+    (permissionId, prev) => {
+      if (permissionId <= 0 || permissionId === prev) return
+      const cluster = String(route.query.cluster ?? '')
+      if (cluster) void loadNamespaceOptions(cluster)
+    }
   )
 
   const ctx = computed<ClusterDetailContext>(() => {
@@ -453,6 +480,17 @@
     return [stubClusterRow(currentName), ...list]
   })
 
+  const filteredClusterSelectOptions = computed(() => {
+    const kw = clusterSearchKeyword.value.trim().toLowerCase()
+    const options = clusterSelectOptions.value
+    if (!kw) return options
+    return options.filter((c) => {
+      const alias = (c.aliasName || '').toLowerCase()
+      const name = (c.name || '').toLowerCase()
+      return alias.includes(kw) || name.includes(kw)
+    })
+  })
+
   async function refreshClusterRow() {
     const name = String(route.query.cluster ?? '')
     if (!name) {
@@ -474,8 +512,15 @@
     }
   }
 
+  const activeMenuKey = computed(() => {
+    const m = route.path.match(/\/container\/([^/]+)$/)
+    const seg = m?.[1] ?? 'overview'
+    return DETAIL_SEGMENTS.has(seg) ? seg : 'overview'
+  })
+
   provide(clusterDetailContextKey, ctx)
   provide(clusterDetailNamespaceKey, { namespace: selectedNamespace, namespaceOptions })
+  provide(clusterDetailActiveMenuKey, activeMenuKey)
   provide(clusterDetailRefreshKey, refreshClusterRow)
 
   watch(
@@ -525,12 +570,6 @@
   const statusTag = computed(() => {
     const s = ctx.value.status
     return STATUS_CONFIG[s as keyof typeof STATUS_CONFIG] ?? { type: 'info' as const, text: '未知' }
-  })
-
-  const activeMenuKey = computed(() => {
-    const m = route.path.match(/\/container\/([^/]+)$/)
-    const seg = m?.[1] ?? 'overview'
-    return DETAIL_SEGMENTS.has(seg) ? seg : 'overview'
   })
 
   /** 切换集群时强制重建子页面，避免 KeepAlive 复用旧集群数据 */
@@ -859,8 +898,32 @@
 </style>
 
 <style>
+  .cluster-detail-cluster-select-popper .el-select-dropdown__header {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+  }
+
+  .cluster-detail-cluster-select-popper .cluster-detail-cluster-search .el-input__wrapper {
+    min-height: 30px;
+    height: 30px;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .cluster-detail-cluster-select-popper .cluster-detail-cluster-search .el-input__inner {
+    font-size: 13px;
+  }
+
+  .cluster-detail-cluster-select-popper .cluster-detail-cluster-empty {
+    display: block;
+    padding: 8px 0;
+    font-size: 12px;
+    color: var(--el-text-color-placeholder);
+    text-align: center;
+  }
+
   .cluster-detail-cluster-select-popper .el-select-dropdown__list {
-    max-height: 320px;
+    max-height: 280px;
     overflow-x: auto;
     overflow-y: auto;
   }

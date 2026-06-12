@@ -39,6 +39,14 @@ kubeProxyAxios.interceptors.response.use(
     const rejected = rejectIfPixiuBusinessError(data, error.config)
     if (rejected) return rejected
 
+    const config = (error.config as Record<string, unknown> | undefined)
+    // 403 无权限且页面指定静默时，不弹错误提示（如集群详情基础信息页）
+    const silence403 = config?.silence403
+    if (error.response?.status === 403 && silence403) {
+      const message = (data as { message?: string } | undefined)?.message || 'Forbidden'
+      return Promise.reject(new PixiuApiError(message, true))
+    }
+
     if (data && typeof data === 'object' && (data as { kind?: string }).kind === 'Status') {
       const message = (data as { message?: string }).message
       if (message) {

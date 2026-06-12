@@ -211,6 +211,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useTable } from '@/hooks/core/useTable'
   import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
   import { useWatchAfterTableInit } from '@/hooks/core/useWatchAfterTableInit'
+  import { useClusterDetailActiveMenuKey } from '@/hooks/core/useClusterDetailNamespaceRefresh'
   import { deleteK8sEvent, fetchKubeRawEventList } from '@/api/kubernetes/events'
   import {
     deleteK8sPod,
@@ -623,9 +624,11 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       : columns.value
   )
 
+  const activeMenuKey = useClusterDetailActiveMenuKey()
   useWatchAfterTableInit(
     selectedNamespace,
     (ns) => {
+      if (activeMenuKey?.value !== 'pods') return
       replaceSearchParams({ namespace: ns || undefined })
       getData()
     },

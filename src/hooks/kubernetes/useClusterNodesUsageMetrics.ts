@@ -119,7 +119,8 @@ export function useClusterNodesUsageMetrics(
     try {
       const nodesResult = await fetchKubeListAll<K8sNode>(
         name,
-        `/pixiu/proxy/${encodeURIComponent(name)}/api/v1/nodes`
+        `/pixiu/proxy/${encodeURIComponent(name)}/api/v1/nodes`,
+        { silence403: true }
       )
       const nodes = nodesResult.items ?? []
       const nodeNames = nodes

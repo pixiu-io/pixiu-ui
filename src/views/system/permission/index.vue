@@ -1,9 +1,22 @@
 <!-- 授权管理页面 -->
 <template>
-  <div class="permission-page art-full-height" style="padding-top: 10px">
+  <div class="permission-page art-full-height">
+    <ElAlert
+      type="info"
+      :closable="false"
+      show-icon
+      class="quota-alert"
+      style="margin: 5px 0 20px 0"
+      description="为 Kubernetes 集群添加用户授权，支持管理员、只读和自定义三种权限类型。"
+    />
     <div
       class="permission-toolbar"
-      style="margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between"
+      style="
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      "
     >
       <ElButton @click="showGrantDrawer" v-ripple>添加权限</ElButton>
       <div style="display: flex; align-items: center; gap: 8px">
@@ -25,7 +38,7 @@
         :data="data"
         :columns="columns"
         :pagination="pagination"
-        :pagination-options="{ 
+        :pagination-options="{
           align: 'right',
           hideOnEmpty: false,
           layout: 'total, prev, pager, next, sizes, jumper'
@@ -41,17 +54,20 @@
 
 <script setup lang="ts">
   import { useTable } from '@/hooks/core/useTable'
-  import { ElLink, ElMessage, ElMessageBox, ElTag } from 'element-plus'
+  import { ElAlert, ElLink, ElMessage, ElMessageBox, ElTag } from 'element-plus'
+  import { useRouter } from 'vue-router'
   import {
     fetchDeletePermission,
     fetchGetPermission,
     fetchPermissionList,
-    fetchBatchDeletePermissions
+    fetchBatchDeletePermissions,
+    type PermissionListItem
   } from '@/api/system-manage'
   import PermissionGrantDrawer from './modules/permission-grant-drawer.vue'
 
   defineOptions({ name: 'PermissionManage' })
 
+  const router = useRouter()
   const searchForm = ref({ clusterName: undefined as string | undefined })
   const grantDrawerVisible = ref(false)
 
@@ -127,29 +143,49 @@
       },
       columnsFactory: () => [
         {
-          prop: 'userName',
-          label: '用户',
-          minWidth: 120,
-          formatter: (row: any) => h('span', { class: 'user-name', style: { fontSize: '12px' } }, row.userName)
-        },
-        {
           prop: 'clusterAliasName',
           label: '集群',
           minWidth: 120,
           formatter: (row: any) =>
-            h('span', { class: 'cluster-name', style: { fontSize: '12px' } }, row.clusterAliasName || row.clusterName)
+            h(
+              ElLink,
+              {
+                type: 'primary',
+                underline: 'never',
+                style: { fontSize: '13px' },
+                onClick: () => router.push({ path: '/container/overview', query: { cluster: row.clusterName } })
+              },
+              () => row.clusterAliasName || row.clusterName
+            )
+        },
+        {
+          prop: 'userName',
+          label: '用户',
+          minWidth: 120,
+          formatter: (row: any) =>
+            h('span', { class: 'user-name', style: { fontSize: '12px' } }, row.userName)
         },
         {
           prop: 'pType',
           label: '授权类型',
           minWidth: 100,
-          formatter: (row: any) => h('span', { class: 'p-type', style: { fontSize: '12px' } }, pTypeMap[row.pType] ?? row.pType)
+          formatter: (row: any) =>
+            h(
+              'span',
+              { class: 'p-type', style: { fontSize: '12px' } },
+              pTypeMap[row.pType] ?? row.pType
+            )
         },
         {
           prop: 'namespace',
           label: '命名空间',
           minWidth: 120,
-          formatter: (row: any) => h('span', { class: 'namespace', style: { fontSize: '12px' } }, row.namespace || '-')
+          formatter: (row: any) =>
+            h(
+              'span',
+              { class: 'namespace', style: { fontSize: '12px' } },
+              row.namespace || '全部命名空间'
+            )
         },
         {
           prop: 'expirationSeconds',
@@ -175,18 +211,46 @@
           prop: 'createTime',
           label: '创建日期',
           minWidth: 160,
-          formatter: (row: any) => h('span', { class: 'create-time', style: { fontSize: '12px' } }, row.createTime ?? '-')
+          formatter: (row: any) =>
+            h('span', { class: 'create-time', style: { fontSize: '12px' } }, row.createTime ?? '-')
         },
         {
           prop: 'operation',
           label: '操作',
-          width: 140,
+          minWidth: 200,
           fixed: 'right',
           formatter: (row: any) =>
             h('div', { style: 'display:flex;align-items:center;gap:12px;flex-wrap:nowrap' }, [
-              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => viewKubeconfig(row) }, () => '查看'),
-              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => downloadKubeconfig(row) }, () => '下载'),
-              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => deletePermission(row) }, () => '删除')
+              h(
+                ElLink,
+                {
+                  type: 'primary',
+                  underline: 'never',
+                  style: 'font-size:12px',
+                  onClick: () => viewKubeconfig(row)
+                },
+                () => '查看'
+              ),
+              h(
+                ElLink,
+                {
+                  type: 'primary',
+                  underline: 'never',
+                  style: 'font-size:12px',
+                  onClick: () => downloadKubeconfig(row)
+                },
+                () => '下载 Kubeconfig'
+              ),
+              h(
+                ElLink,
+                {
+                  type: 'primary',
+                  underline: 'never',
+                  style: 'font-size:12px',
+                  onClick: () => deletePermission(row)
+                },
+                () => '删除'
+              )
             ])
         }
       ]
@@ -226,9 +290,11 @@
     URL.revokeObjectURL(url)
   }
 
-  async function deletePermission(row: { id: number; name?: string }) {
+  async function deletePermission(row: PermissionListItem) {
     try {
-      await ElMessageBox.confirm(`确定删除授权「${row.name || row.id}」吗？`, '删除确认', {
+      const user = row.userName || '-'
+      const cluster = row.clusterAliasName || row.clusterName || '-'
+      await ElMessageBox.confirm(`确认取消集群（${cluster}）对 ${user} 的授权吗？`, '删除确认', {
         type: 'warning',
         confirmButtonText: '删除',
         cancelButtonText: '取消'
@@ -253,7 +319,15 @@
     font-size: 12px;
   }
 
-  .permission-page :deep(.art-table-card .el-card__body) { padding-top: 8px; padding-bottom: 0; }
-  .permission-page :deep(.custom-pagination) { padding-bottom: 0; margin-bottom: 0; }
-  .permission-page :deep(.el-pagination) { padding: 2px 0; }
+  .permission-page :deep(.art-table-card .el-card__body) {
+    padding-top: 8px;
+    padding-bottom: 0;
+  }
+  .permission-page :deep(.custom-pagination) {
+    padding-bottom: 0;
+    margin-bottom: 0;
+  }
+  .permission-page :deep(.el-pagination) {
+    padding: 2px 0;
+  }
 </style>

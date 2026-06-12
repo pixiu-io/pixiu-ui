@@ -35,7 +35,7 @@
         @selection-change="handleNodeSelectionChange"
         @pagination:size-change="handleSizeChange"
         @pagination:current-change="handleCurrentChange"
->
+      >
         <template #empty>
           <ClusterTableEmpty />
         </template>
@@ -59,13 +59,16 @@
       title="标签管理"
       width="720px"
       destroy-on-close
+      class="label-dialog"
+      header-class="label-dialog-header"
+      body-class="label-dialog-body"
       @close="resetLabelForm"
     >
       <ElAlert
         type="info"
         :closable="false"
         show-icon
-        class="pixiu-alert"
+        class="quota-alert"
         description="附加到 Kubernetes 对象上的键值对，用于标识与筛选对象。"
       />
       <div v-for="(item, index) in labelRows" :key="index" class="label-row">
@@ -83,13 +86,21 @@
     </ElDialog>
 
     <!-- 清空节点 -->
-    <ElDialog v-model="drainVisible" title="清空节点" width="520px" destroy-on-close>
+    <ElDialog
+      v-model="drainVisible"
+      title="清空节点"
+      width="520px"
+      destroy-on-close
+      class="drain-dialog"
+      header-class="drain-dialog-header"
+      body-class="drain-dialog-body"
+    >
       <ElAlert
-        type="warning"
+        type="info"
         :closable="false"
         show-icon
-        class="pixiu-alert"
-        description="此操作将按当前后端能力与 dashboard 一致发起节点信息校验（与 dashboard drain 接口相同）。"
+        class="quota-alert"
+        description="此操作将清空节点上所有Pod(drain 接口相同），请谨慎操作！！！"
       />
       <template #footer>
         <ElButton @click="drainVisible = false">取消</ElButton>
@@ -281,8 +292,8 @@
   } from '@/components/core/forms/art-button-more/index.vue'
   import { CopyDocument, InfoFilled } from '@element-plus/icons-vue'
   import { h, ref, computed, onUnmounted } from 'vue'
-import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
-import ClusterTableEmpty from './components/cluster-table-empty.vue'
+  import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
+  import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute, useRouter } from 'vue-router'
   import { buildClusterRouteQuery } from '@/utils/navigation/cluster-query'
   import { useTable } from '@/hooks/core/useTable'
@@ -590,7 +601,11 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
             minWidth: 160,
             showOverflowTooltip: true,
             formatter: (row: K8sNode) =>
-              h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, formatContainerRuntime(row))
+              h(
+                'span',
+                { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+                formatContainerRuntime(row)
+              )
           },
           {
             prop: 'ip',
@@ -601,23 +616,36 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
               const internalIp = addresses.find((a) => a.type === 'InternalIP')?.address
               const externalIp = addresses.find((a) => a.type === 'ExternalIP')?.address
               const parts = [internalIp, externalIp].filter(Boolean) as string[]
-              if (!parts.length) return h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, '-')
+              if (!parts.length)
+                return h(
+                  'span',
+                  { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+                  '-'
+                )
               return h(
                 'div',
                 { style: 'line-height:1.6' },
                 parts.map((ip) =>
-                  h('div', { style: 'display:flex;align-items:center;gap:4px;font-size:12px;color:var(--el-text-color-regular);white-space:nowrap' }, [
-                    h('span', ip),
-                    h(CopyDocument, {
-                      class: 'icon-action',
-                      style: 'width:12px;height:12px;cursor:pointer;color:var(--el-text-color-secondary);flex-shrink:0',
-                      onClick: (e: MouseEvent) => {
-                        e.stopPropagation()
-                        void navigator.clipboard.writeText(ip)
-                        ElMessage.success('已复制')
-                      }
-                    })
-                  ])
+                  h(
+                    'div',
+                    {
+                      style:
+                        'display:flex;align-items:center;gap:4px;font-size:12px;color:var(--el-text-color-regular);white-space:nowrap'
+                    },
+                    [
+                      h('span', ip),
+                      h(CopyDocument, {
+                        class: 'icon-action',
+                        style:
+                          'width:12px;height:12px;cursor:pointer;color:var(--el-text-color-secondary);flex-shrink:0',
+                        onClick: (e: MouseEvent) => {
+                          e.stopPropagation()
+                          void navigator.clipboard.writeText(ip)
+                          ElMessage.success('已复制')
+                        }
+                      })
+                    ]
+                  )
                 )
               )
             }
@@ -639,7 +667,11 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
             showOverflowTooltip: true,
             formatter: (row: K8sNode) => {
               const kernel = row.status?.nodeInfo?.kernelVersion ?? '-'
-              return h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, kernel)
+              return h(
+                'span',
+                { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+                kernel
+              )
             }
           },
           {
@@ -701,9 +733,8 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
                   h(
                     ElLink,
                     {
-                      type: 'danger',
                       underline: 'never',
-                      style: 'font-size:12px',
+                      style: 'font-size:12px;color:var(--el-text-color-primary)',
                       onClick: () => deleteLocalNode(row._localIndex)
                     },
                     () => '删除'
@@ -742,7 +773,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
                         key: 'delete',
                         label: '删除',
                         icon: 'ri:delete-bin-4-line',
-                        color: '#409eff'
+                        color: 'var(--el-text-color-primary)'
                       }
                     ],
                     onClick: (item: ButtonMoreItem) => nodeMoreClick(item, row)
@@ -1415,6 +1446,43 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     line-height: 1.5;
     color: var(--el-text-color-regular);
     word-break: break-all;
+  }
+</style>
+
+<style>
+  .label-dialog-header,
+  .drain-dialog-header {
+    padding: 10px 24px 0 !important;
+    margin-bottom: 0 !important;
+  }
+
+  .label-dialog-body,
+  .drain-dialog-body {
+    padding: 0 24px 12px !important;
+    font-size: 12px;
+  }
+
+  .label-dialog-body .label-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    font-size: 12px;
+  }
+
+  .label-dialog-body .label-row__key,
+  .label-dialog-body .label-row__val {
+    flex: 1;
+    max-width: 300px;
+  }
+
+  .label-dialog-body .label-row .el-input__wrapper,
+  .label-dialog-body .label-row .el-input__inner {
+    font-size: 12px;
+  }
+
+  .label-dialog-body .el-button {
+    font-size: 12px;
   }
 </style>
 

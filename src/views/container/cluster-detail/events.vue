@@ -67,6 +67,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
   import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
+  import { useClusterDetailNamespaceRefresh } from '@/hooks/core/useClusterDetailNamespaceRefresh'
   import { deleteK8sEvent, fetchKubeRawEventList } from '@/api/kubernetes/events'
   import { PixiuApiError } from '@/api/container'
   import { formatNodeCreationTime } from '@/utils/kubernetes/nodeDisplay'
@@ -240,10 +241,9 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     selectedEvents.value = rows
   }
 
-  watch(selectedNamespace, (ns) => {
-    
+  useClusterDetailNamespaceRefresh('events', () => {
     eventCache.value = null
-    replaceSearchParams({ namespace: ns || undefined })
+    replaceSearchParams({ namespace: selectedNamespace.value || undefined })
     getData()
   })
 
