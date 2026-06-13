@@ -8,6 +8,7 @@ export interface PixiuNodeItem {
   gmt_create: string
   gmt_modified: string
   name: string
+  user_id: number
   ip: string
   auth: string
   /** 历史数据或计划内节点可能仍有以下字段 */
@@ -19,6 +20,7 @@ export interface PixiuNodeItem {
 export interface PixiuNodeListParams {
   page?: number
   limit?: number
+  user_id?: number
   plan_id?: number
   nameSelector?: string
 }
@@ -26,6 +28,7 @@ export interface PixiuNodeListParams {
 /** POST /pixiu/nodes（与后端 CreateNodeRequest 对齐，不依赖部署计划） */
 export interface CreatePixiuNodeBody {
   name: string
+  user_id?: number
   ip: string
   auth: PlanNodeAuth
 }
