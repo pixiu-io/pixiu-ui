@@ -384,13 +384,17 @@
             <template #header>
               <div style="display: flex; align-items: center; justify-content: space-between;">
                 <span class="basic-info-card__title">集群 KubeConfig</span>
-                <ElButton size="small" type="primary" @click="downloadKubeconfig">
-                  <ArtSvgIcon icon="ri:download-line" style="margin-right: 4px" />
-                  下载
-                </ElButton>
+                <div class="kubeconfig-actions">
+                  <ElLink type="primary" underline="never" class="kubeconfig-action" @click="copyKubeconfig">
+                    拷贝
+                  </ElLink>
+                  <ElLink type="primary" underline="never" class="kubeconfig-action" @click="downloadKubeconfig">
+                    下载
+                  </ElLink>
+                </div>
               </div>
             </template>
-            <div v-loading="kubeconfigLoading" style="min-height: 200px;">
+            <div v-loading="kubeconfigLoading" class="kubeconfig-body">
               <pre v-if="kubeconfigContent" class="kubeconfig-pre">{{ kubeconfigContent }}</pre>
               <ElEmpty v-else description="暂无 KubeConfig 内容" :image-size="80" />
             </div>
@@ -603,6 +607,14 @@
     } finally {
       kubeconfigLoading.value = false
     }
+  }
+
+  function copyKubeconfig() {
+    if (!kubeconfigContent.value) {
+      ElMessage.warning('暂无 Kubeconfig 内容')
+      return
+    }
+    copyText(kubeconfigContent.value)
   }
 
   function downloadKubeconfig() {
@@ -1157,6 +1169,22 @@
     font-size: 12px;
   }
 
+  .kubeconfig-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .kubeconfig-action {
+    display: inline-flex;
+    align-items: center;
+    font-size: 13px;
+  }
+
+  .kubeconfig-body {
+    min-height: 480px;
+  }
+
   .kubeconfig-pre {
     margin: 0;
     padding: 16px;
@@ -1168,7 +1196,6 @@
     color: var(--el-text-color-regular);
     white-space: pre-wrap;
     word-wrap: break-word;
-    max-height: 500px;
-    overflow-y: auto;
+    min-height: 440px;
   }
 </style>
