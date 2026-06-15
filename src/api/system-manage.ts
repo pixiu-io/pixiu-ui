@@ -662,6 +662,8 @@ export async function fetchBatchDeletePermissions(permissionIds: number[]): Prom
   }
 }
 
+export { fetchGetClusterKubeconfig, type KubeconfigResponse } from '@/api/container'
+
 // 获取菜单列表
 export function fetchGetMenuList() {
   return request.get<AppRouteRecord[]>({

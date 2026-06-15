@@ -304,6 +304,27 @@ export function encodeKubeConfigBase64(yamlText: string): string {
   return btoa(binary)
 }
 
+/** Base64 解码为 Kubeconfig 明文（支持 UTF-8） */
+export function decodeKubeConfigBase64(encoded: string): string {
+  const binary = atob(encoded)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  return new TextDecoder().decode(bytes)
+}
+
+/** GET /pixiu/clusters/:clusterId/kubeconfig */
+export interface KubeconfigResponse {
+  cluster_name: string
+  content: string
+}
+
+export async function fetchGetClusterKubeconfig(clusterId: number): Promise<KubeconfigResponse> {
+  const res = await pixiuAxios.get(`/pixiu/clusters/${clusterId}/kubeconfig`)
+  const { code, result, message } = res.data
+  if (code !== 200) throw new Error(message || '获取 Kubeconfig 失败')
+  return result as KubeconfigResponse
+}
+
 /** 导入集群（标准集群，cluster_type = 0） */
 export async function fetchCreateCluster(params: {
   alias_name: string
