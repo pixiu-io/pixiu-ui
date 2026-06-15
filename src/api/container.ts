@@ -9,6 +9,8 @@ declare module 'axios' {
   interface AxiosRequestConfig {
     /** 为 true 时，业务码 401（如密码错误）不触发登出跳转 */
     skipUnauthorizedRedirect?: boolean
+    /** 为 true 时，业务/HTTP 错误不弹出 ElMessage（由调用方自行处理或静默忽略） */
+    skipErrorNotification?: boolean
   }
 }
 
@@ -273,12 +275,10 @@ export async function fetchClusterByName(name: string): Promise<ClusterItem | nu
 
 /** 更新集群别名 */
 export async function fetchUpdateClusterAlias(id: number, resourceVersion: number, aliasName: string): Promise<void> {
-  const res = await pixiuAxios.put(`/pixiu/clusters/${id}`, {
+  await pixiuAxios.put(`/pixiu/clusters/${id}`, {
     alias_name: aliasName,
     resource_version: resourceVersion
   })
-  const { code, message } = res.data
-  if (code !== 200) throw new Error(message || '更新失败')
 }
 
 /** 获取单个集群详情（含 kubeconfig） */
@@ -288,12 +288,10 @@ export async function fetchGetCluster(id: number): Promise<BackendCluster> {
 
 /** 设置集群保护状态 */
 export async function fetchProtectCluster(id: number, resourceVersion: number, isProtected: boolean): Promise<void> {
-  const res = await pixiuAxios.post(`/pixiu/clusters/protect/${id}`, {
+  await pixiuAxios.post(`/pixiu/clusters/protect/${id}`, {
     resource_version: resourceVersion,
     protected: isProtected
   })
-  const { code, message } = res.data
-  if (code !== 200) throw new Error(message || '操作失败')
 }
 
 /** Kubeconfig 明文转 Base64（与 Pixiu 后端 ParseKubeConfigBytes 一致） */
@@ -320,9 +318,7 @@ export interface KubeconfigResponse {
 
 export async function fetchGetClusterKubeconfig(clusterId: number): Promise<KubeconfigResponse> {
   const res = await pixiuAxios.get(`/pixiu/clusters/${clusterId}/kubeconfig`)
-  const { code, result, message } = res.data
-  if (code !== 200) throw new Error(message || '获取 Kubeconfig 失败')
-  return result as KubeconfigResponse
+  return res.data.result as KubeconfigResponse
 }
 
 /** 导入集群（标准集群，cluster_type = 0） */
@@ -335,7 +331,7 @@ export async function fetchCreateCluster(params: {
 }): Promise<void> {
   const userStore = useUserStore()
   const userId = userStore.getUserInfo?.userId
-  const res = await pixiuAxios.post('/pixiu/clusters', {
+  await pixiuAxios.post('/pixiu/clusters', {
     alias_name: params.alias_name,
     kube_config: params.kube_config,
     description: params.description ?? '',
@@ -343,23 +339,17 @@ export async function fetchCreateCluster(params: {
     cluster_type: params.cluster_type ?? 0,
     user_id: userId ?? 0
   })
-  const { code, message } = res.data
-  if (code !== 200) throw new Error(message || '创建失败')
 }
 
 /** 测试 Kubeconfig 与 Kubernetes API 连通性 */
 export async function fetchPingCluster(kube_config: string): Promise<void> {
-  const res = await pixiuAxios.post('/pixiu/clusters/ping', { kube_config })
-  const { code, message } = res.data
-  if (code !== 200) throw new Error(message || '连接失败')
+  await pixiuAxios.post('/pixiu/clusters/ping', { kube_config })
 }
 
 /** 删除集群 */
 export async function fetchDeleteCluster(id: number): Promise<void> {
   const token = resolveAccessToken()
-  const res = await pixiuAxios.delete(`/pixiu/clusters/${id}`, {
+  await pixiuAxios.delete(`/pixiu/clusters/${id}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {}
   })
-  const { code, message } = res.data
-  if (code !== 200) throw new Error(message || '删除失败')
 }

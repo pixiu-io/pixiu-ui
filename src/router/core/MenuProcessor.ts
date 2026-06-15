@@ -8,7 +8,6 @@
  */
 
 import type { AppRouteRecord } from '@/types/router'
-import { useUserStore } from '@/store/modules/user'
 import { useAppMode } from '@/hooks/core/useAppMode'
 import { fetchGetMenuList } from '@/api/system-manage'
 import { asyncRoutes } from '../routes/asyncRoutes'
@@ -40,16 +39,9 @@ export class MenuProcessor {
    * 处理前端控制模式的菜单
    */
   private async processFrontendMenu(): Promise<AppRouteRecord[]> {
-    const userStore = useUserStore()
-    const roles = userStore.info?.roles
-
     let menuList = [...asyncRoutes]
 
-    // 根据角色过滤菜单
-    if (roles && roles.length > 0) {
-      menuList = this.filterMenuByRoles(menuList, roles)
-    }
-
+    // 菜单展示不做角色过滤，普通用户可见全部菜单
     return this.filterEmptyMenus(menuList)
   }
 
@@ -58,27 +50,9 @@ export class MenuProcessor {
    */
   private async processBackendMenu(): Promise<AppRouteRecord[]> {
     const list = await fetchGetMenuList()
+
+    // 菜单展示不做角色过滤，普通用户可见全部菜单
     return this.filterEmptyMenus(list)
-  }
-
-  /**
-   * 根据角色过滤菜单
-   */
-  private filterMenuByRoles(menu: AppRouteRecord[], roles: string[]): AppRouteRecord[] {
-    return menu.reduce((acc: AppRouteRecord[], item) => {
-      const itemRoles = item.meta?.roles
-      const hasPermission = !itemRoles || itemRoles.some((role) => roles?.includes(role))
-
-      if (hasPermission) {
-        const filteredItem = { ...item }
-        if (filteredItem.children?.length) {
-          filteredItem.children = this.filterMenuByRoles(filteredItem.children, roles)
-        }
-        acc.push(filteredItem)
-      }
-
-      return acc
-    }, [])
   }
 
   /**
@@ -98,9 +72,14 @@ export class MenuProcessor {
         return item
       })
       .filter((item) => {
-        // 如果定义了 children 属性（即使是空数组），说明这是一个目录菜单，应该保留
-        if ('children' in item) {
+        // 如果有子菜单，保留
+        if (item.children && item.children.length > 0) {
           return true
+        }
+
+        // 如果没有子菜单但定义了 children 属性，说明是空目录，过滤掉
+        if ('children' in item) {
+          return false
         }
 
         // 如果有外链或 iframe，保留

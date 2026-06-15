@@ -79,7 +79,10 @@
 
   async function loadTenantMap() {
     try {
-      const { records } = await fetchGetTenantList({ current: 1, size: 500 })
+      const { records } = await fetchGetTenantList(
+        { current: 1, size: 500 },
+        { skipErrorNotification: true }
+      )
       const map: Record<number, string> = {}
       for (const item of records) {
         map[item.id] = item.tenantName

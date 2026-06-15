@@ -1,6 +1,9 @@
+import type { AxiosRequestConfig } from 'axios'
 import request from '@/utils/http'
 import { AppRouteRecord } from '@/types/router'
 import { pixiuAxios } from './container'
+
+type PixiuRequestOptions = Pick<AxiosRequestConfig, 'skipErrorNotification' | 'skipUnauthorizedRedirect'>
 
 interface PixiuUserItem {
   id: number
@@ -226,7 +229,8 @@ function mapPixiuRoleItem(item: PixiuRoleItem): Api.SystemManage.RoleListItem {
 
 // 获取角色列表
 export async function fetchGetRoleList(
-  params: Api.SystemManage.RoleSearchParams
+  params: Api.SystemManage.RoleSearchParams,
+  options?: PixiuRequestOptions
 ): Promise<Api.SystemManage.RoleList> {
   const query: Record<string, unknown> = {
     page: params.current || 1,
@@ -237,7 +241,7 @@ export async function fetchGetRoleList(
     query.tenant_id = params.tenantId
   }
 
-  const res = await pixiuAxios.get('/pixiu/roles', { params: query })
+  const res = await pixiuAxios.get('/pixiu/roles', { params: query, ...options })
   const { code, result, message } = res.data
   if (code !== 200) {
     throw new Error(message || '获取角色列表失败')
@@ -393,7 +397,8 @@ function mapPixiuTenantItem(item: PixiuTenantItem): Api.SystemManage.TenantListI
 }
 
 export async function fetchGetTenantList(
-  params: Api.SystemManage.TenantSearchParams
+  params: Api.SystemManage.TenantSearchParams,
+  options?: PixiuRequestOptions
 ): Promise<Api.SystemManage.TenantList> {
   const query: Record<string, unknown> = {
     page: params.current || 1,
@@ -401,7 +406,7 @@ export async function fetchGetTenantList(
   }
   if (params.tenantName) query.nameSelector = params.tenantName
 
-  const res = await pixiuAxios.get('/pixiu/tenants', { params: query })
+  const res = await pixiuAxios.get('/pixiu/tenants', { params: query, ...options })
   const { code, result, message } = res.data
   if (code !== 200) {
     throw new Error(message || '获取租户列表失败')

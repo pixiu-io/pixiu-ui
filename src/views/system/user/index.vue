@@ -121,7 +121,10 @@
 
   async function loadRoleMap() {
     try {
-      const { records } = await fetchGetRoleList({ current: 1, size: 500 })
+      const { records } = await fetchGetRoleList(
+        { current: 1, size: 500 },
+        { skipErrorNotification: true }
+      )
       const map: Record<number, string> = {}
       for (const r of records) {
         map[r.id] = r.roleName

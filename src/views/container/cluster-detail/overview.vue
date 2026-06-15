@@ -1,7 +1,7 @@
 <!-- 集群概览：资源概览、用量曲线、组件摘要（Mock） -->
 <template>
   <div class="cluster-overview">
-    <ElTabs v-model="innerTab" class="cluster-overview-tabs" @tab-change="onTabChange">
+    <ElTabs v-model="innerTab" class="cluster-overview-tabs">
       <ElTabPane label="概览" name="main">
         <section class="section-title">资源概览</section>
         <ElRow :gutter="16">
@@ -424,6 +424,7 @@
     fetchUpdateClusterAlias,
     fetchClusterByName,
     fetchGetClusterKubeconfig,
+    PixiuApiError,
     type KubeconfigResponse
   } from '@/api/container'
   import { fetchPlanWithResources, type PlanResourcesDetail } from '@/api/plan'
@@ -459,7 +460,7 @@
 
   watch(
     () => route.query.overviewTab,
-    (raw) => {
+    (raw: any) => {
       const t = Array.isArray(raw) ? raw[0] : raw
       if (typeof t === 'string' && t === 'kubeconfig') {
         innerTab.value = 'api'
@@ -486,6 +487,7 @@
   const loadedOverviewCluster = ref('')
 
   async function loadClusterResourceOverview(force = false) {
+    if (resourceOverviewLoading.value) return
     const cluster = String(route.query.cluster ?? '')
     if (!cluster || !isOverviewRoute.value) return
     if (!force && loadedOverviewCluster.value === cluster) return
@@ -531,6 +533,7 @@
   const loadedBasicCluster = ref('')
 
   async function loadBasicInfo(force = false) {
+    if (basicLoading.value) return
     const cluster = String(route.query.cluster ?? '')
     if (!cluster || !isOverviewRoute.value) return
     if (!force && loadedBasicCluster.value === cluster) return
@@ -600,6 +603,7 @@
   }
 
   async function loadKubeconfig(force = false) {
+    if (kubeconfigLoading.value) return
     const clusterKey = `${ctx.value.name}:${ctx.value.id}`
     if (!force && loadedKubeconfigCluster.value === clusterKey) return
 
@@ -619,6 +623,7 @@
       loadedKubeconfigCluster.value = clusterKey
     } catch (e: unknown) {
       kubeconfigContent.value = ''
+      if (e instanceof PixiuApiError && e.notified) return
       ElMessage.error(e instanceof Error ? e.message : '获取 Kubeconfig 失败')
     } finally {
       kubeconfigLoading.value = false
@@ -689,6 +694,7 @@
       const q = { ...route.query, aliasName: name }
       router.replace({ path: route.path, query: q })
     } catch (e: unknown) {
+      if (e instanceof PixiuApiError && e.notified) return
       ElMessage.error(e instanceof Error ? e.message : '更新失败')
     } finally {
       aliasSaving.value = false
@@ -704,6 +710,7 @@
       ElMessage.success(next ? '已开启删除保护' : '已关闭删除保护')
       await refreshCluster?.()
     } catch (e: unknown) {
+      if (e instanceof PixiuApiError && e.notified) return
       ElMessage.error(e instanceof Error ? e.message : '操作失败')
     } finally {
       protectSaving.value = false
@@ -749,7 +756,7 @@
   })
 
   const wlTotal = computed(() =>
-    Object.values(k8sOverview.value.workloads).reduce((a, b) => a + b, 0)
+    Object.values(k8sOverview.value.workloads).reduce((a: any, b: any) => a + b, 0)
   )
   const wlCenterText = computed(() => String(wlTotal.value))
 
@@ -794,7 +801,7 @@
     }, 1500)
   }
 
-  watch(usageChartReady, (ready) => {
+  watch(usageChartReady, (ready: any) => {
     if (ready && !usageChartSilentUpdate.value) scheduleUsageChartSilentUpdate()
   })
 
@@ -829,12 +836,6 @@
     if (tab === 'api') void loadKubeconfig()
   }
 
-  function onTabChange(tabName: string) {
-    if (tabName === 'api') {
-      void loadKubeconfig(true)
-    }
-  }
-
   watch(
     () => [ctx.value.name, ctx.value.id, innerTab.value, route.name] as const,
     () => {
@@ -844,7 +845,7 @@
   )
 
   // 集群版本就绪后，重新加载 CronJob 统计（此前因版本未知被跳过）
-  watch(cronJobApiVersion, (v, prev) => {
+  watch(cronJobApiVersion, (v: any, prev: any) => {
     if (v && !prev) syncOverviewTabLoads()
   })
 

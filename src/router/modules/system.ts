@@ -6,8 +6,7 @@ export const systemRoutes: AppRouteRecord = {
   component: '/index/index',
   meta: {
     title: 'menus.system.title',
-    icon: 'ri:shield-user-line',
-    roles: ['R_SUPER', 'R_ADMIN']
+    icon: 'ri:shield-user-line'
   },
   children: [
     {
@@ -64,8 +63,7 @@ export const systemMgrRoutes: AppRouteRecord = {
   component: '/index/index',
   meta: {
     title: 'menus.system.sysMgr',
-    icon: 'ri:settings-3-line',
-    roles: ['R_SUPER', 'R_ADMIN']
+    icon: 'ri:settings-3-line'
   },
   children: [
     {
