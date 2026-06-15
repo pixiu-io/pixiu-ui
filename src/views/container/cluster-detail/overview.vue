@@ -364,6 +364,24 @@
                 <span class="basic-info-card__title">集群 KubeConfig</span>
                 <div class="kubeconfig-actions">
                   <ElLink
+                    v-if="!kubeconfigVisible"
+                    type="primary"
+                    underline="never"
+                    class="kubeconfig-action"
+                    @click="kubeconfigVisible = true"
+                  >
+                    显示
+                  </ElLink>
+                  <ElLink
+                    v-else
+                    type="primary"
+                    underline="never"
+                    class="kubeconfig-action"
+                    @click="kubeconfigVisible = false"
+                  >
+                    隐藏
+                  </ElLink>
+                  <ElLink
                     type="primary"
                     underline="never"
                     class="kubeconfig-action"
@@ -383,7 +401,10 @@
               </div>
             </template>
             <div v-loading="kubeconfigLoading" class="kubeconfig-body">
-              <pre v-if="kubeconfigContent" class="kubeconfig-pre">{{ kubeconfigContent }}</pre>
+              <pre v-if="kubeconfigContent && kubeconfigVisible" class="kubeconfig-pre">{{
+                kubeconfigContent
+              }}</pre>
+              <div v-else-if="kubeconfigContent" class="kubeconfig-hidden">KubeConfig 内容已隐藏</div>
               <ElEmpty v-else description="暂无 KubeConfig 内容" :image-size="80" />
             </div>
           </ElCard>
@@ -557,6 +578,7 @@
   // Kubeconfig 相关状态
   const kubeconfigLoading = ref(false)
   const kubeconfigContent = ref('')
+  const kubeconfigVisible = ref(false)
   const kubeconfigData = ref<KubeconfigResponse | null>(null)
   const loadedKubeconfigCluster = ref('')
 
@@ -583,6 +605,7 @@
 
     kubeconfigLoading.value = true
     kubeconfigContent.value = ''
+    kubeconfigVisible.value = false
     try {
       const clusterId = await resolveClusterId()
       if (!clusterId) {
@@ -1138,6 +1161,19 @@
 
   .kubeconfig-body {
     min-height: 480px;
+  }
+
+  .kubeconfig-hidden {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 440px;
+    padding: 16px;
+    background: var(--el-bg-color-page);
+    border: 1px solid var(--el-border-color-lighter);
+    border-radius: 4px;
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
   }
 
   .kubeconfig-pre {
