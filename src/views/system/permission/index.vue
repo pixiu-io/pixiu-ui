@@ -61,6 +61,7 @@
     fetchGetPermission,
     fetchPermissionList,
     fetchBatchDeletePermissions,
+    fetchGetClusterKubeconfig,
     type PermissionListItem
   } from '@/api/system-manage'
   import PermissionGrantDrawer from './modules/permission-grant-drawer.vue'
@@ -179,13 +180,20 @@
         {
           prop: 'namespace',
           label: '命名空间',
-          minWidth: 120,
-          formatter: (row: any) =>
-            h(
-              'span',
-              { class: 'namespace', style: { fontSize: '12px' } },
-              row.namespace || '全部命名空间'
-            )
+          minWidth: 150,
+          formatter: (row: any) => {
+            // 如果是自定义类型且有 targetNamespaces，则显示多个标签
+            if (row.pType === 1 && row.targetNamespaces && row.targetNamespaces.length > 0) {
+              return h('div', { style: 'display:flex;flex-wrap:wrap;gap:4px' }, 
+                row.targetNamespaces.map((ns: string) => 
+                  h(ElTag, { type: 'info', size: 'small', effect: 'light' }, () => ns)
+                )
+              )
+            }
+            // 其他类型显示单个标签
+            const namespace = row.namespace || '全部命名空间'
+            return h(ElTag, { type: 'info', size: 'small', effect: 'light' }, () => namespace)
+          }
         },
         {
           prop: 'expirationSeconds',
@@ -269,25 +277,57 @@
   async function viewKubeconfig(row: { id: number; content?: string }) {
     try {
       const detail = await fetchGetPermission(row.id)
-      ElMessage.info('kubeconfig 内容: ' + (detail.content || '-'))
+      let content = detail.content || '-'
+      
+      // 尝试对 content 进行 base64 解码
+      try {
+        content = atob(content)
+      } catch (e) {
+        // 如果解码失败，可能已经是明文，直接使用原内容
+        console.warn('Base64 解码失败，使用原始内容:', e)
+      }
+      
+      ElMessage.info('kubeconfig 内容: ' + content)
     } catch (e: any) {
       if (e.notified) return
       ElMessage.error(e.message || '获取 kubeconfig 失败')
     }
   }
 
-  function downloadKubeconfig(row: { name?: string; content?: string }) {
-    if (!row.content) {
-      ElMessage.warning('暂无内容')
-      return
+  async function downloadKubeconfig(row: { clusterId?: number; name?: string; content?: string }) {
+    try {
+      if (!row.clusterId) {
+        ElMessage.warning('集群 ID 不存在')
+        return
+      }
+      const kubeconfig = await fetchGetClusterKubeconfig(row.clusterId)
+      if (!kubeconfig.content) {
+        ElMessage.warning('暂无 Kubeconfig 内容')
+        return
+      }
+      
+      // 对 content 进行 base64 解码
+      let decodedContent = kubeconfig.content
+      try {
+        decodedContent = atob(kubeconfig.content)
+      } catch (e) {
+        // 如果解码失败，可能已经是明文，直接使用原内容
+        console.warn('Base64 解码失败，使用原始内容:', e)
+      }
+      
+      const blob = new Blob([decodedContent], { type: 'text/yaml' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      // 使用后端返回的 cluster_name，或者 row 中的集群名称
+      const fileName = kubeconfig.cluster_name || row.clusterName || row.clusterAliasName || row.name || 'kubeconfig'
+      a.download = `${fileName}.yaml`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (e: any) {
+      if (e.notified) return
+      ElMessage.error(e.message || '下载 Kubeconfig 失败')
     }
-    const blob = new Blob([row.content], { type: 'text/yaml' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${row.name || 'kubeconfig'}.yaml`
-    a.click()
-    URL.revokeObjectURL(url)
   }
 
   async function deletePermission(row: PermissionListItem) {

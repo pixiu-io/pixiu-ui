@@ -662,6 +662,19 @@ export async function fetchBatchDeletePermissions(permissionIds: number[]): Prom
   }
 }
 
+/** 获取集群 Kubeconfig */
+export interface KubeconfigResponse {
+  cluster_name: string
+  content: string
+}
+
+export async function fetchGetClusterKubeconfig(clusterId: number): Promise<KubeconfigResponse> {
+  const res = await pixiuAxios.get(`/pixiu/clusters/${clusterId}/kubeconfig`)
+  const { code, result, message } = res.data
+  if (code !== 200) throw new Error(message || '获取 Kubeconfig 失败')
+  return result as KubeconfigResponse
+}
+
 // 获取菜单列表
 export function fetchGetMenuList() {
   return request.get<AppRouteRecord[]>({
