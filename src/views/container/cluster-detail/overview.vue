@@ -1,7 +1,7 @@
 <!-- 集群概览：资源概览、用量曲线、组件摘要（Mock） -->
 <template>
   <div class="cluster-overview">
-    <ElTabs v-model="innerTab" class="cluster-overview-tabs">
+    <ElTabs v-model="innerTab" class="cluster-overview-tabs" @tab-change="onTabChange">
       <ElTabPane label="概览" name="main">
         <section class="section-title">资源概览</section>
         <ElRow :gutter="16">
@@ -377,6 +377,26 @@
           </ElCard>
         </div>
       </ElTabPane>
+
+      <ElTabPane label="KubeConfig" name="kubeconfig">
+        <div class="basic-panel">
+          <ElCard shadow="never" class="basic-info-card">
+            <template #header>
+              <div style="display: flex; align-items: center; justify-content: space-between;">
+                <span class="basic-info-card__title">集群 KubeConfig</span>
+                <ElButton size="small" type="primary" @click="downloadKubeconfig">
+                  <ArtSvgIcon icon="ri:download-line" style="margin-right: 4px" />
+                  下载
+                </ElButton>
+              </div>
+            </template>
+            <div v-loading="kubeconfigLoading" style="min-height: 200px;">
+              <pre v-if="kubeconfigContent" class="kubeconfig-pre">{{ kubeconfigContent }}</pre>
+              <ElEmpty v-else description="暂无 KubeConfig 内容" :image-size="80" />
+            </div>
+          </ElCard>
+        </div>
+      </ElTabPane>
     </ElTabs>
   </div>
 </template>
@@ -386,7 +406,15 @@
   import { inject, computed, onActivated, onDeactivated, onUnmounted, ref, watch } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import yaml from 'js-yaml'
-  import { fetchProtectCluster, fetchUpdateClusterAlias, fetchGetCluster, fetchClusterByName } from '@/api/container'
+  import {
+    decodeKubeConfigBase64,
+    fetchProtectCluster,
+    fetchUpdateClusterAlias,
+    fetchGetCluster,
+    fetchClusterByName,
+    fetchGetClusterKubeconfig,
+    type KubeconfigResponse
+  } from '@/api/container'
   import { fetchPlanWithResources, type PlanResourcesDetail } from '@/api/plan'
   import {
     fetchClusterBasicNetwork,
@@ -416,7 +444,7 @@
   const OVERVIEW_ROUTE_NAME = 'ClusterDetailOverview'
   const isOverviewRoute = computed(() => route.name === OVERVIEW_ROUTE_NAME)
 
-  const OVERVIEW_TAB_NAMES = new Set(['main', 'basic', 'api'])
+  const OVERVIEW_TAB_NAMES = new Set(['main', 'basic', 'api', 'kubeconfig'])
 
   watch(
     () => route.query.overviewTab,
@@ -528,6 +556,70 @@
   const kubeconfigPath = computed(() => `~/.kube/${ctx.value.name || 'config'}`)
   const apiServerAddr = ref('加载中...')
   const loadedApiCluster = ref('')
+
+  // Kubeconfig 相关状态
+  const kubeconfigLoading = ref(false)
+  const kubeconfigContent = ref('')
+  const kubeconfigData = ref<KubeconfigResponse | null>(null)
+  const loadedKubeconfigCluster = ref('')
+
+  async function resolveClusterId(): Promise<number> {
+    if (ctx.value.id) return ctx.value.id
+    const name = ctx.value.name
+    if (!name) return 0
+    const item = await fetchClusterByName(name)
+    return item?.id ?? 0
+  }
+
+  function decodeKubeconfigContent(encoded: string): string {
+    if (!encoded) return ''
+    try {
+      return decodeKubeConfigBase64(encoded)
+    } catch {
+      return encoded
+    }
+  }
+
+  async function loadKubeconfig(force = false) {
+    const clusterKey = `${ctx.value.name}:${ctx.value.id}`
+    if (!force && loadedKubeconfigCluster.value === clusterKey) return
+
+    kubeconfigLoading.value = true
+    kubeconfigContent.value = ''
+    try {
+      const clusterId = await resolveClusterId()
+      if (!clusterId) {
+        ElMessage.warning('集群 ID 未就绪，请稍后重试')
+        return
+      }
+
+      const data = await fetchGetClusterKubeconfig(clusterId)
+      kubeconfigData.value = data
+      kubeconfigContent.value = decodeKubeconfigContent(data.content)
+      loadedKubeconfigCluster.value = clusterKey
+    } catch (e: unknown) {
+      kubeconfigContent.value = ''
+      ElMessage.error(e instanceof Error ? e.message : '获取 Kubeconfig 失败')
+    } finally {
+      kubeconfigLoading.value = false
+    }
+  }
+
+  function downloadKubeconfig() {
+    if (!kubeconfigContent.value) {
+      ElMessage.warning('暂无 Kubeconfig 内容')
+      return
+    }
+    
+    const fileName = `${kubeconfigData.value?.cluster_name || ctx.value.name || 'kubeconfig'}.yaml`
+    const blob = new Blob([kubeconfigContent.value], { type: 'text/yaml' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = fileName
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
   function parseKubeConfigServer(kcText: string): string {
     if (!kcText) return ''
@@ -748,10 +840,17 @@
     }
     if (tab === 'basic') void loadBasicInfo()
     if (tab === 'api') void loadApiServerInfo()
+    if (tab === 'kubeconfig') void loadKubeconfig()
+  }
+
+  function onTabChange(tabName: string) {
+    if (tabName === 'kubeconfig') {
+      void loadKubeconfig(true) // 强制刷新
+    }
   }
 
   watch(
-    () => [ctx.value.name, innerTab.value, route.name] as const,
+    () => [ctx.value.name, ctx.value.id, innerTab.value, route.name] as const,
     () => {
       syncOverviewTabLoads()
     },
@@ -1056,5 +1155,20 @@
   .info-dl__switch-text {
     color: var(--el-text-color-regular);
     font-size: 12px;
+  }
+
+  .kubeconfig-pre {
+    margin: 0;
+    padding: 16px;
+    background: var(--el-bg-color-page);
+    border: 1px solid var(--el-border-color-lighter);
+    border-radius: 4px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--el-text-color-regular);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    max-height: 500px;
+    overflow-y: auto;
   }
 </style>
