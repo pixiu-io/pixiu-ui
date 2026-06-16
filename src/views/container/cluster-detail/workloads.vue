@@ -700,6 +700,7 @@
   import { formatNodeCreationTime } from '@/utils/kubernetes/nodeDisplay'
   import { clusterDetailContextKey, clusterDetailNamespaceKey } from './context'
   import { getCronJobApiVersion } from '@/utils/kubernetes/cronjob'
+  import { formatPodDisplayStatus, podStatusTagType } from '@/utils/kubernetes/podDisplay'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
 
   defineOptions({ name: 'ClusterDetailWorkloads' })
@@ -3048,16 +3049,8 @@
                 label: '状态',
                 width: 110,
                 formatter: (row: K8sPod) => {
-                  const phase = row.status?.phase ?? 'Unknown'
-                  const type =
-                    phase === 'Running'
-                      ? 'success'
-                      : phase === 'Pending'
-                        ? 'warning'
-                        : phase === 'Failed'
-                          ? 'danger'
-                          : 'info'
-                  return h(ElTag, { type, size: 'small' }, () => phase)
+                  const text = formatPodDisplayStatus(row)
+                  return h(ElTag, { type: podStatusTagType(text), size: 'small' }, () => text)
                 }
               },
               {

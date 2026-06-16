@@ -221,6 +221,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   } from '@/api/kubernetes/pod'
   import { PixiuApiError } from '@/api/container'
   import { formatNodeCreationTime } from '@/utils/kubernetes/nodeDisplay'
+  import { formatPodDisplayStatus, isPodCompleted, podStatusTagType } from '@/utils/kubernetes/podDisplay'
   import { clusterDetailNamespaceKey } from './context'
   import PodRemoteWebshell from './components/pod-remote-webshell.vue'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
@@ -261,17 +262,6 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
 
   const yamlVisible = ref(false)
   const podRemoteWebshellRef = ref<InstanceType<typeof PodRemoteWebshell> | null>(null)
-
-  function formatPodStatusText(row: K8sPod): string {
-    return row.status?.phase || '未知'
-  }
-
-  function podStatusTagType(text: string): 'success' | 'warning' | 'info' | 'danger' {
-    if (text === 'Running') return 'success'
-    if (text === 'Pending') return 'warning'
-    if (text === 'Failed') return 'danger'
-    return 'info'
-  }
 
   function formatRestartCount(row: K8sPod): number {
     return (row.status?.containerStatuses ?? []).reduce((sum, c) => sum + (c.restartCount ?? 0), 0)
@@ -431,7 +421,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
           label: '状态',
           width: 110,
           formatter: (row: K8sPod) => {
-            const text = formatPodStatusText(row)
+            const text = formatPodDisplayStatus(row)
             return h(ElTag, { type: podStatusTagType(text), size: 'small' }, () => text)
           }
         },
@@ -443,7 +433,8 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
             const statuses = row.status?.containerStatuses ?? []
             const total = statuses.length || (row.spec?.containers?.length ?? 0)
             const ready = statuses.filter((c) => c.ready).length
-            const ok = total > 0 && ready === total
+            const completed = isPodCompleted(row)
+            const ok = completed || (total > 0 && ready === total)
             const valueLine = h('div', { style: 'display:flex;align-items:center;gap:4px' }, [
               h(
                 'span',
