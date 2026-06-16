@@ -225,8 +225,7 @@
               <div class="workloads-toolbar">
                 <ElButton
                   v-if="props.jobDataMode === 'events'"
-                  type="danger"
-                  plain
+                  v-ripple
                   :disabled="jobSelectedRows.length === 0"
                   @click="batchDeleteMirrorEvents"
                 >
@@ -701,6 +700,7 @@
   import { clusterDetailContextKey, clusterDetailNamespaceKey } from './context'
   import { getCronJobApiVersion } from '@/utils/kubernetes/cronjob'
   import { formatPodDisplayStatus, podStatusTagType } from '@/utils/kubernetes/podDisplay'
+  import { createK8sEventMessageColumn } from '@/utils/kubernetes/eventDisplay'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
 
   defineOptions({ name: 'ClusterDetailWorkloads' })
@@ -2157,7 +2157,7 @@
               {
                 prop: 'resource',
                 label: '资源',
-                minWidth: 200,
+                minWidth: 120,
                 showOverflowTooltip: true,
                 formatter: (row: any) =>
                   h(
@@ -2167,7 +2167,7 @@
                   )
               },
               { prop: 'count', label: '出现次数', width: 100 },
-              { prop: 'message', label: '内容', minWidth: 280, showOverflowTooltip: true },
+              createK8sEventMessageColumn(),
               {
                 prop: 'operation',
                 label: '操作',

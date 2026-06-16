@@ -9,7 +9,7 @@
       >
         <template #left>
           <div class="events-toolbar">
-            <ElButton type="danger" plain :disabled="!selectedEvents.length" @click="batchDeleteEvents">
+            <ElButton v-ripple :disabled="!selectedEvents.length" @click="batchDeleteEvents">
               批量删除
             </ElButton>
             <div class="events-toolbar__filters">
@@ -71,6 +71,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { deleteK8sEvent, fetchKubeRawEventList } from '@/api/kubernetes/events'
   import { PixiuApiError } from '@/api/container'
   import { formatNodeCreationTime } from '@/utils/kubernetes/nodeDisplay'
+  import { createK8sEventMessageColumn } from '@/utils/kubernetes/eventDisplay'
   import { clusterDetailNamespaceKey } from './context'
 
   defineOptions({ name: 'ClusterDetailEvents' })
@@ -190,7 +191,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
         {
           prop: 'resource',
           label: '资源',
-          minWidth: 200,
+          minWidth: 120,
           showOverflowTooltip: true,
           formatter: (row: K8sEventRow) => {
             const kind = row.involvedObject?.kind ?? ''
@@ -206,14 +207,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
           formatter: (row: K8sEventRow) =>
             h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, String(row.count ?? 0))
         },
-        {
-          prop: 'message',
-          label: '内容',
-          minWidth: 280,
-          showOverflowTooltip: true,
-          formatter: (row: K8sEventRow) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, row.message ?? '-')
-        },
+        createK8sEventMessageColumn<K8sEventRow>(),
         {
           prop: 'operation',
           label: '操作',

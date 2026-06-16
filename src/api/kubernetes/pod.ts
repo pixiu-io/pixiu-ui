@@ -1,6 +1,19 @@
 import { kubeProxyAxios } from '@/api/kubeProxy'
 import { fetchKubeListPage } from './list'
 
+export interface K8sContainerState {
+  waiting?: { reason?: string; message?: string }
+  running?: { startedAt?: string }
+  terminated?: { reason?: string; exitCode?: number }
+}
+
+export interface K8sContainerStatus {
+  name?: string
+  restartCount?: number
+  ready?: boolean
+  state?: K8sContainerState
+}
+
 export interface K8sPod {
   metadata: {
     name: string
@@ -11,18 +24,16 @@ export interface K8sPod {
   }
   spec?: {
     nodeName?: string
-    containers?: Array<{
-      name?: string
-    }>
+    initContainers?: Array<{ name?: string }>
+    containers?: Array<{ name?: string }>
   }
   status?: {
     phase?: string
+    reason?: string
     podIP?: string
     hostIP?: string
-    containerStatuses?: Array<{
-      restartCount?: number
-      ready?: boolean
-    }>
+    initContainerStatuses?: K8sContainerStatus[]
+    containerStatuses?: K8sContainerStatus[]
   }
 }
 

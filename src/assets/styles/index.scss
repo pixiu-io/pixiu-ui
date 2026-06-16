@@ -10,6 +10,9 @@
 // Pixiu 统一提示框
 @use './core/pixiu-alert.scss';
 
+// K8s 事件内容换行
+@use './core/k8s-event-message.scss';
+
 // Element Plus 暗黑主题
 @use './core/el-dark.scss';
 

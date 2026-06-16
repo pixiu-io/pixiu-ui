@@ -370,7 +370,11 @@
                 >{{ row.involvedObject?.kind }}/{{ row.involvedObject?.name }}</template
               >
             </el-table-column>
-            <el-table-column label="消息" min-width="300" prop="message" show-overflow-tooltip />
+            <el-table-column label="消息" min-width="300" :class-name="K8S_EVENT_MESSAGE_CELL_CLASS">
+              <template #default="{ row }">
+                <div class="k8s-event-message">{{ row.message?.trim() ? row.message : '-' }}</div>
+              </template>
+            </el-table-column>
             <el-table-column label="次数" width="70" prop="count" />
             <el-table-column label="最近发生" width="160">
               <template #default="{ row }">{{
@@ -580,6 +584,7 @@
   import { fetchK8sPodList } from '@/api/kubernetes/pod'
   import type { K8sPod } from '@/api/kubernetes/pod'
   import { formatPodDisplayStatus, podStatusTagType } from '@/utils/kubernetes/podDisplay'
+  import { K8S_EVENT_MESSAGE_CELL_CLASS } from '@/utils/kubernetes/eventDisplay'
   import { fetchK8sServiceList } from '@/api/kubernetes/service'
   import type { K8sService } from '@/api/kubernetes/service'
   import {
