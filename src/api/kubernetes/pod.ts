@@ -7,6 +7,7 @@ export interface K8sPod {
     namespace?: string
     uid?: string
     creationTimestamp?: string
+    deletionTimestamp?: string
   }
   spec?: {
     nodeName?: string
