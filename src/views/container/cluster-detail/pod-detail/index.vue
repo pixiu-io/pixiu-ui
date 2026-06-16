@@ -10,7 +10,7 @@
           <span class="dd-title__value">Pod</span>
         </span>
         <ElTag :type="phaseTagType" effect="light" class="dd-title-status">
-          {{ pod?.status?.phase || '-' }}
+          {{ podDisplayStatus }}
         </ElTag>
         <el-divider direction="vertical" class="dd-vdv" />
         <div class="dd-cluster-wrap">
@@ -260,7 +260,8 @@
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
   import { clusterDetailContextKey } from '../context'
   import { buildClusterRouteQuery } from '@/utils/navigation/cluster-query'
-  import { fetchK8sPod, deleteK8sPod } from '@/api/kubernetes/pod'
+  import { fetchK8sPod, deleteK8sPod, type K8sPod } from '@/api/kubernetes/pod'
+  import { formatPodDisplayStatus, podStatusTagType } from '@/utils/kubernetes/podDisplay'
   import { updateK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
   import YAML from 'js-yaml'
 
@@ -292,13 +293,11 @@
   const activeTab = ref(POD_DETAIL_TABS.has(tabFromRoute) ? tabFromRoute : 'containers')
 
   // ── Computed from pod ──
-  const phaseTagType = computed(() => {
-    const phase = pod.value?.status?.phase
-    if (phase === 'Running') return 'success'
-    if (phase === 'Pending') return 'warning'
-    if (phase === 'Failed') return 'danger'
-    return 'info'
-  })
+  const podDisplayStatus = computed(() =>
+    pod.value ? formatPodDisplayStatus(pod.value as K8sPod) : '-'
+  )
+
+  const phaseTagType = computed(() => podStatusTagType(podDisplayStatus.value))
 
   const containers = computed<any[]>(() => pod.value?.spec?.containers ?? [])
   const containerNames = computed<string[]>(() => containers.value.map((c: any) => c.name).filter(Boolean))

@@ -44,6 +44,7 @@
     </ElCard>
 
     <ClusterMonitor v-model="monitorVisible" :cluster="monitorCluster" />
+    <ClusterCloudShell ref="cloudShellRef" />
 
     <!-- 自建集群部署进度抽屉 -->
     <ElDrawer
@@ -194,6 +195,7 @@
   import ClusterSearch from './modules/cluster-search.vue'
   import ClusterAddDialog from './modules/cluster-add-dialog.vue'
   import ClusterMonitor from './modules/cluster-monitor.vue'
+  import ClusterCloudShell from './modules/cluster-cloud-shell.vue'
   import {
     fetchClusterList,
     fetchDeleteCluster,
@@ -207,10 +209,13 @@
   import type { ClusterItem } from '@/api/container'
   import type { PlanTask } from '@/api/plan'
   import { setClusterAliasCache } from '@/utils/navigation/cluster-query'
+  import { useUserStore } from '@/store/modules/user'
 
   defineOptions({ name: 'Cluster' })
 
   const router = useRouter()
+  const userStore = useUserStore()
+  const cloudShellRef = ref<InstanceType<typeof ClusterCloudShell> | null>(null)
 
   /** 集群详情 URL：cluster + aliasName */
   function clusterDetailQuery(row: ClusterItem) {
@@ -764,6 +769,12 @@
               h(ArtButtonMore, {
                 list: [
                   {
+                    key: 'cloudShell',
+                    label: 'CloudShell',
+                    icon: 'ri:terminal-box-line',
+                    disabled: isCustomClusterNotRunning(row)
+                  },
+                  {
                     key: 'alert',
                     label: '配置告警',
                     icon: 'ri:alarm-warning-line',
@@ -801,6 +812,20 @@
 
   function clusterMoreClick(item: ButtonMoreItem, row: ClusterItem) {
     switch (item.key) {
+      case 'cloudShell': {
+        if (isCustomClusterNotRunning(row)) return
+        const userId = Number(userStore.getUserInfo?.userId || 0)
+        if (!userId) {
+          ElMessage.warning('未获取到当前用户信息，请重新登录后重试')
+          return
+        }
+        cloudShellRef.value?.open({
+          clusterName: row.name,
+          clusterId: row.id,
+          userId
+        })
+        break
+      }
       case 'alert':
         if (isCustomClusterNotRunning(row)) return
         openClusterTab(row, 'alert')

@@ -185,8 +185,8 @@
             </el-table-column>
             <el-table-column label="状态" width="100">
               <template #default="{ row }">
-                <el-tag :type="podStatusType(row.status?.phase)" size="small" effect="light">{{
-                  row.status?.phase
+                <el-tag :type="podStatusType(formatPodDisplayStatus(row))" size="small" effect="light">{{
+                  formatPodDisplayStatus(row)
                 }}</el-tag>
               </template>
             </el-table-column>
@@ -579,6 +579,7 @@
   import type { K8sCronJob } from '@/api/kubernetes/cronjob'
   import { fetchK8sPodList } from '@/api/kubernetes/pod'
   import type { K8sPod } from '@/api/kubernetes/pod'
+  import { formatPodDisplayStatus, podStatusTagType } from '@/utils/kubernetes/podDisplay'
   import { fetchK8sServiceList } from '@/api/kubernetes/service'
   import type { K8sService } from '@/api/kubernetes/service'
   import {
@@ -858,14 +859,8 @@
       podsLoading.value = false
     }
   }
-  function podStatusType(phase?: string) {
-    return phase === 'Running'
-      ? 'success'
-      : phase === 'Pending'
-        ? 'warning'
-        : phase === 'Failed'
-          ? 'danger'
-          : 'info'
+  function podStatusType(status: string) {
+    return podStatusTagType(status)
   }
   function podReadyCount(pod: K8sPod): number {
     return (pod.status?.containerStatuses ?? []).filter((s: any) => s.ready).length
