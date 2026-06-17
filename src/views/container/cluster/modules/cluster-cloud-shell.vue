@@ -50,7 +50,12 @@
         </div>
       </div>
     </template>
-    <div class="host-ssh-terminal-wrap">
+    <div
+      v-loading="connecting"
+      element-loading-text="正在连接 CloudShell..."
+      element-loading-background="rgba(0, 0, 0, 0.3)"
+      class="host-ssh-terminal-wrap"
+    >
       <div ref="xtermHostRef" class="host-ssh-xterm-host" tabindex="-1" @click="focusTerm" />
     </div>
   </ElDrawer>

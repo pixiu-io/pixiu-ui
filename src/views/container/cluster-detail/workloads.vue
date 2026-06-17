@@ -1501,7 +1501,7 @@
                     h(ArtButtonMore, {
                       list: [
                         { key: 'logs', label: '日志', icon: 'ri:file-text-line' },
-                        { key: 'yaml', label: '查看YAML', icon: 'ri:file-code-line' },
+                        { key: 'yaml', label: '编辑YAML', icon: 'ri:file-code-line' },
                         { key: 'images', label: '镜像管理', icon: 'ri:docker-line' },
                         { key: 'redeploy', label: '重新部署', icon: 'ri:refresh-line' },
                         {
@@ -1834,7 +1834,7 @@
                           onClick: () =>
                             void openSharedYamlDialog('ds', row.metadata?.namespace ?? '', row.metadata?.name ?? '')
                         },
-                        () => '查看YAML'
+                        () => '编辑YAML'
                       ),
                       h(ArtButtonMore, {
                         list: [
@@ -2824,7 +2824,7 @@
                           icon: suspended ? 'ri:play-circle-line' : 'ri:pause-circle-line'
                         },
                         { key: 'trigger', label: '手动触发', icon: 'ri:flashlight-line' },
-                        { key: 'yaml', label: '查看YAML', icon: 'ri:file-code-line' },
+                        { key: 'yaml', label: '编辑YAML', icon: 'ri:file-code-line' },
                         {
                           key: 'delete',
                           label: '删除',
@@ -3480,6 +3480,7 @@
       const pod = await fetchK8sPod(cluster, namespace, podName)
       yamlText.value = yaml.dump(pod, { quotingType: '"' })
       yamlReadonly.value = true
+      yamlSourceKind.value = 'pod'
       yamlVisible.value = true
     } catch (e: unknown) {
       ElMessage.error(e instanceof Error ? e.message : '加载失败')
@@ -3707,6 +3708,7 @@
   const yamlText = ref('')
   const yamlSubmitting = ref(false)
   const yamlReadonly = ref(false)
+  const yamlSourceKind = ref<'deploy' | 'sts' | 'ds' | 'job' | 'cj' | 'pod' | null>(null)
 
   async function openYamlDialog(row: K8sDeployment) {
     const cluster = String(route.query.cluster ?? '')
@@ -3717,9 +3719,31 @@
       const deploy = await fetchK8sDeployment(cluster, ns, name)
       yamlText.value = yaml.dump(deploy, { quotingType: '"' })
       yamlReadonly.value = false
+      yamlSourceKind.value = 'deploy'
       yamlVisible.value = true
     } catch (e: unknown) {
       ElMessage.error(e instanceof Error ? e.message : '加载失败')
+    }
+  }
+
+  function refreshYamlSourceList() {
+    switch (yamlSourceKind.value) {
+      case 'sts':
+        onStsRefresh()
+        break
+      case 'ds':
+        onDsRefresh()
+        break
+      case 'job':
+        onJobRefresh()
+        break
+      case 'cj':
+        onCjRefresh()
+        break
+      case 'deploy':
+      default:
+        onDeplRefresh()
+        break
     }
   }
 
@@ -3731,7 +3755,7 @@
       await updateK8sResourceFromYaml(cluster, yamlText.value)
       ElMessage.success('YAML 更新成功')
       yamlVisible.value = false
-      onDeplRefresh()
+      refreshYamlSourceList()
     } catch (e: unknown) {
       ElMessage.error(e instanceof Error ? e.message : '更新失败')
     } finally {
@@ -3788,7 +3812,8 @@
       else if (kind === 'job') resource = await fetchK8sJob(cluster, namespace, name)
       else resource = await fetchK8sCronJob(cluster, namespace, name, cronJobApiVersion.value)
       yamlText.value = yaml.dump(resource, { quotingType: '"' })
-      yamlReadonly.value = true
+      yamlReadonly.value = false
+      yamlSourceKind.value = kind
       yamlVisible.value = true
     } catch (e: unknown) {
       ElMessage.error(e instanceof Error ? e.message : '加载失败')

@@ -145,19 +145,17 @@
       columnsFactory: () => [
         {
           prop: 'clusterAliasName',
-          label: '集群',
+          label: '集群名称',
           minWidth: 120,
           formatter: (row: any) =>
-            h(
-              ElLink,
-              {
-                type: 'primary',
-                underline: 'never',
-                style: { fontSize: '13px' },
-                onClick: () => router.push({ path: '/container/overview', query: { cluster: row.clusterName } })
-              },
-              () => row.clusterAliasName || row.clusterName
-            )
+            h('span', { style: { fontSize: '13px' } }, row.clusterAliasName || '')
+        },
+        {
+          prop: 'clusterName',
+          label: '集群ID',
+          minWidth: 120,
+          formatter: (row: any) =>
+            h('span', { style: { fontSize: '13px' } }, row.clusterName)
         },
         {
           prop: 'userName',
@@ -294,7 +292,7 @@
     }
   }
 
-  async function downloadKubeconfig(row: { clusterId?: number; name?: string; content?: string }) {
+  async function downloadKubeconfig(row: PermissionListItem) {
     try {
       if (!row.clusterId) {
         ElMessage.warning('集群 ID 不存在')
