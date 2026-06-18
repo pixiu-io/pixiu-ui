@@ -47,7 +47,7 @@
         @pagination:current-change="handleCurrentChange"
       />
 
-      <PermissionGrantDrawer v-model="grantDrawerVisible" @success="refreshData" />
+      <PermissionGrantDrawer v-model="grantDrawerVisible" :edit-permission-id="editPermissionId" @success="refreshData" />
     </ElCard>
   </div>
 </template>
@@ -58,7 +58,6 @@
   import { useRouter } from 'vue-router'
   import {
     fetchDeletePermission,
-    fetchGetPermission,
     fetchPermissionList,
     fetchBatchDeletePermissions,
     fetchGetClusterKubeconfig,
@@ -71,6 +70,7 @@
   const router = useRouter()
   const searchForm = ref({ clusterName: undefined as string | undefined })
   const grantDrawerVisible = ref(false)
+  const editPermissionId = ref<number | undefined>(undefined)
 
   const formatExpiration = (seconds: number) => {
     if (!seconds || seconds <= 0) return '-'
@@ -95,12 +95,12 @@
     return result || '不足1小时'
   }
 
-  const checkIsExpired = (createTime: string, expirationSeconds: number) => {
-    if (!createTime || !expirationSeconds) return false
-    const createDate = new Date(createTime)
-    if (isNaN(createDate.getTime())) return false
+  const checkIsExpired = (updateTime: string, expirationSeconds: number) => {
+    if (!updateTime || !expirationSeconds) return false
+    const updateDate = new Date(updateTime)
+    if (isNaN(updateDate.getTime())) return false
 
-    const expireTime = createDate.getTime() + expirationSeconds * 1000
+    const expireTime = updateDate.getTime() + expirationSeconds * 1000
     return Date.now() > expireTime
   }
 
@@ -145,17 +145,15 @@
       columnsFactory: () => [
         {
           prop: 'clusterAliasName',
-          label: '集群名称',
-          minWidth: 120,
+          label: '集群',
+          minWidth: 180,
           formatter: (row: any) =>
-            h('span', { style: { fontSize: '13px' } }, row.clusterAliasName || '')
-        },
-        {
-          prop: 'clusterName',
-          label: '集群ID',
-          minWidth: 120,
-          formatter: (row: any) =>
-            h('span', { style: { fontSize: '13px' } }, row.clusterName)
+            h('div', { style: 'line-height:1.8' }, [
+              h('span', { style: 'font-size:13px;color:var(--el-color-primary)' }, row.clusterAliasName || row.clusterName),
+              h('div', {
+                style: 'color:var(--el-text-color-secondary);font-size:12px'
+              }, row.clusterName)
+            ])
         },
         {
           prop: 'userName',
@@ -198,7 +196,7 @@
           label: '有效期',
           minWidth: 200,
           formatter: (row: any) => {
-            const isExpired = checkIsExpired(row.createTime, row.expirationSeconds)
+            const isExpired = checkIsExpired(row.updateTime, row.expirationSeconds)
             return h('div', { style: 'display:flex;align-items:center;gap:8px' }, [
               h('span', { style: { fontSize: '12px' } }, formatExpiration(row.expirationSeconds)),
               h(
@@ -215,10 +213,17 @@
         },
         {
           prop: 'createTime',
-          label: '创建日期',
+          label: '创建时间',
           minWidth: 160,
           formatter: (row: any) =>
             h('span', { class: 'create-time', style: { fontSize: '12px' } }, row.createTime ?? '-')
+        },
+        {
+          prop: 'updateTime',
+          label: '更新时间',
+          minWidth: 160,
+          formatter: (row: any) =>
+            h('span', { class: 'update-time', style: { fontSize: '12px' } }, row.updateTime ?? '-')
         },
         {
           prop: 'operation',
@@ -233,9 +238,9 @@
                   type: 'primary',
                   underline: 'never',
                   style: 'font-size:12px',
-                  onClick: () => viewKubeconfig(row)
+                  onClick: () => viewPermission(row)
                 },
-                () => '查看'
+                () => '修改'
               ),
               h(
                 ElLink,
@@ -269,27 +274,13 @@
   }
 
   function showGrantDrawer() {
+    editPermissionId.value = undefined
     grantDrawerVisible.value = true
   }
 
-  async function viewKubeconfig(row: { id: number; content?: string }) {
-    try {
-      const detail = await fetchGetPermission(row.id)
-      let content = detail.content || '-'
-      
-      // 尝试对 content 进行 base64 解码
-      try {
-        content = atob(content)
-      } catch (e) {
-        // 如果解码失败，可能已经是明文，直接使用原内容
-        console.warn('Base64 解码失败，使用原始内容:', e)
-      }
-      
-      ElMessage.info('kubeconfig 内容: ' + content)
-    } catch (e: any) {
-      if (e.notified) return
-      ElMessage.error(e.message || '获取 kubeconfig 失败')
-    }
+  async function viewPermission(row: { id: number }) {
+    editPermissionId.value = row.id
+    grantDrawerVisible.value = true
   }
 
   async function downloadKubeconfig(row: PermissionListItem) {

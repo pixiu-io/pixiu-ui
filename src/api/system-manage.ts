@@ -577,10 +577,16 @@ interface BackendPermission {
   kube_config?: string
   content?: string
   gmt_create?: string
+  gmt_modified?: string
   p_type: number
   namespace: string
   target_namespaces?: string[]
   expiration_seconds: number
+  rules?: Array<{
+    apiGroups?: string[]
+    resources?: string[]
+    verbs?: string[]
+  }>
 }
 
 export interface PermissionListItem {
@@ -601,6 +607,8 @@ export interface PermissionListItem {
   namespace: string
   targetNamespaces?: string[]
   expirationSeconds: number
+  updateTime: string
+  rules?: Array<{ apiGroups?: string[]; resources?: string[]; verbs?: string[] }>
 }
 
 function mapPermissionItem(item: BackendPermission): PermissionListItem {
@@ -618,10 +626,12 @@ function mapPermissionItem(item: BackendPermission): PermissionListItem {
     saNamespace: item.sa_namespace || '',
     content: item.content || item.kube_config || '',
     createTime: formatDateTime(item.gmt_create),
+    updateTime: formatDateTime(item.gmt_modified),
     pType: item.p_type ?? 0,
     namespace: item.namespace || '',
     targetNamespaces: item.target_namespaces || [],
-    expirationSeconds: item.expiration_seconds ?? 0
+    expirationSeconds: item.expiration_seconds ?? 0,
+    rules: item.rules || []
   }
 }
 
