@@ -53,8 +53,9 @@
 </template>
 
 <script setup lang="ts">
+  import { h, ref } from 'vue'
   import { useTable } from '@/hooks/core/useTable'
-  import { ElAlert, ElLink, ElMessage, ElMessageBox, ElTag } from 'element-plus'
+  import { ElAlert, ElButton, ElInput, ElLink, ElMessage, ElMessageBox, ElTag } from 'element-plus'
   import { useRouter } from 'vue-router'
   import {
     fetchDeletePermission,
@@ -179,11 +180,13 @@
           minWidth: 150,
           formatter: (row: any) => {
             // 如果是自定义类型且有 targetNamespaces，则显示多个标签
-            if (row.pType === 1 && row.targetNamespaces && row.targetNamespaces.length > 0) {
+            if (row.pType === 1 && row.targetNamespaces && Array.isArray(row.targetNamespaces) && row.targetNamespaces.length > 0) {
               return h('div', { style: 'display:flex;flex-wrap:wrap;gap:4px' }, 
-                row.targetNamespaces.map((ns: string) => 
-                  h(ElTag, { type: 'info', size: 'small', effect: 'light' }, () => ns)
-                )
+                row.targetNamespaces
+                  .filter((ns: any) => typeof ns === 'string' && ns != null)
+                  .map((ns: string) => 
+                    h(ElTag, { type: 'info', size: 'small', effect: 'light' }, () => ns)
+                  )
               )
             }
             // 其他类型显示单个标签

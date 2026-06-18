@@ -821,6 +821,7 @@
         }
         cloudShellRef.value?.open({
           clusterName: row.name,
+          clusterAlias: row.aliasName || row.name,
           clusterId: row.id,
           userId
         })

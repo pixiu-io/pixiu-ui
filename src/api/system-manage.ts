@@ -629,9 +629,9 @@ function mapPermissionItem(item: BackendPermission): PermissionListItem {
     updateTime: formatDateTime(item.gmt_modified),
     pType: item.p_type ?? 0,
     namespace: item.namespace || '',
-    targetNamespaces: item.target_namespaces || [],
+    targetNamespaces: (item.target_namespaces || []).filter((ns): ns is string => typeof ns === 'string' && ns != null),
     expirationSeconds: item.expiration_seconds ?? 0,
-    rules: item.rules || []
+    rules: (item.rules || []).filter(rule => rule != null)
   }
 }
 
