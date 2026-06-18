@@ -154,7 +154,7 @@
       />
       <div class="event-toolbar">
         <ElButton type="primary" @click="loadEventList">查询</ElButton>
-        <ElButton :disabled="!eventSelection.length" @click="batchDeleteEvents">批量删除</ElButton>
+        <ElButton v-ripple :disabled="!eventSelection.length" @click="batchDeleteEvents">批量删除</ElButton>
       </div>
       <ElTable
         v-loading="eventLoading"
@@ -175,7 +175,11 @@
           <template #default="{ row }">{{ row.involvedObject?.name ?? '-' }}</template>
         </ElTableColumn>
         <ElTableColumn prop="count" label="出现次数" width="90" />
-        <ElTableColumn prop="message" label="内容" min-width="220" show-overflow-tooltip />
+        <ElTableColumn label="内容" min-width="220" :class-name="K8S_EVENT_MESSAGE_CELL_CLASS">
+          <template #default="{ row }">
+            <div class="k8s-event-message">{{ row.message?.trim() ? row.message : '-' }}</div>
+          </template>
+        </ElTableColumn>
       </ElTable>
       <div class="event-pagination">
         <ElPagination
@@ -318,6 +322,7 @@
     formatNodeTypeText,
     nodeStatusTagType
   } from '@/utils/kubernetes/nodeDisplay'
+  import { K8S_EVENT_MESSAGE_CELL_CLASS } from '@/utils/kubernetes/eventDisplay'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
   import { updateK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
   import yaml from 'js-yaml'

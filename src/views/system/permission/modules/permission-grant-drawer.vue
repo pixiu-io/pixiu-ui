@@ -10,7 +10,7 @@
   >
     <template #header>
       <div class="permission-grant-drawer-header">
-        <span class="permission-grant-drawer-title">添加授权</span>
+        <span class="permission-grant-drawer-title">{{ isEdit ? '修改授权' : '添加授权' }}</span>
         <ElButton
           text
           circle
@@ -23,7 +23,7 @@
       </div>
     </template>
 
-    <div class="permission-grant-body">
+    <div v-loading="editLoading" class="permission-grant-body">
       <div class="permission-grant-basic-row">
         <div class="permission-grant-field">
           <span class="permission-grant-field-tag">绑定用户</span>
@@ -33,13 +33,9 @@
             placeholder="请选择用户"
             filterable
             :loading="userLoading"
+            :disabled="isEdit"
           >
-            <ElOption
-              v-for="u in grantUserOptions"
-              :key="u.id"
-              :label="u.userName"
-              :value="u.id"
-            />
+            <ElOption v-for="u in grantUserOptions" :key="u.id" :label="u.userName" :value="u.id" />
           </ElSelect>
         </div>
         <div class="permission-grant-field">
@@ -55,6 +51,10 @@
             <ElOption label="90 天" :value="7776000" />
             <ElOption label="1 年" :value="31536000" />
           </ElSelect>
+        </div>
+        <div v-if="isEdit" class="permission-grant-field">
+          <span class="permission-grant-force-label">强制修改</span>
+          <ElCheckbox v-model="forceUpdate" class="permission-grant-force-check" />
         </div>
       </div>
 
@@ -75,6 +75,7 @@
                   v-model="row.cluster"
                   placeholder="请选择集群"
                   filterable
+                  :disabled="isEdit"
                   @change="() => onClusterChange(row)"
                 >
                   <ElOption
@@ -105,6 +106,7 @@
                   v-model="row.preset"
                   placeholder="权限类型"
                   class="permission-grant-preset-select"
+                  :disabled="isEdit"
                   @change="() => onPresetChange(row)"
                 >
                   <ElOption
@@ -125,6 +127,8 @@
                   :max-collapse-tags="2"
                   placeholder="请选择命名空间"
                   filterable
+                  class="permission-grant-ns-select"
+                  popper-class="permission-grant-ns-popper"
                   :loading="row.nsLoading"
                   :disabled="row.preset === 'admin' || row.preset === 'readonly'"
                   @change="(val: string[]) => onNamespacesChange(row, val)"
@@ -133,10 +137,25 @@
                     v-if="row.allNamespaces.length > 1 && row.preset !== 'custom'"
                     label="全部命名空间"
                     value="__all__"
-                  />
-                  <ElOption v-for="ns in row.allNamespaces" :key="ns" :label="ns" :value="ns" />
+                  >
+                    <span class="permission-grant-ns-option">
+                      <ElCheckbox
+                        :model-value="row.namespaces.includes('__all__')"
+                        @click.prevent
+                      />
+                      <span>全部命名空间</span>
+                    </span>
+                  </ElOption>
+                  <ElOption v-for="ns in row.allNamespaces" :key="ns" :label="ns" :value="ns">
+                    <span class="permission-grant-ns-option">
+                      <ElCheckbox :model-value="row.namespaces.includes(ns)" @click.prevent />
+                      <span>{{ ns }}</span>
+                    </span>
+                  </ElOption>
                 </ElSelect>
-                <span v-else-if="row.cluster" class="permission-grant-empty-hint">暂无命名空间</span>
+                <span v-else-if="row.cluster" class="permission-grant-empty-hint"
+                  >暂无命名空间</span
+                >
                 <span v-else class="permission-grant-empty-hint">请先选择集群</span>
               </div>
               <div class="col-action">
@@ -172,7 +191,6 @@
           <ElTableColumn prop="desc" label="集群内 RBAC 权限" min-width="320" />
         </ElTable>
       </div>
-
     </div>
 
     <template #footer>
@@ -186,8 +204,8 @@
 
 <script setup lang="ts">
   import { Close } from '@element-plus/icons-vue'
-  import { ElIcon, ElMessage } from 'element-plus'
-  import { ref, watch } from 'vue'
+  import { ElCheckbox, ElIcon, ElMessage } from 'element-plus'
+  import { computed, ref, watch } from 'vue'
   import { fetchClusterList, type ClusterItem } from '@/api/container'
   import { fetchK8sClusterRole } from '@/api/kubernetes/rbac'
   import { fetchK8sNamespaceList } from '@/api/kubernetes/namespace'
@@ -218,13 +236,22 @@
     rulesJson: string
   }
 
-  const CUSTOM_CLUSTER_ROLE = 'view'
+  const CUSTOM_CLUSTER_ROLE = 'pixiu-view'
+
+  const props = defineProps<{
+    editPermissionId?: number
+  }>()
 
   const visible = defineModel<boolean>({ default: false })
 
   const emit = defineEmits<{
     success: []
   }>()
+
+  const isEdit = computed(() => props.editPermissionId != null && props.editPermissionId > 0)
+  const editLoading = ref(false)
+  const editResourceVersion = ref(0)
+  const forceUpdate = ref(false)
 
   const userStore = useUserStore()
   const submitting = ref(false)
@@ -264,15 +291,15 @@
   const permissionLegend = [
     {
       label: '管理员',
-      desc: '对全部命名空间下全部 Kubernetes 资源具备读写权限（cluster-admin）'
+      desc: '对全部命名空间下全部 Kubernetes 资源具备读写权限'
     },
     {
       label: '只读用户',
-      desc: '对全部命名空间下全部 Kubernetes 资源具备只读权限（view）'
+      desc: '对全部命名空间下全部 Kubernetes 资源具备只读权限'
     },
     {
       label: '自定义',
-      desc: '绑定指定 ClusterRole 或自定义 PolicyRule。'
+      desc: '绑定指定 ClusterRole 或自定义规则'
     }
   ]
 
@@ -392,6 +419,36 @@
     }
   }
 
+  function mergePermissionRules(
+    row: GrantRow,
+    permissionRules: Array<{ apiGroups?: string[]; resources?: string[]; verbs?: string[] }>
+  ) {
+    // 先将所有行置为未选中
+    for (const matrixRow of row.ruleMatrixRows) {
+      matrixRow.actions = { view: false, list: false, create: false, modify: false, delete: false }
+    }
+    // 根据权限 rules 勾选对应的操作
+    for (const rule of permissionRules) {
+      const groups = rule.apiGroups?.length ? rule.apiGroups : ['']
+      const resources = rule.resources?.length ? rule.resources : ['*']
+      const verbs = rule.verbs ?? []
+      for (const group of groups) {
+        for (const resource of resources) {
+          const id = `${group}\0${resource}`
+          const matrixRow = row.ruleMatrixRows.find((r) => r.id === id)
+          if (!matrixRow) continue
+          // 根据 verbs 设置勾选状态
+          if (verbs.includes('*') || verbs.includes('get')) matrixRow.actions.view = true
+          if (verbs.includes('*') || verbs.includes('list') || verbs.includes('watch')) matrixRow.actions.list = true
+          if (verbs.includes('*') || verbs.includes('create')) matrixRow.actions.create = true
+          if (verbs.includes('*') || verbs.includes('update') || verbs.includes('patch')) matrixRow.actions.modify = true
+          if (verbs.includes('*') || verbs.includes('delete') || verbs.includes('deletecollection')) matrixRow.actions.delete = true
+        }
+      }
+    }
+    row.rulesJson = JSON.stringify(matrixToPolicyRules(row.ruleMatrixRows))
+  }
+
   function parseRules(row: GrantRow): object[] {
     if (row.preset === 'custom') {
       if (row.ruleMatrixRows.length) {
@@ -489,6 +546,7 @@
     rows.value = [createRow()]
     selectedUserId.value = pickDefaultGrantUserId()
     expirationSeconds.value = 31536000
+    forceUpdate.value = false
     if (clusterOptions.value.length === 1) {
       const row = rows.value[0]
       row.cluster = clusterOptions.value[0].name
@@ -538,40 +596,56 @@
     }
     if (!validateRows()) return
     submitting.value = true
-    const userId = selectedUserId.value
     try {
       const { pixiuAxios } = await import('@/api/container')
-      for (let i = 0; i < rows.value.length; i++) {
-        const row = rows.value[i]
-        const cluster = clusterOptions.value.find((c: ClusterItem) => c.name === row.cluster)
-        if (!cluster) {
-          ElMessage.warning(`第 ${i + 1} 行：未找到集群 ${row.cluster}`)
-          return
-        }
+      if (isEdit.value) {
+        const row = rows.value[0]
         const payload: Record<string, unknown> = {
-          cluster_id: cluster.id,
-          name: buildGrantName(row, i),
-          user_id: userId,
+          id: props.editPermissionId,
+          resource_version: editResourceVersion.value,
           p_type: presetToPType(row.preset),
-          target_namespaces: resolveTargetNamespaces(row),
           expiration_seconds: expirationSeconds.value,
-          rules: parseRules(row)
+          target_namespaces: resolveTargetNamespaces(row),
+          rules: parseRules(row),
+          force: forceUpdate.value
         }
         if (row.preset === 'custom') {
           payload.p_type = 1
         }
-        await pixiuAxios.post(
-          `/pixiu/clusters/${cluster.id}/permissions`,
-          payload
-        )
+        await pixiuAxios.put(`/pixiu/clusters/permissions/${props.editPermissionId}`, payload)
+        ElMessage.success('修改成功')
+      } else {
+        // 创建模式
+        const userId = selectedUserId.value
+        for (let i = 0; i < rows.value.length; i++) {
+          const row = rows.value[i]
+          const cluster = clusterOptions.value.find((c: ClusterItem) => c.name === row.cluster)
+          if (!cluster) {
+            ElMessage.warning(`第 ${i + 1} 行：未找到集群 ${row.cluster}`)
+            return
+          }
+          const payload: Record<string, unknown> = {
+            cluster_id: cluster.id,
+            name: buildGrantName(row, i),
+            user_id: userId,
+            p_type: presetToPType(row.preset),
+            target_namespaces: resolveTargetNamespaces(row),
+            expiration_seconds: expirationSeconds.value,
+            rules: parseRules(row)
+          }
+          if (row.preset === 'custom') {
+            payload.p_type = 1
+          }
+          await pixiuAxios.post(`/pixiu/clusters/${cluster.id}/permissions`, payload)
+        }
+        ElMessage.success('授权创建成功')
       }
-      ElMessage.success('授权创建成功')
       visible.value = false
       emit('success')
     } catch (e: unknown) {
       const err = e as { notified?: boolean; message?: string }
       if (!err.notified) {
-        ElMessage.error(err?.message || '创建失败')
+        ElMessage.error(err?.message || (isEdit.value ? '修改失败' : '创建失败'))
       }
     } finally {
       submitting.value = false
@@ -580,9 +654,65 @@
 
   watch(visible, (open: boolean) => {
     if (open) {
-      void Promise.all([loadClusters(), loadUsers()]).then(() => resetForm())
+      void Promise.all([loadClusters(), loadUsers()]).then(() => {
+        if (isEdit.value) {
+          forceUpdate.value = false
+          void loadEditData()
+        } else {
+          resetForm()
+        }
+      })
     }
   })
+
+  async function loadEditData() {
+    editLoading.value = true
+    const { fetchGetPermission } = await import('@/api/system-manage')
+    try {
+      const detail = await fetchGetPermission(props.editPermissionId!)
+      editResourceVersion.value = detail.resourceVersion
+      selectedUserId.value = detail.userId
+      expirationSeconds.value = detail.expirationSeconds
+      const row = createRow()
+      row.cluster = detail.clusterName || detail.cluster || ''
+      const pType = Number(detail.pType)
+      if (pType === 2) {
+        row.preset = 'admin'
+      } else if (pType === 1) {
+        row.preset = 'custom'
+      } else {
+        row.preset = 'readonly'
+      }
+      if (detail.targetNamespaces && detail.targetNamespaces.length > 0) {
+        row.namespaces = detail.targetNamespaces
+      } else if (detail.namespace) {
+        row.namespaces = [detail.namespace]
+      }
+      if (row.cluster) {
+        await loadNamespacesForRow(row)
+        if (
+          row.preset === 'custom' &&
+          row.namespaces.length &&
+          !row.namespaces.includes('__all__')
+        ) {
+          row.namespaces = row.namespaces.filter((n) => n !== '__all__')
+        }
+        if (row.preset === 'custom') {
+          await loadViewClusterRoleRules(row)
+          // 将权限的 rules 与完整 ClusterRole 矩阵合并，仅勾选已授权的操作
+          if (detail.rules && detail.rules.length > 0) {
+            mergePermissionRules(row, detail.rules)
+          }
+        }
+      }
+      rows.value = [row]
+    } catch {
+      ElMessage.warning('获取权限详情失败')
+      resetForm()
+    } finally {
+      editLoading.value = false
+    }
+  }
 </script>
 
 <style scoped lang="scss">
@@ -677,6 +807,15 @@
   .permission-grant-field-select :deep(.el-select__selected-item) {
     font-size: 12px;
     color: var(--el-text-color-regular);
+  }
+
+  .permission-grant-force-label {
+    font-size: 12px;
+    color: var(--el-text-color-regular);
+  }
+
+  .permission-grant-force-check :deep(.el-checkbox__label) {
+    display: none;
   }
 
   .permission-grant-section {
@@ -781,6 +920,24 @@
     justify-content: flex-end;
     gap: 8px;
   }
+
+  .permission-grant-ns-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    font-size: 12px;
+    color: var(--el-text-color-regular);
+  }
+
+  .permission-grant-ns-option :deep(.el-checkbox) {
+    height: auto;
+    margin-right: 0;
+  }
+
+  .permission-grant-ns-option :deep(.el-checkbox__label) {
+    display: none;
+  }
 </style>
 
 <style>
@@ -792,5 +949,13 @@
 
   .permission-grant-drawer.el-drawer .el-drawer__body {
     padding: 0 !important;
+  }
+
+  .permission-grant-ns-popper .el-select-dropdown__item {
+    padding-right: 12px;
+  }
+
+  .permission-grant-ns-popper.el-select-dropdown.is-multiple .el-select-dropdown__item.is-selected::after {
+    display: none;
   }
 </style>

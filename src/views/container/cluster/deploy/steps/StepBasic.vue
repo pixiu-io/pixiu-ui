@@ -157,7 +157,7 @@
         :model-value="form.cni"
         placeholder="请选择 CNI 插件"
         style="width: 240px"
-        :disabled="readOnly || lockImmutableFields"
+        :disabled="readOnly"
         @update:model-value="emit('update:form', { ...form, cni: $event })"
       >
         <ElOption label="Calico" value="calico" />

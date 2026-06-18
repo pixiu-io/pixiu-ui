@@ -49,8 +49,8 @@
       max-height="360"
     >
       <ElTableColumn prop="apiGroup" label="资源分组" width="180" />
-      <ElTableColumn prop="resource" label="资源名称" min-width="140" />
-      <ElTableColumn label="授权操作" min-width="320">
+      <ElTableColumn prop="resource" label="资源名称" min-width="160" />
+      <ElTableColumn label="授权操作" min-width="280">
         <template #default="{ row }">
           <div class="permission-rules-matrix__actions">
             <ElCheckbox

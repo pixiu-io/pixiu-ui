@@ -11,8 +11,7 @@
       <template #left>
         <div class="workloads-toolbar">
           <ElButton
-            type="danger"
-            plain
+            v-ripple
             :disabled="selectedRows.length === 0"
             @click="batchDelete"
           >
@@ -72,6 +71,7 @@
   import { useTable } from '@/hooks/core/useTable'
   import { deleteK8sEvent, fetchKubeRawEventList } from '@/api/kubernetes/events'
   import { formatNodeCreationTime } from '@/utils/kubernetes/nodeDisplay'
+  import { createK8sEventMessageColumn } from '@/utils/kubernetes/eventDisplay'
   import { CLUSTER_TABLE_PAGINATION_OPTIONS } from '../constants/table'
   import ClusterTableEmpty from './cluster-table-empty.vue'
 
@@ -191,7 +191,7 @@
         {
           prop: 'resource',
           label: '资源',
-          minWidth: 200,
+          minWidth: 120,
           showOverflowTooltip: true,
           formatter: (row: any) =>
             h(
@@ -201,7 +201,7 @@
             )
         },
         { prop: 'count', label: '出现次数', width: 100 },
-        { prop: 'message', label: '内容', minWidth: 280, showOverflowTooltip: true },
+        createK8sEventMessageColumn(),
         {
           prop: 'operation',
           label: '操作',
