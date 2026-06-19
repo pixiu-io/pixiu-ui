@@ -240,6 +240,7 @@
     "safeguard": {
       "title": "运维管理",
       "host": "主机管理",
+      "runner": "Runner",
       "audit": "审计",
       "agent": "Agent"
     },

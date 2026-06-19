@@ -30,6 +30,30 @@ export const safeguardRoutes: AppRouteRecord = {
         keepAlive: true,
         isHide: true
       }
+    },
+    {
+      path: 'runner',
+      name: 'SafeguardRunner',
+      component: '/safeguard/runner',
+      meta: {
+        title: 'menus.safeguard.runner',
+        icon: 'ri:server-line',
+        keepAlive: true
+      }
+    },
+    {
+      path: 'distribution',
+      redirect: { name: 'SafeguardRunner', query: { tab: 'distribution' } },
+      meta: {
+        isHide: true
+      }
+    },
+    {
+      path: 'runner-distribution',
+      redirect: { name: 'SafeguardRunner' },
+      meta: {
+        isHide: true
+      }
     }
   ]
 }

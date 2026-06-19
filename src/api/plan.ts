@@ -212,11 +212,11 @@ function toPlanItem(p: PlanItem): PlanItemFormatted {
 }
 
 /**
- * GET /pixiu/plans/distributions
+ * GET /pixiu/os
  * 获取支持的操作系统分发版列表
  */
 export async function fetchPlanDistributions(): Promise<Record<string, string[]>> {
-  const res = await pixiuAxios.get('/pixiu/plans/distributions')
+  const res = await pixiuAxios.get('/pixiu/os')
   const { code, result, message } = res.data
   if (code !== 200) throw new Error(message || '获取操作系统列表失败')
   return result as Record<string, string[]>

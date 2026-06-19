@@ -238,6 +238,7 @@
     "safeguard": {
       "title": "Safeguard",
       "host": "Host Management",
+      "runner": "Runner",
       "audit": "Audit",
       "agent": "Agent Management"
     },

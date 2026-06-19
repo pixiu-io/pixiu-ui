@@ -107,7 +107,7 @@
           :disabled="cloudShellDisabled"
           @click="openCloudShell"
         >
-          远程登录
+          连接集群
         </ElButton>
         <ElButton
           v-ripple
