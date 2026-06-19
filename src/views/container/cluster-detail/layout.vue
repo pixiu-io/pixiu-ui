@@ -100,12 +100,26 @@
         </div>
       </div>
       <div class="cluster-detail-header__right">
-        <ElButton v-ripple :disabled="!ctx.name" @click="yamlCreateVisible = true"
+        <ElButton
+          link
+          type="primary"
+          class="cluster-detail-remote-login-btn"
+          :disabled="cloudShellDisabled"
+          @click="openCloudShell"
+        >
+          远程登录
+        </ElButton>
+        <ElButton
+          v-ripple
+          class="cluster-detail-header-action-btn"
+          :disabled="!ctx.name"
+          @click="yamlCreateVisible = true"
           >YAML创建资源</ElButton
         >
       </div>
     </header>
 
+    <ClusterCloudShell ref="cloudShellRef" />
     <ClusterYamlCreateDialog v-model:visible="yamlCreateVisible" :cluster="ctx.name" />
 
     <div class="cluster-detail-body">
@@ -175,7 +189,7 @@
 </template>
 
 <script setup lang="ts">
-  import type { InputInstance } from 'element-plus'
+  import { ElMessage, type InputInstance } from 'element-plus'
   import { ArrowLeft, Refresh, Search } from '@element-plus/icons-vue'
   import { computed, nextTick, provide, ref, watch } from 'vue'
   import { useRoute, useRouter, type RouteLocationNormalizedLoaded } from 'vue-router'
@@ -184,6 +198,8 @@
   import { resolveClusterNamespaces } from '@/api/kubernetes/namespace'
   import type { PermissionListItem } from '@/api/system-manage'
   import ClusterYamlCreateDialog from './modules/cluster-yaml-create-dialog.vue'
+  import ClusterCloudShell from '@/views/container/cluster/modules/cluster-cloud-shell.vue'
+  import { useUserStore } from '@/store/modules/user'
   import {
     clusterDetailActiveMenuKey,
     clusterDetailContextKey,
@@ -200,6 +216,7 @@
 
   const route = useRoute()
   const router = useRouter()
+  const userStore = useUserStore()
   const settingStore = useSettingStore()
   const { getMenuTheme } = storeToRefs(settingStore)
 
@@ -232,6 +249,7 @@
   const clusterListLoaded = ref(false)
   let clusterListPromise: Promise<void> | null = null
   const yamlCreateVisible = ref(false)
+  const cloudShellRef = ref<InstanceType<typeof ClusterCloudShell> | null>(null)
 
   const selectedNamespace = ref('default')
   const namespaceOptions = ref<string[]>([])
@@ -572,6 +590,29 @@
     return STATUS_CONFIG[s as keyof typeof STATUS_CONFIG] ?? { type: 'info' as const, text: '未知' }
   })
 
+  function isCustomClusterNotRunning(row: Pick<ClusterDetailContext, 'clusterType' | 'status'>): boolean {
+    return Number(row.clusterType) === 1 && Number(row.status) !== 0
+  }
+
+  const cloudShellDisabled = computed(
+    () => !ctx.value.name || !ctx.value.id || isCustomClusterNotRunning(ctx.value)
+  )
+
+  function openCloudShell() {
+    if (cloudShellDisabled.value) return
+    const userId = Number(userStore.getUserInfo?.userId || 0)
+    if (!userId) {
+      ElMessage.warning('未获取到当前用户信息，请重新登录后重试')
+      return
+    }
+    cloudShellRef.value?.open({
+      clusterName: ctx.value.name,
+      clusterAlias: ctx.value.aliasName || ctx.value.name,
+      clusterId: ctx.value.id,
+      userId
+    })
+  }
+
   /** 切换集群时强制重建子页面，避免 KeepAlive 复用旧集群数据 */
   function clusterChildViewKey(childRoute: RouteLocationNormalizedLoaded): string {
     const cluster = String(childRoute.query.cluster ?? '')
@@ -657,6 +698,31 @@
     flex-shrink: 0;
     align-items: center;
     gap: 8px;
+  }
+
+  .cluster-detail-header-action-btn.el-button {
+    height: 28px;
+    padding: 0 12px;
+    font-size: 13px;
+    line-height: 1;
+  }
+
+  .cluster-detail-header-action-btn.el-button > span {
+    font-size: 13px;
+  }
+
+  .cluster-detail-remote-login-btn.el-button {
+    height: auto;
+    padding: 0 4px;
+    font-size: 12px;
+    line-height: 1;
+    /* 与下方 KubeConfig「下载」等 ElLink 一致：悬停为浅主色，避免 link 按钮默认变灰过深 */
+    --el-button-hover-link-text-color: var(--el-color-primary-light-3);
+    --el-button-active-color: var(--el-color-primary-dark-2);
+  }
+
+  .cluster-detail-remote-login-btn.el-button > span {
+    font-size: 12px;
   }
 
   .cluster-detail-name-wrap {

@@ -6,6 +6,7 @@
     >
       <section class="cluster-cloud-shell-sheet" :style="sheetStyle">
         <div
+          v-if="!isMaximized"
           class="cluster-cloud-shell-resize-handle"
           title="拖拽调整高度"
           @mousedown.prevent="startResize"
@@ -21,7 +22,7 @@
               @click="switchTab(tab.id)"
             >
               <span class="cluster-cloud-shell-tab-label">
-                Kubectl:
+                CloudShell:
                 <span class="cluster-cloud-shell-tab-cluster">{{ tab?.clusterAlias || '' }}</span>
               </span>
               <span
@@ -31,6 +32,35 @@
               >
                 <ElIcon :size="14"><Close /></ElIcon>
               </span>
+            </button>
+          </div>
+          <div class="cluster-cloud-shell-window-actions">
+            <button
+              type="button"
+              class="cluster-cloud-shell-window-btn"
+              title="最小化"
+              @click.stop="minimizeCloudShell"
+            >
+              <ElIcon :size="14"><Minus /></ElIcon>
+            </button>
+            <button
+              type="button"
+              class="cluster-cloud-shell-window-btn"
+              :title="isMaximized ? '还原' : '最大化'"
+              @click.stop="toggleMaximizeCloudShell"
+            >
+              <ElIcon :size="14">
+                <ScaleToOriginal v-if="isMaximized" />
+                <FullScreen v-else />
+              </ElIcon>
+            </button>
+            <button
+              type="button"
+              class="cluster-cloud-shell-window-btn cluster-cloud-shell-window-btn--close"
+              title="关闭"
+              @click.stop="closeCloudShell"
+            >
+              <ElIcon :size="14"><Close /></ElIcon>
             </button>
           </div>
         </header>
@@ -74,14 +104,14 @@
 </template>
 
 <script setup lang="ts">
-  import { Close } from '@element-plus/icons-vue'
+  import { Close, FullScreen, Minus, ScaleToOriginal } from '@element-plus/icons-vue'
   import { ElButton, ElIcon, ElMessage } from 'element-plus'
   import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
   import { storeToRefs } from 'pinia'
   import { useSettingStore } from '@/store/modules/setting'
   import { resolvePixiuWsOrigin } from '@/utils/pixiu-ws-origin'
   import { FitAddon } from '@xterm/addon-fit'
-  import { Terminal, type ITheme } from '@xterm/xterm'
+  import { Terminal, type IDisposable, type ITheme } from '@xterm/xterm'
   import '@xterm/xterm/css/xterm.css'
 
   defineOptions({ name: 'ClusterCloudShell' })
@@ -109,17 +139,21 @@
     fitAddon: FitAddon | null
     resizeObserver: ResizeObserver | null
     hostEl: HTMLElement | null
+    selectionListener: IDisposable | null
   }
 
   const visible = ref(false)
   const tabs = ref<CloudShellTab[]>([])
   const activeTabId = ref('')
   const panelRect = ref({ left: 0, top: 0, width: 0, height: 0 })
-  const sheetHeight = ref(320)
 
   const MIN_SHEET_HEIGHT = 160
-  const MAX_SHEET_HEIGHT_RATIO = 0.88
-  const DEFAULT_SHEET_HEIGHT = 320
+  const DEFAULT_SHEET_HEIGHT_RATIO = 0.48
+  const DEFAULT_SHEET_HEIGHT = 420
+
+  const sheetHeight = ref(DEFAULT_SHEET_HEIGHT)
+  const isMaximized = ref(false)
+  const sheetHeightBeforeMaximize = ref(DEFAULT_SHEET_HEIGHT)
 
   let tabSeq = 0
   const tabRuntimes = new Map<string, TabRuntime>()
@@ -155,13 +189,33 @@
   const TERMINAL_THEME_DARK: ITheme = {
     background: '#0f0f0f',
     foreground: '#d4d4d4',
-    cursor: '#d4d4d4'
+    cursor: '#d4d4d4',
+    selectionBackground: 'rgba(255, 255, 255, 0.25)',
+    selectionForeground: '#ffffff'
   }
 
   const TERMINAL_THEME_LIGHT: ITheme = {
-    background: '#f5f5f5',
-    foreground: '#303133',
-    cursor: '#303133'
+    background: '#eceff1',
+    foreground: '#5f6368',
+    cursor: '#5f6368',
+    selectionBackground: 'rgba(64, 158, 255, 0.28)',
+    selectionForeground: '#3c4043',
+    black: '#5f6368',
+    red: '#e53935',
+    green: '#43a047',
+    yellow: '#fb8c00',
+    blue: '#1e88e5',
+    magenta: '#8e24aa',
+    cyan: '#00acc1',
+    white: '#eceff1',
+    brightBlack: '#80868b',
+    brightRed: '#ef5350',
+    brightGreen: '#66bb6a',
+    brightYellow: '#ffa726',
+    brightBlue: '#42a5f5',
+    brightMagenta: '#ab47bc',
+    brightCyan: '#26c6da',
+    brightWhite: '#5f6368'
   }
 
   function getTerminalTheme(): ITheme {
@@ -195,7 +249,34 @@
   }))
 
   function createRuntime(): TabRuntime {
-    return { ws: null, xterm: null, fitAddon: null, resizeObserver: null, hostEl: null }
+    return {
+      ws: null,
+      xterm: null,
+      fitAddon: null,
+      resizeObserver: null,
+      hostEl: null,
+      selectionListener: null
+    }
+  }
+
+  function copyTerminalSelection(xterm: Terminal) {
+    const text = xterm.getSelection()
+    if (!text) return
+    void navigator.clipboard.writeText(text).catch(() => {
+      ElMessage.warning('复制失败，请检查浏览器剪贴板权限')
+    })
+  }
+
+  function bindTerminalCopyOnSelect(rt: TabRuntime, xterm: Terminal) {
+    rt.selectionListener?.dispose()
+    rt.selectionListener = xterm.onSelectionChange(() => {
+      copyTerminalSelection(xterm)
+    })
+  }
+
+  function unbindTerminalCopyOnSelect(rt: TabRuntime) {
+    rt.selectionListener?.dispose()
+    rt.selectionListener = null
   }
 
   function getRuntime(tabId: string): TabRuntime {
@@ -205,6 +286,34 @@
       tabRuntimes.set(tabId, rt)
     }
     return rt
+  }
+
+  function getMaxSheetHeight(): number {
+    if (typeof window === 'undefined') return DEFAULT_SHEET_HEIGHT
+    const header = document.getElementById('app-header')
+    if (header) {
+      const maxH = Math.round(window.innerHeight - header.getBoundingClientRect().bottom)
+      return Math.max(MIN_SHEET_HEIGHT, maxH)
+    }
+    const main = document.getElementById('app-main')
+    if (main) {
+      const maxH = Math.round(main.getBoundingClientRect().height)
+      return Math.max(MIN_SHEET_HEIGHT, maxH)
+    }
+    return DEFAULT_SHEET_HEIGHT
+  }
+
+  function resolveDefaultSheetHeight(): number {
+    const mainHeight = panelRect.value.height
+    if (!mainHeight) return DEFAULT_SHEET_HEIGHT
+    const maxH = getMaxSheetHeight()
+    const preferred = Math.round(mainHeight * DEFAULT_SHEET_HEIGHT_RATIO)
+    return Math.min(maxH, Math.max(MIN_SHEET_HEIGHT, preferred))
+  }
+
+  function applyDefaultSheetHeight() {
+    syncPanelRect()
+    sheetHeight.value = resolveDefaultSheetHeight()
   }
 
   function syncPanelRect() {
@@ -217,7 +326,7 @@
       width: Math.round(rect.width),
       height: Math.round(rect.height)
     }
-    const maxH = Math.round(rect.height * MAX_SHEET_HEIGHT_RATIO)
+    const maxH = getMaxSheetHeight()
     if (sheetHeight.value > maxH) sheetHeight.value = maxH
   }
 
@@ -283,6 +392,7 @@
       if (!rt.ws || rt.ws.readyState !== WebSocket.OPEN) return
       rt.ws.send(JSON.stringify({ operation: 'stdin', data }))
     })
+    bindTerminalCopyOnSelect(rt, xterm)
     rt.xterm = xterm
     rt.fitAddon = fitAddon
     if (typeof ResizeObserver !== 'undefined') {
@@ -320,6 +430,7 @@
     if (!tabId) return
     const rt = tabRuntimes.get(tabId)
     if (!rt) return
+    unbindTerminalCopyOnSelect(rt)
     if (rt.resizeObserver) {
       rt.resizeObserver.disconnect()
       rt.resizeObserver = null
@@ -430,6 +541,10 @@
       return
     }
 
+    if (!tabs.value.length) {
+      applyDefaultSheetHeight()
+    }
+
     const tab = createTab(opts)
     tabs.value.push(tab)
     activeTabId.value = tab.id
@@ -488,6 +603,28 @@
     rt?.xterm?.focus()
   }
 
+  function closeCloudShell() {
+    visible.value = false
+  }
+
+  function minimizeCloudShell() {
+    visible.value = false
+  }
+
+  function toggleMaximizeCloudShell() {
+    if (isMaximized.value) {
+      sheetHeight.value = sheetHeightBeforeMaximize.value
+      isMaximized.value = false
+      nextTick(() => fitActiveTab())
+      return
+    }
+    sheetHeightBeforeMaximize.value = sheetHeight.value
+    syncPanelRect()
+    sheetHeight.value = getMaxSheetHeight()
+    isMaximized.value = true
+    nextTick(() => fitActiveTab())
+  }
+
   function startResize(e: MouseEvent) {
     const startY = e.clientY
     const startH = sheetHeight.value
@@ -495,10 +632,8 @@
     document.body.style.userSelect = 'none'
 
     const onMove = (ev: MouseEvent) => {
-      const maxH = Math.max(
-        MIN_SHEET_HEIGHT,
-        Math.round(panelRect.value.height * MAX_SHEET_HEIGHT_RATIO)
-      )
+      isMaximized.value = false
+      const maxH = getMaxSheetHeight()
       const next = Math.min(maxH, Math.max(MIN_SHEET_HEIGHT, startH + (startY - ev.clientY)))
       sheetHeight.value = next
       fitActiveTab()
@@ -518,7 +653,8 @@
     tabs.value = []
     activeTabId.value = ''
     unbindLayoutResizeObserver()
-    sheetHeight.value = DEFAULT_SHEET_HEIGHT
+    isMaximized.value = false
+    applyDefaultSheetHeight()
   }
 
   watch(visible, (open) => {
@@ -556,7 +692,7 @@
   }
 
   html:not(.dark) .cluster-cloud-shell-anchor {
-    --cluster-cloud-shell-terminal-bg: #f5f5f5;
+    --cluster-cloud-shell-terminal-bg: #eceff1;
   }
 
   .cluster-cloud-shell-sheet {
@@ -592,13 +728,48 @@
   .cluster-cloud-shell-tabbar {
     display: flex;
     align-items: center;
-    gap: 8px;
-    min-height: 40px;
-    padding: 0 4px 0 0;
+    gap: 4px;
+    min-height: 32px;
+    padding: 0 2px 0 0;
     border-bottom: 1px solid var(--el-border-color-lighter);
     background: var(--el-fill-color-blank);
     box-sizing: border-box;
     flex-shrink: 0;
+  }
+
+  .cluster-cloud-shell-window-actions {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    height: 32px;
+    padding-right: 4px;
+    border-left: 1px solid var(--el-border-color-lighter);
+  }
+
+  .cluster-cloud-shell-window-btn {
+    box-sizing: border-box;
+    width: 28px;
+    height: 28px;
+    margin: 0;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    border-radius: var(--el-border-radius-small);
+    color: var(--el-text-color-secondary);
+    cursor: pointer;
+  }
+
+  .cluster-cloud-shell-window-btn:hover {
+    color: var(--el-text-color-primary);
+    background-color: var(--el-fill-color-light);
+  }
+
+  .cluster-cloud-shell-window-btn--close:hover {
+    color: var(--el-color-danger);
+    background-color: var(--el-color-danger-light-9);
   }
 
   .cluster-cloud-shell-tabs {
@@ -615,7 +786,7 @@
     align-items: center;
     gap: 6px;
     max-width: 280px;
-    height: 36px;
+    height: 30px;
     padding: 0 8px 0 10px;
     border: none;
     border-right: 1px solid var(--el-border-color-lighter);
@@ -739,5 +910,10 @@
   .cluster-cloud-shell-xterm .xterm-viewport {
     overflow-y: auto !important;
     background-color: var(--cluster-cloud-shell-terminal-bg) !important;
+  }
+
+  html:not(.dark) .cluster-cloud-shell-xterm ::selection {
+    background-color: rgba(64, 158, 255, 0.28);
+    color: #3c4043;
   }
 </style>

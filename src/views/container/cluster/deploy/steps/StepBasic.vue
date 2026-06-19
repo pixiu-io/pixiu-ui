@@ -37,7 +37,8 @@
         <ElOption v-for="v in k8sVersions" :key="v" :label="v" :value="v" />
       </ElSelect>
       <div class="form-tip"
-        >选择需要的 Kubernetes 版本，如果下拉选择中不存在，可手动输入版本，格式为 1.28.6（不含 v 前缀）</div
+        >选择需要的 Kubernetes 版本。如果选择中不存在，则手动输入版本，格式为 1.28.6（不含 v
+        前缀）</div
       >
     </ElFormItem>
 
@@ -404,7 +405,7 @@
 
   const formRef = ref<FormInstance>()
 
-  const k8sVersions = ['1.30.3', '1.29.7', '1.28.12', '1.27.16', '1.26.15']
+  const k8sVersions = ['1.34.1', '1.32.2', '1.30.0', '1.28.16', '1.26.15']
 
   const k8sGt124 = computed(() => {
     const v = props.form.kubernetesVersion
@@ -624,7 +625,9 @@
 
   const rules: FormRules = {
     name: [{ required: true, message: '请输入集群名称', trigger: 'blur' }],
-    kubernetesVersion: [{ required: true, validator: validateKubernetesVersion, trigger: ['change', 'blur'] }],
+    kubernetesVersion: [
+      { required: true, validator: validateKubernetesVersion, trigger: ['change', 'blur'] }
+    ],
     runtime: [{ required: true, message: '请选择容器运行时', trigger: 'change' }],
     runtimeDir: [{ validator: validateRuntimeDir, trigger: ['blur', 'change'] }],
     osType: [{ required: true, message: '请选择操作系统', trigger: 'change' }],
