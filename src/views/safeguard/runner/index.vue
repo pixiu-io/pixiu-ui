@@ -1,180 +1,156 @@
 <template>
   <div class="runner-page art-full-height">
-    <ElTabs v-model="activeTab" type="border-card" @tab-change="handleTabChange">
-      <ElTabPane label="Runner" name="runner">
-        <div class="tab-content">
-          <ElAlert
-            type="info"
-            :closable="false"
-            show-icon
-            class="quota-alert"
-            style="margin: 5px 0 20px 0"
-            description="管理执行部署任务的 Runner 环境"
-          />
-          <div
-            class="runner-toolbar"
-            style="
-              margin-bottom: 10px;
-              display: flex;
-              align-items: center;
-              justify-content: space-between;
-            "
-          >
-            <ElButton @click="showRunnerDrawer" v-ripple>添加 Runner</ElButton>
-            <div style="display: flex; align-items: center; gap: 8px">
-              <ElInput
-                v-model="runnerSearchForm.nameSelector"
-                clearable
-                placeholder="请输入 Runner 名称"
-                style="width: 240px"
-                @keyup.enter="handleRunnerSearch"
-                @clear="resetRunnerSearchParams"
-              />
-              <ArtTableHeader v-model:columns="runnerColumnChecks" :loading="runnerLoading" @refresh="refreshRunnerData" />
-            </div>
-          </div>
-          <ElCard class="art-table-card">
-            <ArtTable
-              row-key="id"
-              :loading="runnerLoading"
-              :data="runnerData"
-              :columns="runnerColumns"
-              :pagination="runnerPagination"
-              :pagination-options="{
-                align: 'right',
-                hideOnEmpty: false,
-                layout: 'total, prev, pager, next, sizes, jumper'
-              }"
-              @pagination:size-change="handleRunnerSizeChange"
-              @pagination:current-change="handleRunnerCurrentChange"
-            >
-              <template #gmtCreate="{ row }">
-                <span style="font-size: 12px">{{ row.gmtCreate || '-' }}</span>
-              </template>
-              <template #gmtModified="{ row }">
-                <span style="font-size: 12px">{{ row.gmtModified || '-' }}</span>
-              </template>
-              <template #status="{ row }">
-                <ElTag :type="RunnerStatusMap[row.status]?.type || 'info'">
-                  {{ RunnerStatusMap[row.status]?.label || '未知' }}
-                </ElTag>
-              </template>
-              <template #operation="{ row }">
-                <div style="display:flex;align-items:center;gap:12px;flex-wrap:nowrap">
-                  <ElLink
-                    type="primary"
-                    underline="never"
-                    style="font-size:12px"
-                    @click="editRunner(row)"
-                  >
-                    编辑
-                  </ElLink>
-                  <ElLink
-                    type="primary"
-                    underline="never"
-                    style="font-size:12px"
-                    @click="deleteRunner(row)"
-                  >
-                    删除
-                  </ElLink>
-                </div>
-              </template>
-            </ArtTable>
-          </ElCard>
-        </div>
-      </ElTabPane>
+    <ElAlert
+      type="info"
+      :closable="false"
+      show-icon
+      class="quota-alert"
+      style="margin: 5px 0 20px 0"
+      :description="tabDescription"
+    />
 
-      <ElTabPane label="操作系统" name="distribution">
-        <div class="tab-content">
-          <ElAlert
-            type="info"
-            :closable="false"
-            show-icon
-            class="quota-alert"
-            style="margin: 5px 0 20px 0"
-            description="管理部署支持的操作系统发行版"
-          />
-          <div
-            class="distribution-toolbar"
-            style="
-              margin-bottom: 10px;
-              display: flex;
-              align-items: center;
-              justify-content: space-between;
-            "
+    <div class="runner-toolbar-outer" v-if="activeTab === 'runner'">
+      <ElButton v-ripple @click="showRunnerDrawer">添加 Runner</ElButton>
+    </div>
+    <div class="runner-toolbar-outer" v-else>
+      <ElButton v-ripple @click="showDistributionDrawer">添加系统</ElButton>
+    </div>
+
+    <ElCard class="art-table-card">
+      <ElTabs v-model="activeTab" class="runner-tabs" @tab-change="handleTabChange">
+        <ElTabPane label="Runner" name="runner">
+          <ArtTableHeader
+            v-model:columns="runnerColumnChecks"
+            :loading="runnerLoading"
+            layout="size,fullscreen,columns,settings"
+            class="runner-table-header"
+            @refresh="refreshRunnerData"
           >
-            <ElButton @click="showDistributionDrawer" v-ripple>添加系统</ElButton>
-            <div style="display: flex; align-items: center; gap: 8px">
-              <ElInput
-                v-model="distributionSearchForm.nameSelector"
-                clearable
-                placeholder="请输入操作系统名称"
-                style="width: 240px"
-                @keyup.enter="handleDistributionSearch"
-                @clear="resetDistributionSearchParams"
-              />
-              <ArtTableHeader
-                v-model:columns="distributionColumnChecks"
-                :loading="distributionLoading"
-                @refresh="refreshDistributionData"
-              />
-            </div>
-          </div>
-          <ElCard class="art-table-card">
-            <ArtTable
-              row-key="id"
-              :loading="distributionLoading"
-              :data="distributionData"
-              :columns="distributionColumns"
-              :pagination="distributionPagination"
-              :pagination-options="{
-                align: 'right',
-                hideOnEmpty: false,
-                layout: 'total, prev, pager, next, sizes, jumper'
-              }"
-              @pagination:size-change="handleDistributionSizeChange"
-              @pagination:current-change="handleDistributionCurrentChange"
-            >
-              <template #family="{ row }">
-                <div style="display:flex;align-items:center;gap:8px">
-                  <ArtSvgIcon
-                    :icon="osIcon(row.family)"
-                    :style="{ fontSize: '18px', color: osBrandColors[row.family] || '#606266' }"
+            <template #left>
+              <div class="runner-toolbar">
+                <div class="runner-toolbar__filters">
+                  <ElInput
+                    v-model="runnerSearchForm.nameSelector"
+                    clearable
+                    placeholder="请输入 Runner 名称"
+                    class="runner-toolbar__search"
+                    @keyup.enter="handleRunnerSearch"
+                    @clear="resetRunnerSearchParams"
                   />
-                  <span style="font-size: 13px">{{ row.family }}</span>
-                </div>
-              </template>
-              <template #gmtCreate="{ row }">
-                <span style="font-size: 12px">{{ row.gmtCreate || '-' }}</span>
-              </template>
-              <template #gmtModified="{ row }">
-                <span style="font-size: 12px">{{ row.gmtModified || '-' }}</span>
-              </template>
-              <template #operation="{ row }">
-                <div style="display:flex;align-items:center;gap:12px;flex-wrap:nowrap">
-                  <ElLink
-                    type="primary"
-                    underline="never"
-                    style="font-size:12px"
-                    @click="editDistribution(row)"
+                  <div
+                    class="runner-toolbar-search-btn"
+                    role="button"
+                    tabindex="0"
+                    title="搜索"
+                    @click="handleRunnerSearch"
+                    @keyup.enter="handleRunnerSearch"
                   >
-                    编辑
-                  </ElLink>
-                  <ElLink
-                    type="primary"
-                    underline="never"
-                    style="font-size:12px"
-                    @click="deleteDistribution(row)"
-                  >
-                    删除
-                  </ElLink>
+                    <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
+                  </div>
                 </div>
-              </template>
-            </ArtTable>
-          </ElCard>
-        </div>
-      </ElTabPane>
-    </ElTabs>
+              </div>
+            </template>
+          </ArtTableHeader>
+
+          <ArtTable
+            row-key="id"
+            :loading="runnerLoading"
+            :data="runnerData"
+            :columns="runnerColumns"
+            :pagination="runnerPagination"
+            :pagination-options="tablePaginationOptions"
+            @pagination:size-change="handleRunnerSizeChange"
+            @pagination:current-change="handleRunnerCurrentChange"
+          >
+            <template #gmtCreate="{ row }">
+              <span class="runner-table-time">{{ row.gmtCreate || '-' }}</span>
+            </template>
+            <template #gmtModified="{ row }">
+              <span class="runner-table-time">{{ row.gmtModified || '-' }}</span>
+            </template>
+            <template #status="{ row }">
+              <ElTag :type="RunnerStatusMap[row.status]?.type || 'info'">
+                {{ RunnerStatusMap[row.status]?.label || '未知' }}
+              </ElTag>
+            </template>
+            <template #operation="{ row }">
+              <div class="runner-table-actions">
+                <ElLink type="primary" underline="never" @click="editRunner(row)">编辑</ElLink>
+                <ElLink type="primary" underline="never" @click="deleteRunner(row)">删除</ElLink>
+              </div>
+            </template>
+          </ArtTable>
+        </ElTabPane>
+
+        <ElTabPane label="支持系统" name="distribution">
+          <ArtTableHeader
+            v-model:columns="distributionColumnChecks"
+            :loading="distributionLoading"
+            layout="size,fullscreen,columns,settings"
+            class="runner-table-header"
+            @refresh="refreshDistributionData"
+          >
+            <template #left>
+              <div class="runner-toolbar">
+                <div class="runner-toolbar__filters">
+                  <ElInput
+                    v-model="distributionSearchForm.nameSelector"
+                    clearable
+                    placeholder="请输入操作系统名称"
+                    class="runner-toolbar__search"
+                    @keyup.enter="handleDistributionSearch"
+                    @clear="resetDistributionSearchParams"
+                  />
+                  <div
+                    class="runner-toolbar-search-btn"
+                    role="button"
+                    tabindex="0"
+                    title="搜索"
+                    @click="handleDistributionSearch"
+                    @keyup.enter="handleDistributionSearch"
+                  >
+                    <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
+                  </div>
+                </div>
+              </div>
+            </template>
+          </ArtTableHeader>
+
+          <ArtTable
+            row-key="id"
+            :loading="distributionLoading"
+            :data="distributionData"
+            :columns="distributionColumns"
+            :pagination="distributionPagination"
+            :pagination-options="tablePaginationOptions"
+            @pagination:size-change="handleDistributionSizeChange"
+            @pagination:current-change="handleDistributionCurrentChange"
+          >
+            <template #family="{ row }">
+              <div class="runner-os-family">
+                <ArtSvgIcon
+                  :icon="osIcon(row.family)"
+                  :style="{ fontSize: '18px', color: osBrandColors[row.family] || '#606266' }"
+                />
+                <span>{{ row.family }}</span>
+              </div>
+            </template>
+            <template #gmtCreate="{ row }">
+              <span class="runner-table-time">{{ row.gmtCreate || '-' }}</span>
+            </template>
+            <template #gmtModified="{ row }">
+              <span class="runner-table-time">{{ row.gmtModified || '-' }}</span>
+            </template>
+            <template #operation="{ row }">
+              <div class="runner-table-actions">
+                <ElLink type="primary" underline="never" @click="editDistribution(row)">编辑</ElLink>
+                <ElLink type="primary" underline="never" @click="deleteDistribution(row)">删除</ElLink>
+              </div>
+            </template>
+          </ArtTable>
+        </ElTabPane>
+      </ElTabs>
+    </ElCard>
 
     <RunnerDrawer v-model="runnerDrawerVisible" :edit-id="runnerEditId" @success="refreshRunnerData" />
     <DistributionDrawer
@@ -186,10 +162,21 @@
 </template>
 
 <script setup lang="ts">
-  import { ref, watch } from 'vue'
+  import { computed, ref, watch } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
-  import { ElAlert, ElButton, ElInput, ElLink, ElMessage, ElMessageBox, ElTabPane, ElTabs, ElTag } from 'element-plus'
+  import {
+    ElAlert,
+    ElButton,
+    ElCard,
+    ElInput,
+    ElLink,
+    ElMessage,
+    ElMessageBox,
+    ElTabPane,
+    ElTabs,
+    ElTag
+  } from 'element-plus'
   import {
     fetchGetRunnerList,
     fetchDeleteRunner,
@@ -213,6 +200,18 @@
   const router = useRouter()
   const activeTab = ref<RunnerTab>('runner')
   const distributionLoaded = ref(false)
+
+  const tablePaginationOptions = {
+    align: 'right' as const,
+    hideOnEmpty: false,
+    layout: 'total, prev, pager, next, sizes, jumper'
+  }
+
+  const tabDescription = computed(() =>
+    activeTab.value === 'distribution'
+      ? '管理部署支持的操作系统发行版，并为每种系统配置对应的 Runner 镜像。'
+      : '管理执行部署任务的 Runner 环境，支持创建、编辑与删除 Runner 实例。'
+  )
 
   const osIconMap: Record<string, string> = {
     centos: 'ri:centos-fill',
@@ -242,15 +241,16 @@
     activeTab.value = resolveTab(route.query.tab)
   }
 
-  function handleTabChange(tab: RunnerTab) {
-    if (tab === 'distribution' && !distributionLoaded.value) {
+  function handleTabChange(tab: string | number) {
+    const nextTab = resolveTab(tab)
+    if (nextTab === 'distribution' && !distributionLoaded.value) {
       distributionLoaded.value = true
       getDistributionData()
     }
 
     router.replace({
       path: route.path,
-      query: tab === 'runner' ? {} : { tab }
+      query: nextTab === 'runner' ? {} : { tab: nextTab }
     })
   }
 
@@ -300,46 +300,13 @@
         ...runnerSearchForm.value
       },
       columnsFactory: () => [
-        {
-          prop: 'name',
-          label: '名称',
-          minWidth: 180
-        },
-        {
-          prop: 'engineImage',
-          label: '镜像',
-          minWidth: 300
-        },
-        {
-          prop: 'status',
-          label: '状态',
-          minWidth: 100,
-          useSlot: true
-        },
-        {
-          prop: 'description',
-          label: '描述',
-          minWidth: 200
-        },
-        {
-          prop: 'gmtCreate',
-          label: '创建时间',
-          minWidth: 180,
-          useSlot: true
-        },
-        {
-          prop: 'gmtModified',
-          label: '更新时间',
-          minWidth: 180,
-          useSlot: true
-        },
-        {
-          prop: 'operation',
-          label: '操作',
-          minWidth: 90,
-          fixed: 'right',
-          useSlot: true
-        }
+        { prop: 'name', label: '名称', minWidth: 180 },
+        { prop: 'engineImage', label: '镜像', minWidth: 300 },
+        { prop: 'status', label: '状态', minWidth: 100, useSlot: true },
+        { prop: 'description', label: '描述', minWidth: 200 },
+        { prop: 'gmtCreate', label: '创建时间', minWidth: 180, useSlot: true },
+        { prop: 'gmtModified', label: '更新时间', minWidth: 180, useSlot: true },
+        { prop: 'operation', label: '操作', minWidth: 90, fixed: 'right', useSlot: true }
       ]
     }
   })
@@ -408,41 +375,12 @@
         ...distributionSearchForm.value
       },
       columnsFactory: () => [
-        {
-          prop: 'family',
-          label: '系统家族',
-          minWidth: 150,
-          useSlot: true
-        },
-        {
-          prop: 'name',
-          label: '系统名称',
-          minWidth: 180
-        },
-        {
-          prop: 'runner',
-          label: 'Runner',
-          minWidth: 300
-        },
-        {
-          prop: 'gmtCreate',
-          label: '创建时间',
-          minWidth: 180,
-          useSlot: true
-        },
-        {
-          prop: 'gmtModified',
-          label: '更新时间',
-          minWidth: 180,
-          useSlot: true
-        },
-        {
-          prop: 'operation',
-          label: '操作',
-          minWidth: 90,
-          fixed: 'right',
-          useSlot: true
-        }
+        { prop: 'family', label: '系统家族', minWidth: 150, useSlot: true },
+        { prop: 'name', label: '系统名称', minWidth: 180 },
+        { prop: 'runner', label: 'Runner', minWidth: 300 },
+        { prop: 'gmtCreate', label: '创建时间', minWidth: 180, useSlot: true },
+        { prop: 'gmtModified', label: '更新时间', minWidth: 180, useSlot: true },
+        { prop: 'operation', label: '操作', minWidth: 90, fixed: 'right', useSlot: true }
       ]
     }
   })
@@ -486,11 +424,122 @@
 </script>
 
 <style scoped lang="less">
-  .runner-page {
-    padding: 0 16px;
+  .runner-page :deep(.art-table-card > .el-card__body) {
+    padding-top: 8px;
+  }
 
-    .tab-content {
-      padding: 8px 0;
+  .runner-toolbar-outer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    margin-bottom: 10px;
+  }
+
+  .runner-tabs :deep(.el-tabs__header) {
+    margin: 0 0 4px;
+  }
+
+  .runner-tabs :deep(.el-tabs__nav-wrap::after) {
+    height: 1px;
+    background-color: var(--el-border-color-lighter);
+  }
+
+  .runner-tabs :deep(.el-tabs__item) {
+    height: 40px;
+    line-height: 40px;
+    padding: 0 18px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--el-text-color-regular);
+  }
+
+  .runner-tabs :deep(.el-tabs__item.is-active) {
+    color: var(--el-color-primary);
+    font-weight: 600;
+  }
+
+  .runner-tabs :deep(.el-tabs__active-bar) {
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+  }
+
+  .runner-tabs :deep(.el-tabs__content) {
+    padding-top: 0;
+  }
+
+  .runner-table-header {
+    margin-top: 12px;
+    margin-bottom: 4px;
+  }
+
+  .runner-toolbar {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .runner-toolbar__filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+    margin-right: 8px;
+  }
+
+  .runner-toolbar__search {
+    width: 280px;
+    max-width: 100%;
+  }
+
+  .runner-toolbar-search-btn {
+    flex-shrink: 0;
+    display: flex;
+    width: 32px;
+    height: 32px;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--art-gray-300) 55%, transparent);
+    color: var(--el-text-color-secondary);
+    transition: background-color 0.15s ease;
+  }
+
+  .runner-toolbar-search-btn:hover {
+    background: var(--art-gray-300);
+  }
+
+  .runner-toolbar-search-btn:focus-visible {
+    outline: 2px solid var(--el-color-primary);
+    outline-offset: 1px;
+  }
+
+  .runner-table-time {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+  }
+
+  .runner-table-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: nowrap;
+    font-size: 12px;
+
+    :deep(.el-link) {
+      font-size: 12px;
     }
+  }
+
+  .runner-os-family {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
   }
 </style>
