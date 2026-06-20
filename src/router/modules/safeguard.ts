@@ -37,7 +37,7 @@ export const safeguardRoutes: AppRouteRecord = {
       component: '/safeguard/runner',
       meta: {
         title: 'menus.safeguard.runner',
-        icon: 'ri:server-line',
+        icon: 'ri:terminal-box-line',
         keepAlive: true
       }
     },
