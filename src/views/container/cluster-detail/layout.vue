@@ -108,7 +108,6 @@
           @click="openCloudShell"
         >
           连接集群
-          远程登录
         </ElButton>
         <ElButton
           v-ripple
@@ -280,18 +279,24 @@
     void nextTick(() => namespaceSearchInputRef.value?.focus())
   }
 
-  function getNsCacheKey(cluster: string) { return `pixiu-ns-${cluster}` }
+  function getNsCacheKey(cluster: string) {
+    return `pixiu-ns-${cluster}`
+  }
   function loadCachedNamespace(cluster: string): string | null {
     try {
       const v = localStorage.getItem(getNsCacheKey(cluster))
-      return (v && v !== 'undefined' && v !== 'null') ? v : null
+      return v && v !== 'undefined' && v !== 'null' ? v : null
+    } catch {
+      return null
     }
-    catch { return null }
   }
   function saveCachedNamespace(cluster: string, ns: string) {
     if (!ns || ns === 'undefined' || ns === 'null') return
-    try { localStorage.setItem(getNsCacheKey(cluster), ns) }
-    catch { /* ignore */ }
+    try {
+      localStorage.setItem(getNsCacheKey(cluster), ns)
+    } catch {
+      /* ignore */
+    }
   }
 
   async function loadNamespaceOptions(clusterName: string) {
@@ -410,7 +415,10 @@
     const selected = clusterListItems.value.find((c) => c.name === s)
     const aliasName = selected?.aliasName || s
     setClusterAliasCache(s, aliasName)
-    router.push({ path: route.path, query: buildClusterRouteQuery(route, { cluster: s, aliasName }) })
+    router.push({
+      path: route.path,
+      query: buildClusterRouteQuery(route, { cluster: s, aliasName })
+    })
   }
 
   watch(
@@ -591,7 +599,9 @@
     return STATUS_CONFIG[s as keyof typeof STATUS_CONFIG] ?? { type: 'info' as const, text: '未知' }
   })
 
-  function isCustomClusterNotRunning(row: Pick<ClusterDetailContext, 'clusterType' | 'status'>): boolean {
+  function isCustomClusterNotRunning(
+    row: Pick<ClusterDetailContext, 'clusterType' | 'status'>
+  ): boolean {
     return Number(row.clusterType) === 1 && Number(row.status) !== 0
   }
 
@@ -640,7 +650,8 @@
               ? route.query.aliasName
               : undefined) ?? ctx.value.aliasName
         })
-        if (clusterQuerySignature(q) === clusterQuerySignature(buildClusterRouteQuery(route))) return
+        if (clusterQuerySignature(q) === clusterQuerySignature(buildClusterRouteQuery(route)))
+          return
         router.replace({ path: route.path, query: q })
       }
     },
