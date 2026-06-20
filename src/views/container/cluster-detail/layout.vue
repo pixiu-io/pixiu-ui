@@ -108,6 +108,7 @@
           @click="openCloudShell"
         >
           连接集群
+          远程登录
         </ElButton>
         <ElButton
           v-ripple
