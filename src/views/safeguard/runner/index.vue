@@ -11,47 +11,60 @@
 
     <div class="runner-toolbar-outer" v-if="activeTab === 'runner'">
       <ElButton v-ripple @click="showRunnerDrawer">添加 Runner</ElButton>
+      <div style="display: flex; align-items: center; gap: 8px">
+        <div class="runner-toolbar__filters">
+          <ElInput
+            v-model="runnerSearchForm.nameSelector"
+            clearable
+            placeholder="请输入 Runner 名称"
+            class="runner-toolbar__search"
+            @keyup.enter="handleRunnerSearch"
+            @clear="resetRunnerSearchParams"
+          />
+          <div
+            class="runner-toolbar-search-btn"
+            role="button"
+            tabindex="0"
+            title="搜索"
+            @click="handleRunnerSearch"
+            @keyup.enter="handleRunnerSearch"
+          >
+            <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
+          </div>
+        </div>
+        <ArtTableHeader v-model:columns="runnerColumnChecks" :loading="runnerLoading" @refresh="refreshRunnerData" />
+      </div>
     </div>
     <div class="runner-toolbar-outer" v-else>
       <ElButton v-ripple @click="showDistributionDrawer">添加系统</ElButton>
+      <div style="display: flex; align-items: center; gap: 8px">
+        <div class="runner-toolbar__filters">
+          <ElInput
+            v-model="distributionSearchForm.nameSelector"
+            clearable
+            placeholder="请输入操作系统名称"
+            class="runner-toolbar__search"
+            @keyup.enter="handleDistributionSearch"
+            @clear="resetDistributionSearchParams"
+          />
+          <div
+            class="runner-toolbar-search-btn"
+            role="button"
+            tabindex="0"
+            title="搜索"
+            @click="handleDistributionSearch"
+            @keyup.enter="handleDistributionSearch"
+          >
+            <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
+          </div>
+        </div>
+        <ArtTableHeader v-model:columns="distributionColumnChecks" :loading="distributionLoading" @refresh="refreshDistributionData" />
+      </div>
     </div>
 
     <ElCard class="art-table-card">
       <ElTabs v-model="activeTab" class="runner-tabs" @tab-change="handleTabChange">
         <ElTabPane label="Runner" name="runner">
-          <ArtTableHeader
-            v-model:columns="runnerColumnChecks"
-            :loading="runnerLoading"
-            layout="size,fullscreen,columns,settings"
-            class="runner-table-header"
-            @refresh="refreshRunnerData"
-          >
-            <template #left>
-              <div class="runner-toolbar">
-                <div class="runner-toolbar__filters">
-                  <ElInput
-                    v-model="runnerSearchForm.nameSelector"
-                    clearable
-                    placeholder="请输入 Runner 名称"
-                    class="runner-toolbar__search"
-                    @keyup.enter="handleRunnerSearch"
-                    @clear="resetRunnerSearchParams"
-                  />
-                  <div
-                    class="runner-toolbar-search-btn"
-                    role="button"
-                    tabindex="0"
-                    title="搜索"
-                    @click="handleRunnerSearch"
-                    @keyup.enter="handleRunnerSearch"
-                  >
-                    <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
-                  </div>
-                </div>
-              </div>
-            </template>
-          </ArtTableHeader>
-
           <ArtTable
             row-key="id"
             :loading="runnerLoading"
@@ -83,39 +96,6 @@
         </ElTabPane>
 
         <ElTabPane label="支持系统" name="distribution">
-          <ArtTableHeader
-            v-model:columns="distributionColumnChecks"
-            :loading="distributionLoading"
-            layout="size,fullscreen,columns,settings"
-            class="runner-table-header"
-            @refresh="refreshDistributionData"
-          >
-            <template #left>
-              <div class="runner-toolbar">
-                <div class="runner-toolbar__filters">
-                  <ElInput
-                    v-model="distributionSearchForm.nameSelector"
-                    clearable
-                    placeholder="请输入操作系统名称"
-                    class="runner-toolbar__search"
-                    @keyup.enter="handleDistributionSearch"
-                    @clear="resetDistributionSearchParams"
-                  />
-                  <div
-                    class="runner-toolbar-search-btn"
-                    role="button"
-                    tabindex="0"
-                    title="搜索"
-                    @click="handleDistributionSearch"
-                    @keyup.enter="handleDistributionSearch"
-                  >
-                    <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
-                  </div>
-                </div>
-              </div>
-            </template>
-          </ArtTableHeader>
-
           <ArtTable
             row-key="id"
             :loading="distributionLoading"
@@ -431,7 +411,7 @@
   .runner-toolbar-outer {
     display: flex;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: space-between;
     margin-bottom: 10px;
   }
 
