@@ -13,8 +13,9 @@ export interface RunnerItem {
 
 // 状态映射
 export const RunnerStatusMap = {
-  0: { label: '未知', type: 'info' },
-  1: { label: '在线', type: 'success' }
+  0: { label: '未安装', type: 'info' },
+  1: { label: '安装中', type: 'success' },
+  2: { label: '已安装', type: 'primary' }
 } as Record<number, { label: string; type: string }>
 
 interface PixiuRunnerItem {

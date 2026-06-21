@@ -78,9 +78,6 @@
             <template #gmtCreate="{ row }">
               <span class="runner-table-time">{{ row.gmtCreate || '-' }}</span>
             </template>
-            <template #gmtModified="{ row }">
-              <span class="runner-table-time">{{ row.gmtModified || '-' }}</span>
-            </template>
             <template #status="{ row }">
               <ElTag :type="RunnerStatusMap[row.status]?.type || 'info'">
                 {{ RunnerStatusMap[row.status]?.label || '未知' }}
@@ -110,9 +107,10 @@
               <div class="runner-os-family">
                 <ArtSvgIcon
                   :icon="osIcon(row.family)"
-                  :style="{ fontSize: '18px', color: osBrandColors[row.family] || '#606266' }"
+                  class="os-icon"
+                  :style="{ color: osBrandColors[row.family] }"
                 />
-                <span>{{ row.family }}</span>
+                <span class="os-name">{{ row.family }}</span>
               </div>
             </template>
             <template #gmtCreate="{ row }">
@@ -194,19 +192,19 @@
   )
 
   const osIconMap: Record<string, string> = {
-    centos: 'ri:centos-fill',
-    ubuntu: 'simple-icons:ubuntu',
-    debian: 'simple-icons:debian',
+    CentOS: 'ri:centos-fill',
+    Ubuntu: 'simple-icons:ubuntu',
+    Debian: 'simple-icons:debian',
     openEuler: 'ri:openbase-fill',
-    rocky: 'simple-icons:rockylinux'
+    RockyLinux: 'simple-icons:rockylinux'
   }
 
   const osBrandColors: Record<string, string> = {
-    centos: '#932279',
-    ubuntu: '#E95420',
-    debian: '#A81D33',
+    CentOS: '#932279',
+    Ubuntu: '#E95420',
+    Debian: '#A81D33',
     openEuler: '#0067C0',
-    rocky: '#10B981'
+    RockyLinux: '#10B981'
   }
 
   function osIcon(os: string) {
@@ -281,11 +279,10 @@
       },
       columnsFactory: () => [
         { prop: 'name', label: '名称', minWidth: 180 },
-        { prop: 'engineImage', label: '镜像', minWidth: 300 },
         { prop: 'status', label: '状态', minWidth: 100, useSlot: true },
+        { prop: 'engineImage', label: '镜像', minWidth: 300 },
         { prop: 'description', label: '描述', minWidth: 200 },
         { prop: 'gmtCreate', label: '创建时间', minWidth: 180, useSlot: true },
-        { prop: 'gmtModified', label: '更新时间', minWidth: 180, useSlot: true },
         { prop: 'operation', label: '操作', minWidth: 90, fixed: 'right', useSlot: true }
       ]
     }
@@ -408,6 +405,11 @@
     padding-top: 8px;
   }
 
+  .runner-page :deep(.el-table th),
+  .runner-page :deep(.el-table td) {
+    font-size: 12px;
+  }
+
   .runner-toolbar-outer {
     display: flex;
     align-items: center;
@@ -520,6 +522,15 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 13px;
+    font-size: 12px;
+  }
+
+  .os-icon {
+    font-size: 18px;
+  }
+
+  .os-name {
+    font-weight: 400;
+    color: var(--el-text-color-primary);
   }
 </style>
