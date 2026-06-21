@@ -460,7 +460,7 @@
 
   const currentOsImages = computed(() => {
     return distributions.value
-      .filter(d => d.family === props.form.osType)
+      .filter(d => d.family.toLowerCase() === (props.form.osType || '').toLowerCase())
       .map(d => d.name)
   })
 
@@ -482,6 +482,22 @@
       ]
     } finally {
       osLoading.value = false
+    }
+
+    // 数据加载完成后，如果 osType 有值但 osImage 为空，自动设置第一个可用版本
+    if (props.form.osType && !props.form.osImage) {
+      const images = distributions.value
+        .filter(d => d.family.toLowerCase() === props.form.osType.toLowerCase())
+        .map(d => d.name)
+      if (images.length > 0) {
+        // 确保 osType 使用正确的大小写格式
+        const correctFamily = distributions.value.find(d => d.family.toLowerCase() === props.form.osType.toLowerCase())?.family
+        emit('update:form', { 
+          ...props.form, 
+          osType: correctFamily || props.form.osType,
+          osImage: images[0] 
+        })
+      }
     }
   })
 
