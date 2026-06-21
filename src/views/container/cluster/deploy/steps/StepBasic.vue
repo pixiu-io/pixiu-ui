@@ -339,7 +339,8 @@
 <script setup lang="ts">
   import type { FormInstance, FormRules } from 'element-plus'
   import { WarningFilled } from '@element-plus/icons-vue'
-  import { fetchPlanDistributions } from '@/api/plan'
+  import { fetchAllDistributions } from '@/api/distribution'
+  import type { DistributionItem } from '@/api/distribution'
 
   export interface NodeConfig {
     name: string
@@ -416,19 +417,19 @@
   })
 
   const osLabels: Record<string, string> = {
-    centos: 'CentOS',
-    ubuntu: 'Ubuntu',
-    debian: 'Debian',
+    CentOS: 'CentOS',
+    Ubuntu: 'Ubuntu',
+    Debian: 'Debian',
     openEuler: 'OpenEuler',
-    rocky: 'RockyLinux'
+    RockyLinux: 'RockyLinux'
   }
 
   const osIconMap: Record<string, string> = {
-    centos: 'ri:centos-fill',
-    ubuntu: 'simple-icons:ubuntu',
-    debian: 'simple-icons:debian',
+    CentOS: 'ri:centos-fill',
+    Ubuntu: 'simple-icons:ubuntu',
+    Debian: 'simple-icons:debian',
     openEuler: 'ri:openbase-fill',
-    rocky: 'simple-icons:rockylinux'
+    RockyLinux: 'simple-icons:rockylinux'
   }
 
   function osIcon(os: string) {
@@ -437,11 +438,11 @@
 
   /** 品牌色 */
   const osBrandColors: Record<string, string> = {
-    centos: '#932279',
-    ubuntu: '#E95420',
-    debian: '#A81D33',
+    CentOS: '#932279',
+    Ubuntu: '#E95420',
+    Debian: '#A81D33',
     openEuler: '#0067C0',
-    rocky: '#10B981'
+    RockyLinux: '#10B981'
   }
 
   function osBrandColor(os: string) {
@@ -449,31 +450,45 @@
   }
 
   const osLoading = ref(false)
-  const distributions = ref<Record<string, string[]>>({})
+  const distributions = ref<DistributionItem[]>([])
 
-  const osTypes = computed(() => Object.keys(distributions.value))
-  const currentOsImages = computed(() => distributions.value[props.form.osType] ?? [])
+  const osTypes = computed(() => {
+    const uniqueFamilies = new Set<string>()
+    distributions.value.forEach(d => uniqueFamilies.add(d.family))
+    return Array.from(uniqueFamilies)
+  })
+
+  const currentOsImages = computed(() => {
+    return distributions.value
+      .filter(d => d.family === props.form.osType)
+      .map(d => d.name)
+  })
 
   onMounted(async () => {
     osLoading.value = true
     try {
-      distributions.value = await fetchPlanDistributions()
+      distributions.value = await fetchAllDistributions()
     } catch {
       // 加载失败时使用默认值
-      distributions.value = {
-        centos: ['centos7'],
-        ubuntu: ['ubuntu20.04', 'ubuntu22.04'],
-        debian: ['debian11'],
-        openEuler: ['openEuler22.03', 'openEuler24.03'],
-        rocky: ['rocky9.2', 'rocky9.3']
-      }
+      distributions.value = [
+        { id: 1, resourceVersion: 1, family: 'CentOS', name: 'centos7', runner: 'runner-agent-v2' },
+        { id: 2, resourceVersion: 1, family: 'Ubuntu', name: 'ubuntu20.04', runner: 'runner-agent-v3' },
+        { id: 3, resourceVersion: 1, family: 'Ubuntu', name: 'ubuntu22.04', runner: 'runner-agent-v3' },
+        { id: 4, resourceVersion: 1, family: 'Debian', name: 'debian11', runner: 'runner-agent-v3' },
+        { id: 5, resourceVersion: 1, family: 'openEuler', name: 'openEuler22.03', runner: 'runner-agent-v3' },
+        { id: 6, resourceVersion: 1, family: 'openEuler', name: 'openEuler24.03', runner: 'runner-agent-v3' },
+        { id: 7, resourceVersion: 1, family: 'RockyLinux', name: 'rocky9.2', runner: 'runner-agent-v3' },
+        { id: 8, resourceVersion: 1, family: 'RockyLinux', name: 'rocky9.3', runner: 'runner-agent-v3' }
+      ]
     } finally {
       osLoading.value = false
     }
   })
 
   function onOsTypeChange(osType: string) {
-    const images = distributions.value[osType] ?? []
+    const images = distributions.value
+      .filter(d => d.family === osType)
+      .map(d => d.name)
     emit('update:form', { ...props.form, osType, osImage: images[0] ?? '' })
   }
 

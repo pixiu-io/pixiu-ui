@@ -147,3 +147,15 @@ export async function fetchBatchDeleteDistributions(ids: number[]): Promise<void
     if (code !== 200) throw new Error(message || `删除操作系统 ${id} 失败`)
   }
 }
+
+// 获取所有 Distribution 列表（不带分页，用于选择器）
+export async function fetchAllDistributions(): Promise<DistributionItem[]> {
+  const res = await pixiuAxios.get('/pixiu/distributions', { params: { limit: 90 } })
+  const { code, result, message } = res.data
+  if (code !== 200) {
+    throw new Error(message || '获取操作系统列表失败')
+  }
+
+  const payload = (result || {}) as PixiuListDistributionResponse
+  return (payload.items || []).map(mapPixiuDistributionItem)
+}
