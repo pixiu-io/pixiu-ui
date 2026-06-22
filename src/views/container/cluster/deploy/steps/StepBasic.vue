@@ -420,7 +420,7 @@
     CentOS: 'CentOS',
     Ubuntu: 'Ubuntu',
     Debian: 'Debian',
-    openEuler: 'OpenEuler',
+    OpenEuler: 'OpenEuler',
     RockyLinux: 'RockyLinux'
   }
 
@@ -428,7 +428,7 @@
     CentOS: 'ri:centos-fill',
     Ubuntu: 'simple-icons:ubuntu',
     Debian: 'simple-icons:debian',
-    openEuler: 'ri:openbase-fill',
+    OpenEuler: 'ri:openbase-fill',
     RockyLinux: 'simple-icons:rockylinux'
   }
 
@@ -441,7 +441,7 @@
     CentOS: '#932279',
     Ubuntu: '#E95420',
     Debian: '#A81D33',
-    openEuler: '#0067C0',
+    OpenEuler: '#0067C0',
     RockyLinux: '#10B981'
   }
 
@@ -475,8 +475,8 @@
         { id: 2, resourceVersion: 1, family: 'Ubuntu', name: 'ubuntu20.04', runner: 'runner-agent-v3' },
         { id: 3, resourceVersion: 1, family: 'Ubuntu', name: 'ubuntu22.04', runner: 'runner-agent-v3' },
         { id: 4, resourceVersion: 1, family: 'Debian', name: 'debian11', runner: 'runner-agent-v3' },
-        { id: 5, resourceVersion: 1, family: 'openEuler', name: 'openEuler22.03', runner: 'runner-agent-v3' },
-        { id: 6, resourceVersion: 1, family: 'openEuler', name: 'openEuler24.03', runner: 'runner-agent-v3' },
+        { id: 5, resourceVersion: 1, family: 'OpenEuler', name: 'openEuler22.03', runner: 'runner-agent-v3' },
+        { id: 6, resourceVersion: 1, family: 'OpenEuler', name: 'openEuler24.03', runner: 'runner-agent-v3' },
         { id: 7, resourceVersion: 1, family: 'RockyLinux', name: 'rocky9.2', runner: 'runner-agent-v3' },
         { id: 8, resourceVersion: 1, family: 'RockyLinux', name: 'rocky9.3', runner: 'runner-agent-v3' }
       ]

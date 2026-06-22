@@ -1,15 +1,21 @@
 <template>
   <div class="runner-page art-full-height">
     <ElAlert
+      v-if="descriptionAlertVisible"
       type="info"
-      :closable="false"
+      closable
       show-icon
       class="quota-alert"
       style="margin: 5px 0 20px 0"
       :description="tabDescription"
+      @close="descriptionAlertVisible = false"
     />
 
-    <div class="runner-toolbar-outer" v-if="activeTab === 'runner'">
+    <div
+      class="runner-toolbar-outer"
+      :class="{ 'runner-toolbar-outer--no-alert': !descriptionAlertVisible }"
+      v-if="activeTab === 'runner'"
+    >
       <ElButton v-ripple @click="showRunnerDrawer">添加 Runner</ElButton>
       <div style="display: flex; align-items: center; gap: 8px">
         <div class="runner-toolbar__filters">
@@ -35,7 +41,11 @@
         <ArtTableHeader v-model:columns="runnerColumnChecks" :loading="runnerLoading" @refresh="refreshRunnerData" />
       </div>
     </div>
-    <div class="runner-toolbar-outer" v-else>
+    <div
+      class="runner-toolbar-outer"
+      :class="{ 'runner-toolbar-outer--no-alert': !descriptionAlertVisible }"
+      v-else
+    >
       <ElButton v-ripple @click="showDistributionDrawer">添加系统</ElButton>
       <div style="display: flex; align-items: center; gap: 8px">
         <div class="runner-toolbar__filters">
@@ -67,6 +77,7 @@
         <ElTabPane label="Runner" name="runner">
           <ArtTable
             row-key="id"
+            :show-table-header="false"
             :loading="runnerLoading"
             :data="runnerData"
             :columns="runnerColumns"
@@ -95,6 +106,7 @@
         <ElTabPane label="支持系统" name="distribution">
           <ArtTable
             row-key="id"
+            :show-table-header="false"
             :loading="distributionLoading"
             :data="distributionData"
             :columns="distributionColumns"
@@ -178,11 +190,11 @@
   const router = useRouter()
   const activeTab = ref<RunnerTab>('runner')
   const distributionLoaded = ref(false)
+  const descriptionAlertVisible = ref(true)
 
   const tablePaginationOptions = {
     align: 'right' as const,
-    hideOnEmpty: false,
-    layout: 'total, prev, pager, next, sizes, jumper'
+    hideOnEmpty: false
   }
 
   const tabDescription = computed(() =>
@@ -195,7 +207,7 @@
     CentOS: 'ri:centos-fill',
     Ubuntu: 'simple-icons:ubuntu',
     Debian: 'simple-icons:debian',
-    openEuler: 'ri:openbase-fill',
+    OpenEuler: 'ri:openbase-fill',
     RockyLinux: 'simple-icons:rockylinux'
   }
 
@@ -203,7 +215,7 @@
     CentOS: '#932279',
     Ubuntu: '#E95420',
     Debian: '#A81D33',
-    openEuler: '#0067C0',
+    OpenEuler: '#0067C0',
     RockyLinux: '#10B981'
   }
 
@@ -403,6 +415,37 @@
 <style scoped lang="less">
   .runner-page :deep(.art-table-card > .el-card__body) {
     padding-top: 8px;
+    padding-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .runner-page :deep(.runner-tabs .art-table) {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    height: auto !important;
+    overflow: visible;
+  }
+
+  .runner-page :deep(.runner-tabs .art-table .el-table) {
+    flex: 1 1 0;
+    min-height: 0;
+    height: 100% !important;
+  }
+
+  .runner-page :deep(.custom-pagination) {
+    flex: 0 0 auto;
+    margin-top: 10px;
+    margin-bottom: 0;
+    padding-bottom: 4px;
+    box-sizing: border-box;
+  }
+
+  .runner-page :deep(.el-pagination) {
+    padding: 0;
   }
 
   .runner-page :deep(.el-table th),
@@ -415,10 +458,36 @@
     align-items: center;
     justify-content: space-between;
     margin-bottom: 10px;
+    flex-shrink: 0;
   }
 
-  .runner-tabs :deep(.el-tabs__header) {
-    margin: 0 0 4px;
+  .runner-toolbar-outer--no-alert {
+    margin-top: 10px;
+  }
+
+  .runner-tabs {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+
+    :deep(.el-tabs__header) {
+      margin: 0 0 4px;
+      flex-shrink: 0;
+    }
+
+    :deep(.el-tabs__content) {
+      flex: 1;
+      overflow: hidden;
+    }
+
+    :deep(.el-tab-pane) {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      box-sizing: border-box;
+    }
   }
 
   .runner-tabs :deep(.el-tabs__nav-wrap::after) {
@@ -443,10 +512,6 @@
   .runner-tabs :deep(.el-tabs__active-bar) {
     height: 2px;
     border-radius: 2px 2px 0 0;
-  }
-
-  .runner-tabs :deep(.el-tabs__content) {
-    padding-top: 0;
   }
 
   .runner-table-header {
@@ -532,5 +597,9 @@
   .os-name {
     font-weight: 400;
     color: var(--el-text-color-primary);
+  }
+
+  .quota-alert {
+    flex-shrink: 0;
   }
 </style>

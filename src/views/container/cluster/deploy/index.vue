@@ -235,11 +235,11 @@
 
   function detectOsTypeFromImage(osImage: string): string {
     const image = osImage.toLowerCase()
-    if (image.startsWith('centos')) return 'centos'
-    if (image.startsWith('ubuntu')) return 'ubuntu'
-    if (image.startsWith('debian')) return 'debian'
-    if (image.startsWith('openeuler')) return 'openEuler'
-    if (image.startsWith('rocky')) return 'rocky'
+    if (image.startsWith('centos')) return 'CentOS'
+    if (image.startsWith('ubuntu')) return 'Ubuntu'
+    if (image.startsWith('debian')) return 'Debian'
+    if (image.startsWith('openeuler')) return 'OpenEuler'
+    if (image.startsWith('rocky')) return 'RockyLinux'
     return ''
   }
 

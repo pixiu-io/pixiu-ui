@@ -39,7 +39,14 @@
           <ElInput v-model="formData.name" placeholder="请输入系统名称" />
         </ElFormItem>
         <ElFormItem label="Runner" prop="runner">
-          <ElInput v-model="formData.runner" placeholder="请输入 Runner" />
+          <ElSelect v-model="formData.runner" placeholder="请选择 Runner" style="width: 100%" filterable clearable :loading="runnerListLoading">
+            <ElOption
+              v-for="item in runnerList"
+              :key="item.id"
+              :label="item.name"
+              :value="item.name"
+            />
+          </ElSelect>
         </ElFormItem>
       </ElForm>
     </div>
@@ -64,6 +71,7 @@
     type CreateDistributionParams,
     type UpdateDistributionParams
   } from '@/api/distribution'
+  import { fetchAllRunners, type RunnerItem } from '@/api/runner'
 
   defineOptions({ name: 'DistributionDrawer' })
 
@@ -92,32 +100,34 @@
     runner: ''
   })
   const editResourceVersion = ref(0)
+  const runnerList = ref<RunnerItem[]>([])
+  const runnerListLoading = ref(false)
 
   // 系统家族选项
   const osFamilies = [
-    { value: 'centos', label: 'CentOS' },
-    { value: 'ubuntu', label: 'Ubuntu' },
-    { value: 'debian', label: 'Debian' },
-    { value: 'openEuler', label: 'OpenEuler' },
-    { value: 'rocky', label: 'RockyLinux' }
+    { value: 'CentOS', label: 'CentOS' },
+    { value: 'Ubuntu', label: 'Ubuntu' },
+    { value: 'Debian', label: 'Debian' },
+    { value: 'OpenEuler', label: 'OpenEuler' },
+    { value: 'RockyLinux', label: 'RockyLinux' }
   ]
 
   // 系统家族图标映射
   const osIconMap: Record<string, string> = {
-    centos: 'ri:centos-fill',
-    ubuntu: 'simple-icons:ubuntu',
-    debian: 'simple-icons:debian',
-    openEuler: 'ri:openbase-fill',
-    rocky: 'simple-icons:rockylinux'
+    CentOS: 'ri:centos-fill',
+    Ubuntu: 'simple-icons:ubuntu',
+    Debian: 'simple-icons:debian',
+    OpenEuler: 'ri:openbase-fill',
+    RockyLinux: 'simple-icons:rockylinux'
   }
 
   // 系统家族品牌色
   const osBrandColors: Record<string, string> = {
-    centos: '#932279',
-    ubuntu: '#E95420',
-    debian: '#A81D33',
-    openEuler: '#0067C0',
-    rocky: '#10B981'
+    CentOS: '#932279',
+    Ubuntu: '#E95420',
+    Debian: '#A81D33',
+    OpenEuler: '#0067C0',
+    RockyLinux: '#10B981'
   }
 
   function osIcon(os: string) {
@@ -131,12 +141,24 @@
   const rules: FormRules = {
     family: [{ required: true, message: '请输入操作系统家族', trigger: 'blur' }],
     name: [{ required: true, message: '请输入发行版名称', trigger: 'blur' }],
-    runner: [{ required: true, message: '请输入 Runner 镜像', trigger: 'blur' }]
+    runner: [{ required: true, message: '请选择 Runner', trigger: 'change' }]
+  }
+
+  async function loadRunners() {
+    runnerListLoading.value = true
+    try {
+      runnerList.value = await fetchAllRunners()
+    } catch {
+      runnerList.value = []
+    } finally {
+      runnerListLoading.value = false
+    }
   }
 
   watch(visible, (val) => {
     if (val) {
       resetForm()
+      loadRunners()
       if (isEdit.value && props.editId) {
         loadEditData(props.editId)
       }

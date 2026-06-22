@@ -95,6 +95,18 @@ export async function fetchGetRunnerList(params: RunnerListParams): Promise<Runn
   }
 }
 
+// 获取所有 Runner 列表（不带分页，用于下拉选择器）
+export async function fetchAllRunners(): Promise<RunnerItem[]> {
+  const res = await pixiuAxios.get('/pixiu/runners', { params: { limit: 999 } })
+  const { code, result, message } = res.data
+  if (code !== 200) {
+    throw new Error(message || '获取 Runner 列表失败')
+  }
+
+  const payload = (result || {}) as PixiuListRunnerResponse
+  return (payload.items || []).map(mapPixiuRunnerItem)
+}
+
 // 获取单个 Runner 详情
 export async function fetchGetRunner(id: number): Promise<RunnerItem> {
   const res = await pixiuAxios.get(`/pixiu/runners/${id}`)
