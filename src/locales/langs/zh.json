@@ -242,7 +242,9 @@
       "host": "主机管理",
       "runner": "Runner",
       "audit": "审计",
-      "agent": "Agent"
+      "agent": "Agent",
+      "monitor": "监控告警",
+      "datasource": "数据源"
     },
     "appstore": {
       "title": "应用商店"

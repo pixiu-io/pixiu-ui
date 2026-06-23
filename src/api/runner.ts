@@ -194,14 +194,14 @@ export async function fetchBatchDeleteRunners(ids: number[]): Promise<void> {
 
 // 安装 Runner
 export async function fetchInstallRunner(id: number): Promise<void> {
-  const res = await pixiuAxios.post(`/pixiu/runners/${id}/install`)
+  const res = await pixiuAxios.post(`/pixiu/runners/install`, { id })
   const { code, message } = res.data
   if (code !== 200) throw new Error(message || '安装 Runner 失败')
 }
 
 // 卸载 Runner
 export async function fetchUninstallRunner(id: number): Promise<void> {
-  const res = await pixiuAxios.post(`/pixiu/runners/${id}/uninstall`)
+  const res = await pixiuAxios.post(`/pixiu/runners/uninstall`, { id })
   const { code, message } = res.data
   if (code !== 200) throw new Error(message || '卸载 Runner 失败')
 }
