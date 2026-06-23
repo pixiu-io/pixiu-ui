@@ -11,12 +11,12 @@ export const safeguardRoutes: AppRouteRecord = {
   },
   children: [
     {
-      path: 'host',
-      name: 'SafeguardHost',
-      component: '/safeguard/host',
+      path: 'runner',
+      name: 'SafeguardRunner',
+      component: '/safeguard/runner',
       meta: {
-        title: 'menus.safeguard.host',
-        icon: 'ri:server-line',
+        title: 'menus.safeguard.runner',
+        icon: 'ri:terminal-box-line',
         keepAlive: true
       }
     },
@@ -32,12 +32,12 @@ export const safeguardRoutes: AppRouteRecord = {
       }
     },
     {
-      path: 'runner',
-      name: 'SafeguardRunner',
-      component: '/safeguard/runner',
+      path: 'host',
+      name: 'SafeguardHost',
+      component: '/safeguard/host',
       meta: {
-        title: 'menus.safeguard.runner',
-        icon: 'ri:terminal-box-line',
+        title: 'menus.safeguard.host',
+        icon: 'ri:server-line',
         keepAlive: true
       }
     },

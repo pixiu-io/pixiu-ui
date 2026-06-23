@@ -12,11 +12,19 @@ export interface RunnerItem {
 }
 
 // 状态映射
-export const RunnerStatusMap = {
+export const RunnerStatusMap: Record<
+  number,
+  {
+    label: string
+    type: 'primary' | 'success' | 'info' | 'warning' | 'danger'
+  }
+> = {
   0: { label: '未安装', type: 'info' },
   1: { label: '安装中', type: 'success' },
-  2: { label: '已安装', type: 'primary' }
-} as Record<number, { label: string; type: string }>
+  2: { label: '卸载中', type: 'warning' },
+  3: { label: '已安装', type: 'primary' },
+  4: { label: '异常', type: 'danger' }
+}
 
 interface PixiuRunnerItem {
   id: number
@@ -182,4 +190,18 @@ export async function fetchBatchDeleteRunners(ids: number[]): Promise<void> {
     const { code, message } = res.data
     if (code !== 200) throw new Error(message || `删除 Runner ${id} 失败`)
   }
+}
+
+// 安装 Runner
+export async function fetchInstallRunner(id: number): Promise<void> {
+  const res = await pixiuAxios.post(`/pixiu/runners/${id}/install`)
+  const { code, message } = res.data
+  if (code !== 200) throw new Error(message || '安装 Runner 失败')
+}
+
+// 卸载 Runner
+export async function fetchUninstallRunner(id: number): Promise<void> {
+  const res = await pixiuAxios.post(`/pixiu/runners/${id}/uninstall`)
+  const { code, message } = res.data
+  if (code !== 200) throw new Error(message || '卸载 Runner 失败')
 }

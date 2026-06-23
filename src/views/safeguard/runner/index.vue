@@ -98,6 +98,18 @@
               <div class="runner-table-actions">
                 <ElLink type="primary" underline="never" @click="editRunner(row)">编辑</ElLink>
                 <ElLink type="primary" underline="never" @click="deleteRunner(row)">删除</ElLink>
+                <ElDropdown trigger="click" @command="(cmd) => handleRunnerOperation(cmd, row)">
+                  <ElLink type="primary" underline="never" class="more-link">
+                    更多
+                    <ArtSvgIcon icon="ri:arrow-down-s-line" class="more-icon" />
+                  </ElLink>
+                  <template #dropdown>
+                    <ElDropdownMenu>
+                      <ElDropdownItem command="install" :disabled="row.status === 1 || row.status === 2 || row.status === 3">安装</ElDropdownItem>
+                      <ElDropdownItem command="uninstall" :disabled="row.status === 1 || row.status === 2 || row.status === 0">卸载</ElDropdownItem>
+                    </ElDropdownMenu>
+                  </template>
+                </ElDropdown>
               </div>
             </template>
           </ArtTable>
@@ -159,6 +171,9 @@
     ElAlert,
     ElButton,
     ElCard,
+    ElDropdown,
+    ElDropdownItem,
+    ElDropdownMenu,
     ElInput,
     ElLink,
     ElMessage,
@@ -170,6 +185,8 @@
   import {
     fetchGetRunnerList,
     fetchDeleteRunner,
+    fetchInstallRunner,
+    fetchUninstallRunner,
     type RunnerItem,
     RunnerStatusMap
   } from '@/api/runner'
@@ -295,7 +312,7 @@
         { prop: 'engineImage', label: '镜像', minWidth: 300 },
         { prop: 'description', label: '描述', minWidth: 200 },
         { prop: 'gmtCreate', label: '创建时间', minWidth: 180, useSlot: true },
-        { prop: 'operation', label: '操作', minWidth: 90, fixed: 'right', useSlot: true }
+        { prop: 'operation', label: '操作', minWidth: 150, fixed: 'right', useSlot: true }
       ]
     }
   })
@@ -328,6 +345,34 @@
     } catch (error) {
       if (error !== 'cancel' && (!(error instanceof PixiuApiError) || !error.notified)) {
         ElMessage.error(error instanceof Error ? error.message : '删除失败')
+      }
+    }
+  }
+
+  async function handleRunnerOperation(cmd: string, row: RunnerItem) {
+    try {
+      if (cmd === 'install') {
+        await ElMessageBox.confirm(`确定要安装 Runner ${row.name} 吗？`, '提示', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'info'
+        })
+        await fetchInstallRunner(row.id)
+        ElMessage.success('安装任务已提交，请等待安装完成')
+      } else if (cmd === 'uninstall') {
+        await ElMessageBox.confirm(`确定要卸载 Runner ${row.name} 吗？`, '提示', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
+        })
+        await fetchUninstallRunner(row.id)
+        ElMessage.success('卸载任务已提交，请等待卸载完成')
+      }
+      refreshRunnerData()
+    } catch (error) {
+      if (error !== 'cancel' && (!(error instanceof PixiuApiError) || !error.notified)) {
+        const action = cmd === 'install' ? '安装' : '卸载'
+        ElMessage.error(error instanceof Error ? error.message : `${action}失败`)
       }
     }
   }
@@ -580,6 +625,16 @@
 
     :deep(.el-link) {
       font-size: 12px;
+    }
+
+    .more-link {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .more-icon {
+      font-size: 14px;
     }
   }
 
