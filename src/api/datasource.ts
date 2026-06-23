@@ -34,6 +34,9 @@ export interface DatasourceConfig {
     user_name?: string
     password?: string
   }
+  alert?: {
+    url?: string
+  }
 }
 
 interface PixiuDatasourceItem {
@@ -135,7 +138,6 @@ export interface CreateDatasourceParams {
   name: string
   type: number
   sub_type: string
-  url: string
   config?: DatasourceConfig
   is_default?: boolean
   description?: string
@@ -147,8 +149,7 @@ export async function fetchCreateDatasource(params: CreateDatasourceParams): Pro
   const data: Record<string, unknown> = {
     name: params.name,
     type: params.type,
-    sub_type: params.sub_type,
-    url: params.url
+    sub_type: params.sub_type
   }
   if (params.config !== undefined) data.config = params.config
   if (params.is_default !== undefined) data.is_default = params.is_default
@@ -165,7 +166,6 @@ export interface UpdateDatasourceParams {
   resourceVersion: number
   name?: string
   sub_type?: string
-  url?: string
   config?: DatasourceConfig
   is_default?: boolean
   description?: string
@@ -178,7 +178,6 @@ export async function fetchUpdateDatasource(params: UpdateDatasourceParams): Pro
   }
   if (params.name !== undefined) data.name = params.name
   if (params.sub_type !== undefined) data.sub_type = params.sub_type
-  if (params.url !== undefined) data.url = params.url
   if (params.config !== undefined) data.config = params.config
   if (params.is_default !== undefined) data.is_default = params.is_default
   if (params.description !== undefined) data.description = params.description

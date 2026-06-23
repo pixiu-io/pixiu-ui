@@ -31,8 +31,8 @@
             <ElOption label="告警" :value="1" />
           </ElSelect>
         </ElFormItem>
-        <ElFormItem label="子类型" prop="sub_type">
-          <ElSelect v-model="formData.sub_type" placeholder="请选择子类型" style="width: 100%">
+        <ElFormItem label="数据来源" prop="sub_type">
+          <ElSelect v-model="formData.sub_type" placeholder="请选择数据来源" style="width: 100%">
             <ElOption
               v-for="item in currentSubTypeOptions"
               :key="item.value"
@@ -41,18 +41,20 @@
             />
           </ElSelect>
         </ElFormItem>
-        <ElFormItem label="URL" prop="url">
-          <ElInput v-model="formData.url" placeholder="请输入数据源地址" />
-        </ElFormItem>
         <template v-if="formData.type === 0">
-          <ElFormItem label="Config URL">
-            <ElInput v-model="formData.config_log_url" placeholder="请输入日志配置 URL" />
+          <ElFormItem label="URL">
+            <ElInput v-model="formData.config_log_url" placeholder="请输入日志数据源 URL" />
           </ElFormItem>
           <ElFormItem label="用户名">
             <ElInput v-model="formData.config_log_user_name" placeholder="请输入用户名" />
           </ElFormItem>
           <ElFormItem label="密码">
             <ElInput v-model="formData.config_log_password" type="password" placeholder="请输入密码" show-password />
+          </ElFormItem>
+        </template>
+        <template v-if="formData.type === 1">
+          <ElFormItem label="URL">
+            <ElInput v-model="formData.config_alert_url" placeholder="请输入告警数据源 URL" />
           </ElFormItem>
         </template>
         <ElFormItem label="设为默认">
@@ -89,17 +91,17 @@
   defineOptions({ name: 'DatasourceDrawer' })
 
   interface FormData {
-    name: string
-    cluster_name: string
-    type: number
-    sub_type: string
-    url: string
-    config_log_url: string
-    config_log_user_name: string
-    config_log_password: string
-    is_default: boolean
-    description: string
-  }
+  name: string
+  cluster_name: string
+  type: number
+  sub_type: string
+  config_log_url: string
+  config_log_user_name: string
+  config_log_password: string
+  config_alert_url: string
+  is_default: boolean
+  description: string
+}
 
   const props = defineProps<{
     editId?: number
@@ -119,10 +121,10 @@
     cluster_name: '',
     type: 0,
     sub_type: '',
-    url: '',
     config_log_url: '',
     config_log_user_name: '',
     config_log_password: '',
+    config_alert_url: '',
     is_default: false,
     description: ''
   })
@@ -147,8 +149,7 @@
   const rules: FormRules = {
     name: [{ required: true, message: '请输入数据源名称', trigger: 'blur' }],
     type: [{ required: true, message: '请选择类型', trigger: 'change' }],
-    sub_type: [{ required: true, message: '请选择子类型', trigger: 'change' }],
-    url: [{ required: true, message: '请输入数据源地址', trigger: 'blur' }]
+    sub_type: [{ required: true, message: '请选择数据来源', trigger: 'change' }]
   }
 
   watch(visible, (val) => {
@@ -166,10 +167,10 @@
       cluster_name: '',
       type: 0,
       sub_type: '',
-      url: '',
       config_log_url: '',
       config_log_user_name: '',
       config_log_password: '',
+      config_alert_url: '',
       is_default: false,
       description: ''
     }
@@ -177,15 +178,25 @@
   }
 
   function buildConfig(): DatasourceConfig | undefined {
-    if (formData.value.type !== 0) return undefined
-    if (!formData.value.config_log_url && !formData.value.config_log_user_name && !formData.value.config_log_password) {
-      return undefined
-    }
-    return {
-      log: {
-        url: formData.value.config_log_url || undefined,
-        user_name: formData.value.config_log_user_name || undefined,
-        password: formData.value.config_log_password || undefined
+    if (formData.value.type === 0) {
+      if (!formData.value.config_log_url && !formData.value.config_log_user_name && !formData.value.config_log_password) {
+        return undefined
+      }
+      return {
+        log: {
+          url: formData.value.config_log_url || undefined,
+          user_name: formData.value.config_log_user_name || undefined,
+          password: formData.value.config_log_password || undefined
+        }
+      }
+    } else {
+      if (!formData.value.config_alert_url) {
+        return undefined
+      }
+      return {
+        alert: {
+          url: formData.value.config_alert_url || undefined
+        }
       }
     }
   }
@@ -195,6 +206,9 @@
       formData.value.config_log_url = config.log.url || ''
       formData.value.config_log_user_name = config.log.user_name || ''
       formData.value.config_log_password = config.log.password || ''
+    }
+    if (config?.alert) {
+      formData.value.config_alert_url = config.alert.url || ''
     }
   }
 
@@ -207,10 +221,10 @@
         cluster_name: data.clusterName || '',
         type: data.type,
         sub_type: data.subType,
-        url: data.url,
         config_log_url: '',
         config_log_user_name: '',
         config_log_password: '',
+        config_alert_url: '',
         is_default: data.isDefault,
         description: data.description || ''
       }
@@ -240,7 +254,6 @@
               resourceVersion: editResourceVersion.value,
               name: formData.value.name,
               sub_type: formData.value.sub_type,
-              url: formData.value.url,
               config: buildConfig(),
               is_default: formData.value.is_default,
               description: formData.value.description || undefined
@@ -252,7 +265,6 @@
               name: formData.value.name,
               type: formData.value.type,
               sub_type: formData.value.sub_type,
-              url: formData.value.url,
               config: buildConfig(),
               is_default: formData.value.is_default,
               description: formData.value.description || undefined,

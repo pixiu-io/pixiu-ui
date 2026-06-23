@@ -121,7 +121,7 @@
         },
         {
           prop: 'subType',
-          label: '子类型',
+          label: '数据来源',
           minWidth: 120,
           formatter: (row: any) =>
             h('span', { style: { fontSize: '12px' } }, DatasourceSubTypeMap[row.subType] || row.subType)
