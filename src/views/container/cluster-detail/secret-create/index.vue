@@ -29,7 +29,7 @@
         </ElFormItem>
 
         <ElFormItem label="Secret 类型" prop="secretType">
-          <ElRadioGroup v-model="form.secretType" class="pull-policy-group">
+          <ElRadioGroup v-model="form.secretType" class="pull-policy-group secret-type-group">
             <ElRadioButton value="Opaque">Opaque</ElRadioButton>
             <ElRadioButton value="kubernetes.io/tls">TLS 证书</ElRadioButton>
             <ElRadioButton value="kubernetes.io/dockerconfigjson"
@@ -758,6 +758,26 @@ import { nextTick } from 'vue'
     box-shadow: none !important;
     position: relative;
     z-index: 1;
+  }
+
+  /* Secret 类型三项文案较长，按内容撑开宽度，避免 320px 等分折叠 */
+  .secret-type-group.pull-policy-group {
+    width: fit-content;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .secret-type-group.pull-policy-group :deep(.el-radio-button) {
+    flex: 0 0 auto;
+  }
+
+  .secret-type-group.pull-policy-group :deep(.el-radio-button__inner) {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 88px;
+    white-space: nowrap;
+    padding-left: 14px;
+    padding-right: 14px;
   }
 
   /* ── 生效范围：命名空间选择器 ── */

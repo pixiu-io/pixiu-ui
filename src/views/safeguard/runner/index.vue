@@ -105,8 +105,8 @@
                   </ElLink>
                   <template #dropdown>
                     <ElDropdownMenu>
-                      <ElDropdownItem command="install" :disabled="row.status === 1 || row.status === 2 || row.status === 3">安装</ElDropdownItem>
-                      <ElDropdownItem command="uninstall" :disabled="row.status === 1 || row.status === 2 || row.status === 0">卸载</ElDropdownItem>
+                      <ElDropdownItem command="install" :disabled="row.status === 3">安装</ElDropdownItem>
+                      <ElDropdownItem command="uninstall" :disabled="row.status !== 3">卸载</ElDropdownItem>
                     </ElDropdownMenu>
                   </template>
                 </ElDropdown>
@@ -358,7 +358,7 @@
           type: 'info'
         })
         await fetchInstallRunner(row.id)
-        ElMessage.success('安装任务已提交，请等待安装完成')
+        ElMessage.success('安装任务已提交')
       } else if (cmd === 'uninstall') {
         await ElMessageBox.confirm(`确定要卸载 Runner ${row.name} 吗？`, '提示', {
           confirmButtonText: '确定',
@@ -366,7 +366,7 @@
           type: 'warning'
         })
         await fetchUninstallRunner(row.id)
-        ElMessage.success('卸载任务已提交，请等待卸载完成')
+        ElMessage.success('卸载任务已提交')
       }
       refreshRunnerData()
     } catch (error) {

@@ -240,7 +240,9 @@
       "host": "Host Management",
       "runner": "Runner",
       "audit": "Audit",
-      "agent": "Agent Management"
+      "agent": "Agent Management",
+      "monitor": "Monitor & Alert",
+      "datasource": "Datasource"
     },
     "plan": {
       "title": "Version Plan",

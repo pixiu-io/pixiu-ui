@@ -351,15 +351,46 @@
     font-size: 12px;
   }
 
-  .permission-page :deep(.art-table-card .el-card__body) {
+  .permission-page :deep(.art-table-card > .el-card__body) {
     padding-top: 8px;
-    padding-bottom: 0;
+    padding-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
   }
+
+  .permission-page :deep(.art-table) {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    height: auto !important;
+    overflow: visible;
+  }
+
+  .permission-page :deep(.art-table .el-table) {
+    flex: 1 1 0;
+    min-height: 0;
+    height: 100% !important;
+  }
+
   .permission-page :deep(.custom-pagination) {
-    padding-bottom: 0;
+    flex: 0 0 auto;
+    margin-top: 10px;
     margin-bottom: 0;
+    padding-bottom: 4px;
+    box-sizing: border-box;
   }
+
   .permission-page :deep(.el-pagination) {
-    padding: 2px 0;
+    padding: 0;
+  }
+
+  .permission-toolbar {
+    flex-shrink: 0;
+  }
+
+  .quota-alert {
+    flex-shrink: 0;
   }
 </style>
