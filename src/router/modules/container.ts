@@ -4,15 +4,35 @@ import { AppRouteRecord } from '@/types/router'
 const CLUSTER_DETAIL_LAYOUT = '/container/cluster-detail/layout'
 
 const clusterDetailChildren: AppRouteRecord[] = [
-  { path: 'overview', name: 'ClusterDetailOverview', component: '/container/cluster-detail/overview' },
+  {
+    path: 'overview',
+    name: 'ClusterDetailOverview',
+    component: '/container/cluster-detail/overview'
+  },
   { path: 'nodes', name: 'ClusterDetailNodes', component: '/container/cluster-detail/nodes' },
-  { path: 'namespaces', name: 'ClusterDetailNamespaces', component: '/container/cluster-detail/namespaces' },
-  { path: 'workloads', name: 'ClusterDetailWorkloads', component: '/container/cluster-detail/workloads' },
+  {
+    path: 'namespaces',
+    name: 'ClusterDetailNamespaces',
+    component: '/container/cluster-detail/namespaces'
+  },
+  {
+    path: 'workloads',
+    name: 'ClusterDetailWorkloads',
+    component: '/container/cluster-detail/workloads'
+  },
   { path: 'pods', name: 'ClusterDetailPods', component: '/container/cluster-detail/pods' },
-  { path: 'services', name: 'ClusterDetailServices', component: '/container/cluster-detail/services' },
+  {
+    path: 'services',
+    name: 'ClusterDetailServices',
+    component: '/container/cluster-detail/services'
+  },
   { path: 'config', name: 'ClusterDetailConfig', component: '/container/cluster-detail/config' },
   { path: 'storage', name: 'ClusterDetailStorage', component: '/container/cluster-detail/storage' },
-  { path: 'autoscaling', name: 'ClusterDetailAutoscaling', component: '/container/cluster-detail/autoscaling' },
+  {
+    path: 'autoscaling',
+    name: 'ClusterDetailAutoscaling',
+    component: '/container/cluster-detail/autoscaling'
+  },
   { path: 'auth', name: 'ClusterDetailAuth', component: '/container/cluster-detail/auth' },
   {
     path: 'addon-components',
@@ -20,12 +40,29 @@ const clusterDetailChildren: AppRouteRecord[] = [
     component: '/container/cluster-detail/addon-components'
   },
   { path: 'crds', name: 'ClusterDetailCrds', component: '/container/cluster-detail/crds' },
-  { path: 'apiservices', name: 'ClusterDetailApiservices', component: '/container/cluster-detail/apiservices' },
-  { path: 'appstore', name: 'ClusterDetailAppstore', component: '/container/cluster-detail/apiservices' },
+  {
+    path: 'apiservices',
+    name: 'ClusterDetailApiservices',
+    component: '/container/cluster-detail/apiservices'
+  },
+  {
+    path: 'appstore',
+    name: 'ClusterDetailAppstore',
+    component: '/container/cluster-detail/apiservices'
+  },
   { path: 'alert', name: 'ClusterDetailAlert', component: '/container/cluster-detail/alert' },
+  {
+    path: 'datasources',
+    name: 'ClusterDetailDatasources',
+    component: '/container/cluster-detail/datasources'
+  },
   { path: 'logs', name: 'ClusterDetailLogs', component: '/container/cluster-detail/logs' },
   { path: 'events', name: 'ClusterDetailEvents', component: '/container/cluster-detail/events' },
-  { path: 'prometheus', name: 'ClusterDetailPrometheus', component: '/container/cluster-detail/prometheus' }
+  {
+    path: 'prometheus',
+    name: 'ClusterDetailPrometheus',
+    component: '/container/cluster-detail/prometheus'
+  }
 ].map((c) => ({
   path: c.path,
   component: CLUSTER_DETAIL_LAYOUT,

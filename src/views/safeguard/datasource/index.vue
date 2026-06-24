@@ -59,10 +59,10 @@
   import {
     fetchGetDatasourceList,
     fetchDeleteDatasource,
+    resolveDatasourceUrl,
     type DatasourceItem,
     DatasourceTypeMap,
-    DatasourceSubTypeMap,
-    getDatasourceDisplayUrl
+    DatasourceSubTypeMap
   } from '@/api/datasource'
   import { PixiuApiError, fetchClusterList } from '@/api/container'
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
@@ -157,7 +157,7 @@
           formatter: (row: DatasourceItem) => {
             const iconMeta = getSubTypeIcon(row.subType)
             const subTypeLabel = DatasourceSubTypeMap[row.subType] || row.subType
-            const displayUrl = getDatasourceDisplayUrl(row)
+            const displayUrl = resolveDatasourceUrl(row)
             const titleChildren = [
               h('span', { class: 'datasource-name-cell__title-text' }, row.name)
             ]

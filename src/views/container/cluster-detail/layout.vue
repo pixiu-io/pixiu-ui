@@ -164,6 +164,7 @@
             <template #title>
               <span>监控告警</span>
             </template>
+            <ElMenuItem index="datasources">数据源</ElMenuItem>
             <ElMenuItem index="logs">
               <span>日志</span>
               <span class="menu-new-tag">NEW</span>
@@ -238,6 +239,7 @@
     'crds',
     'apiservices',
     'alert',
+    'datasources',
     'logs',
     'events',
     'prometheus'

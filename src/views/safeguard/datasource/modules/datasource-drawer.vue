@@ -133,26 +133,28 @@
     fetchCreateDatasource,
     fetchGetDatasource,
     fetchUpdateDatasource,
-    type CreateDatasourceParams,
-    type UpdateDatasourceParams,
-    type DatasourceConfig
+    type CreateDatasourcePayload,
+    type DatasourceConfig,
+    type DatasourceSubType,
+    type DatasourceType,
+    type UpdateDatasourcePayload
   } from '@/api/datasource'
   import { fetchClusterList, PixiuApiError, type ClusterItem } from '@/api/container'
 
   defineOptions({ name: 'DatasourceDrawer' })
 
   interface FormData {
-  name: string
-  cluster_name: string
-  type: string
-  sub_type: string
-  config_log_url: string
-  config_log_user_name: string
-  config_log_password: string
-  config_alert_url: string
-  is_default: boolean
-  description: string
-}
+    name: string
+    cluster_name: string
+    type: string
+    sub_type: string
+    config_log_url: string
+    config_log_user_name: string
+    config_log_password: string
+    config_alert_url: string
+    is_default: boolean
+    description: string
+  }
 
   const props = defineProps<{
     editId?: number
@@ -220,7 +222,7 @@
   }
 
   interface SubTypeOption {
-    value: string
+    value: DatasourceSubType
     label: string
     icon: string
     color: string
@@ -325,37 +327,39 @@
     editResourceVersion.value = 0
   }
 
-  function buildConfig(): DatasourceConfig | undefined {
+  function resolveFormUrl(): string {
     if (formData.type === '0') {
-      if (!formData.config_log_url && !formData.config_log_user_name && !formData.config_log_password) {
-        return undefined
-      }
+      return formData.config_log_url.trim()
+    }
+    return formData.config_alert_url.trim()
+  }
+
+  function buildConfig(): CreateDatasourcePayload['config'] {
+    if (formData.type === '0') {
       return {
+        headers: [],
         log: {
           url: formData.config_log_url || undefined,
-          user_name: formData.config_log_user_name || undefined,
+          userName: formData.config_log_user_name || undefined,
           password: formData.config_log_password || undefined
         }
       }
-    } else {
-      if (!formData.config_alert_url) {
-        return undefined
-      }
-      return {
-        alert: {
-          url: formData.config_alert_url || undefined
-        }
+    }
+    return {
+      headers: [],
+      alert: {
+        url: formData.config_alert_url || undefined
       }
     }
   }
 
-  function fillFormFromConfig(config?: DatasourceConfig) {
-    if (config?.log) {
+  function fillFormFromConfig(config: DatasourceConfig) {
+    if (config.log) {
       formData.config_log_url = config.log.url || ''
-      formData.config_log_user_name = config.log.user_name || ''
+      formData.config_log_user_name = config.log.userName || ''
       formData.config_log_password = config.log.password || ''
     }
-    if (config?.alert) {
+    if (config.alert) {
       formData.config_alert_url = config.alert.url || ''
     }
   }
@@ -402,31 +406,38 @@
       if (valid) {
         submitting.value = true
         try {
+          const url = resolveFormUrl()
+          const type = Number(formData.type) as DatasourceType
+          const subType = formData.sub_type as DatasourceSubType
+          const config = buildConfig()
+
           if (isEdit.value && props.editId) {
-            const params: UpdateDatasourceParams = {
+            const payload: UpdateDatasourcePayload = {
               id: props.editId,
               resourceVersion: editResourceVersion.value,
+              clusterName: formData.cluster_name || undefined,
               name: formData.name,
-              type: Number(formData.type),
-              sub_type: formData.sub_type,
-              config: buildConfig(),
-              is_default: formData.is_default,
-              description: formData.description || undefined,
-              cluster_name: formData.cluster_name || undefined
+              type,
+              subType,
+              url,
+              config,
+              isDefault: formData.is_default,
+              description: formData.description || undefined
             }
-            await fetchUpdateDatasource(params)
+            await fetchUpdateDatasource(payload)
             ElMessage.success('修改成功')
           } else {
-            const params: CreateDatasourceParams = {
+            const payload: CreateDatasourcePayload = {
+              clusterName: formData.cluster_name || '',
               name: formData.name,
-              type: Number(formData.type),
-              sub_type: formData.sub_type,
-              config: buildConfig(),
-              is_default: formData.is_default,
-              description: formData.description || undefined,
-              cluster_name: formData.cluster_name || undefined
+              type,
+              subType,
+              url,
+              config,
+              isDefault: formData.is_default,
+              description: formData.description || ''
             }
-            await fetchCreateDatasource(params)
+            await fetchCreateDatasource(payload)
             ElMessage.success('创建成功')
           }
           emit('success')
@@ -596,5 +607,4 @@
       }
     }
   }
-
 </style>
