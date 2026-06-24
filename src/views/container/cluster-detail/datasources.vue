@@ -749,11 +749,49 @@
   .datasource-create-form {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 10px;
+    font-size: 12px;
+    padding-top: 0;
+
+    :deep(.el-form-item__label) {
+      font-size: 12px;
+    }
+
+    :deep(.el-input__inner),
+    :deep(.el-textarea__inner),
+    :deep(.el-select__wrapper),
+    :deep(.el-select__selected-item),
+    :deep(.el-select__placeholder),
+    :deep(.el-input__wrapper) {
+      font-size: 12px;
+    }
+
+    :deep(.el-input__inner::placeholder),
+    :deep(.el-textarea__inner::placeholder),
+    :deep(.el-input__wrapper::placeholder),
+    :deep(.el-textarea__wrapper::placeholder),
+    :deep(.el-input__wrapper input::placeholder),
+    :deep(.el-textarea__wrapper textarea::placeholder) {
+      font-size: 12px !important;
+      opacity: 1;
+    }
+
+    :deep(.el-select-dropdown__item) {
+      font-size: 12px;
+    }
+
+    :deep(.el-button) {
+      font-size: 12px;
+    }
+
+    :deep(.el-input__placeholder),
+    :deep(.el-textarea__placeholder) {
+      font-size: 12px;
+    }
   }
 
   .datasource-form-section {
-    padding: 16px 18px 8px;
+    padding: 12px 18px 8px;
     border: 1px solid #e6edf5;
     border-radius: 16px;
     background: linear-gradient(180deg, rgb(255 255 255 / 100%) 0%, rgb(248 251 255 / 100%) 100%);
@@ -777,7 +815,7 @@
   }
 
   .datasource-form-section__title {
-    margin-bottom: 12px;
+    margin-bottom: 8px;
     color: #0f172a;
     font-size: 14px;
     font-weight: 700;
@@ -785,7 +823,7 @@
 
   .datasource-form-section__summary {
     color: #64748b;
-    font-size: 13px;
+    font-size: 12px;
   }
 
   .datasource-advanced-collapse {
@@ -803,8 +841,12 @@
   }
 
   .datasource-advanced-collapse :deep(.el-collapse-item__wrap) {
-    border-bottom-color: #edf2f7;
+    border-bottom: 0;
     background: transparent;
+  }
+
+  .datasource-advanced-collapse :deep(.el-collapse-item:last-child .el-collapse-item__header) {
+    border-bottom: 0;
   }
 
   .datasource-advanced-collapse :deep(.el-collapse-item__content) {
@@ -908,6 +950,23 @@
     .datasource-form-section__head {
       align-items: flex-start;
       flex-direction: column;
+    }
+  }
+
+  .datasource-dialog {
+    :deep(.el-dialog__header) {
+      padding-top: 16px;
+      padding-bottom: 8px;
+      margin-bottom: 0;
+    }
+
+    :deep(.el-dialog__title) {
+      font-size: 16px;
+    }
+
+    :deep(.el-dialog__body) {
+      padding-top: 0;
+      padding-bottom: 16px;
     }
   }
 </style>
