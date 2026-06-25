@@ -1,138 +1,231 @@
-<!-- 数据源管理：添加/编辑抽屉 -->
+<!-- 数据源管理：添加/编辑对话框 -->
 <template>
-  <ElDrawer
+  <ElDialog
     v-model="visible"
-    direction="rtl"
-    size="55%"
+    :title="isEdit ? '编辑数据源' : '添加数据源'"
+    width="760px"
     destroy-on-close
-    :trap-focus="false"
-    :show-close="false"
-    class="datasource-drawer"
-    body-class="datasource-drawer__body"
-    footer-class="datasource-drawer__footer"
+    class="datasource-dialog"
+    @closed="resetForm"
   >
-    <template #header>
-      <div class="datasource-drawer-header">
-        <span class="datasource-drawer-title">{{ isEdit ? '编辑数据源' : '添加数据源' }}</span>
-        <ElButton text circle class="datasource-drawer-icon-btn" title="关闭" @click="closeDrawer">
-          <ElIcon :size="16"><Close /></ElIcon>
-        </ElButton>
-      </div>
-    </template>
-
-    <div v-loading="editLoading" class="datasource-drawer-content">
+    <div v-loading="editLoading">
       <ElForm
+        ref="formRef"
         :model="formData"
         :rules="rules"
-        ref="formRef"
         label-width="88px"
-        class="datasource-form"
+        class="datasource-create-form"
       >
-        <ElFormItem label="名称" prop="name">
-          <ElInput v-model="formData.name" placeholder="请输入数据源名称" />
-        </ElFormItem>
-        <ElFormItem label="集群" prop="cluster_name">
-          <ElSelect
-            v-if="clusterOptionList.length || clusterListLoading"
-            v-model="formData.cluster_name"
-            placeholder="请选择集群（可选）"
-            style="width: 100%"
-            clearable
-            filterable
-          >
-            <ElOption
-              v-for="item in clusterOptionList"
-              :key="item.name"
-              :label="item.aliasName || item.name"
-              :value="item.name"
+        <section class="datasource-form-section">
+          <div class="datasource-form-section__title">基础信息</div>
+
+          <ElRow :gutter="16">
+            <ElCol :span="12">
+              <ElFormItem label="名称" prop="name">
+                <ElInput v-model="formData.name" maxlength="64" show-word-limit placeholder="请输入数据源名称" />
+              </ElFormItem>
+            </ElCol>
+
+            <ElCol :span="12">
+              <ElFormItem label="关联集群">
+                <ElSelect
+                  v-if="clusterOptionList.length || clusterListLoading"
+                  v-model="formData.cluster_name"
+                  placeholder="请选择集群（可选）"
+                  class="w-full"
+                  clearable
+                  filterable
+                >
+                  <ElOption
+                    v-for="item in clusterOptionList"
+                    :key="item.name"
+                    :label="item.aliasName || item.name"
+                    :value="item.name"
+                  />
+                </ElSelect>
+                <span v-else class="datasource-cluster-empty-hint">暂无可用集群</span>
+              </ElFormItem>
+            </ElCol>
+
+            <ElCol :span="12">
+              <ElFormItem label="类型" prop="type">
+                <ElSelect v-model="formData.type" class="w-full" @change="onTypeChange">
+                  <ElOption label="日志" :value="0" />
+                  <ElOption label="告警" :value="1" />
+                </ElSelect>
+              </ElFormItem>
+            </ElCol>
+
+            <ElCol :span="12">
+              <ElFormItem label="数据来源" prop="sub_type">
+                <ElSelect
+                  v-model="formData.sub_type"
+                  class="w-full datasource-sub-type-select"
+                  placeholder="请选择数据来源"
+                  popper-class="datasource-sub-type-popper"
+                >
+                  <template v-if="selectedSubType" #prefix>
+                    <ArtSvgIcon
+                      :icon="selectedSubType.icon"
+                      class="datasource-sub-type-option__logo datasource-sub-type-option__logo--prefix"
+                      :style="{ color: selectedSubType.color }"
+                    />
+                  </template>
+                  <ElOption
+                    v-for="item in currentSubTypeOptions"
+                    :key="item.value"
+                    :label="item.label"
+                    :value="item.value"
+                  >
+                    <div class="datasource-sub-type-option">
+                      <ArtSvgIcon
+                        :icon="item.icon"
+                        class="datasource-sub-type-option__logo"
+                        :style="{ color: item.color }"
+                      />
+                      <span class="datasource-sub-type-option__name">{{ item.label }}</span>
+                    </div>
+                  </ElOption>
+                </ElSelect>
+              </ElFormItem>
+            </ElCol>
+
+            <ElCol :span="12">
+              <ElFormItem label="默认数据源">
+                <ElSwitch v-model="formData.is_default" />
+              </ElFormItem>
+            </ElCol>
+          </ElRow>
+
+          <ElFormItem label="接入地址" prop="url">
+            <ElInput
+              v-model="formData.url"
+              placeholder="请输入接入地址，如: http://xx.example.com"
             />
-          </ElSelect>
-          <span v-else class="datasource-cluster-empty-hint">暂无可用集群</span>
-        </ElFormItem>
-        <ElFormItem label="类型" prop="type">
-          <ElRadioGroup v-model="formData.type" class="sc-radio-group datasource-type-group" @change="onTypeChange">
-            <ElRadioButton value="0">日志</ElRadioButton>
-            <ElRadioButton value="1">告警</ElRadioButton>
-          </ElRadioGroup>
-        </ElFormItem>
-        <ElFormItem label="数据来源" prop="sub_type">
-          <ElSelect
-            v-model="formData.sub_type"
-            placeholder="请选择数据来源"
-            style="width: 100%"
-            popper-class="datasource-sub-type-popper"
-          >
-            <template v-if="selectedSubType" #prefix>
-              <ArtSvgIcon
-                :icon="selectedSubType.icon"
-                class="datasource-sub-type-option__logo datasource-sub-type-option__logo--prefix"
-                :style="{ color: selectedSubType.color }"
-              />
-            </template>
-            <ElOption
-              v-for="item in currentSubTypeOptions"
-              :key="item.value"
-              :label="item.label"
-              :value="item.value"
+          </ElFormItem>
+
+          <ElFormItem label="描述">
+            <ElInput
+              v-model="formData.description"
+              type="textarea"
+              :rows="3"
+              maxlength="200"
+              show-word-limit
+              placeholder="请输入描述"
+            />
+          </ElFormItem>
+        </section>
+
+        <section class="datasource-form-section datasource-form-section--advanced">
+          <div class="datasource-form-section__title">高级配置</div>
+
+          <ElCollapse v-model="advancedPanels" class="datasource-advanced-collapse">
+            <ElCollapseItem
+              name="auth"
+              class="datasource-advanced-collapse__item"
             >
-              <div class="datasource-sub-type-option">
-                <ArtSvgIcon
-                  :icon="item.icon"
-                  class="datasource-sub-type-option__logo"
-                  :style="{ color: item.color }"
-                />
-                <span class="datasource-sub-type-option__name">{{ item.label }}</span>
+              <template #title>
+                <div class="datasource-advanced-collapse__title">
+                  <span>鉴权</span>
+                  <span class="datasource-advanced-collapse__hint">需要时再填写用户名和密码</span>
+                </div>
+              </template>
+
+              <ElRow :gutter="16">
+                <ElCol :span="12">
+                  <ElFormItem label="用户名">
+                    <ElInput
+                      v-if="formData.type === 0"
+                      v-model="formData.log.userName"
+                      placeholder="可选，用于基础认证"
+                    />
+                    <ElInput
+                      v-else
+                      v-model="formData.alert.userName"
+                      placeholder="可选，用于基础认证"
+                    />
+                  </ElFormItem>
+                </ElCol>
+
+                <ElCol :span="12">
+                  <ElFormItem label="密码">
+                    <ElInput
+                      v-if="formData.type === 0"
+                      v-model="formData.log.password"
+                      type="password"
+                      show-password
+                      placeholder="可选，用于基础认证"
+                    />
+                    <ElInput
+                      v-else
+                      v-model="formData.alert.password"
+                      type="password"
+                      show-password
+                      placeholder="可选，用于基础认证"
+                    />
+                  </ElFormItem>
+                </ElCol>
+              </ElRow>
+            </ElCollapseItem>
+
+            <ElCollapseItem name="headers" class="datasource-advanced-collapse__item">
+              <template #title>
+                <div class="datasource-advanced-collapse__title">
+                  <span>自定义请求头</span>
+                  <span class="datasource-advanced-collapse__hint">需要时再补充额外 Header</span>
+                </div>
+              </template>
+
+              <div class="datasource-form-section__head datasource-form-section__head--inner">
+                <div class="datasource-form-section__summary">
+                  已填写 {{ filledHeaderCount }} 个请求头
+                </div>
+                <ElButton text type="primary" @click="addHeader">
+                  <ElIcon><Plus /></ElIcon>
+                  新增请求头
+                </ElButton>
               </div>
-            </ElOption>
-          </ElSelect>
-        </ElFormItem>
-        <ElFormItem label="默认数据源">
-          <ElSwitch v-model="formData.is_default" />
-        </ElFormItem>
-        <template v-if="formData.type === '0'">
-          <ElFormItem label="URL" prop="config_log_url">
-            <ElInput v-model="formData.config_log_url" placeholder="请输入日志数据源 URL" />
-          </ElFormItem>
-          <ElFormItem label="用户名">
-            <ElInput v-model="formData.config_log_user_name" placeholder="请输入用户名" />
-          </ElFormItem>
-          <ElFormItem label="密码">
-            <ElInput v-model="formData.config_log_password" type="password" placeholder="请输入密码" show-password />
-          </ElFormItem>
-        </template>
-        <template v-if="formData.type === '1'">
-          <ElFormItem label="URL" prop="config_alert_url">
-            <ElInput v-model="formData.config_alert_url" placeholder="请输入告警数据源 URL" />
-          </ElFormItem>
-        </template>
-        <ElFormItem label="描述">
-          <ElInput v-model="formData.description" type="textarea" :rows="3" placeholder="请输入描述" />
-        </ElFormItem>
+
+              <div class="datasource-headers-panel">
+                <div
+                  v-for="(header, index) in formData.headers"
+                  :key="`header-${index}`"
+                  class="datasource-headers__row"
+                >
+                  <ElInput v-model="header.key" placeholder="Key" />
+                  <ElInput v-model="header.value" placeholder="Value" />
+                  <ElButton text type="danger" @click="removeHeader(index)">移除</ElButton>
+                </div>
+              </div>
+            </ElCollapseItem>
+          </ElCollapse>
+        </section>
       </ElForm>
     </div>
 
     <template #footer>
-      <div class="datasource-drawer-footer">
-        <div class="datasource-drawer-footer-left">
-          <ElButton @click="handleTest">测试</ElButton>
-        </div>
-        <div class="datasource-drawer-footer-right">
-          <ElButton @click="closeDrawer">取消</ElButton>
-          <ElButton type="primary" :loading="submitting" @click="handleSubmit">确定</ElButton>
+      <div class="datasource-dialog__footer">
+        <ElButton @click="handleTest">测试</ElButton>
+        <div class="datasource-dialog__footer-actions">
+          <ElButton @click="closeDialog">取消</ElButton>
+          <ElButton type="primary" :loading="submitting" @click="handleSubmit">
+            {{ isEdit ? '保存' : '创建' }}
+          </ElButton>
         </div>
       </div>
     </template>
-  </ElDrawer>
+  </ElDialog>
 </template>
 
 <script setup lang="ts">
-  import { Close } from '@element-plus/icons-vue'
-  import { ElIcon, ElMessage, type FormInstance, type FormRules } from 'element-plus'
+  import { Plus } from '@element-plus/icons-vue'
+  import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
   import { computed, reactive, ref, watch } from 'vue'
   import {
     fetchCreateDatasource,
     fetchGetDatasource,
     fetchUpdateDatasource,
+    resolveDatasourceUrl,
     type CreateDatasourcePayload,
     type DatasourceConfig,
     type DatasourceSubType,
@@ -140,21 +233,24 @@
     type UpdateDatasourcePayload
   } from '@/api/datasource'
   import { fetchClusterList, PixiuApiError, type ClusterItem } from '@/api/container'
+  import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
 
-  defineOptions({ name: 'DatasourceDrawer' })
+  defineOptions({ name: 'DatasourceDialog' })
 
-  interface FormData {
-    name: string
-    cluster_name: string
-    type: string
-    sub_type: string
-    config_log_url: string
-    config_log_user_name: string
-    config_log_password: string
-    config_alert_url: string
-    is_default: boolean
-    description: string
+  interface SubTypeOption {
+    value: DatasourceSubType
+    label: string
+    icon: string
+    color: string
   }
+
+  const logSubTypes: SubTypeOption[] = [
+    { value: 'loki', label: 'Loki', icon: 'simple-icons:grafana', color: '#F46800' },
+    { value: 'es', label: 'Elasticsearch', icon: 'simple-icons:elasticsearch', color: '#005571' }
+  ]
+  const alertSubTypes: SubTypeOption[] = [
+    { value: 'prometheus', label: 'Prometheus', icon: 'simple-icons:prometheus', color: '#E6522C' }
+  ]
 
   const props = defineProps<{
     editId?: number
@@ -169,22 +265,49 @@
   const editLoading = ref(false)
   const submitting = ref(false)
   const formRef = ref<FormInstance>()
-  const formData = reactive<FormData>({
-    name: '',
-    cluster_name: '',
-    type: '0',
-    sub_type: 'loki',
-    config_log_url: '',
-    config_log_user_name: '',
-    config_log_password: '',
-    config_alert_url: '',
-    is_default: false,
-    description: ''
-  })
+  const advancedPanels = ref<string[]>([])
   const editResourceVersion = ref(0)
   const clusterList = ref<ClusterItem[]>([])
   const clusterListLoading = ref(false)
   let clusterLoadPromise: Promise<void> | null = null
+
+  const formData = reactive({
+    name: '',
+    cluster_name: '',
+    type: 0 as DatasourceType,
+    sub_type: 'loki' as DatasourceSubType,
+    url: '',
+    description: '',
+    is_default: false,
+    log: {
+      userName: '',
+      password: ''
+    },
+    alert: {
+      userName: '',
+      password: ''
+    },
+    headers: [{ key: '', value: '' }]
+  })
+
+  const rules: FormRules = {
+    name: [{ required: true, message: '请输入数据源名称', trigger: 'blur' }],
+    type: [{ required: true, message: '请选择类型', trigger: 'change' }],
+    sub_type: [{ required: true, message: '请选择数据来源', trigger: 'change' }],
+    url: [{ required: true, message: '请输入接入地址', trigger: 'blur' }]
+  }
+
+  const currentSubTypeOptions = computed(() =>
+    formData.type === 0 ? logSubTypes : alertSubTypes
+  )
+
+  const selectedSubType = computed(() =>
+    currentSubTypeOptions.value.find((item) => item.value === formData.sub_type)
+  )
+
+  const filledHeaderCount = computed(
+    () => formData.headers.filter((item) => item.key.trim() || item.value.trim()).length
+  )
 
   const clusterOptionList = computed(() => {
     const list = [...clusterList.value]
@@ -221,48 +344,80 @@
     return byAlias?.name ?? clusterName
   }
 
-  interface SubTypeOption {
-    value: DatasourceSubType
-    label: string
-    icon: string
-    color: string
+  function onTypeChange() {
+    formData.sub_type = currentSubTypeOptions.value[0]?.value ?? 'loki'
   }
 
-  const logSubTypes: SubTypeOption[] = [
-    { value: 'loki', label: 'Loki', icon: 'simple-icons:grafana', color: '#F46800' },
-    { value: 'es', label: 'Elasticsearch', icon: 'simple-icons:elasticsearch', color: '#005571' }
-  ]
-  const alertSubTypes: SubTypeOption[] = [
-    { value: 'prometheus', label: 'Prometheus', icon: 'simple-icons:prometheus', color: '#E6522C' }
-  ]
+  function addHeader() {
+    if (!advancedPanels.value.includes('headers')) {
+      advancedPanels.value = [...advancedPanels.value, 'headers']
+    }
+    formData.headers.push({ key: '', value: '' })
+  }
 
-  const currentSubTypeOptions = computed(() =>
-    formData.type === '0' ? logSubTypes : alertSubTypes
-  )
+  function removeHeader(index: number) {
+    if (formData.headers.length === 1) {
+      formData.headers[0] = { key: '', value: '' }
+      return
+    }
+    formData.headers.splice(index, 1)
+  }
 
-  const selectedSubType = computed(() =>
-    currentSubTypeOptions.value.find((item) => item.value === formData.sub_type)
-  )
+  function buildConfig(): CreateDatasourcePayload['config'] {
+    const headers = formData.headers
+      .map((item) => ({ key: item.key.trim(), value: item.value.trim() }))
+      .filter((item) => item.key || item.value)
+    const url = formData.url.trim()
 
-  function onTypeChange() {
-    if (formData.type === '0') {
-      formData.sub_type = logSubTypes[0].value
-    } else if (formData.type === '1') {
-      formData.sub_type = alertSubTypes[0].value
+    if (formData.type === 0) {
+      return {
+        headers,
+        log: {
+          url,
+          userName: formData.log.userName.trim() || undefined,
+          password: formData.log.password.trim() || undefined
+        }
+      }
+    }
+
+    return {
+      headers,
+      alert: {
+        url,
+        userName: formData.alert.userName.trim() || undefined,
+        password: formData.alert.password.trim() || undefined
+      }
     }
   }
 
-  const rules = computed<FormRules>(() => ({
-    name: [{ required: true, message: '请输入数据源名称', trigger: 'blur' }],
-    type: [{ required: true, message: '请选择类型', trigger: 'change' }],
-    sub_type: [{ required: true, message: '请选择数据来源', trigger: 'change' }],
-    config_log_url: formData.type === '0'
-      ? [{ required: true, message: '请输入 URL', trigger: 'blur' }]
-      : [],
-    config_alert_url: formData.type === '1'
-      ? [{ required: true, message: '请输入 URL', trigger: 'blur' }]
-      : []
-  }))
+  function fillFormFromConfig(config: DatasourceConfig) {
+    formData.url = resolveDatasourceUrl({ config })
+    formData.log.userName = config.log?.userName || ''
+    formData.log.password = config.log?.password || ''
+    formData.alert.userName = config.alert?.userName || ''
+    formData.alert.password = config.alert?.password || ''
+    formData.headers = config.headers?.length
+      ? config.headers.map((item) => ({ key: item.key, value: item.value }))
+      : [{ key: '', value: '' }]
+  }
+
+  function hasAuthData(): boolean {
+    if (formData.type === 0) {
+      return Boolean(formData.log.userName.trim() || formData.log.password.trim())
+    }
+    return Boolean(formData.alert.userName.trim() || formData.alert.password.trim())
+  }
+
+  function hasHeaderData(): boolean {
+    return formData.headers.some((item) => item.key.trim() || item.value.trim())
+  }
+
+  function syncAdvancedPanelsFromForm() {
+    const panels: string[] = []
+    if (hasAuthData()) panels.push('auth')
+    if (hasHeaderData()) panels.push('headers')
+    advancedPanels.value = panels
+  }
 
   async function loadClusters() {
     if (clusterLoadPromise) return clusterLoadPromise
@@ -299,6 +454,7 @@
     visible,
     async (val) => {
       if (val) {
+        advancedPanels.value = []
         resetForm()
         await loadClusters()
         if (isEdit.value && props.editId) {
@@ -312,56 +468,21 @@
   )
 
   function resetForm() {
+    formRef.value?.resetFields()
     Object.assign(formData, {
       name: '',
       cluster_name: '',
-      type: '0',
-      sub_type: logSubTypes[0].value,
-      config_log_url: '',
-      config_log_user_name: '',
-      config_log_password: '',
-      config_alert_url: '',
+      type: 0,
+      sub_type: 'loki',
+      url: '',
+      description: '',
       is_default: false,
-      description: ''
+      log: { userName: '', password: '' },
+      alert: { userName: '', password: '' },
+      headers: [{ key: '', value: '' }]
     })
     editResourceVersion.value = 0
-  }
-
-  function resolveFormUrl(): string {
-    if (formData.type === '0') {
-      return formData.config_log_url.trim()
-    }
-    return formData.config_alert_url.trim()
-  }
-
-  function buildConfig(): CreateDatasourcePayload['config'] {
-    if (formData.type === '0') {
-      return {
-        headers: [],
-        log: {
-          url: formData.config_log_url || undefined,
-          userName: formData.config_log_user_name || undefined,
-          password: formData.config_log_password || undefined
-        }
-      }
-    }
-    return {
-      headers: [],
-      alert: {
-        url: formData.config_alert_url || undefined
-      }
-    }
-  }
-
-  function fillFormFromConfig(config: DatasourceConfig) {
-    if (config.log) {
-      formData.config_log_url = config.log.url || ''
-      formData.config_log_user_name = config.log.userName || ''
-      formData.config_log_password = config.log.password || ''
-    }
-    if (config.alert) {
-      formData.config_alert_url = config.alert.url || ''
-    }
+    advancedPanels.value = []
   }
 
   async function loadEditData(id: number) {
@@ -371,28 +492,29 @@
       Object.assign(formData, {
         name: data.name,
         cluster_name: resolveClusterName(data.clusterName || ''),
-        type: String(data.type),
+        type: data.type,
         sub_type: data.subType,
-        config_log_url: '',
-        config_log_user_name: '',
-        config_log_password: '',
-        config_alert_url: '',
+        url: '',
+        description: data.description || '',
         is_default: data.isDefault,
-        description: data.description || ''
+        log: { userName: '', password: '' },
+        alert: { userName: '', password: '' },
+        headers: [{ key: '', value: '' }]
       })
       fillFormFromConfig(data.config)
+      syncAdvancedPanelsFromForm()
       editResourceVersion.value = data.resourceVersion
     } catch (error) {
       if (!(error instanceof PixiuApiError) || !error.notified) {
         ElMessage.error(error instanceof Error ? error.message : '获取数据失败')
       }
-      closeDrawer()
+      closeDialog()
     } finally {
       editLoading.value = false
     }
   }
 
-  function closeDrawer() {
+  function closeDialog() {
     visible.value = false
   }
 
@@ -402,143 +524,101 @@
 
   async function handleSubmit() {
     if (!formRef.value) return
-    await formRef.value.validate(async (valid) => {
-      if (valid) {
-        submitting.value = true
-        try {
-          const url = resolveFormUrl()
-          const type = Number(formData.type) as DatasourceType
-          const subType = formData.sub_type as DatasourceSubType
-          const config = buildConfig()
+    const valid = await formRef.value.validate().catch(() => false)
+    if (!valid) return
 
-          if (isEdit.value && props.editId) {
-            const payload: UpdateDatasourcePayload = {
-              id: props.editId,
-              resourceVersion: editResourceVersion.value,
-              clusterName: formData.cluster_name || undefined,
-              name: formData.name,
-              type,
-              subType,
-              url,
-              config,
-              isDefault: formData.is_default,
-              description: formData.description || undefined
-            }
-            await fetchUpdateDatasource(payload)
-            ElMessage.success('修改成功')
-          } else {
-            const payload: CreateDatasourcePayload = {
-              clusterName: formData.cluster_name || '',
-              name: formData.name,
-              type,
-              subType,
-              url,
-              config,
-              isDefault: formData.is_default,
-              description: formData.description || ''
-            }
-            await fetchCreateDatasource(payload)
-            ElMessage.success('创建成功')
-          }
-          emit('success')
-          closeDrawer()
-        } catch (error) {
-          if (!(error instanceof PixiuApiError) || !error.notified) {
-            ElMessage.error(error instanceof Error ? error.message : '操作失败')
-          }
-        } finally {
-          submitting.value = false
+    submitting.value = true
+    try {
+      const url = formData.url.trim()
+      const config = buildConfig()
+
+      if (isEdit.value && props.editId) {
+        const payload: UpdateDatasourcePayload = {
+          id: props.editId,
+          resourceVersion: editResourceVersion.value,
+          clusterName: formData.cluster_name || undefined,
+          name: formData.name,
+          type: formData.type,
+          subType: formData.sub_type,
+          url,
+          config,
+          isDefault: formData.is_default,
+          description: formData.description || undefined
         }
+        await fetchUpdateDatasource(payload)
+        ElMessage.success('修改成功')
+      } else {
+        const payload: CreateDatasourcePayload = {
+          clusterName: formData.cluster_name || '',
+          name: formData.name,
+          type: formData.type,
+          subType: formData.sub_type,
+          url,
+          config,
+          isDefault: formData.is_default,
+          description: formData.description || ''
+        }
+        await fetchCreateDatasource(payload)
+        ElMessage.success('创建成功')
       }
-    })
+      emit('success')
+      closeDialog()
+    } catch (error) {
+      if (!(error instanceof PixiuApiError) || !error.notified) {
+        ElMessage.error(error instanceof Error ? error.message : '操作失败')
+      }
+    } finally {
+      submitting.value = false
+    }
   }
 </script>
 
 <style scoped lang="less">
-  .datasource-form {
-    padding-top: 12px;
+  .datasource-create-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
     font-size: 12px;
+    padding-top: 0;
 
     :deep(.el-form-item__label) {
       font-size: 12px;
+      color: var(--el-text-color-regular);
     }
 
     :deep(.el-input__inner),
-    :deep(.el-textarea__inner) {
+    :deep(.el-textarea__inner),
+    :deep(.el-select__wrapper),
+    :deep(.el-select__selected-item),
+    :deep(.el-select__placeholder),
+    :deep(.el-input__wrapper) {
       font-size: 12px;
     }
 
     :deep(.el-input__inner::placeholder),
-    :deep(.el-textarea__inner::placeholder) {
-      font-size: 12px;
-    }
-
-    :deep(.el-select__placeholder),
-    :deep(.el-select__selected-item) {
-      font-size: 12px;
+    :deep(.el-textarea__inner::placeholder),
+    :deep(.el-input__wrapper input::placeholder),
+    :deep(.el-textarea__wrapper textarea::placeholder) {
+      font-size: 12px !important;
+      opacity: 1;
     }
 
     :deep(.el-select-dropdown__item) {
       font-size: 12px;
     }
 
-    :deep(.el-select__wrapper) {
+    :deep(.el-button) {
+      font-size: 12px;
+    }
+
+    :deep(.el-select__prefix) {
+      display: inline-flex;
       align-items: center;
     }
   }
 
-  .datasource-cluster-empty-hint {
-    font-size: 12px;
-    color: var(--el-text-color-secondary);
-  }
-
-  .datasource-form :deep(.el-select__prefix) {
-    display: inline-flex;
-    align-items: center;
-  }
-
-  .datasource-form :deep(.sc-radio-group.el-radio-group) {
-    margin-top: 2px;
-  }
-
-  .datasource-form :deep(.datasource-type-group.sc-radio-group.el-radio-group) {
-    min-width: 180px;
-    width: 180px;
-    max-width: 180px;
-  }
-
-  .datasource-form :deep(.datasource-type-group .el-radio-button__inner) {
-    padding-left: 10px !important;
-    padding-right: 10px !important;
-  }
-
-  .datasource-form :deep(.sc-radio-group .el-radio-button__inner) {
-    font-size: 12px;
-  }
-
   .datasource-sub-type-option__logo--prefix {
     margin-right: 0;
-  }
-
-  .datasource-drawer-footer {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-
-    :deep(.el-button) {
-      font-size: 12px;
-    }
-  }
-
-  .datasource-drawer-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .datasource-drawer-title {
-    font-size: 16px;
-    font-weight: 600;
   }
 
   .datasource-sub-type-option {
@@ -570,22 +650,142 @@
     white-space: nowrap;
     font-size: 12px;
   }
+
+  .datasource-cluster-empty-hint {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+  }
+
+  .datasource-form-section {
+    padding: 12px 18px 8px;
+    border: 1px solid var(--el-border-color-lighter);
+    border-radius: 12px;
+    background: var(--el-fill-color-blank);
+  }
+
+  .datasource-form-section--advanced {
+    padding-bottom: 4px;
+  }
+
+  .datasource-form-section__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .datasource-form-section__head--inner {
+    margin-bottom: 10px;
+  }
+
+  .datasource-form-section__title {
+    margin-bottom: 8px;
+    color: var(--el-text-color-primary);
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .datasource-form-section__summary {
+    color: var(--el-text-color-secondary);
+    font-size: 12px;
+  }
+
+  .datasource-advanced-collapse {
+    border-top: 0;
+    border-bottom: 0;
+  }
+
+  .datasource-advanced-collapse :deep(.el-collapse-item__header) {
+    height: auto;
+    min-height: 52px;
+    padding: 0 2px;
+    border-bottom-color: var(--el-border-color-lighter);
+    background: transparent;
+    color: var(--el-text-color-primary);
+    line-height: 1.4;
+  }
+
+  .datasource-advanced-collapse :deep(.el-collapse-item__wrap) {
+    border-bottom: 0;
+    background: transparent;
+  }
+
+  .datasource-advanced-collapse :deep(.el-collapse-item:last-child .el-collapse-item__header) {
+    border-bottom: 0;
+  }
+
+  .datasource-advanced-collapse :deep(.el-collapse-item__content) {
+    padding: 12px 2px 8px;
+  }
+
+  .datasource-advanced-collapse__title {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 0;
+    color: var(--el-text-color-primary);
+  }
+
+  .datasource-advanced-collapse__hint {
+    color: var(--el-text-color-secondary);
+    font-size: 12px;
+    font-weight: 400;
+  }
+
+  .datasource-headers-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .datasource-headers__row {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .datasource-dialog__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .datasource-dialog__footer-actions {
+    display: flex;
+    gap: 12px;
+  }
+
+  :global(html:not(.dark)) .datasource-form-section {
+    border-color: #e6edf5;
+    background: linear-gradient(180deg, #fff 0%, #f8fbff 100%);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 90%);
+  }
+
+  :global(html.dark) .datasource-form-section {
+    border-color: var(--el-border-color);
+    background: var(--art-gray-200);
+  }
 </style>
 
 <style lang="less">
-  .datasource-drawer.el-drawer {
-    .el-drawer__header {
+  .datasource-dialog {
+    .el-dialog__header {
+      padding-top: 16px;
+      padding-bottom: 8px;
       margin-bottom: 0;
-      padding: 20px 40px 12px 20px !important;
     }
 
-    .datasource-drawer__body {
-      padding: 0 40px 0 11px !important;
-      overflow: visible;
+    .el-dialog__title {
+      font-size: 16px;
+      color: var(--el-text-color-primary);
     }
 
-    .datasource-drawer__footer {
-      padding: 12px 40px 16px 40px !important;
+    .el-dialog__body {
+      padding-top: 0;
+      padding-bottom: 16px;
     }
   }
 

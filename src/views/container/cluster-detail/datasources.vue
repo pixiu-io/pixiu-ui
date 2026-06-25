@@ -172,7 +172,7 @@
           <ElFormItem label="接入地址" prop="url">
             <ElInput
               v-model="createForm.url"
-              placeholder="https://loki.example.com 或 http://prometheus.monitoring.svc:9090"
+              placeholder="请输入接入地址，如: http://xx.example.com"
             />
           </ElFormItem>
 
@@ -192,7 +192,6 @@
 
           <ElCollapse v-model="advancedPanels" class="datasource-advanced-collapse">
             <ElCollapseItem
-              v-if="createForm.type === 0"
               name="auth"
               class="datasource-advanced-collapse__item"
             >
@@ -206,14 +205,31 @@
               <ElRow :gutter="16">
                 <ElCol :span="12">
                   <ElFormItem label="用户名">
-                    <ElInput v-model="createForm.log.userName" placeholder="可选，用于基础认证" />
+                    <ElInput
+                      v-if="createForm.type === 0"
+                      v-model="createForm.log.userName"
+                      placeholder="可选，用于基础认证"
+                    />
+                    <ElInput
+                      v-else
+                      v-model="createForm.alert.userName"
+                      placeholder="可选，用于基础认证"
+                    />
                   </ElFormItem>
                 </ElCol>
 
                 <ElCol :span="12">
                   <ElFormItem label="密码">
                     <ElInput
+                      v-if="createForm.type === 0"
                       v-model="createForm.log.password"
+                      type="password"
+                      show-password
+                      placeholder="可选，用于基础认证"
+                    />
+                    <ElInput
+                      v-else
+                      v-model="createForm.alert.password"
                       type="password"
                       show-password
                       placeholder="可选，用于基础认证"
@@ -247,8 +263,8 @@
                   :key="`header-${index}`"
                   class="datasource-headers__row"
                 >
-                  <ElInput v-model="header.key" placeholder="Header Key" />
-                  <ElInput v-model="header.value" placeholder="Header Value" />
+                  <ElInput v-model="header.key" placeholder="Key" />
+                  <ElInput v-model="header.value" placeholder="Value" />
                   <ElButton text type="danger" @click="removeHeader(index)">移除</ElButton>
                 </div>
               </div>
@@ -259,8 +275,11 @@
 
       <template #footer>
         <div class="datasource-dialog__footer">
-          <ElButton @click="createDialogVisible = false">取消</ElButton>
-          <ElButton type="primary" :loading="submitting" @click="submitCreate">创建</ElButton>
+          <ElButton @click="handleTest">测试</ElButton>
+          <div class="datasource-dialog__footer-actions">
+            <ElButton @click="createDialogVisible = false">取消</ElButton>
+            <ElButton type="primary" :loading="submitting" @click="submitCreate">创建</ElButton>
+          </div>
         </div>
       </template>
     </ElDialog>
@@ -294,14 +313,24 @@
           </ElDescriptionsItem>
         </ElDescriptions>
 
-        <div v-if="detailItem.type === 0" class="datasource-detail__section">
+        <div v-if="detailItem.type === 0 || detailItem.type === 1" class="datasource-detail__section">
           <div class="datasource-detail__section-title">认证信息</div>
           <ElDescriptions :column="1" border>
             <ElDescriptionsItem label="用户名">
-              {{ detailItem.config.log?.userName || '-' }}
+              {{
+                detailItem.type === 0
+                  ? detailItem.config.log?.userName || '-'
+                  : detailItem.config.alert?.userName || '-'
+              }}
             </ElDescriptionsItem>
             <ElDescriptionsItem label="密码">
-              {{ detailItem.config.log?.password ? '已配置' : '未配置' }}
+              {{
+                (detailItem.type === 0
+                  ? detailItem.config.log?.password
+                  : detailItem.config.alert?.password)
+                  ? '已配置'
+                  : '未配置'
+              }}
             </ElDescriptionsItem>
           </ElDescriptions>
         </div>
@@ -377,6 +406,10 @@
     description: '',
     isDefault: false,
     log: {
+      userName: '',
+      password: ''
+    },
+    alert: {
       userName: '',
       password: ''
     },
@@ -464,6 +497,14 @@
                 userName: createForm.value.log.userName.trim(),
                 password: createForm.value.log.password.trim()
               }
+            : undefined,
+        alert:
+          createForm.value.type === 1
+            ? {
+                url: createForm.value.url.trim(),
+                userName: createForm.value.alert.userName.trim(),
+                password: createForm.value.alert.password.trim()
+              }
             : undefined
       }
     }
@@ -495,6 +536,10 @@
         userName: '',
         password: ''
       },
+      alert: {
+        userName: '',
+        password: ''
+      },
       headers: [{ key: '', value: '' }]
     }
   }
@@ -502,6 +547,10 @@
   function openCreateDialog(): void {
     advancedPanels.value = []
     createDialogVisible.value = true
+  }
+
+  function handleTest(): void {
+    ElMessage.info('功能开发中')
   }
 
   function handleTypeChange(nextType: DatasourceType): void {
@@ -575,15 +624,6 @@
   watch([keyword, typeFilter, sortBy], () => {
     currentPage.value = 1
   })
-
-  watch(
-    () => createForm.value.type,
-    (nextType) => {
-      if (nextType !== 0) {
-        advancedPanels.value = advancedPanels.value.filter((panel) => panel !== 'auth')
-      }
-    }
-  )
 
   onMounted(() => {
     void loadDatasources()
@@ -755,6 +795,7 @@
 
     :deep(.el-form-item__label) {
       font-size: 12px;
+      color: var(--el-text-color-regular);
     }
 
     :deep(.el-input__inner),
@@ -792,10 +833,9 @@
 
   .datasource-form-section {
     padding: 12px 18px 8px;
-    border: 1px solid #e6edf5;
-    border-radius: 16px;
-    background: linear-gradient(180deg, rgb(255 255 255 / 100%) 0%, rgb(248 251 255 / 100%) 100%);
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 90%);
+    border: 1px solid var(--el-border-color-lighter);
+    border-radius: 12px;
+    background: var(--el-fill-color-blank);
   }
 
   .datasource-form-section--advanced {
@@ -816,13 +856,13 @@
 
   .datasource-form-section__title {
     margin-bottom: 8px;
-    color: #0f172a;
+    color: var(--el-text-color-primary);
     font-size: 14px;
     font-weight: 700;
   }
 
   .datasource-form-section__summary {
-    color: #64748b;
+    color: var(--el-text-color-secondary);
     font-size: 12px;
   }
 
@@ -835,8 +875,9 @@
     height: auto;
     min-height: 52px;
     padding: 0 2px;
-    border-bottom-color: #edf2f7;
+    border-bottom-color: var(--el-border-color-lighter);
     background: transparent;
+    color: var(--el-text-color-primary);
     line-height: 1.4;
   }
 
@@ -858,10 +899,11 @@
     flex-direction: column;
     gap: 4px;
     padding: 10px 0;
+    color: var(--el-text-color-primary);
   }
 
   .datasource-advanced-collapse__hint {
-    color: #64748b;
+    color: var(--el-text-color-secondary);
     font-size: 12px;
     font-weight: 400;
   }
@@ -881,8 +923,25 @@
 
   .datasource-dialog__footer {
     display: flex;
-    justify-content: flex-end;
+    align-items: center;
+    justify-content: space-between;
     gap: 12px;
+  }
+
+  .datasource-dialog__footer-actions {
+    display: flex;
+    gap: 12px;
+  }
+
+  :global(html:not(.dark)) .datasource-form-section {
+    border-color: #e6edf5;
+    background: linear-gradient(180deg, #fff 0%, #f8fbff 100%);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 90%);
+  }
+
+  :global(html.dark) .datasource-form-section {
+    border-color: var(--el-border-color);
+    background: var(--art-gray-200);
   }
 
   .datasource-detail__loading {
@@ -898,14 +957,14 @@
   }
 
   .datasource-detail__name {
-    color: #0f172a;
+    color: var(--el-text-color-primary);
     font-size: 20px;
     font-weight: 700;
   }
 
   .datasource-detail__sub {
     margin-top: 6px;
-    color: #64748b;
+    color: var(--el-text-color-secondary);
   }
 
   .datasource-detail__section {
@@ -914,7 +973,7 @@
 
   .datasource-detail__section-title {
     margin-bottom: 10px;
-    color: #0f172a;
+    color: var(--el-text-color-primary);
     font-weight: 600;
   }
 
@@ -962,6 +1021,7 @@
 
     :deep(.el-dialog__title) {
       font-size: 16px;
+      color: var(--el-text-color-primary);
     }
 
     :deep(.el-dialog__body) {

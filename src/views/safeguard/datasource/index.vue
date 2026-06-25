@@ -43,6 +43,7 @@
         :columns="columns"
         :pagination="pagination"
         :pagination-options="tablePaginationOptions"
+        @selection-change="handleSelectionChange"
         @pagination:size-change="handleSizeChange"
         @pagination:current-change="handleCurrentChange"
       />
@@ -116,6 +117,11 @@
   const drawerVisible = ref(false)
   const editId = ref<number | undefined>(undefined)
   const alertVisible = ref(true)
+  const selectedRows = ref<DatasourceItem[]>([])
+
+  function handleSelectionChange(rows: DatasourceItem[]) {
+    selectedRows.value = rows
+  }
 
   const tablePaginationOptions = {
     align: 'right' as const,
@@ -150,6 +156,7 @@
         ...searchForm.value
       },
       columnsFactory: () => [
+        { type: 'selection', width: 48 },
         {
           prop: 'name',
           label: '名称',

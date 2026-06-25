@@ -27,6 +27,8 @@ export interface DatasourceLogConfig {
 
 export interface DatasourceAlertConfig {
   url?: string
+  userName?: string
+  password?: string
 }
 
 export interface DatasourceConfig {
@@ -69,6 +71,8 @@ interface BackendDatasourceLogConfig {
 
 interface BackendDatasourceAlertConfig {
   url?: string
+  user_name?: string
+  password?: string
 }
 
 interface BackendDatasourceConfig {
@@ -129,6 +133,8 @@ export interface CreateDatasourcePayload {
     }
     alert?: {
       url?: string
+      userName?: string
+      password?: string
     }
   }
   isDefault?: boolean
@@ -152,6 +158,8 @@ export interface UpdateDatasourcePayload {
     }
     alert?: {
       url?: string
+      userName?: string
+      password?: string
     }
   }
   isDefault?: boolean
@@ -181,7 +189,9 @@ function normalizeConfig(
   const alert =
     config?.alert?.url || fallbackUrl
       ? {
-          url: config?.alert?.url ?? fallbackUrl ?? ''
+          url: config?.alert?.url ?? fallbackUrl ?? '',
+          userName: config?.alert?.user_name ?? '',
+          password: config?.alert?.password ?? ''
         }
       : undefined
 
@@ -209,7 +219,9 @@ function toBackendConfig(
     alert:
       config?.alert || fallbackUrl
         ? {
-            url: config?.alert?.url ?? fallbackUrl ?? ''
+            url: config?.alert?.url ?? fallbackUrl ?? '',
+            user_name: config?.alert?.userName ?? '',
+            password: config?.alert?.password ?? ''
           }
         : undefined
   }
