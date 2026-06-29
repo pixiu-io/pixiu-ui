@@ -83,6 +83,7 @@
       </div>
 
       <div class="deploy-create-footer">
+        <ElButton @click="goBack">{{ isDetailMode ? '返回列表' : '取消' }}</ElButton>
         <ElButton v-if="!isReadOnlyMode && currentStep > 0" :disabled="stepping" @click="prevStep"
           >上一步</ElButton
         >
@@ -93,7 +94,6 @@
           @click="nextStep"
           >下一步</ElButton
         >
-        <ElButton @click="goBack">{{ isDetailMode ? '返回列表' : '取消' }}</ElButton>
         <ElButton
           v-if="!isReadOnlyMode && currentStep === 3"
           type="primary"
@@ -739,6 +739,7 @@
     margin-top: 10px;
     display: flex;
     justify-content: center;
+    align-items: center;
     gap: 10px;
   }
 </style>
