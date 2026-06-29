@@ -53,6 +53,13 @@ export interface CreatePlanParams {
     component: {
       prometheus?: { enabled: boolean }
       logging?: { enabled: boolean }
+      metric_server?: { enable: boolean }
+      ingress_nginx?: { enable: boolean }
+      nfs?: {
+        enable: boolean
+        storage_class_name?: string
+        storage_data_dir?: string
+      }
     }
   }
   nodes: PlanNodeParams[]
@@ -193,6 +200,13 @@ export interface PlanResourcesDetail {
     component?: {
       prometheus?: { enabled?: boolean }
       logging?: { enabled?: boolean }
+      metric_server?: { enable?: boolean }
+      ingress_nginx?: { enable?: boolean }
+      nfs?: {
+        enable?: boolean
+        storage_class_name?: string
+        storage_data_dir?: string
+      }
     }
   }
   nodes?: PlanNodeDetail[]

@@ -344,7 +344,7 @@
 
   export interface NodeConfig {
     name: string
-    role: ('master' | 'node')[]
+    role: ('master' | 'node' | 'storage')[]
     ip: string
     authType: 'password' | 'key'
     user: string
@@ -374,6 +374,9 @@
     apiServerAddress: string
     apiServerPort: number
     kubeProxyMode: 'iptables' | 'ipvs'
+    nfsEnabled: boolean
+    nfsStorageClassName: string
+    nfsStorageDataDir: string
     metricsServer: boolean
     ingressNginx: boolean
     nodes: NodeConfig[]

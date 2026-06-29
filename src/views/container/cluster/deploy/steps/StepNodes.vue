@@ -51,7 +51,7 @@
           <ElTag
             v-for="r in row.role"
             :key="r"
-            :type="r === 'master' ? 'primary' : 'info'"
+            :type="r === 'master' ? 'primary' : r === 'storage' ? 'warning' : 'info'"
             size="small"
             class="role-tag"
             >{{ r }}</ElTag
@@ -123,6 +123,7 @@
           <ElCheckboxGroup v-model="nodeForm.role" class="node-role-group">
             <ElCheckbox value="master">master</ElCheckbox>
             <ElCheckbox value="node">node</ElCheckbox>
+            <ElCheckbox v-if="nfsEnabled" value="storage">storage</ElCheckbox>
           </ElCheckboxGroup>
         </ElFormItem>
         <ElFormItem label="IP 地址" prop="ip">
@@ -175,6 +176,11 @@
   })
   const emit = defineEmits<{ 'update:form': [DeployClusterForm] }>()
   const readOnly = computed(() => props.readOnly)
+  const nfsEnabled = computed(() => props.form.nfsEnabled)
+
+  function countStorageNodes(nodes: NodeConfig[], excludeIndex = -1): number {
+    return nodes.filter((n, i) => i !== excludeIndex && n.role.includes('storage')).length
+  }
 
   const dialogVisible = ref(false)
   const editIndex = ref(-1)
@@ -309,6 +315,11 @@
       return
     }
 
+    if (nodeForm.role.includes('storage') && countStorageNodes(nodes, isEdit ? editIndex.value : -1) >= 1) {
+      ElMessage.warning('带有 storage 角色的节点最多只能有一个')
+      return
+    }
+
     const node: NodeConfig = { ...nodeForm, role: [...nodeForm.role] }
     const updated = [...nodes]
     if (isEdit) {
@@ -327,14 +338,25 @@
   }
 
   async function validate(): Promise<boolean> {
+    if (props.form.nodes.length === 0) {
+      ElMessage.warning('请至少添加一个节点')
+      return false
+    }
     const hasMaster = props.form.nodes.some((n) => n.role.includes('master'))
     if (!hasMaster) {
       ElMessage.warning('至少需要配置 1 个 master 节点')
       return false
     }
-    if (props.form.nodes.length === 0) {
-      ElMessage.warning('请至少添加一个节点')
-      return false
+    if (props.form.nfsEnabled) {
+      const storageCount = props.form.nodes.filter((n) => n.role.includes('storage')).length
+      if (storageCount === 0) {
+        ElMessage.warning('已启用自建 NFS，请添加 1 个带有 storage 角色的节点')
+        return false
+      }
+      if (storageCount > 1) {
+        ElMessage.warning('带有 storage 角色的节点最多只能有一个')
+        return false
+      }
     }
     return true
   }

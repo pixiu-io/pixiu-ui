@@ -224,6 +224,9 @@
     apiServerAddress: '',
     apiServerPort: 6443,
     kubeProxyMode: 'iptables',
+    nfsEnabled: false,
+    nfsStorageClassName: '',
+    nfsStorageDataDir: '',
     metricsServer: true,
     ingressNginx: true,
     nodes: [] as NodeConfig[],
@@ -247,7 +250,7 @@
     const authType = node?.auth?.type === 'key' ? 'key' : 'password'
     return {
       name: node?.name ?? '',
-      role: (node?.role ?? []) as ('master' | 'node')[],
+      role: (node?.role ?? []) as ('master' | 'node' | 'storage')[],
       ip: node?.ip ?? '',
       authType,
       user: node?.auth?.password?.user ?? 'root',
@@ -308,6 +311,9 @@
         ),
         apiServerPort,
         kubeProxyMode: 'iptables',
+        nfsEnabled: Boolean((cfg.component as any)?.nfs?.enable),
+        nfsStorageClassName: (cfg.component as any)?.nfs?.storage_class_name ?? '',
+        nfsStorageDataDir: (cfg.component as any)?.nfs?.storage_data_dir ?? '',
         metricsServer: Boolean((cfg.component as any)?.metric_server?.enable),
         ingressNginx: Boolean((cfg.component as any)?.ingress_nginx?.enable),
         nodes: (detail.nodes ?? []).map(mapNodeFromApi),
@@ -467,7 +473,16 @@
           ...(f.enablePrometheus ? { prometheus: { enabled: true } } : {}),
           ...(f.enableLogging ? { logging: { enabled: true } } : {}),
           metric_server: { enable: f.metricsServer },
-          ingress_nginx: { enable: f.ingressNginx }
+          ingress_nginx: { enable: f.ingressNginx },
+          ...(f.nfsEnabled
+            ? {
+                nfs: {
+                  enable: true,
+                  storage_class_name: f.nfsStorageClassName.trim(),
+                  storage_data_dir: f.nfsStorageDataDir.trim()
+                }
+              }
+            : {})
         }
       },
       nodes
