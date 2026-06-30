@@ -244,7 +244,8 @@
       "audit": "审计",
       "agent": "Agent",
       "monitor": "监控告警",
-      "datasource": "数据源"
+      "datasource": "数据源",
+      "logs": "日志"
     },
     "appstore": {
       "title": "应用商店"

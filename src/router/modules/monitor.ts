@@ -19,6 +19,16 @@ export const monitorRoutes: AppRouteRecord = {
         icon: 'ri:database-2-line',
         keepAlive: true
       }
+    },
+    {
+      path: 'logs',
+      name: 'MonitorLogs',
+      component: '/safeguard/logs',
+      meta: {
+        title: 'menus.safeguard.logs',
+        icon: 'ri:file-list-3-line',
+        keepAlive: true
+      }
     }
   ]
 }

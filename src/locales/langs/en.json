@@ -242,7 +242,8 @@
       "audit": "Audit",
       "agent": "Agent Management",
       "monitor": "Monitor & Alert",
-      "datasource": "Datasource"
+      "datasource": "Datasource",
+      "logs": "Logs"
     },
     "plan": {
       "title": "Version Plan",
