@@ -414,12 +414,8 @@
   const ctxRef = inject(clusterDetailContextKey)!
 
   const logTypeTabs = [
-    { key: 'collection', label: '日志采集', disabled: true },
     { key: 'business', label: '业务日志', disabled: false },
-    { key: 'component', label: '托管组件日志', disabled: true },
     { key: 'event', label: '事件日志', disabled: true },
-    { key: 'audit', label: '审计日志', disabled: true },
-    { key: 'coredns', label: 'CoreDNS 日志', disabled: true },
     { key: 'standard', label: '标准日志', disabled: true }
   ]
 
