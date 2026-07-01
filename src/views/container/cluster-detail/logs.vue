@@ -202,18 +202,6 @@
             class="logs-console__fields-search"
           />
           <div class="logs-console__fields-group">
-            <div class="logs-console__fields-group-title">显示原始日志</div>
-            <label class="logs-console__fields-check">
-              <ElCheckbox v-model="showLogTime" />日志时间
-            </label>
-            <label class="logs-console__fields-check">
-              <ElCheckbox v-model="showLineNumber" />行号
-            </label>
-            <label class="logs-console__fields-check">
-              <ElCheckbox v-model="wordWrap" />换行
-            </label>
-          </div>
-          <div class="logs-console__fields-group">
             <div class="logs-console__fields-group-title">可用字段</div>
             <button
               v-for="field in filteredFieldKeys"
@@ -232,29 +220,44 @@
 
         <main class="logs-console__main">
           <div class="logs-console__main-header">
-            <span class="logs-console__count">日志条数 {{ logs.length }}</span>
-            <div class="logs-console__main-toolbar">
-              <ElButton text size="small" disabled>添加到仪表盘</ElButton>
-              <ElButton text size="small" disabled>添加告警策略</ElButton>
-              <ElButton text size="small" disabled :icon="Download">下载</ElButton>
-              <ElButtonGroup>
-                <ElButton
-                  size="small"
-                  :type="resultViewMode === 'raw' ? 'primary' : 'default'"
-                  plain
+            <div class="logs-console__main-header-top">
+              <span class="logs-console__count">日志条数 {{ logs.length }}</span>
+              <div class="logs-console__main-toolbar">
+                <ElButton text size="small" disabled>添加到仪表盘</ElButton>
+                <ElButton text size="small" disabled>添加告警策略</ElButton>
+                <ElButton text size="small" disabled :icon="Download">下载</ElButton>
+              </div>
+            </div>
+            <div class="logs-console__view-mode">
+              <div class="logs-view-segment">
+                <button
+                  type="button"
+                  class="logs-view-segment__item"
+                  :class="{ 'is-active': resultViewMode === 'raw' }"
                   @click="resultViewMode = 'raw'"
                 >
                   原始
-                </ElButton>
-                <ElButton
-                  size="small"
-                  :type="resultViewMode === 'table' ? 'primary' : 'default'"
-                  plain
+                </button>
+                <button
+                  type="button"
+                  class="logs-view-segment__item"
+                  :class="{ 'is-active': resultViewMode === 'table' }"
                   @click="resultViewMode = 'table'"
                 >
                   表格
-                </ElButton>
-              </ElButtonGroup>
+                </button>
+              </div>
+              <div class="logs-console__display-options">
+                <label class="logs-console__display-check">
+                  <ElCheckbox v-model="wordWrap" />换行
+                </label>
+                <label class="logs-console__display-check">
+                  <ElCheckbox v-model="showLineNumber" />行号
+                </label>
+                <label class="logs-console__display-check">
+                  <ElCheckbox v-model="showLogTime" />日志时间
+                </label>
+              </div>
             </div>
           </div>
 
@@ -1602,16 +1605,6 @@
     color: var(--el-text-color-secondary);
   }
 
-  .logs-console__fields-check {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-bottom: 6px;
-    font-size: 12px;
-    color: var(--el-text-color-regular);
-    cursor: pointer;
-  }
-
   .logs-console__field-item {
     display: flex;
     align-items: center;
@@ -1670,12 +1663,88 @@
 
   .logs-console__main-header {
     display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+  }
+
+  .logs-console__main-header-top {
+    display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 16px;
-    padding: 10px 16px;
-    border-bottom: 1px solid var(--el-border-color-lighter);
     flex-wrap: wrap;
+  }
+
+  .logs-console__view-mode {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .logs-view-segment {
+    display: inline-flex;
+    align-items: stretch;
+  }
+
+  .logs-view-segment__item {
+    position: relative;
+    min-width: 56px;
+    padding: 5px 18px;
+    border: 1px solid var(--el-border-color);
+    margin-left: -1px;
+    background: var(--el-bg-color);
+    color: var(--el-text-color-regular);
+    font-size: 12px;
+    line-height: 1.5;
+    cursor: pointer;
+  }
+
+  .logs-view-segment__item:first-child {
+    margin-left: 0;
+    border-radius: 2px 0 0 2px;
+  }
+
+  .logs-view-segment__item:last-child {
+    border-radius: 0 2px 2px 0;
+  }
+
+  .logs-view-segment__item.is-active {
+    z-index: 1;
+    color: var(--el-color-primary);
+    border-color: var(--el-color-primary);
+    background: var(--el-bg-color);
+  }
+
+  .logs-console__display-options {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .logs-console__display-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--el-text-color-regular);
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .logs-console__display-check :deep(.el-checkbox) {
+    height: auto;
+  }
+
+  .logs-console__display-check :deep(.el-checkbox__label) {
+    padding-left: 6px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--el-text-color-regular);
   }
 
   .logs-console__result-tab {
