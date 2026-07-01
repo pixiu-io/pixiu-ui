@@ -228,6 +228,44 @@
                 <ElButton text size="small" disabled :icon="Download">下载</ElButton>
               </div>
             </div>
+            <div v-if="resultPanelTab === 'logs'" class="logs-trend-chart">
+              <div v-if="showTrendChart" class="logs-trend-chart__panel">
+                <button type="button" class="logs-trend-chart__toggle" @click="showTrendChart = false">
+                  <ElIcon><Hide /></ElIcon>
+                  隐藏图表
+                </button>
+                <div class="logs-trend-chart__plot">
+                  <div class="logs-trend-chart__bars">
+                    <div
+                      v-for="item in trendChartData"
+                      :key="item.key"
+                      class="logs-trend-chart__bar-wrap"
+                      :title="`${item.label}: ${item.count}`"
+                    >
+                      <div
+                        class="logs-trend-chart__bar"
+                        :style="{
+                          height: `${item.count ? Math.max(6, (item.count / maxTrendCount) * 100) : 0}%`
+                        }"
+                      />
+                    </div>
+                  </div>
+                  <div class="logs-trend-chart__axis">
+                    <span
+                      v-for="item in trendChartData"
+                      :key="`axis-${item.key}`"
+                      class="logs-trend-chart__axis-label"
+                    >
+                      {{ item.label }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <button v-else type="button" class="logs-trend-chart__show" @click="showTrendChart = true">
+                <ElIcon><View /></ElIcon>
+                显示图表
+              </button>
+            </div>
             <div class="logs-console__view-mode">
               <div class="logs-view-segment">
                 <button
@@ -262,38 +300,38 @@
           </div>
 
           <div v-if="resultPanelTab === 'chart'" class="logs-console__chart-panel">
-            <div v-if="histogramData.length" class="logs-histogram">
-              <div
-                v-for="item in histogramData"
-                :key="item.label"
-                class="logs-histogram__bar-wrap"
-                :title="`${item.label}: ${item.count}`"
-              >
-                <div
-                  class="logs-histogram__bar"
-                  :style="{ height: `${Math.max(8, (item.count / maxHistogramCount) * 100)}%` }"
-                />
-                <span class="logs-histogram__label">{{ item.shortLabel }}</span>
+            <div v-if="trendChartData.some((item) => item.count > 0)" class="logs-trend-chart__panel is-large">
+              <div class="logs-trend-chart__plot">
+                <div class="logs-trend-chart__bars">
+                  <div
+                    v-for="item in trendChartData"
+                    :key="`chart-${item.key}`"
+                    class="logs-trend-chart__bar-wrap"
+                    :title="`${item.label}: ${item.count}`"
+                  >
+                    <div
+                      class="logs-trend-chart__bar"
+                      :style="{
+                        height: `${item.count ? Math.max(8, (item.count / maxTrendCount) * 100) : 0}%`
+                      }"
+                    />
+                  </div>
+                </div>
+                <div class="logs-trend-chart__axis">
+                  <span
+                    v-for="item in trendChartData"
+                    :key="`chart-axis-${item.key}`"
+                    class="logs-trend-chart__axis-label"
+                  >
+                    {{ item.label }}
+                  </span>
+                </div>
               </div>
             </div>
             <ElEmpty v-else description="暂无统计数据，请先搜索日志" />
           </div>
 
           <template v-else>
-            <div v-if="histogramData.length" class="logs-histogram logs-histogram--compact">
-              <div
-                v-for="item in histogramData"
-                :key="item.label"
-                class="logs-histogram__bar-wrap"
-                :title="`${item.label}: ${item.count}`"
-              >
-                <div
-                  class="logs-histogram__bar"
-                  :style="{ height: `${Math.max(6, (item.count / maxHistogramCount) * 100)}%` }"
-                />
-              </div>
-            </div>
-
             <div v-loading="loading" class="logs-console__content">
               <div v-if="resultViewMode === 'raw'" class="logs-raw-list">
                 <div
@@ -376,7 +414,9 @@
     Download,
     Link,
     Fold,
-    Expand
+    Expand,
+    Hide,
+    View
   } from '@element-plus/icons-vue'
   import {
     fetchDatasourceList,
@@ -471,6 +511,7 @@
   const showLineNumber = ref(true)
   const showLogTime = ref(true)
   const wordWrap = ref(true)
+  const showTrendChart = ref(true)
 
   const operatorOptions: LokiLabelOperator[] = ['=', '!=', '=~', '!~']
   const subTypeMeta: Record<DatasourceSubType, { label: string; icon: string }> = {
@@ -517,23 +558,41 @@
     if (!kw) return keys
     return keys.filter((item) => item.toLowerCase().includes(kw))
   })
-  const histogramData = computed(() => {
-    const buckets = new Map<string, number>()
-    for (const row of logs.value) {
-      const label = row.time.length >= 16 ? row.time.slice(0, 16) : row.time
-      buckets.set(label, (buckets.get(label) ?? 0) + 1)
-    }
-    return Array.from(buckets.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([label, count]) => ({
-        label,
-        shortLabel: label.slice(11),
-        count
-      }))
+  const trendBucketCount = computed(() => {
+    const minutes = timeRangeMinutes.value
+    if (minutes <= 15) return 15
+    if (minutes <= 60) return 12
+    if (minutes <= 360) return 18
+    return 24
   })
-  const maxHistogramCount = computed(() =>
-    Math.max(...histogramData.value.map((item) => item.count), 1)
-  )
+  const trendChartData = computed(() => {
+    const bucketCount = trendBucketCount.value
+    const rangeMs = timeRangeMinutes.value * 60 * 1000
+    const end = Date.now()
+    const start = end - rangeMs
+    const bucketMs = rangeMs / bucketCount
+
+    const buckets = Array.from({ length: bucketCount }, (_, index) => {
+      const bucketStart = start + index * bucketMs
+      return {
+        key: `${bucketStart}-${index}`,
+        label: formatTrendAxisLabel(bucketStart),
+        count: 0
+      }
+    })
+
+    for (const row of logs.value) {
+      const timestamp = parseLogTime(row.time)
+      if (timestamp == null) continue
+      const index = Math.floor((timestamp - start) / bucketMs)
+      if (index >= 0 && index < buckets.length) {
+        buckets[index].count += 1
+      }
+    }
+
+    return buckets
+  })
+  const maxTrendCount = computed(() => Math.max(...trendChartData.value.map((item) => item.count), 1))
   const queryDraftPlaceholder = computed(() =>
     isLokiDatasource.value
       ? '支持手写 LogQL，例如 {namespace="default"} |= "error"'
@@ -899,6 +958,23 @@
     if (Number.isNaN(date.getTime())) return String(timestamp)
     const pad = (value: number, size = 2) => String(value).padStart(size, '0')
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.${pad(date.getMilliseconds(), 3)}`
+  }
+
+  function formatTrendAxisLabel(timestamp: number): string {
+    const date = new Date(timestamp)
+    const pad = (value: number, size = 2) => String(value).padStart(size, '0')
+    return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.${pad(date.getMilliseconds(), 3)}`
+  }
+
+  function parseLogTime(text: string): number | null {
+    const match = text.match(/^(\d{4}-\d{2}-\d{2}) (\d{2}):(\d{2}):(\d{2})\.(\d{3})$/)
+    if (match) {
+      const [, date, hour, minute, second, millisecond] = match
+      const parsed = new Date(`${date}T${hour}:${minute}:${second}.${millisecond}`)
+      return Number.isNaN(parsed.getTime()) ? null : parsed.getTime()
+    }
+    const parsed = new Date(text)
+    return Number.isNaN(parsed.getTime()) ? null : parsed.getTime()
   }
 
   function parseRequestError(error: unknown): string {
@@ -1787,44 +1863,102 @@
     white-space: nowrap;
   }
 
-  .logs-histogram {
+  .logs-trend-chart {
+    width: 100%;
+  }
+
+  .logs-trend-chart__panel {
+    position: relative;
+    border: 1px solid var(--el-border-color-lighter);
+    border-radius: 4px;
+    background: var(--el-fill-color-blank);
+    overflow: hidden;
+  }
+
+  .logs-trend-chart__panel.is-large {
+    width: 100%;
+  }
+
+  .logs-trend-chart__panel.is-large .logs-trend-chart__bars {
+    height: 180px;
+  }
+
+  .logs-trend-chart__toggle,
+  .logs-trend-chart__show {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border: none;
+    background: transparent;
+    color: var(--el-text-color-secondary);
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  .logs-trend-chart__toggle {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    z-index: 1;
+  }
+
+  .logs-trend-chart__show {
+    padding: 4px 0;
+    color: var(--el-color-primary);
+  }
+
+  .logs-trend-chart__toggle:hover,
+  .logs-trend-chart__show:hover {
+    color: var(--el-color-primary);
+  }
+
+  .logs-trend-chart__plot {
+    padding: 28px 12px 8px;
+  }
+
+  .logs-trend-chart__bars {
     display: flex;
     align-items: flex-end;
-    gap: 4px;
-    height: 72px;
-    padding: 10px 14px 6px;
-    border-bottom: 1px solid var(--el-border-color-lighter);
+    gap: 2px;
+    height: 88px;
+    border-bottom: 1px solid var(--el-border-color);
     overflow-x: auto;
   }
 
-  .logs-histogram--compact {
-    height: 48px;
-    padding-top: 6px;
-  }
-
-  .logs-histogram__bar-wrap {
+  .logs-trend-chart__bar-wrap {
     display: flex;
     flex: 1;
     flex-direction: column;
-    align-items: center;
     justify-content: flex-end;
-    min-width: 18px;
+    align-items: stretch;
+    min-width: 28px;
     height: 100%;
   }
 
-  .logs-histogram__bar {
+  .logs-trend-chart__bar {
     width: 100%;
-    min-height: 4px;
-    border-radius: 2px 2px 0 0;
+    min-height: 0;
+    border-radius: 1px 1px 0 0;
     background: var(--el-color-primary);
-    opacity: 0.75;
+    opacity: 0.85;
   }
 
-  .logs-histogram__label {
-    margin-top: 4px;
+  .logs-trend-chart__axis {
+    display: flex;
+    align-items: flex-start;
+    gap: 2px;
+    margin-top: 6px;
+    overflow-x: auto;
+  }
+
+  .logs-trend-chart__axis-label {
+    flex: 1;
+    min-width: 28px;
     font-size: 10px;
-    color: var(--el-text-color-placeholder);
+    line-height: 1.4;
+    color: var(--el-text-color-regular);
     white-space: nowrap;
+    text-align: center;
   }
 
   .logs-console__chart-panel {
@@ -1844,9 +1978,9 @@
 
   .logs-raw-list {
     padding: 8px 0;
-    font-family: Consolas, 'Courier New', monospace;
     font-size: 12px;
-    line-height: 1.6;
+    line-height: 23px;
+    color: var(--el-text-color-regular);
   }
 
   .logs-raw-line {
@@ -1855,6 +1989,7 @@
     gap: 10px;
     padding: 4px 14px;
     border-bottom: 1px solid var(--el-border-color-extra-light);
+    color: var(--el-text-color-regular);
   }
 
   .logs-raw-line:hover {
@@ -1869,20 +2004,20 @@
   .logs-raw-line__no {
     flex: none;
     width: 36px;
-    color: var(--el-text-color-placeholder);
+    color: var(--el-text-color-regular);
     text-align: right;
   }
 
   .logs-raw-line__time {
     flex: none;
     width: 190px;
-    color: var(--el-color-success);
+    color: var(--el-text-color-regular);
   }
 
   .logs-raw-line__msg {
     flex: 1;
     min-width: 0;
-    color: var(--el-text-color-primary);
+    color: var(--el-text-color-regular);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1947,6 +2082,16 @@
   .logs-table :deep(.el-table__expanded-cell) {
     padding: 0;
     background: var(--el-fill-color-darker);
+  }
+
+  .logs-table :deep(.el-table__body td.el-table__cell) {
+    font-size: 12px;
+    color: var(--el-text-color-regular);
+  }
+
+  .logs-table :deep(.el-button.is-link) {
+    font-size: 12px;
+    padding: 0;
   }
 
   .logs-inline-detail {
