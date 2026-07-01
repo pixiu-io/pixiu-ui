@@ -1692,14 +1692,15 @@
 
   .logs-view-segment__item {
     position: relative;
-    min-width: 56px;
-    padding: 5px 18px;
+    min-width: 52px;
+    height: 24px;
+    padding: 0 14px;
     border: 1px solid var(--el-border-color);
     margin-left: -1px;
     background: var(--el-bg-color);
     color: var(--el-text-color-regular);
     font-size: 12px;
-    line-height: 1.5;
+    line-height: 22px;
     cursor: pointer;
   }
 
