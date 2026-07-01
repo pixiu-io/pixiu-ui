@@ -109,6 +109,9 @@ export interface DatasourceListParams {
   nameSelector?: string
   current?: number
   size?: number
+  clusterName?: string
+  type?: DatasourceType
+  subType?: DatasourceSubType
 }
 
 export interface DatasourceList {
@@ -254,7 +257,10 @@ export async function fetchDatasourceList(
     params: {
       page,
       limit,
-      nameSelector: params.nameSelector ?? undefined
+      nameSelector: params.nameSelector ?? undefined,
+      cluster_name: params.clusterName ?? undefined,
+      datasource_type: params.type ?? undefined,
+      sub_type: params.subType ?? undefined
     }
   })
 

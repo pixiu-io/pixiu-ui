@@ -1,25 +1,33 @@
 <template>
   <div class="monitor-logs-page art-full-height">
-    <section class="monitor-logs-header">
-      <div class="monitor-logs-header__main">
-        <h2 class="monitor-logs-header__title">日志</h2>
-        <p class="monitor-logs-header__desc">
-          查询集群业务日志，支持 Loki 与 Elasticsearch 数据源。
-        </p>
-      </div>
-
+    <ElAlert
+      v-if="alertVisible"
+      type="info"
+      closable
+      show-icon
+      class="quota-alert"
+      style="margin: 5px 0 20px 0"
+      description="查询集群业务日志，支持 Loki 与 Elasticsearch 数据源。"
+      @close="alertVisible = false"
+    />
+    <section
+      v-if="!selectedClusterName || !hasConfiguredDatasource"
+      class="monitor-logs-header"
+      :style="{ marginTop: alertVisible ? '0' : '10px', marginBottom: '10px' }"
+    >
       <div class="monitor-logs-header__cluster">
-        <span class="monitor-logs-header__cluster-label">集群</span>
+        <span class="monitor-logs-header__cluster-label">集群选择</span>
         <ElSelect
           v-model="selectedClusterName"
           filterable
+          :filter-method="filterCluster"
           clearable
           placeholder="请选择集群"
           class="monitor-logs-header__cluster-select"
           :loading="clusterLoading"
         >
           <ElOption
-            v-for="item in clusterOptions"
+            v-for="item in filteredClusterOptions"
             :key="item.name"
             :label="formatClusterLabel(item)"
             :value="item.name"
@@ -28,7 +36,34 @@
       </div>
     </section>
 
-    <ClusterDetailLogs v-if="selectedClusterName" :key="selectedClusterName" />
+    <ClusterDetailLogs
+      v-if="selectedClusterName"
+      :key="selectedClusterName"
+      compact-placeholder
+      @datasource-state-change="hasConfiguredDatasource = $event"
+    >
+      <template #before-datasource>
+        <div class="monitor-logs-header__cluster monitor-logs-header__cluster--embedded">
+          <span class="monitor-logs-header__cluster-label">集群选择</span>
+          <ElSelect
+            v-model="selectedClusterName"
+            filterable
+            :filter-method="filterCluster"
+            clearable
+            placeholder="请选择集群"
+            class="monitor-logs-header__cluster-select"
+            :loading="clusterLoading"
+          >
+            <ElOption
+              v-for="item in filteredClusterOptions"
+              :key="item.name"
+              :label="formatClusterLabel(item)"
+              :value="item.name"
+            />
+          </ElSelect>
+        </div>
+      </template>
+    </ClusterDetailLogs>
     <ElEmpty v-else description="请选择集群后开始查询日志" class="monitor-logs-empty" />
   </div>
 </template>
@@ -36,6 +71,7 @@
 <script setup lang="ts">
   import { computed, onMounted, provide, ref, watch } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
+  import { ElAlert } from 'element-plus'
   import { fetchClusterList, type ClusterItem } from '@/api/container'
   import ClusterDetailLogs from '@/views/container/cluster-detail/logs.vue'
   import {
@@ -46,12 +82,16 @@
 
   defineOptions({ name: 'MonitorLogs' })
 
+  const alertVisible = ref(true)
+
   const route = useRoute()
   const router = useRouter()
 
   const clusterLoading = ref(false)
   const clusterOptions = ref<ClusterItem[]>([])
+  const filteredClusterOptions = ref<ClusterItem[]>([])
   const selectedClusterName = ref('')
+  const hasConfiguredDatasource = ref(false)
 
   const ctx = computed<ClusterDetailContext>(() => {
     const name = selectedClusterName.value
@@ -79,8 +119,21 @@
 
   function formatClusterLabel(item: ClusterItem) {
     return item.aliasName && item.aliasName !== item.name
-      ? `${item.aliasName} (${item.name})`
+      ? item.aliasName
       : item.name
+  }
+
+  function filterCluster(query: string) {
+    if (query) {
+      const lowerQuery = query.toLowerCase()
+      filteredClusterOptions.value = clusterOptions.value.filter(
+        (item) =>
+          item.name.toLowerCase().includes(lowerQuery) ||
+          (item.aliasName && item.aliasName.toLowerCase().includes(lowerQuery))
+      )
+    } else {
+      filteredClusterOptions.value = clusterOptions.value
+    }
   }
 
   async function loadClusters() {
@@ -98,6 +151,7 @@
         page += 1
       }
       clusterOptions.value = acc
+      filteredClusterOptions.value = acc
     } finally {
       clusterLoading.value = false
     }
@@ -121,7 +175,7 @@
       selectedClusterName.value = fromQuery
       return
     }
-    if (clusterOptions.value.length === 1) {
+    if (clusterOptions.value.length > 0) {
       selectedClusterName.value = clusterOptions.value[0].name
     }
   })
@@ -131,30 +185,15 @@
   .monitor-logs-page {
     display: flex;
     flex-direction: column;
-    gap: 12px;
     min-height: 0;
   }
 
   .monitor-logs-header {
     display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
+    align-items: center;
     gap: 16px;
     flex-wrap: wrap;
-    padding: 4px 0 8px;
-  }
-
-  .monitor-logs-header__title {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--el-text-color-primary);
-  }
-
-  .monitor-logs-header__desc {
-    margin: 6px 0 0;
-    font-size: 13px;
-    color: var(--el-text-color-secondary);
+    padding: 0;
   }
 
   .monitor-logs-header__cluster {
@@ -162,6 +201,10 @@
     align-items: center;
     gap: 10px;
     flex: none;
+  }
+
+  .monitor-logs-header__cluster--embedded {
+    margin-right: 6px;
   }
 
   .monitor-logs-header__cluster-label {
@@ -176,8 +219,8 @@
   }
 
   .monitor-logs-empty {
-    flex: 1;
-    min-height: 420px;
+    flex: none;
+    min-height: 260px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -186,8 +229,12 @@
     background: var(--el-bg-color);
   }
 
-  .monitor-logs-page :deep(.logs-console) {
+  .monitor-logs-page :deep(.logs-console:not(.logs-console--placeholder)) {
     flex: 1;
     min-height: 0;
+  }
+
+  .quota-alert {
+    flex-shrink: 0;
   }
 </style>

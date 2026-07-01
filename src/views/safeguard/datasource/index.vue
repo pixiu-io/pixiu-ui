@@ -156,7 +156,7 @@
         ...searchForm.value
       },
       columnsFactory: () => [
-        { type: 'selection', width: 48 },
+        { type: 'selection', width: 30 },
         {
           prop: 'name',
           label: '名称',

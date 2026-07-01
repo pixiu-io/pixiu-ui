@@ -17,6 +17,7 @@ type FetchKubeListPageParams = FetchKubeListBaseParams & {
   page: number
   limit: number
   chunkLimit?: number
+  skipErrorNotification?: boolean
 }
 
 export type FetchKubeListCountParams = FetchKubeListBaseParams
@@ -104,7 +105,10 @@ export async function fetchKubeListPage<T>(
     if (params.extraQuery) Object.assign(query, params.extraQuery)
     if (continueToken) query.continue = continueToken
 
-    const { data } = await kubeProxyAxios.get<KubeListResponse<T>>(params.path, { params: query })
+    const { data } = await kubeProxyAxios.get<KubeListResponse<T>>(params.path, {
+      params: query,
+      skipErrorNotification: params.skipErrorNotification
+    })
     allItems.push(...(data.items ?? []))
     continueToken = data.metadata?.continue || undefined
   } while (continueToken)

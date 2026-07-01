@@ -40,7 +40,7 @@ function svcBase(cluster: string, namespace: string) {
 
 export async function fetchK8sServiceList(
   cluster: string,
-  params: { page: number; limit: number; namespace?: string }
+  params: { page: number; limit: number; namespace?: string; skipErrorNotification?: boolean }
 ): Promise<{ items: K8sService[]; total: number }> {
   const base = params.namespace
     ? `/pixiu/proxy/${encodeURIComponent(cluster)}/api/v1/namespaces/${encodeURIComponent(params.namespace)}/services`
@@ -48,12 +48,15 @@ export async function fetchK8sServiceList(
   return fetchKubeListPage<K8sService>({
     path: base,
     page: params.page,
-    limit: params.limit
+    limit: params.limit,
+    skipErrorNotification: params.skipErrorNotification
   })
 }
 
-export async function fetchK8sService(cluster: string, namespace: string, name: string): Promise<K8sService> {
-  const { data } = await kubeProxyAxios.get<K8sService>(`${svcBase(cluster, namespace)}/${encodeURIComponent(name)}`)
+export async function fetchK8sService(cluster: string, namespace: string, name: string, skipErrorNotification = false): Promise<K8sService> {
+  const { data } = await kubeProxyAxios.get<K8sService>(`${svcBase(cluster, namespace)}/${encodeURIComponent(name)}`, {
+    skipErrorNotification
+  })
   return data
 }
 
