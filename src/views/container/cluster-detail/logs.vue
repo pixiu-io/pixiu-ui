@@ -90,42 +90,34 @@
           </div>
         </div>
         <div class="logs-console__query-body">
-          <div class="logs-console__query-editor-wrap">
-            <div class="logs-query-shell">
-              <div class="logs-query-shell__gutter">
-                <span v-for="lineNo in queryLineCount" :key="lineNo">{{ lineNo }}</span>
-              </div>
-              <ElInput
-                v-model="queryDraft"
-                type="textarea"
-                :autosize="{ minRows: 3, maxRows: 8 }"
-                :placeholder="queryDraftPlaceholder"
-                class="logs-query-editor"
-                @input="handleQueryDraftInput"
-                @keydown.enter.ctrl="loadLogs"
-              />
-            </div>
-            <div class="logs-console__query-actions">
-              <ElButton v-if="isLokiDatasource" size="small" plain @click="addFilter">添加条件</ElButton>
-              <ElButton v-if="queryDirty" text type="primary" @click="resetQueryDraft">恢复生成</ElButton>
-            </div>
-          </div>
-          <div class="logs-console__search-panel">
-            <ElSelect v-model="timeRangeMinutes" class="logs-time-range">
-              <ElOption :value="15" label="近15分钟" />
-              <ElOption :value="60" label="近1小时" />
-              <ElOption :value="360" label="近6小时" />
-              <ElOption :value="1440" label="近24小时" />
-            </ElSelect>
-            <ElButton
-              type="primary"
-              class="logs-search-btn"
-              :icon="Search"
-              :loading="loading"
-              :disabled="!canQuery"
-              @click="loadLogs"
-            />
-          </div>
+          <ElInput
+            v-model="queryDraft"
+            :placeholder="queryDraftPlaceholder"
+            class="logs-query-input"
+            clearable
+            @input="handleQueryDraftInput"
+            @keyup.enter="loadLogs"
+          />
+          <ElSelect v-model="timeRangeMinutes" class="logs-time-range">
+            <ElOption :value="15" label="近15分钟" />
+            <ElOption :value="60" label="近1小时" />
+            <ElOption :value="360" label="近6小时" />
+            <ElOption :value="1440" label="近24小时" />
+          </ElSelect>
+          <ElButton
+            type="primary"
+            class="logs-search-btn"
+            :icon="Search"
+            :loading="loading"
+            :disabled="!canQuery"
+            @click="loadLogs"
+          >
+            搜索
+          </ElButton>
+        </div>
+        <div v-if="isLokiDatasource || queryDirty" class="logs-console__query-actions">
+          <span v-if="isLokiDatasource" class="logs-console__query-link" @click="addFilter">添加条件</span>
+          <span v-if="queryDirty" class="logs-console__query-link" @click="resetQueryDraft">恢复生成</span>
         </div>
         <div v-if="isLokiDatasource && filters.length" class="logs-filter-list">
           <div v-for="filter in filters" :key="filter.id" class="logs-filter-row">
@@ -158,7 +150,7 @@
                 :value="item"
               />
             </ElSelect>
-            <ElButton text type="danger" @click="removeFilter(filter.id)">删除</ElButton>
+            <span class="logs-console__query-link" @click="removeFilter(filter.id)">删除</span>
           </div>
         </div>
         </div>
@@ -207,7 +199,6 @@
             v-model="fieldSearch"
             clearable
             placeholder="搜索字段"
-            size="small"
             class="logs-console__fields-search"
           />
           <div class="logs-console__fields-group">
@@ -578,7 +569,6 @@
     if (!props.compactPlaceholder) return false
     return !detectResolved.value || !hasConfiguredDatasource.value
   })
-  const queryLineCount = computed(() => Math.max(1, queryDraft.value.split('\n').length))
   const emptyText = computed(() => {
     if (!effectiveQuery.value) {
       return isEsDatasource.value ? '请输入 ES 查询语句' : '请输入 LogQL 查询语句'
@@ -1413,84 +1403,51 @@
     transform: translateY(-1px);
   }
 
-  .logs-query-shell {
+  .logs-console__query-body {
     display: flex;
-    align-items: stretch;
-    border: 1px solid var(--el-border-color);
-    border-radius: 4px;
-    overflow: hidden;
-    background: var(--el-fill-color-darker);
+    align-items: center;
+    gap: 10px;
+    flex-wrap: nowrap;
   }
 
-  .logs-query-shell__gutter {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    min-width: 36px;
-    padding: 10px 8px;
-    border-right: 1px solid var(--el-border-color-lighter);
-    background: var(--el-fill-color-light);
-    color: var(--el-text-color-secondary);
-    font-family: Consolas, 'Courier New', monospace;
-    font-size: 12px;
-    line-height: 1.6;
-    text-align: right;
-    user-select: none;
-  }
-
-  .logs-query-editor {
+  .logs-query-input {
     flex: 1;
     min-width: 0;
   }
 
-  .logs-query-editor :deep(.el-textarea__inner) {
-    padding: 10px 12px;
+  .logs-query-input :deep(.el-input__wrapper) {
     font-family: Consolas, 'Courier New', monospace;
-    font-size: 12px;
-    line-height: 1.6;
-    color: var(--el-color-success);
-    background: transparent;
-    border: none;
-    box-shadow: none;
-    resize: vertical;
-  }
-
-  .logs-console__query-body {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 220px;
-    gap: 12px;
-    align-items: start;
-  }
-
-  .logs-console__query-editor-wrap {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    min-width: 0;
+    font-size: 13px;
   }
 
   .logs-console__query-actions {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 16px;
     flex-wrap: wrap;
+    margin-top: 8px;
   }
 
-  .logs-console__search-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    align-items: stretch;
+  .logs-console__query-link {
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--el-color-primary);
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .logs-console__query-link:hover {
+    opacity: 0.85;
   }
 
   .logs-time-range {
-    width: 100%;
+    width: 140px;
+    flex: none;
   }
 
   .logs-search-btn {
-    width: 100%;
-    height: 36px;
-    border-radius: 0 !important;
+    flex: none;
+    min-width: 88px;
   }
 
   .logs-filter-list {
@@ -1619,6 +1576,20 @@
 
   .logs-console__fields-search {
     margin-bottom: 12px;
+  }
+
+  .logs-console__fields-search :deep(.el-input__wrapper) {
+    min-height: 30px;
+    padding-top: 1px;
+    padding-bottom: 1px;
+  }
+
+  .logs-console__fields-search :deep(.el-input__inner) {
+    font-size: 12px;
+  }
+
+  .logs-console__fields-search :deep(.el-input__inner::placeholder) {
+    font-size: 11px;
   }
 
   .logs-console__fields-group + .logs-console__fields-group {
@@ -1971,7 +1942,16 @@
 
   @media (max-width: 960px) {
     .logs-console__query-body {
-      grid-template-columns: 1fr;
+      flex-wrap: wrap;
+    }
+
+    .logs-query-input {
+      flex: 1 1 100%;
+    }
+
+    .logs-time-range {
+      flex: 1;
+      min-width: 120px;
     }
 
     .logs-console__results-body {
