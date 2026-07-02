@@ -1209,6 +1209,16 @@
     return '请求失败'
   }
 
+  function getEsRequestHeaders() {
+    const headers: Record<string, string> = {}
+    const username = selectedDatasource.value?.config.log?.userName?.trim() ?? ''
+    const password = selectedDatasource.value?.config.log?.password ?? ''
+    if (username || password) {
+      headers.Authorization = `Basic ${window.btoa(`${username}:${password}`)}`
+    }
+    return headers
+  }
+
   async function loadLogs() {
     if (!canQuery.value) return
 
@@ -1280,55 +1290,61 @@
     const query = effectiveQuery.value.trim()
     const must = query && query !== '*' ? [{ query_string: { query, analyze_wildcard: true } }] : []
 
-    const { data } = await kubeProxyAxios.post<EsSearchResponse>(url, {
-      size: lineLimit.value,
-      sort: [
-        { '@timestamp': { order: 'desc', unmapped_type: 'date' } },
-        { timestamp: { order: 'desc', unmapped_type: 'date' } },
-        { time: { order: 'desc', unmapped_type: 'date' } }
-      ],
-      query: {
-        bool: {
-          must,
-          filter: [
-            {
-              bool: {
-                should: [
-                  {
-                    range: {
-                      '@timestamp': {
-                        gte: start.toISOString(),
-                        lte: now.toISOString(),
-                        format: 'strict_date_optional_time'
+    const { data } = await kubeProxyAxios.post<EsSearchResponse>(
+      url,
+      {
+        size: lineLimit.value,
+        sort: [
+          { '@timestamp': { order: 'desc', unmapped_type: 'date' } },
+          { timestamp: { order: 'desc', unmapped_type: 'date' } },
+          { time: { order: 'desc', unmapped_type: 'date' } }
+        ],
+        query: {
+          bool: {
+            must,
+            filter: [
+              {
+                bool: {
+                  should: [
+                    {
+                      range: {
+                        '@timestamp': {
+                          gte: start.toISOString(),
+                          lte: now.toISOString(),
+                          format: 'strict_date_optional_time'
+                        }
+                      }
+                    },
+                    {
+                      range: {
+                        timestamp: {
+                          gte: start.toISOString(),
+                          lte: now.toISOString(),
+                          format: 'strict_date_optional_time'
+                        }
+                      }
+                    },
+                    {
+                      range: {
+                        time: {
+                          gte: start.toISOString(),
+                          lte: now.toISOString(),
+                          format: 'strict_date_optional_time'
+                        }
                       }
                     }
-                  },
-                  {
-                    range: {
-                      timestamp: {
-                        gte: start.toISOString(),
-                        lte: now.toISOString(),
-                        format: 'strict_date_optional_time'
-                      }
-                    }
-                  },
-                  {
-                    range: {
-                      time: {
-                        gte: start.toISOString(),
-                        lte: now.toISOString(),
-                        format: 'strict_date_optional_time'
-                      }
-                    }
-                  }
-                ],
-                minimum_should_match: 1
+                  ],
+                  minimum_should_match: 1
+                }
               }
-            }
-          ]
+            ]
+          }
         }
+      },
+      {
+        headers: getEsRequestHeaders()
       }
-    })
+    )
 
     if (data?.error) {
       throw new Error(
