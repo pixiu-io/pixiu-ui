@@ -144,7 +144,7 @@
               <ElFormItem label="类型" prop="type">
                 <ElSelect v-model="createForm.type" class="w-full" @change="handleTypeChange">
                   <ElOption label="日志" :value="0" />
-                  <ElOption label="告警" :value="1" />
+                  <ElOption label="告警" :value="1" disabled />
                 </ElSelect>
               </ElFormItem>
             </ElCol>
@@ -157,6 +157,7 @@
                     :key="option.value"
                     :label="option.label"
                     :value="option.value"
+                    :disabled="option.disabled"
                   />
                 </ElSelect>
               </ElFormItem>
@@ -384,12 +385,15 @@
   const createFormRef = ref<FormInstance>()
   const advancedPanels = ref<string[]>([])
 
-  const subTypeOptions: Record<DatasourceType, { label: string; value: DatasourceSubType }[]> = {
+  const subTypeOptions: Record<
+    DatasourceType,
+    { label: string; value: DatasourceSubType; disabled?: boolean }[]
+  > = {
     0: [
       { label: 'Loki', value: 'loki' },
       { label: 'Elasticsearch', value: 'es' }
     ],
-    1: [{ label: 'Prometheus', value: 'prometheus' }]
+    1: [{ label: 'Prometheus', value: 'prometheus', disabled: true }]
   }
 
   const subTypeMeta: Record<DatasourceSubType, { label: string; icon: string }> = {

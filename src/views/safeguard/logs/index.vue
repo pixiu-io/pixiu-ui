@@ -232,6 +232,8 @@
   .monitor-logs-page :deep(.logs-console:not(.logs-console--placeholder)) {
     flex: 1;
     min-height: 0;
+    height: 100%;
+    max-height: 100%;
   }
 
   .quota-alert {

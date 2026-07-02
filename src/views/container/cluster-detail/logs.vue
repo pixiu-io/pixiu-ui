@@ -115,7 +115,7 @@
             搜索
           </ElButton>
         </div>
-        <div v-if="isLokiDatasource || queryDirty" class="logs-console__query-actions">
+        <div v-if="isLokiDatasource" class="logs-console__query-actions">
           <span v-if="isLokiDatasource" class="logs-console__query-link" @click="addFilter">添加条件</span>
           <span v-if="queryDirty" class="logs-console__query-link" @click="resetQueryDraft">恢复生成</span>
         </div>
@@ -201,19 +201,56 @@
             placeholder="搜索字段"
             class="logs-console__fields-search"
           />
-          <div class="logs-console__fields-group">
-            <div class="logs-console__fields-group-title">可用字段</div>
-            <button
+          <div class="logs-field-tree">
+            <div
               v-for="field in filteredFieldKeys"
               :key="field"
-              type="button"
-              class="logs-console__field-item"
-              @click="addFieldFilter(field)"
+              class="logs-field-node"
+              :class="{ 'is-expanded': expandedFieldKey === field }"
             >
-              <span class="logs-console__field-name">{{ field }}</span>
-              <span class="logs-console__field-type">t</span>
-            </button>
-            <div v-if="!filteredFieldKeys.length" class="logs-console__fields-empty">暂无字段</div>
+              <button type="button" class="logs-field-node__head" @click="toggleFieldExpand(field)">
+                <ElIcon class="logs-field-node__arrow">
+                  <CaretBottom v-if="expandedFieldKey === field" />
+                  <CaretRight v-else />
+                </ElIcon>
+                <span class="logs-field-node__name" :title="field">{{ field }}</span>
+                <span
+                  v-if="getSelectedFieldValues(field).length"
+                  class="logs-field-node__badge"
+                >
+                  {{ getSelectedFieldValues(field).length }}
+                </span>
+              </button>
+              <div v-if="expandedFieldKey === field" class="logs-field-node__body">
+                <ElInput
+                  :model-value="getFieldValueSearch(field)"
+                  placeholder="搜索值"
+                  size="small"
+                  clearable
+                  class="logs-field-node__search"
+                  @update:model-value="setFieldValueSearch(field, $event)"
+                />
+                <div class="logs-field-node__options">
+                  <label
+                    v-for="value in getFilteredFieldValues(field)"
+                    :key="`${field}-${value}`"
+                    class="logs-field-node__option"
+                  >
+                    <ElCheckbox
+                      :model-value="isFieldValueSelected(field, value)"
+                      @change="(checked: boolean) => toggleFieldValue(field, value, checked)"
+                    />
+                    <span class="logs-field-node__value" :title="value">{{ value }}</span>
+                  </label>
+                  <div v-if="!getFilteredFieldValues(field).length" class="logs-field-node__empty">
+                    暂无值
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-if="!filteredFieldKeys.length" class="logs-console__fields-empty">
+              {{ logs.length ? '未匹配到字段' : '暂无字段' }}
+            </div>
           </div>
           </template>
         </aside>
@@ -221,11 +258,28 @@
         <main class="logs-console__main">
           <div class="logs-console__main-header">
             <div class="logs-console__main-header-top">
-              <span class="logs-console__count">日志条数 {{ logs.length }}</span>
+              <span class="logs-console__count">
+                日志条数 {{ displayLogs.length }}
+                <span
+                  v-if="hasActiveFieldFilters && displayLogs.length !== logs.length"
+                  class="logs-console__count-filtered"
+                >
+                  / {{ logs.length }}
+                </span>
+              </span>
               <div class="logs-console__main-toolbar">
                 <ElButton text size="small" disabled>添加到仪表盘</ElButton>
                 <ElButton text size="small" disabled>添加告警策略</ElButton>
-                <ElButton text size="small" disabled :icon="Download">下载</ElButton>
+                <ElButton
+                  text
+                  size="small"
+                  :icon="Download"
+                  class="logs-console__download-btn"
+                  :disabled="!displayLogs.length"
+                  @click="downloadLogs"
+                >
+                  下载
+                </ElButton>
               </div>
             </div>
             <div v-if="resultPanelTab === 'logs'" class="logs-trend-chart">
@@ -240,10 +294,11 @@
                       v-for="item in trendChartData"
                       :key="item.key"
                       class="logs-trend-chart__bar-wrap"
-                      :title="`${item.label}: ${item.count}`"
+                      :title="`${item.fullLabel}\n日志数量：${item.count}`"
                     >
                       <div
                         class="logs-trend-chart__bar"
+                        :title="`${item.fullLabel}\n日志数量：${item.count}`"
                         :style="{
                           height: `${item.count ? Math.max(6, (item.count / maxTrendCount) * 100) : 0}%`
                         }"
@@ -255,8 +310,9 @@
                       v-for="item in trendChartData"
                       :key="`axis-${item.key}`"
                       class="logs-trend-chart__axis-label"
+                      :title="item.showLabel ? item.fullLabel : ''"
                     >
-                      {{ item.label }}
+                      {{ item.showLabel ? item.label : '' }}
                     </span>
                   </div>
                 </div>
@@ -322,8 +378,9 @@
                     v-for="item in trendChartData"
                     :key="`chart-axis-${item.key}`"
                     class="logs-trend-chart__axis-label"
+                    :title="item.showLabel ? item.fullLabel : ''"
                   >
-                    {{ item.label }}
+                    {{ item.showLabel ? item.label : '' }}
                   </span>
                 </div>
               </div>
@@ -335,24 +392,24 @@
             <div v-loading="loading" class="logs-console__content">
               <div v-if="resultViewMode === 'raw'" class="logs-raw-list">
                 <div
-                  v-for="(row, index) in logs"
+                  v-for="(row, index) in displayLogs"
                   :key="row.id"
                   class="logs-raw-line"
                   :class="{ 'is-wrap': wordWrap }"
                 >
                   <span v-if="showLineNumber" class="logs-raw-line__no">{{ index + 1 }}</span>
                   <span v-if="showLogTime" class="logs-raw-line__time">{{ row.time }}</span>
+                  <span class="logs-raw-line__pod" :title="row.pod">{{ row.pod }}</span>
                   <span class="logs-raw-line__msg">{{ row.msg }}</span>
                 </div>
-                <div v-if="!logs.length" class="logs-empty">{{ emptyText }}</div>
+                <div v-if="!displayLogs.length" class="logs-empty">{{ emptyText }}</div>
               </div>
 
               <ElTable
                 v-else
-                :data="logs"
+                :data="displayLogs"
                 :row-key="getLogRowKey"
                 :expand-row-keys="expandedRowKeys"
-                stripe
                 size="small"
                 class="logs-table"
                 @expand-change="handleExpandChange"
@@ -363,22 +420,50 @@
                 <ElTableColumn type="expand" width="44">
                   <template #default="{ row }">
                     <div class="logs-inline-detail">
-                      <div class="logs-inline-detail__section">
-                        <div class="logs-inline-detail__title">字段</div>
-                        <div class="logs-field-list">
+                      <div class="logs-inline-detail__panel">
+                        <div class="logs-inline-detail__panel-head">
+                          <span class="logs-inline-detail__panel-title">字段</span>
+                          <span class="logs-inline-detail__panel-count">
+                            {{ getLogFieldEntries(row as LogTableRow).length }} 项
+                          </span>
+                        </div>
+                        <div class="logs-field-grid">
                           <div
                             v-for="item in getLogFieldEntries(row as LogTableRow)"
                             :key="`${(row as LogTableRow).id}-${item.key}`"
-                            class="logs-field-item"
+                            class="logs-field-row"
                           >
-                            <span class="logs-field-item__key">{{ item.key }}</span>
-                            <span class="logs-field-item__value">{{ item.value }}</span>
+                            <span class="logs-field-row__key">{{ item.key }}</span>
+                            <span
+                              class="logs-field-row__value"
+                              :class="getFieldValueClass(item)"
+                            >
+                              {{ item.value }}
+                            </span>
+                            <button
+                              type="button"
+                              class="logs-field-row__copy"
+                              title="复制"
+                              @click="copyFieldValue(item.value)"
+                            >
+                              <ElIcon><DocumentCopy /></ElIcon>
+                            </button>
                           </div>
                         </div>
                       </div>
-                      <div class="logs-inline-detail__section">
-                        <div class="logs-inline-detail__title">日志内容</div>
-                        <pre class="logs-detail-code">{{ (row as LogTableRow).raw }}</pre>
+                      <div class="logs-inline-detail__panel">
+                        <div class="logs-inline-detail__panel-head">
+                          <span class="logs-inline-detail__panel-title">日志内容</span>
+                          <button
+                            type="button"
+                            class="logs-inline-detail__copy-btn"
+                            @click="copyFieldValue((row as LogTableRow).raw)"
+                          >
+                            <ElIcon><DocumentCopy /></ElIcon>
+                            复制
+                          </button>
+                        </div>
+                        <pre class="logs-inline-detail__code">{{ (row as LogTableRow).raw }}</pre>
                       </div>
                     </div>
                   </template>
@@ -387,7 +472,7 @@
                 <ElTableColumn prop="ns" label="命名空间" width="140" />
                 <ElTableColumn prop="pod" label="Pod" min-width="220" show-overflow-tooltip />
                 <ElTableColumn prop="container" label="容器" width="180" show-overflow-tooltip />
-                <ElTableColumn prop="msg" label="摘要" min-width="420" show-overflow-tooltip />
+                <ElTableColumn prop="msg" label="内容" min-width="420" show-overflow-tooltip />
                 <ElTableColumn label="操作" width="90" fixed="right">
                   <template #default="{ row }">
                     <ElButton link type="primary" @click="toggleLogDetail(row as LogTableRow)">
@@ -408,15 +493,19 @@
 <script setup lang="ts">
   import { computed, inject, ref, watch } from 'vue'
   import { useRouter } from 'vue-router'
+  import { ElMessage } from 'element-plus'
   import {
     Search,
     Document,
+    DocumentCopy,
     Download,
     Link,
     Fold,
     Expand,
     Hide,
-    View
+    View,
+    CaretRight,
+    CaretBottom
   } from '@element-plus/icons-vue'
   import {
     fetchDatasourceList,
@@ -489,6 +578,7 @@
     ns: string
     pod: string
     container: string
+    level: string
     msg: string
     raw: string
     labels: Record<string, string>
@@ -507,6 +597,9 @@
   const resultPanelTab = ref<'logs' | 'chart'>('logs')
   const resultViewMode = ref<'raw' | 'table'>('raw')
   const fieldSearch = ref('')
+  const expandedFieldKey = ref('')
+  const fieldValueSearchMap = ref<Record<string, string>>({})
+  const selectedFieldFilters = ref<Record<string, string[]>>({})
   const isFieldsCollapsed = ref(false)
   const showLineNumber = ref(true)
   const showLogTime = ref(true)
@@ -531,7 +624,7 @@
   const timeRangeMinutes = ref(15)
   const lineLimit = ref(200)
   const keyword = ref('')
-  const queryDraft = ref('{namespace=~".+"}')
+  const queryDraft = ref('')
   const queryDirty = ref(false)
 
   const resolvedService = ref<K8sService | null>(null)
@@ -554,9 +647,30 @@
   const isEsDatasource = computed(() => selectedDatasource.value?.subType === 'es')
   const filteredFieldKeys = computed(() => {
     const kw = fieldSearch.value.trim().toLowerCase()
-    const keys = labelKeys.value
+    const keys = availableFieldKeys.value
     if (!kw) return keys
     return keys.filter((item) => item.toLowerCase().includes(kw))
+  })
+  const hasActiveFieldFilters = computed(() =>
+    Object.values(selectedFieldFilters.value).some((values) => values.length > 0)
+  )
+  const displayLogs = computed(() => {
+    const activeFilters = Object.entries(selectedFieldFilters.value).filter(
+      ([, values]) => values.length > 0
+    )
+    if (!activeFilters.length) return logs.value
+
+    return logs.value.filter((row) =>
+      activeFilters.every(([field, values]) => values.includes(row.labels[field] ?? ''))
+    )
+  })
+  const availableFieldKeys = computed(() => {
+    const keys = new Set<string>()
+    labelKeys.value.forEach((item) => keys.add(item))
+    logs.value.forEach((row) => {
+      Object.keys(row.labels).forEach((key) => keys.add(key))
+    })
+    return Array.from(keys).sort((a, b) => a.localeCompare(b))
   })
   const trendBucketCount = computed(() => {
     const minutes = timeRangeMinutes.value
@@ -567,21 +681,25 @@
   })
   const trendChartData = computed(() => {
     const bucketCount = trendBucketCount.value
-    const rangeMs = timeRangeMinutes.value * 60 * 1000
+    const rangeMinutes = timeRangeMinutes.value
+    const rangeMs = rangeMinutes * 60 * 1000
     const end = Date.now()
     const start = end - rangeMs
     const bucketMs = rangeMs / bucketCount
+    const labelStep = getTrendAxisLabelStep(bucketCount, rangeMinutes)
 
     const buckets = Array.from({ length: bucketCount }, (_, index) => {
       const bucketStart = start + index * bucketMs
       return {
         key: `${bucketStart}-${index}`,
-        label: formatTrendAxisLabel(bucketStart),
+        label: formatTrendAxisLabel(bucketStart, rangeMinutes),
+        fullLabel: formatDateTime(bucketStart),
+        showLabel: shouldShowTrendAxisLabel(index, bucketCount, labelStep),
         count: 0
       }
     })
 
-    for (const row of logs.value) {
+    for (const row of displayLogs.value) {
       const timestamp = parseLogTime(row.time)
       if (timestamp == null) continue
       const index = Math.floor((timestamp - start) / bucketMs)
@@ -600,7 +718,7 @@
   )
   const generatedQuery = computed(() => {
     if (isEsDatasource.value) {
-      return keyword.value.trim() || '*'
+      return keyword.value.trim()
     }
 
     const selectorParts = filters.value
@@ -620,12 +738,12 @@
     return text ? `${selector} |= "${text.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"` : selector
   })
 
-  const effectiveQuery = computed(() =>
-    queryDirty.value ? queryDraft.value.trim() : generatedQuery.value
-  )
-  const canQuery = computed(
-    () => Boolean(selectedDatasource.value) && Boolean(effectiveQuery.value.trim())
-  )
+  const effectiveQuery = computed(() => {
+    const query = queryDirty.value ? queryDraft.value.trim() : generatedQuery.value
+    if (isEsDatasource.value && !query) return '*'
+    return query
+  })
+  const canQuery = computed(() => Boolean(selectedDatasource.value) && Boolean(effectiveQuery.value.trim()))
   const hasConfiguredDatasource = computed(() => datasourceOptions.value.length > 0)
   const isPlaceholderState = computed(() => {
     if (!props.compactPlaceholder) return false
@@ -639,8 +757,13 @@
     return '暂无日志'
   })
 
+  function syncQueryDraftFromDatasource() {
+    if (queryDirty.value) return
+    queryDraft.value = isEsDatasource.value ? '' : generatedQuery.value
+  }
+
   function syncGeneratedQuery() {
-    if (!queryDirty.value) queryDraft.value = generatedQuery.value
+    syncQueryDraftFromDatasource()
   }
 
   function handleQueryDraftInput() {
@@ -648,8 +771,67 @@
   }
 
   function resetQueryDraft() {
-    queryDraft.value = generatedQuery.value
+    queryDraft.value = isEsDatasource.value ? '' : generatedQuery.value
     queryDirty.value = false
+  }
+
+  function resetFieldPanelState() {
+    expandedFieldKey.value = ''
+    fieldValueSearchMap.value = {}
+    selectedFieldFilters.value = {}
+  }
+
+  function toggleFieldExpand(field: string) {
+    expandedFieldKey.value = expandedFieldKey.value === field ? '' : field
+  }
+
+  function getFieldValueSearch(field: string) {
+    return fieldValueSearchMap.value[field] ?? ''
+  }
+
+  function setFieldValueSearch(field: string, value: string) {
+    fieldValueSearchMap.value = {
+      ...fieldValueSearchMap.value,
+      [field]: value
+    }
+  }
+
+  function getFieldValues(field: string) {
+    const values = new Set<string>()
+    for (const row of logs.value) {
+      const value = row.labels[field]
+      if (value != null && value !== '') values.add(value)
+    }
+    return Array.from(values).sort((a, b) => a.localeCompare(b))
+  }
+
+  function getFilteredFieldValues(field: string) {
+    const search = getFieldValueSearch(field).trim().toLowerCase()
+    const values = getFieldValues(field)
+    if (!search) return values
+    return values.filter((item) => item.toLowerCase().includes(search))
+  }
+
+  function getSelectedFieldValues(field: string) {
+    return selectedFieldFilters.value[field] ?? []
+  }
+
+  function isFieldValueSelected(field: string, value: string) {
+    return getSelectedFieldValues(field).includes(value)
+  }
+
+  function toggleFieldValue(field: string, value: string, checked: boolean) {
+    const current = [...getSelectedFieldValues(field)]
+    if (checked) {
+      if (!current.includes(value)) current.push(value)
+    } else {
+      const index = current.indexOf(value)
+      if (index >= 0) current.splice(index, 1)
+    }
+    selectedFieldFilters.value = {
+      ...selectedFieldFilters.value,
+      [field]: current
+    }
   }
 
   function addFieldFilter(key: string) {
@@ -663,6 +845,7 @@
       options: [],
       loading: false
     })
+    syncGeneratedQuery()
   }
 
   function addFilter() {
@@ -674,10 +857,12 @@
       options: [],
       loading: false
     })
+    syncGeneratedQuery()
   }
 
   function removeFilter(id: number) {
     filters.value = filters.value.filter((item) => item.id !== id)
+    syncGeneratedQuery()
   }
 
   function getDatasourceById(id: number) {
@@ -687,6 +872,7 @@
   function onFilterKeyChange(filter: FilterRow) {
     filter.value = ''
     filter.options = []
+    syncGeneratedQuery()
     void ensureFilterValues(filter)
   }
 
@@ -772,6 +958,7 @@
         logs.value = []
         expandedRowKeys.value = []
       }
+      syncQueryDraftFromDatasource()
     } finally {
       datasourceLoading.value = false
     }
@@ -960,10 +1147,28 @@
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.${pad(date.getMilliseconds(), 3)}`
   }
 
-  function formatTrendAxisLabel(timestamp: number): string {
+  function formatTrendAxisLabel(timestamp: number, rangeMinutes: number): string {
     const date = new Date(timestamp)
     const pad = (value: number, size = 2) => String(value).padStart(size, '0')
-    return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.${pad(date.getMilliseconds(), 3)}`
+    if (rangeMinutes <= 60) {
+      return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+    }
+    if (rangeMinutes <= 1440) {
+      return `${pad(date.getHours())}:${pad(date.getMinutes())}`
+    }
+    return `${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+  }
+
+  function getTrendAxisLabelStep(bucketCount: number, rangeMinutes: number): number {
+    const maxLabels =
+      rangeMinutes >= 1440 ? 7 : rangeMinutes >= 360 ? 9 : rangeMinutes >= 60 ? 10 : 12
+    if (bucketCount <= maxLabels) return 1
+    return Math.ceil(bucketCount / maxLabels)
+  }
+
+  function shouldShowTrendAxisLabel(index: number, bucketCount: number, step: number): boolean {
+    if (index === 0 || index === bucketCount - 1) return true
+    return index % step === 0
   }
 
   function parseLogTime(text: string): number | null {
@@ -1007,6 +1212,7 @@
   async function loadLogs() {
     if (!canQuery.value) return
 
+    resetFieldPanelState()
     loading.value = true
     try {
       if (!(await ensureServiceResolved())) return
@@ -1046,16 +1252,21 @@
     expandedRowKeys.value = []
     logs.value = (data.data?.result ?? [])
       .flatMap((stream, streamIndex) =>
-        (stream.values ?? []).map(([timestamp, line], lineIndex) => ({
-          id: `${timestamp}-${streamIndex}-${lineIndex}`,
-          time: formatNsTimestamp(timestamp),
-          ns: stream.stream?.namespace || '-',
-          pod: stream.stream?.pod || '-',
-          container: stream.stream?.container || '-',
-          msg: line,
-          raw: line,
-          labels: stream.stream ?? {}
-        }))
+        (stream.values ?? []).map(([timestamp, line], lineIndex) => {
+          const labels = { ...(stream.stream ?? {}) }
+          const level = resolveLogLevel(labels, line)
+          return {
+            id: `${timestamp}-${streamIndex}-${lineIndex}`,
+            time: formatNsTimestamp(timestamp),
+            ns: stream.stream?.namespace || '-',
+            pod: stream.stream?.pod || '-',
+            container: stream.stream?.container || '-',
+            level,
+            msg: normalizeLogMessage(line, level),
+            raw: line,
+            labels
+          }
+        })
       )
       .sort((a, b) => (a.time < b.time ? 1 : -1))
   }
@@ -1135,6 +1346,8 @@
     const message = getFirstValue(source, ['message', 'msg', 'log', 'log.message', 'event.original'])
     const labels = flattenRecord(source)
     const raw = JSON.stringify(source, null, 2)
+    const originalMessage = stringifyValue(message, raw)
+    const level = resolveLogLevel(labels, originalMessage)
 
     return {
       id: String(hit._id || `${hit._index || 'es'}-${index}`),
@@ -1158,7 +1371,8 @@
           'container_name'
         ])
       ),
-      msg: stringifyValue(message, raw),
+      level,
+      msg: normalizeLogMessage(originalMessage, level),
       raw,
       labels
     }
@@ -1265,9 +1479,170 @@
     return Object.entries(row.labels).map(([key, value]) => ({ key, value }))
   }
 
+  function getFieldValueClass(item: { key: string; value: string }) {
+    if (item.key !== 'level') return ''
+    return getLevelTone(item.value)
+  }
+
+  function getLevelTone(level: string) {
+    const normalized = level.trim().toUpperCase()
+    if (!normalized) return ''
+    if (normalized === 'ERROR' || normalized === 'FATAL' || normalized === 'CRITICAL') {
+      return 'is-level-error'
+    }
+    if (normalized === 'WARN' || normalized === 'WARNING') return 'is-level-warn'
+    if (normalized === 'INFO') return 'is-level-info'
+    if (normalized === 'DEBUG' || normalized === 'TRACE') return 'is-level-debug'
+    return ''
+  }
+
+  function pickLevelFromLabels(labels: Record<string, string>): string {
+    for (const key of ['level', 'severity', 'log.level', 'log_level']) {
+      const value = labels[key]?.trim()
+      if (value) return value.toUpperCase()
+    }
+    return ''
+  }
+
+  function resolveLogLevel(labels: Record<string, string>, message: string): string {
+    const fromLabels = pickLevelFromLabels(labels)
+    if (fromLabels) return fromLabels
+
+    try {
+      const parsed = JSON.parse(message)
+      if (parsed && typeof parsed === 'object') {
+        const level = (parsed as Record<string, unknown>).level
+        if (level != null && String(level).trim()) {
+          return String(level).trim().toUpperCase()
+        }
+      }
+    } catch {
+      // keep raw message when payload is not JSON
+    }
+
+    return ''
+  }
+
+  function normalizeLogMessage(message: string, level: string): string {
+    if (!level) return message
+
+    const variants = new Set<string>([level.toUpperCase()])
+    if (variants.has('WARN')) variants.add('WARNING')
+    if (variants.has('WARNING')) variants.add('WARN')
+
+    for (const variant of variants) {
+      const pattern = new RegExp(`^\\[${variant}\\]\\s*`, 'i')
+      if (pattern.test(message)) {
+        return message.replace(pattern, '')
+      }
+    }
+
+    return message.replace(
+      /^\[(INFO|ERROR|WARN|WARNING|DEBUG|TRACE|FATAL|CRITICAL)\]\s*/i,
+      ''
+    )
+  }
+
+  async function copyFieldValue(value: string) {
+    try {
+      await navigator.clipboard.writeText(value)
+      ElMessage.success('已复制')
+    } catch {
+      ElMessage.error('复制失败')
+    }
+  }
+
+  function sanitizeFilenamePart(value: string) {
+    return value.replace(/[\\/:*?"<>|\s]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'logs'
+  }
+
+  function formatDownloadTimestamp() {
+    const date = new Date()
+    const pad = (value: number, size = 2) => String(value).padStart(size, '0')
+    return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`
+  }
+
+  function escapeCsvCell(value: string) {
+    if (/[",\n]/.test(value)) return `"${value.replace(/"/g, '""')}"`
+    return value
+  }
+
+  function buildRawLogContent(rows: LogTableRow[]) {
+    return rows
+      .map((row, index) => {
+        const parts = []
+        if (showLineNumber.value) parts.push(String(index + 1))
+        if (showLogTime.value) parts.push(row.time)
+        parts.push(row.pod)
+        parts.push(row.msg)
+        return parts.join('\t')
+      })
+      .join('\n')
+  }
+
+  function buildTableCsvContent(rows: LogTableRow[]) {
+    const header = ['时间', '命名空间', 'Pod', '容器', '内容']
+    const lines = rows.map((row) =>
+      [row.time, row.ns, row.pod, row.container, row.msg].map((item) => escapeCsvCell(item ?? '')).join(',')
+    )
+    return [header.join(','), ...lines].join('\n')
+  }
+
+  function triggerDownload(filename: string, content: string, mimeType: string) {
+    const blob = new Blob([content], { type: `${mimeType};charset=utf-8` })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
+  function downloadLogs() {
+    if (!displayLogs.value.length) {
+      ElMessage.warning('暂无可下载的日志')
+      return
+    }
+
+    const datasourceName = sanitizeFilenamePart(
+      selectedDatasource.value?.name ?? selectedDatasource.value?.subType ?? 'logs'
+    )
+    const clusterName = sanitizeFilenamePart(currentCluster.value || 'cluster')
+    const timestamp = formatDownloadTimestamp()
+
+    if (resultViewMode.value === 'raw') {
+      triggerDownload(
+        `${clusterName}-${datasourceName}-${timestamp}.txt`,
+        buildRawLogContent(displayLogs.value),
+        'text/plain'
+      )
+      return
+    }
+
+    triggerDownload(
+      `${clusterName}-${datasourceName}-${timestamp}.csv`,
+      buildTableCsvContent(displayLogs.value),
+      'text/csv'
+    )
+  }
+
   watch(keyword, () => {
-    if (!queryDirty.value) queryDraft.value = generatedQuery.value
+    if (!queryDirty.value && !isEsDatasource.value) {
+      queryDraft.value = generatedQuery.value
+    }
   })
+
+  watch(
+    filters,
+    () => {
+      if (isLokiDatasource.value) {
+        syncGeneratedQuery()
+      }
+    },
+    { deep: true }
+  )
 
   watch(
     hasConfiguredDatasource,
@@ -1282,7 +1657,7 @@
     currentCluster,
     async () => {
       queryDirty.value = false
-      queryDraft.value = generatedQuery.value
+      keyword.value = ''
       filters.value = []
       await refreshContext(true, false)
     },
@@ -1291,10 +1666,10 @@
 
   // 只在手动切换数据源时更新 service 上下文
   watch(selectedDatasourceId, (newVal, oldVal) => {
-    if (datasourceOptions.value.length > 0 && oldVal !== undefined && newVal !== oldVal) {
+    if (!datasourceOptions.value.length || newVal === oldVal) return
+
+    if (oldVal !== undefined) {
       filters.value = []
-      queryDirty.value = false
-      queryDraft.value = generatedQuery.value
       errorMessage.value = ''
       resolvedService.value = null
       resolvedServiceNamespace.value = ''
@@ -1304,6 +1679,10 @@
       logs.value = []
       expandedRowKeys.value = []
     }
+
+    queryDirty.value = false
+    keyword.value = ''
+    syncQueryDraftFromDatasource()
   })
 </script>
 
@@ -1313,6 +1692,17 @@
     flex-direction: column;
     margin-top: 0;
     gap: 20px;
+    min-height: 0;
+  }
+
+  .logs-console:not(.logs-console--placeholder) {
+    flex: 1;
+    height: 100%;
+    max-height: 100%;
+  }
+
+  .logs-console__top-card {
+    flex-shrink: 0;
   }
 
   .logs-console.logs-console--placeholder {
@@ -1461,6 +1851,10 @@
     white-space: nowrap;
   }
 
+  .logs-console__main-toolbar :deep(.logs-console__download-btn.el-button:not(.is-disabled)) {
+    color: var(--el-color-primary) !important;
+  }
+
   .logs-console__query-toolbar-left :deep(.el-button.is-disabled),
   .logs-console__query-toolbar-right :deep(.el-button.is-disabled),
   .logs-console__main-toolbar :deep(.el-button.is-disabled) {
@@ -1497,6 +1891,15 @@
   .logs-query-input :deep(.el-input__wrapper) {
     font-family: Consolas, 'Courier New', monospace;
     font-size: 13px;
+  }
+
+  .logs-query-input :deep(.el-input__inner::placeholder),
+  .logs-query-input :deep(input::placeholder) {
+    font-size: 12px !important;
+  }
+
+  .logs-query-input :deep(.el-input__placeholder) {
+    font-size: 12px !important;
   }
 
   .logs-console__query-actions {
@@ -1559,14 +1962,15 @@
   .logs-console__results {
     display: flex;
     flex-direction: column;
-    min-height: 420px;
     flex: 1;
+    min-height: 0;
   }
 
   .logs-console__results-tabs {
     display: flex;
     align-items: flex-end;
     gap: 20px;
+    flex-shrink: 0;
     padding: 12px 16px 0 12px;
     border-bottom: 1px solid var(--el-border-color-lighter);
     background: var(--el-fill-color-blank);
@@ -1574,9 +1978,10 @@
 
   .logs-console__results-body {
     display: grid;
-    grid-template-columns: 220px minmax(0, 1fr);
+    grid-template-columns: 240px minmax(0, 1fr);
     flex: 1;
     min-height: 0;
+    overflow: hidden;
   }
 
   .logs-console__results.is-fields-collapsed .logs-console__results-body {
@@ -1588,6 +1993,8 @@
     background: var(--el-fill-color-blank);
     overflow: auto;
     position: relative;
+    min-height: 0;
+    color: var(--el-text-color-regular);
   }
 
   .logs-console__fields.is-collapsed {
@@ -1654,7 +2061,7 @@
   }
 
   .logs-console__fields-search {
-    margin-bottom: 12px;
+    margin-bottom: 8px;
   }
 
   .logs-console__fields-search :deep(.el-input__wrapper) {
@@ -1663,77 +2070,191 @@
     padding-bottom: 1px;
   }
 
-  .logs-console__fields-search :deep(.el-input__inner) {
+  .logs-console__fields-search :deep(.el-input__inner),
+  .logs-console__fields-search :deep(input) {
     font-size: 12px;
   }
 
-  .logs-console__fields-search :deep(.el-input__inner::placeholder) {
-    font-size: 11px;
+  .logs-console__fields-search :deep(.el-input__inner::placeholder),
+  .logs-console__fields-search :deep(input::placeholder) {
+    font-size: 12px !important;
   }
 
-  .logs-console__fields-group + .logs-console__fields-group {
-    margin-top: 14px;
+  .logs-field-tree {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
   }
 
-  .logs-console__fields-group-title {
-    margin-bottom: 8px;
-    font-size: 12px;
-    color: var(--el-text-color-secondary);
+  .logs-field-node {
+    border-radius: 4px;
   }
 
-  .logs-console__field-item {
+  .logs-field-node__head {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 8px;
+    gap: 6px;
     width: 100%;
-    padding: 6px 8px;
-    margin-bottom: 4px;
+    min-height: 32px;
+    padding: 0 8px;
     border: none;
     border-radius: 4px;
     background: transparent;
-    color: var(--el-text-color-regular);
+    color: var(--el-text-color-primary);
     font-size: 12px;
+    font-weight: 400;
+    line-height: 1.5;
     text-align: left;
     cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 
-  .logs-console__field-name {
+  .logs-field-node__head:hover {
+    background: var(--el-fill-color-light);
+  }
+
+  .logs-field-node.is-expanded .logs-field-node__head {
+    background: var(--el-color-primary-light-9);
+    color: var(--el-text-color-primary);
+    font-weight: 500;
+  }
+
+  .logs-field-node__arrow {
+    flex: none;
+    font-size: 12px;
+    color: var(--el-text-color-placeholder);
+    transition: color 0.2s ease;
+  }
+
+  .logs-field-node__head:hover .logs-field-node__arrow,
+  .logs-field-node.is-expanded .logs-field-node__arrow {
+    color: var(--el-text-color-secondary);
+  }
+
+  .logs-field-node__name {
     flex: 1;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-family: Consolas, 'Courier New', monospace;
+    color: inherit;
   }
 
-  .logs-console__field-type {
+  .logs-field-node__badge {
     flex: none;
-    width: 16px;
-    height: 16px;
-    border-radius: 2px;
-    background: var(--el-fill-color);
-    color: var(--el-text-color-secondary);
-    font-size: 10px;
-    line-height: 16px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: var(--el-color-primary-light-8);
+    color: var(--el-color-primary);
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 18px;
     text-align: center;
-    font-family: sans-serif;
   }
 
-  .logs-console__field-item:hover {
+  .logs-field-node__body {
+    padding: 4px 8px 8px 26px;
+    font-size: 12px;
+  }
+
+  .logs-field-node__search {
+    margin-bottom: 6px;
+    font-size: 12px;
+  }
+
+  .logs-field-node__search :deep(.el-input__wrapper) {
+    min-height: 28px;
+    background: var(--el-fill-color-blank);
+    font-size: 12px;
+  }
+
+  .logs-field-node__search :deep(.el-input__inner),
+  .logs-field-node__search :deep(input) {
+    font-size: 12px !important;
+    color: var(--el-text-color-regular);
+  }
+
+  .logs-field-node__search :deep(.el-input__inner::placeholder),
+  .logs-field-node__search :deep(input::placeholder) {
+    color: var(--el-text-color-placeholder);
+    font-size: 12px !important;
+  }
+
+  .logs-field-node__options {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    max-height: 220px;
+    overflow: auto;
+    font-size: 12px;
+  }
+
+  .logs-field-node__option {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 5px 4px;
+    border-radius: 4px;
+    font-size: 12px;
+    line-height: 1.5;
+    cursor: pointer;
+  }
+
+  .logs-field-node__option:hover {
     background: var(--el-fill-color-light);
-    color: var(--el-color-primary);
+  }
+
+  .logs-field-node__option :deep(.el-checkbox) {
+    height: 16px;
+    margin-top: 2px;
+    font-size: 12px;
+  }
+
+  .logs-field-node__option :deep(.el-checkbox__inner) {
+    border-color: var(--el-border-color);
+  }
+
+  .logs-field-node__option :deep(.el-checkbox__label) {
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .logs-field-node__value {
+    flex: 1;
+    min-width: 0;
+    font-size: 12px !important;
+    line-height: 1.5;
+    color: var(--el-text-color-regular);
+    word-break: break-all;
+  }
+
+  .logs-field-node__empty {
+    padding: 8px 4px;
+    font-size: 12px;
+    color: var(--el-text-color-placeholder);
   }
 
   .logs-console__fields-empty {
+    padding: 16px 8px;
     font-size: 12px;
     color: var(--el-text-color-placeholder);
+    text-align: center;
+  }
+
+  .logs-console__count-filtered {
+    margin-left: 2px;
+    color: var(--el-text-color-secondary);
   }
 
   .logs-console__main {
     display: flex;
     flex-direction: column;
     min-width: 0;
+    min-height: 0;
+    flex: 1;
+    overflow: hidden;
     background: var(--el-bg-color);
   }
 
@@ -1742,6 +2263,7 @@
     flex-direction: column;
     align-items: stretch;
     gap: 8px;
+    flex-shrink: 0;
     padding: 10px 16px;
     border-bottom: 1px solid var(--el-border-color-lighter);
   }
@@ -1898,7 +2420,7 @@
   .logs-trend-chart__toggle {
     position: absolute;
     top: 8px;
-    right: 10px;
+    left: 10px;
     z-index: 1;
   }
 
@@ -1919,7 +2441,7 @@
   .logs-trend-chart__bars {
     display: flex;
     align-items: flex-end;
-    gap: 2px;
+    gap: 4px;
     height: 88px;
     border-bottom: 1px solid var(--el-border-color);
     overflow-x: auto;
@@ -1930,35 +2452,40 @@
     flex: 1;
     flex-direction: column;
     justify-content: flex-end;
-    align-items: stretch;
-    min-width: 28px;
+    align-items: center;
+    min-width: 24px;
     height: 100%;
+    cursor: pointer;
   }
 
   .logs-trend-chart__bar {
-    width: 100%;
+    width: 12px;
+    max-width: 100%;
     min-height: 0;
     border-radius: 1px 1px 0 0;
     background: var(--el-color-primary);
     opacity: 0.85;
+    cursor: pointer;
   }
 
   .logs-trend-chart__axis {
     display: flex;
     align-items: flex-start;
-    gap: 2px;
+    gap: 0;
     margin-top: 6px;
-    overflow-x: auto;
+    overflow: hidden;
   }
 
   .logs-trend-chart__axis-label {
     flex: 1;
-    min-width: 28px;
+    min-width: 0;
     font-size: 10px;
     line-height: 1.4;
-    color: var(--el-text-color-regular);
+    color: var(--el-text-color-secondary);
     white-space: nowrap;
     text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .logs-console__chart-panel {
@@ -1967,12 +2494,13 @@
     align-items: center;
     justify-content: center;
     padding: 24px;
-    min-height: 280px;
+    min-height: 0;
+    overflow: auto;
   }
 
   .logs-console__content {
     flex: 1;
-    min-height: 280px;
+    min-height: 0;
     overflow: auto;
   }
 
@@ -2012,6 +2540,22 @@
     flex: none;
     width: 190px;
     color: var(--el-text-color-regular);
+  }
+
+  .logs-raw-line__pod {
+    flex: none;
+    width: 180px;
+    padding-right: 12px;
+    font-size: 12px;
+    color: var(--el-text-color-regular);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .logs-raw-line.is-wrap .logs-raw-line__pod {
+    white-space: normal;
+    word-break: break-all;
   }
 
   .logs-raw-line__msg {
@@ -2081,7 +2625,7 @@
 
   .logs-table :deep(.el-table__expanded-cell) {
     padding: 0;
-    background: var(--el-fill-color-darker);
+    background: var(--el-fill-color-lighter);
   }
 
   .logs-table :deep(.el-table__body td.el-table__cell) {
@@ -2095,63 +2639,157 @@
   }
 
   .logs-inline-detail {
-    padding: 16px 18px;
-    border-left: 3px solid var(--el-color-success);
-    background: var(--el-fill-color-darker);
+    display: grid;
+    grid-template-columns: minmax(280px, 1fr) minmax(0, 1.35fr);
+    gap: 12px;
+    padding: 12px 16px 14px 52px;
+    background: var(--el-fill-color-lighter);
+    border-top: 1px solid var(--el-border-color-lighter);
   }
 
-  .logs-inline-detail__section + .logs-inline-detail__section {
-    margin-top: 16px;
+  .logs-inline-detail__panel {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    border: 1px solid var(--el-border-color-lighter);
+    border-radius: 8px;
+    background: var(--el-bg-color);
+    overflow: hidden;
   }
 
-  .logs-inline-detail__title {
-    margin-bottom: 10px;
-    font-size: 13px;
+  .logs-inline-detail__panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--el-border-color-extra-light);
+    background: var(--el-fill-color-blank);
+  }
+
+  .logs-inline-detail__panel-title {
+    font-size: 12px;
     font-weight: 600;
     color: var(--el-text-color-primary);
   }
 
-  .logs-field-list {
-    border: 1px solid var(--el-border-color-light);
-    border-radius: 6px;
-    overflow: hidden;
-  }
-
-  .logs-field-item {
-    display: grid;
-    grid-template-columns: 180px minmax(0, 1fr);
-    gap: 12px;
-    padding: 8px 12px;
-    font-size: 12px;
-    line-height: 1.6;
-    border-top: 1px solid var(--el-border-color-lighter);
-  }
-
-  .logs-field-item:first-child {
-    border-top: none;
-  }
-
-  .logs-field-item__key {
+  .logs-inline-detail__panel-count {
+    font-size: 11px;
     color: var(--el-text-color-secondary);
+  }
+
+  .logs-inline-detail__copy-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    font-size: 11px;
+    color: var(--el-text-color-secondary);
+    cursor: pointer;
+    transition: color 0.2s ease;
+  }
+
+  .logs-inline-detail__copy-btn:hover {
+    color: var(--el-color-primary);
+  }
+
+  .logs-field-grid {
+    max-height: 260px;
+    overflow: auto;
+  }
+
+  .logs-field-row {
+    display: grid;
+    grid-template-columns: 148px minmax(0, 1fr) 22px;
+    gap: 10px;
+    align-items: start;
+    padding: 8px 10px;
+    font-size: 12px;
+    line-height: 1.5;
+    border-bottom: 1px solid var(--el-border-color-extra-light);
+  }
+
+  .logs-field-row:last-child {
+    border-bottom: none;
+  }
+
+  .logs-field-row:nth-child(even) {
+    background: var(--el-fill-color-lighter);
+  }
+
+  .logs-field-row:hover {
+    background: var(--el-fill-color-light);
+  }
+
+  .logs-field-row__key {
+    color: var(--el-text-color-regular);
     font-family: Consolas, 'Courier New', monospace;
+    word-break: break-all;
   }
 
-  .logs-field-item__value {
+  .logs-field-row__value {
     color: var(--el-text-color-primary);
-    word-break: break-word;
+    font-family: Consolas, 'Courier New', monospace;
+    word-break: break-all;
   }
 
-  .logs-detail-code {
+  .logs-field-row__value.is-level-info {
+    color: var(--el-color-primary);
+    font-weight: 500;
+  }
+
+  .logs-field-row__value.is-level-warn {
+    color: var(--el-color-warning);
+    font-weight: 500;
+  }
+
+  .logs-field-row__value.is-level-error {
+    color: var(--el-color-danger);
+    font-weight: 500;
+  }
+
+  .logs-field-row__value.is-level-debug {
+    color: var(--el-text-color-secondary);
+  }
+
+  .logs-field-row__copy {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--el-text-color-secondary);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+  }
+
+  .logs-field-row:hover .logs-field-row__copy {
+    opacity: 1;
+  }
+
+  .logs-field-row__copy:hover {
+    background: var(--el-fill-color);
+    color: var(--el-color-primary);
+  }
+
+  .logs-inline-detail__code {
     margin: 0;
     padding: 12px;
+    max-height: 260px;
+    overflow: auto;
     white-space: pre-wrap;
     word-break: break-word;
     font-size: 12px;
     line-height: 1.6;
     color: var(--el-text-color-primary);
     font-family: Consolas, 'Courier New', monospace;
-    border: 1px solid var(--el-border-color-light);
-    border-radius: 6px;
     background: var(--el-fill-color-blank);
   }
 
@@ -2180,6 +2818,11 @@
 
     .logs-console__fields::after {
       display: none;
+    }
+
+    .logs-inline-detail {
+      grid-template-columns: 1fr;
+      padding-left: 16px;
     }
   }
 </style>

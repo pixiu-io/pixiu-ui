@@ -956,6 +956,19 @@
     vertical-align: middle;
   }
 
+  .cluster-detail-main:has(.logs-console:not(.logs-console--placeholder)) {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .cluster-detail-main:has(.logs-console:not(.logs-console--placeholder)) > * {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
   .cluster-detail-main {
     flex: 1;
     min-width: 0;

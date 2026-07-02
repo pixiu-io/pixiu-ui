@@ -51,7 +51,7 @@
               <ElFormItem label="类型" prop="type">
                 <ElSelect v-model="formData.type" class="w-full" @change="onTypeChange">
                   <ElOption label="日志" :value="0" />
-                  <ElOption label="告警" :value="1" />
+                  <ElOption label="告警" :value="1" disabled />
                 </ElSelect>
               </ElFormItem>
             </ElCol>
@@ -76,6 +76,7 @@
                     :key="item.value"
                     :label="item.label"
                     :value="item.value"
+                    :disabled="item.disabled"
                   >
                     <div class="datasource-sub-type-option">
                       <ArtSvgIcon
@@ -242,6 +243,7 @@
     label: string
     icon: string
     color: string
+    disabled?: boolean
   }
 
   const logSubTypes: SubTypeOption[] = [
@@ -249,7 +251,13 @@
     { value: 'es', label: 'Elasticsearch', icon: 'simple-icons:elasticsearch', color: '#005571' }
   ]
   const alertSubTypes: SubTypeOption[] = [
-    { value: 'prometheus', label: 'Prometheus', icon: 'simple-icons:prometheus', color: '#E6522C' }
+    {
+      value: 'prometheus',
+      label: 'Prometheus',
+      icon: 'simple-icons:prometheus',
+      color: '#E6522C',
+      disabled: true
+    }
   ]
 
   const props = defineProps<{
