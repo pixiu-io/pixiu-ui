@@ -323,40 +323,62 @@
               </button>
             </div>
             <div class="logs-console__view-mode">
-              <div class="logs-view-segment">
-                <button
-                  type="button"
-                  class="logs-view-segment__item"
-                  :class="{ 'is-active': resultViewMode === 'raw' }"
-                  @click="resultViewMode = 'raw'"
-                >
-                  原始
-                </button>
-                <button
-                  type="button"
-                  class="logs-view-segment__item"
-                  :class="{ 'is-active': resultViewMode === 'table' }"
-                  @click="resultViewMode = 'table'"
-                >
-                  表格
-                </button>
+              <div class="logs-console__view-mode-left">
+                <div class="logs-view-segment">
+                  <button
+                    type="button"
+                    class="logs-view-segment__item"
+                    :class="{ 'is-active': resultViewMode === 'raw' }"
+                    @click="resultViewMode = 'raw'"
+                  >
+                    原始
+                  </button>
+                  <button
+                    type="button"
+                    class="logs-view-segment__item"
+                    :class="{ 'is-active': resultViewMode === 'table' }"
+                    @click="resultViewMode = 'table'"
+                  >
+                    表格
+                  </button>
+                </div>
+                <div class="logs-console__display-options">
+                  <label class="logs-console__display-check">
+                    <ElCheckbox v-model="wordWrap" />换行
+                  </label>
+                  <label class="logs-console__display-check">
+                    <ElCheckbox v-model="showLineNumber" />行号
+                  </label>
+                  <label class="logs-console__display-check">
+                    <ElCheckbox v-model="showLogTime" />日志时间
+                  </label>
+                </div>
               </div>
-              <div class="logs-console__display-options">
-                <label class="logs-console__display-check">
-                  <ElCheckbox v-model="wordWrap" />换行
-                </label>
-                <label class="logs-console__display-check">
-                  <ElCheckbox v-model="showLineNumber" />行号
-                </label>
-                <label class="logs-console__display-check">
-                  <ElCheckbox v-model="showLogTime" />日志时间
-                </label>
+              <div v-if="resultViewMode === 'table'" class="logs-console__column-settings">
+                <ElPopover placement="bottom-end" trigger="click" :width="156" popper-class="logs-column-settings-popper">
+                  <template #reference>
+                    <button type="button" class="logs-column-settings__trigger">
+                      <ElIcon><Setting /></ElIcon>
+                      显示列
+                    </button>
+                  </template>
+                  <div class="logs-column-settings__panel">
+                    <div
+                      v-for="column in tableColumnOptions"
+                      :key="column.key"
+                      class="logs-column-settings__row"
+                    >
+                      <span>{{ column.label }}</span>
+                      <ElSwitch v-model="tableColumnVisibility[column.key]" size="small" />
+                    </div>
+                  </div>
+                </ElPopover>
               </div>
             </div>
           </div>
 
           <div v-if="resultPanelTab === 'chart'" class="logs-console__chart-panel">
-            <div v-if="trendChartData.some((item) => item.count > 0)" class="logs-trend-chart__panel is-large">
+            <div v-if="displayLogs.length" class="logs-trend-chart__panel is-large">
               <div class="logs-trend-chart__plot">
                 <div class="logs-trend-chart__bars">
                   <div
@@ -412,6 +434,7 @@
                 :expand-row-keys="expandedRowKeys"
                 size="small"
                 class="logs-table"
+                :class="{ 'is-wrap': wordWrap }"
                 @expand-change="handleExpandChange"
               >
                 <template #empty>
@@ -468,11 +491,17 @@
                     </div>
                   </template>
                 </ElTableColumn>
-                <ElTableColumn prop="time" label="时间" width="190" />
-                <ElTableColumn prop="ns" label="命名空间" width="140" />
-                <ElTableColumn prop="pod" label="Pod" min-width="220" show-overflow-tooltip />
-                <ElTableColumn prop="container" label="容器" width="180" show-overflow-tooltip />
-                <ElTableColumn prop="msg" label="内容" min-width="420" show-overflow-tooltip />
+                <ElTableColumn v-if="tableColumnVisibility.time" prop="time" label="时间" width="190" show-overflow-tooltip />
+                <ElTableColumn v-if="tableColumnVisibility.ns" prop="ns" label="命名空间" width="140" show-overflow-tooltip />
+                <ElTableColumn v-if="tableColumnVisibility.pod" prop="pod" label="Pod" min-width="220" show-overflow-tooltip />
+                <ElTableColumn
+                  v-if="tableColumnVisibility.container"
+                  prop="container"
+                  label="容器"
+                  width="180"
+                  show-overflow-tooltip
+                />
+                <ElTableColumn v-if="tableColumnVisibility.msg" prop="msg" label="内容" min-width="420" show-overflow-tooltip />
                 <ElTableColumn label="操作" width="90" fixed="right">
                   <template #default="{ row }">
                     <ElButton link type="primary" @click="toggleLogDetail(row as LogTableRow)">
@@ -505,7 +534,8 @@
     Hide,
     View,
     CaretRight,
-    CaretBottom
+    CaretBottom,
+    Setting
   } from '@element-plus/icons-vue'
   import {
     fetchDatasourceList,
@@ -513,7 +543,8 @@
     type DatasourceItem,
     type DatasourceSubType
   } from '@/api/datasource'
-  import { kubeProxyAxios } from '@/api/kubeProxy'
+  import { PixiuApiError } from '@/api/container'
+  import { buildUpstreamBasicAuthorizationHeader, kubeProxyAxios } from '@/api/kubeProxy'
   import { fetchK8sService, fetchK8sServiceList, type K8sService } from '@/api/kubernetes/service'
   import { clusterDetailContextKey } from './context'
 
@@ -560,6 +591,8 @@
     _id?: string
     _index?: string
     _source?: Record<string, unknown>
+    sort?: Array<string | number>
+    fields?: Record<string, unknown[]>
   }
 
   interface EsSearchResponse {
@@ -575,6 +608,7 @@
   interface LogTableRow {
     id: string
     time: string
+    timestampMs: number | null
     ns: string
     pod: string
     container: string
@@ -605,6 +639,24 @@
   const showLogTime = ref(true)
   const wordWrap = ref(true)
   const showTrendChart = ref(true)
+
+  type TableColumnKey = 'time' | 'ns' | 'pod' | 'container' | 'msg'
+
+  const tableColumnOptions: Array<{ key: TableColumnKey; label: string }> = [
+    { key: 'time', label: '时间' },
+    { key: 'pod', label: 'POD' },
+    { key: 'ns', label: '命名空间' },
+    { key: 'container', label: '容器' },
+    { key: 'msg', label: '内容' }
+  ]
+
+  const tableColumnVisibility = ref<Record<TableColumnKey, boolean>>({
+    time: true,
+    ns: true,
+    pod: true,
+    container: false,
+    msg: true
+  })
 
   const operatorOptions: LokiLabelOperator[] = ['=', '!=', '=~', '!~']
   const subTypeMeta: Record<DatasourceSubType, { label: string; icon: string }> = {
@@ -637,6 +689,7 @@
   const labelValueCache = ref<Record<string, string[]>>({})
 
   const logs = ref<LogTableRow[]>([])
+  const queryTimeRange = ref<{ start: number; end: number } | null>(null)
   const expandedRowKeys = ref<string[]>([])
 
   const currentCluster = computed(() => ctxRef.value.name)
@@ -674,17 +727,40 @@
   })
   const trendBucketCount = computed(() => {
     const minutes = timeRangeMinutes.value
-    if (minutes <= 15) return 15
-    if (minutes <= 60) return 12
-    if (minutes <= 360) return 18
-    return 24
+    const seconds = minutes * 60
+    // 按时间跨度自动计算桶数（约为原先 2 倍），每桶对应固定时间粒度
+    let intervalSeconds: number
+    if (minutes <= 15) intervalSeconds = 30
+    else if (minutes <= 60) intervalSeconds = 150
+    else if (minutes <= 360) intervalSeconds = 600
+    else intervalSeconds = 1800
+    return Math.max(2, Math.ceil(seconds / intervalSeconds))
   })
   const trendChartData = computed(() => {
     const bucketCount = trendBucketCount.value
     const rangeMinutes = timeRangeMinutes.value
-    const rangeMs = rangeMinutes * 60 * 1000
-    const end = Date.now()
-    const start = end - rangeMs
+
+    const logTimestamps = displayLogs.value
+      .map((row) => row.timestampMs ?? parseLogTime(row.time))
+      .filter((value): value is number => value != null)
+
+    let start: number
+    let end: number
+
+    if (logTimestamps.length > 0) {
+      start = Math.min(...logTimestamps)
+      end = Math.max(...logTimestamps)
+      const padding = Math.max(1000, (end - start) * 0.05)
+      start -= padding
+      end += padding
+    } else {
+      end = queryTimeRange.value?.end ?? Date.now()
+      start = queryTimeRange.value?.start ?? end - rangeMinutes * 60 * 1000
+    }
+
+    const rangeMs = end - start
+    if (rangeMs <= 0) return []
+
     const bucketMs = rangeMs / bucketCount
     const labelStep = getTrendAxisLabelStep(bucketCount, rangeMinutes)
 
@@ -700,12 +776,13 @@
     })
 
     for (const row of displayLogs.value) {
-      const timestamp = parseLogTime(row.time)
+      const timestamp = row.timestampMs ?? parseLogTime(row.time)
       if (timestamp == null) continue
-      const index = Math.floor((timestamp - start) / bucketMs)
-      if (index >= 0 && index < buckets.length) {
-        buckets[index].count += 1
-      }
+      const index = Math.min(
+        bucketCount - 1,
+        Math.max(0, Math.floor(((timestamp - start) / rangeMs) * bucketCount))
+      )
+      buckets[index].count += 1
     }
 
     return buckets
@@ -1172,14 +1249,82 @@
   }
 
   function parseLogTime(text: string): number | null {
-    const match = text.match(/^(\d{4}-\d{2}-\d{2}) (\d{2}):(\d{2}):(\d{2})\.(\d{3})$/)
-    if (match) {
-      const [, date, hour, minute, second, millisecond] = match
-      const parsed = new Date(`${date}T${hour}:${minute}:${second}.${millisecond}`)
-      return Number.isNaN(parsed.getTime()) ? null : parsed.getTime()
+    if (!text || text === '-') return null
+    return parseTimestampToMs(text)
+  }
+
+  function parseTimestampToMs(value: unknown): number | null {
+    if (value === undefined || value === null || value === '') return null
+
+    let ms: number | null = null
+
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      ms = value > 1_000_000_000_000 ? value : value * 1000
+    } else if (typeof value === 'string') {
+      const trimmed = value.trim()
+      if (!trimmed) return null
+      const asNumber = Number(trimmed)
+      if (Number.isFinite(asNumber)) {
+        ms = asNumber > 1_000_000_000_000 ? asNumber : asNumber * 1000
+      } else {
+        const spaceMatch = trimmed.match(
+          /^(\d{4}-\d{2}-\d{2})[ T](\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?(?:Z|[+-]\d{2}:?\d{2})?$/
+        )
+        if (spaceMatch) {
+          const [, date, hour, minute, second, fraction = '0'] = spaceMatch
+          const millisecond = fraction.padEnd(3, '0').slice(0, 3)
+          const parsed = new Date(`${date}T${hour}:${minute}:${second}.${millisecond}`)
+          if (!Number.isNaN(parsed.getTime())) ms = parsed.getTime()
+        } else {
+          const parsed = new Date(trimmed)
+          if (!Number.isNaN(parsed.getTime())) ms = parsed.getTime()
+        }
+      }
     }
-    const parsed = new Date(text)
-    return Number.isNaN(parsed.getTime()) ? null : parsed.getTime()
+
+    return isValidTimestampMs(ms) ? ms : null
+  }
+
+  function isValidTimestampMs(value: number | null): value is number {
+    if (value == null || !Number.isFinite(value)) return false
+    // 过滤 ES 缺失字段时 sort 返回的 Long.MIN_VALUE 等哨兵值
+    return value >= 946684800000 && value <= 4102444800000
+  }
+
+  function resolveEsTimestampMs(
+    source: Record<string, unknown>,
+    sort?: Array<string | number>,
+    fields?: Record<string, unknown[]>
+  ): number | null {
+    if (fields) {
+      for (const key of ['time', '@timestamp', 'timestamp']) {
+        const values = fields[key]
+        if (!Array.isArray(values) || !values.length) continue
+        const ms = parseTimestampToMs(values[0])
+        if (ms != null) return ms
+      }
+    }
+
+    if (sort?.length) {
+      for (const item of sort) {
+        const ms = parseTimestampToMs(item)
+        if (ms != null) return ms
+      }
+    }
+
+    return parseTimestampToMs(
+      getFirstValue(source, [
+        'time',
+        '@timestamp',
+        'timestamp',
+        'state.timestamp',
+        'log.time',
+        'date',
+        'datetime',
+        'event.created',
+        'log.timestamp'
+      ])
+    )
   }
 
   function parseRequestError(error: unknown): string {
@@ -1209,14 +1354,13 @@
     return '请求失败'
   }
 
-  function getEsRequestHeaders() {
-    const headers: Record<string, string> = {}
+  function getEsRequestHeaders(): Record<string, string> | undefined {
     const username = selectedDatasource.value?.config.log?.userName?.trim() ?? ''
     const password = selectedDatasource.value?.config.log?.password ?? ''
-    if (username || password) {
-      headers.Authorization = `Basic ${window.btoa(`${username}:${password}`)}`
+    if (!username && !password) {
+      return undefined
     }
-    return headers
+    return buildUpstreamBasicAuthorizationHeader(username, password)
   }
 
   async function loadLogs() {
@@ -1233,6 +1377,7 @@
       }
     } catch (error) {
       logs.value = []
+      if (error instanceof PixiuApiError && error.notified) return
       ElMessage.error(parseRequestError(error))
     } finally {
       loading.value = false
@@ -1243,8 +1388,12 @@
     const url = serviceProxyBase('/loki/api/v1/query_range')
     if (!url) return
 
-    const nowNs = Date.now() * 1_000_000
-    const startNs = nowNs - timeRangeMinutes.value * 60 * 1_000_000_000
+    const nowMs = Date.now()
+    const startMs = nowMs - timeRangeMinutes.value * 60 * 1000
+    queryTimeRange.value = { start: startMs, end: nowMs }
+
+    const nowNs = nowMs * 1_000_000
+    const startNs = startMs * 1_000_000
     const { data } = await kubeProxyAxios.get<LokiQueryRangeResponse>(url, {
       params: {
         query: effectiveQuery.value,
@@ -1265,9 +1414,12 @@
         (stream.values ?? []).map(([timestamp, line], lineIndex) => {
           const labels = { ...(stream.stream ?? {}) }
           const level = resolveLogLevel(labels, line)
+          const numeric = Number.parseInt(timestamp, 10)
+          const timestampMs = Number.isFinite(numeric) ? Math.floor(numeric / 1_000_000) : null
           return {
             id: `${timestamp}-${streamIndex}-${lineIndex}`,
             time: formatNsTimestamp(timestamp),
+            timestampMs,
             ns: stream.stream?.namespace || '-',
             pod: stream.stream?.pod || '-',
             container: stream.stream?.container || '-',
@@ -1287,17 +1439,24 @@
 
     const now = new Date()
     const start = new Date(now.getTime() - timeRangeMinutes.value * 60 * 1000)
+    queryTimeRange.value = { start: start.getTime(), end: now.getTime() }
     const query = effectiveQuery.value.trim()
     const must = query && query !== '*' ? [{ query_string: { query, analyze_wildcard: true } }] : []
+    const esHeaders = getEsRequestHeaders()
 
     const { data } = await kubeProxyAxios.post<EsSearchResponse>(
       url,
       {
         size: lineLimit.value,
+        docvalue_fields: [
+          { field: 'time', format: 'epoch_millis' },
+          { field: '@timestamp', format: 'epoch_millis' },
+          { field: 'timestamp', format: 'epoch_millis' }
+        ],
         sort: [
+          { time: { order: 'desc', unmapped_type: 'date' } },
           { '@timestamp': { order: 'desc', unmapped_type: 'date' } },
-          { timestamp: { order: 'desc', unmapped_type: 'date' } },
-          { time: { order: 'desc', unmapped_type: 'date' } }
+          { timestamp: { order: 'desc', unmapped_type: 'date' } }
         ],
         query: {
           bool: {
@@ -1306,6 +1465,15 @@
               {
                 bool: {
                   should: [
+                    {
+                      range: {
+                        time: {
+                          gte: start.toISOString(),
+                          lte: now.toISOString(),
+                          format: 'strict_date_optional_time'
+                        }
+                      }
+                    },
                     {
                       range: {
                         '@timestamp': {
@@ -1323,15 +1491,6 @@
                           format: 'strict_date_optional_time'
                         }
                       }
-                    },
-                    {
-                      range: {
-                        time: {
-                          gte: start.toISOString(),
-                          lte: now.toISOString(),
-                          format: 'strict_date_optional_time'
-                        }
-                      }
                     }
                   ],
                   minimum_should_match: 1
@@ -1341,9 +1500,7 @@
           }
         }
       },
-      {
-        headers: getEsRequestHeaders()
-      }
+      esHeaders ? { headers: esHeaders } : undefined
     )
 
     if (data?.error) {
@@ -1358,16 +1515,22 @@
 
   function mapEsHitToRow(hit: EsSearchHit, index: number): LogTableRow {
     const source = hit._source && typeof hit._source === 'object' ? hit._source : {}
-    const timestamp = getFirstValue(source, ['@timestamp', 'timestamp', 'time', 'log.time'])
+    const rawTimestamp = getFirstValue(source, ['time', '@timestamp', 'timestamp', 'state.timestamp', 'log.time', 'date'])
+    let timestampMs = resolveEsTimestampMs(source, hit.sort, hit.fields)
     const message = getFirstValue(source, ['message', 'msg', 'log', 'log.message', 'event.original'])
     const labels = flattenRecord(source)
     const raw = JSON.stringify(source, null, 2)
     const originalMessage = stringifyValue(message, raw)
     const level = resolveLogLevel(labels, originalMessage)
+    const time = timestampMs != null ? formatDateTime(timestampMs) : formatAnyTimestamp(rawTimestamp)
+    if (timestampMs == null && time !== '-') {
+      timestampMs = parseLogTime(time)
+    }
 
     return {
       id: String(hit._id || `${hit._index || 'es'}-${index}`),
-      time: formatAnyTimestamp(timestamp),
+      time,
+      timestampMs,
       ns: stringifyValue(
         getFirstValue(source, [
           'kubernetes.namespace_name',
@@ -2295,8 +2458,70 @@
   .logs-console__view-mode {
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .logs-console__view-mode-left {
+    display: flex;
+    align-items: center;
     gap: 16px;
     flex-wrap: wrap;
+  }
+
+  .logs-console__column-settings {
+    flex: none;
+    margin-left: auto;
+  }
+
+  .logs-column-settings__trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    box-sizing: border-box;
+    height: 24px;
+    padding: 0 10px;
+    border: 1px solid var(--el-color-primary-light-5);
+    border-radius: 4px;
+    background: var(--el-color-primary-light-9);
+    color: var(--el-color-primary);
+    font-size: 12px;
+    line-height: 22px;
+    cursor: pointer;
+  }
+
+  .logs-column-settings__trigger .el-icon {
+    font-size: 12px;
+  }
+
+  .logs-column-settings__trigger:hover {
+    border-color: var(--el-color-primary-light-3);
+    background: var(--el-color-primary-light-8);
+  }
+
+  .logs-column-settings__panel {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 2px 0;
+    font-size: 12px;
+  }
+
+  .logs-column-settings__row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--el-text-color-regular);
+  }
+
+  .logs-column-settings__row :deep(.el-switch) {
+    height: 16px;
   }
 
   .logs-view-segment {
@@ -2457,7 +2682,8 @@
   .logs-trend-chart__bars {
     display: flex;
     align-items: flex-end;
-    gap: 4px;
+    gap: 3px;
+    width: 100%;
     height: 88px;
     border-bottom: 1px solid var(--el-border-color);
     overflow-x: auto;
@@ -2466,17 +2692,18 @@
   .logs-trend-chart__bar-wrap {
     display: flex;
     flex: 1;
+    min-width: 0;
     flex-direction: column;
     justify-content: flex-end;
     align-items: center;
-    min-width: 24px;
     height: 100%;
     cursor: pointer;
   }
 
   .logs-trend-chart__bar {
-    width: 12px;
-    max-width: 100%;
+    width: 70%;
+    max-width: 14px;
+    min-width: 6px;
     min-height: 0;
     border-radius: 1px 1px 0 0;
     background: var(--el-color-primary);
@@ -2487,7 +2714,8 @@
   .logs-trend-chart__axis {
     display: flex;
     align-items: flex-start;
-    gap: 0;
+    gap: 3px;
+    width: 100%;
     margin-top: 6px;
     overflow: hidden;
   }
@@ -2560,7 +2788,7 @@
 
   .logs-raw-line__pod {
     flex: none;
-    width: 180px;
+    width: 170px;
     padding-right: 12px;
     font-size: 12px;
     color: var(--el-text-color-regular);
@@ -2647,6 +2875,17 @@
   .logs-table :deep(.el-table__body td.el-table__cell) {
     font-size: 12px;
     color: var(--el-text-color-regular);
+  }
+
+  .logs-table:not(.is-wrap) :deep(.el-table__body td.el-table__cell .cell) {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .logs-table.is-wrap :deep(.el-table__body td.el-table__cell .cell) {
+    white-space: pre-wrap;
+    word-break: break-word;
   }
 
   .logs-table :deep(.el-button.is-link) {

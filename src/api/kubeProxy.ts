@@ -16,6 +16,19 @@ function resolveAccessToken(): string {
   return token
 }
 
+/** Pixiu JWT 使用 Authorization: Bearer；上游服务（如 ES）Basic 认证走该自定义头，由代理转发 */
+export const PIXIU_UPSTREAM_AUTHORIZATION_HEADER = 'X-Pixiu-Upstream-Authorization'
+
+export function buildUpstreamBasicAuthorizationHeader(
+  username: string,
+  password = ''
+): Record<string, string> {
+  const token = window.btoa(`${username}:${password}`)
+  return {
+    [PIXIU_UPSTREAM_AUTHORIZATION_HEADER]: `Basic ${token}`
+  }
+}
+
 /** 直连 `/pixiu/proxy/...` 的 K8s API；代理失败时后端仍可能返回 HTTP 200 + Pixiu 业务包 */
 export const kubeProxyAxios = axios.create({
   baseURL: '/',
