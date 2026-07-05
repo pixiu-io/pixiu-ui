@@ -16,8 +16,18 @@ import {
   type HelmReleaseItem,
   type HelmRepository
 } from '@/api/helm'
+import { useClusterDetailNamespaceRefresh } from '@/hooks/core/useClusterDetailNamespaceRefresh'
 import { clusterDetailNamespaceKey } from '../context'
 import { filterByName, summarizeReleases, type HelmPageView } from './shared'
+
+function readCachedNamespace(cluster: string): string | null {
+  try {
+    const v = localStorage.getItem(`pixiu-ns-${cluster}`)
+    return v && v !== 'undefined' && v !== 'null' ? v : null
+  } catch {
+    return null
+  }
+}
 
 export function useHelmPage() {
   const route = useRoute()
@@ -84,21 +94,49 @@ export function useHelmPage() {
     }
   }
 
+  let releaseRequestSeq = 0
+  let inflightReleaseKey = ''
+  let loadedReleaseKey = ''
+
   async function loadReleases() {
     const c = cluster.value
     const ns = selectedNamespace.value
     if (!c || !ns) {
       allReleases.value = []
+      loadedReleaseKey = ''
       return
     }
+
+    // layout 尚未从 localStorage 恢复命名空间时，跳过临时的 default，避免重复请求
+    const cachedNs = readCachedNamespace(c)
+    if (ns === 'default' && cachedNs && cachedNs !== 'default') {
+      return
+    }
+
+    const key = `${c}::${ns}`
+    if (key === loadedReleaseKey || key === inflightReleaseKey) {
+      return
+    }
+
+    inflightReleaseKey = key
+    const requestSeq = ++releaseRequestSeq
     releaseLoading.value = true
     try {
       allReleases.value = await fetchHelmReleaseList(c, ns)
+      if (requestSeq !== releaseRequestSeq) return
+      loadedReleaseKey = key
     } catch (e: unknown) {
+      if (requestSeq !== releaseRequestSeq) return
       allReleases.value = []
+      loadedReleaseKey = ''
       ElMessage.error(e instanceof Error ? e.message : '获取 Release 列表失败')
     } finally {
-      releaseLoading.value = false
+      if (requestSeq === releaseRequestSeq) {
+        releaseLoading.value = false
+      }
+      if (inflightReleaseKey === key) {
+        inflightReleaseKey = ''
+      }
     }
   }
 
@@ -118,6 +156,7 @@ export function useHelmPage() {
   }
 
   function refreshCurrentView() {
+    loadedReleaseKey = ''
     if (activeView.value === 'releases') {
       void loadReleases()
       return
@@ -179,6 +218,7 @@ export function useHelmPage() {
         ElMessage.success('升级成功')
       }
       releaseFormVisible.value = false
+      loadedReleaseKey = ''
       await loadReleases()
     } catch (e: unknown) {
       ElMessage.error(e instanceof Error ? e.message : '操作失败')
@@ -193,6 +233,7 @@ export function useHelmPage() {
       await uninstallHelmRelease(cluster.value, selectedNamespace.value, row.name)
       ElMessage.success('卸载成功')
       detailVisible.value = false
+      loadedReleaseKey = ''
       await loadReleases()
     } catch (e: unknown) {
       if (e === 'cancel') return
@@ -254,6 +295,7 @@ export function useHelmPage() {
       ElMessage.success('回滚成功')
       historyVisible.value = false
       detailVisible.value = false
+      loadedReleaseKey = ''
       await loadReleases()
     } catch (e: unknown) {
       if (e === 'cancel') return
@@ -332,12 +374,23 @@ export function useHelmPage() {
   }
 
   watch(
-    () => [cluster.value, selectedNamespace.value] as const,
-    () => {
+    () => cluster.value,
+    (c) => {
+      if (!c || !selectedNamespace.value) {
+        allReleases.value = []
+        loadedReleaseKey = ''
+        return
+      }
+      loadedReleaseKey = ''
       void loadReleases()
     },
-    { immediate: true }
+    { immediate: true, flush: 'post' }
   )
+
+  useClusterDetailNamespaceRefresh('helm', () => {
+    loadedReleaseKey = ''
+    void loadReleases()
+  })
 
   watch(activeView, (view) => {
     if (view === 'repos') {
