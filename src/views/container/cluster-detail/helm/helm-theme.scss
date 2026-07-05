@@ -1,0 +1,103 @@
+.helm-dashboard {
+  --helm-border: var(--el-border-color-lighter);
+  --helm-surface: var(--el-bg-color);
+  --helm-surface-muted: var(--el-fill-color-light);
+  --helm-surface-blank: var(--el-fill-color-blank);
+  --helm-switch-bg: var(--el-fill-color-light);
+  --helm-brand-bg: linear-gradient(135deg, #0f1689 0%, #277a9f 100%);
+  --helm-brand-fg: #fff;
+  --helm-brand-soft-bg: color-mix(in srgb, var(--el-color-primary) 12%, transparent);
+  --helm-card-hover-shadow: 0 10px 24px color-mix(in srgb, var(--el-color-primary) 8%, transparent);
+  --helm-switch-active-shadow: 0 1px 4px color-mix(in srgb, var(--el-color-primary) 10%, transparent);
+  --helm-form-intro-bg: color-mix(in srgb, var(--el-color-primary) 8%, transparent);
+  --helm-list-active-border: color-mix(in srgb, var(--el-color-primary) 35%, transparent);
+  --helm-list-active-bg: color-mix(in srgb, var(--el-color-primary) 8%, var(--el-fill-color-light));
+  --helm-card-hover-border: color-mix(in srgb, var(--el-color-primary) 35%, var(--el-border-color-lighter));
+  --helm-timeline-glow: color-mix(in srgb, var(--el-color-primary) 18%, transparent);
+}
+
+html.dark {
+  --helm-border: var(--default-border);
+  --helm-surface: var(--default-box-color);
+  --helm-surface-muted: var(--art-hover-color);
+  --helm-surface-blank: var(--art-gray-200);
+  --helm-switch-bg: var(--art-gray-200);
+  --helm-brand-bg: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--el-color-primary) 34%, var(--default-box-color)) 0%,
+    color-mix(in srgb, var(--el-color-primary) 20%, var(--art-gray-200)) 100%
+  );
+  --helm-brand-fg: color-mix(in srgb, var(--el-color-primary-light-3, #79bbff) 88%, #fff);
+  --helm-brand-soft-bg: color-mix(in srgb, var(--el-color-primary) 18%, var(--default-box-color));
+  --helm-card-hover-shadow: 0 8px 22px rgba(0, 0, 0, 0.32);
+  --helm-switch-active-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  --helm-form-intro-bg: color-mix(in srgb, var(--el-color-primary) 14%, var(--art-gray-200));
+  --helm-list-active-border: color-mix(in srgb, var(--el-color-primary) 45%, transparent);
+  --helm-list-active-bg: color-mix(in srgb, var(--el-color-primary) 16%, var(--art-gray-200));
+  --helm-card-hover-border: color-mix(in srgb, var(--el-color-primary) 40%, var(--default-border));
+  --helm-timeline-glow: color-mix(in srgb, var(--el-color-primary) 22%, transparent);
+}
+
+html.dark .helm-dashboard {
+  .helm-dashboard__tabs-card,
+  .helm-dashboard__content {
+    background-color: var(--default-box-color);
+    border-color: var(--default-border);
+  }
+
+  .helm-stat-card {
+    background-color: var(--default-box-color);
+    border-color: var(--default-border);
+  }
+
+  .helm-view-switch {
+    background: var(--art-gray-200);
+    border-color: var(--default-border);
+  }
+
+  .helm-view-switch__btn.is-active {
+    background: var(--art-gray-300);
+    box-shadow: var(--helm-switch-active-shadow);
+  }
+}
+
+html.dark .helm-kv {
+  border-color: var(--default-border);
+  background: var(--art-gray-200);
+}
+
+html.dark .helm-timeline__body {
+  border-bottom-color: var(--default-border);
+}
+
+.helm-form-dialog {
+  .el-form-item__label {
+    font-size: 12px;
+  }
+
+  .el-input__inner,
+  .el-textarea__inner {
+    font-size: 12px;
+  }
+
+  .el-input__placeholder,
+  .el-textarea__placeholder {
+    font-size: 12px;
+  }
+
+  .el-input__inner::placeholder,
+  .el-textarea__inner::placeholder {
+    font-size: 12px;
+  }
+}
+
+.helm-form-dialog--repo,
+.helm-form-dialog--release {
+  .el-dialog__body {
+    padding-top: 8px !important;
+  }
+
+  .helm-form-dialog__form > .el-form-item:first-child {
+    margin-top: 0;
+  }
+}
