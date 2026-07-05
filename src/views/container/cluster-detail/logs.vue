@@ -544,7 +544,8 @@
     type DatasourceSubType
   } from '@/api/datasource'
   import { PixiuApiError } from '@/api/container'
-  import { buildUpstreamBasicAuthorizationHeader, kubeProxyAxios } from '@/api/kubeProxy'
+  import { buildEsProxyHeaders, kubeProxyAxios } from '@/api/kubeProxy'
+  import { fetchDatasourceDetail } from '@/api/datasource'
   import { fetchK8sService, fetchK8sServiceList, type K8sService } from '@/api/kubernetes/service'
   import { clusterDetailContextKey } from './context'
 
@@ -1354,13 +1355,32 @@
     return '请求失败'
   }
 
-  function getEsRequestHeaders(): Record<string, string> | undefined {
+  async function ensureEsDatasourceCredentials(): Promise<void> {
+    const datasourceId = selectedDatasourceId.value
+    if (!datasourceId || !isEsDatasource.value) return
+
+    const current = selectedDatasource.value
+    const username = current?.config.log?.userName?.trim() ?? ''
+    const password = current?.config.log?.password ?? ''
+    if (!username && !password) return
+    if (password) return
+
+    const detail = await fetchDatasourceDetail(datasourceId)
+    const index = datasourceOptions.value.findIndex((item) => item.id === datasourceId)
+    if (index >= 0) {
+      datasourceOptions.value[index] = detail
+    }
+  }
+
+  function getEsRequestHeaders(): Record<string, string> {
+    const datasourceId = selectedDatasourceId.value
+    if (!datasourceId) {
+      return {}
+    }
+
     const username = selectedDatasource.value?.config.log?.userName?.trim() ?? ''
     const password = selectedDatasource.value?.config.log?.password ?? ''
-    if (!username && !password) {
-      return undefined
-    }
-    return buildUpstreamBasicAuthorizationHeader(username, password)
+    return buildEsProxyHeaders(datasourceId, username, password)
   }
 
   async function loadLogs() {
@@ -1371,6 +1391,7 @@
     try {
       if (!(await ensureServiceResolved())) return
       if (isEsDatasource.value) {
+        await ensureEsDatasourceCredentials()
         await loadEsLogs()
       } else {
         await loadLokiLogs()
@@ -1500,7 +1521,7 @@
           }
         }
       },
-      esHeaders ? { headers: esHeaders } : undefined
+      { headers: esHeaders }
     )
 
     if (data?.error) {

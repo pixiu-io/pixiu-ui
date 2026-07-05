@@ -18,6 +18,7 @@ function resolveAccessToken(): string {
 
 /** Pixiu JWT 使用 Authorization: Bearer；上游服务（如 ES）Basic 认证走该自定义头，由代理转发 */
 export const PIXIU_UPSTREAM_AUTHORIZATION_HEADER = 'X-Pixiu-Upstream-Authorization'
+export const PIXIU_DATASOURCE_ID_HEADER = 'X-Pixiu-Datasource-Id'
 
 export function buildUpstreamBasicAuthorizationHeader(
   username: string,
@@ -27,6 +28,25 @@ export function buildUpstreamBasicAuthorizationHeader(
   return {
     [PIXIU_UPSTREAM_AUTHORIZATION_HEADER]: `Basic ${token}`
   }
+}
+
+export function buildEsProxyHeaders(
+  datasourceId: number,
+  username?: string,
+  password?: string
+): Record<string, string> {
+  const headers: Record<string, string> = {
+    [PIXIU_DATASOURCE_ID_HEADER]: String(datasourceId)
+  }
+  const normalizedUsername = username?.trim() ?? ''
+  const normalizedPassword = password ?? ''
+  if (normalizedUsername || normalizedPassword) {
+    Object.assign(
+      headers,
+      buildUpstreamBasicAuthorizationHeader(normalizedUsername, normalizedPassword)
+    )
+  }
+  return headers
 }
 
 /** 直连 `/pixiu/proxy/...` 的 K8s API；代理失败时后端仍可能返回 HTTP 200 + Pixiu 业务包 */
