@@ -173,5 +173,27 @@ declare namespace Api {
     type APISearchParams = Partial<
       Pick<APIListItem, 'method' | 'path' | 'group' | 'subGroup'> & Api.Common.CommonSearchParams
     >
+    /** AI 账号列表 */
+    type AIAccountList = Api.Common.PaginatedResponse<AIAccountListItem>
+
+    interface AIAccountListItem {
+      id: number
+      resourceVersion: number
+      provider: string
+      apiKey: string
+      baseUrl: string
+      model: string
+      description: string
+      enabled: boolean
+      createTime: string
+      updateTime: string
+    }
+
+    type AIAccountSearchParams = Partial<
+      Pick<AIAccountListItem, 'provider'> &
+        Api.Common.CommonSearchParams & {
+          enabled?: boolean
+        }
+    >
   }
 }
