@@ -185,8 +185,8 @@
             </el-table-column>
             <el-table-column label="状态" width="100">
               <template #default="{ row }">
-                <el-tag :type="podStatusType(row.status?.phase)" size="small" effect="light">{{
-                  row.status?.phase
+                <el-tag :type="podStatusType(formatPodDisplayStatus(row))" size="small" effect="light">{{
+                  formatPodDisplayStatus(row)
                 }}</el-tag>
               </template>
             </el-table-column>
@@ -370,7 +370,11 @@
                 >{{ row.involvedObject?.kind }}/{{ row.involvedObject?.name }}</template
               >
             </el-table-column>
-            <el-table-column label="消息" min-width="300" prop="message" show-overflow-tooltip />
+            <el-table-column label="消息" min-width="300" :class-name="K8S_EVENT_MESSAGE_CELL_CLASS">
+              <template #default="{ row }">
+                <div class="k8s-event-message">{{ row.message?.trim() ? row.message : '-' }}</div>
+              </template>
+            </el-table-column>
             <el-table-column label="次数" width="70" prop="count" />
             <el-table-column label="最近发生" width="160">
               <template #default="{ row }">{{
@@ -556,6 +560,7 @@
   } from '@/components/core/forms/art-button-more/index.vue'
   import ClusterDetailWorkloads from '../workloads.vue'
   import { clusterDetailContextKey } from '../context'
+  import { getCronJobApiVersion } from '@/utils/kubernetes/cronjob'
   import { buildClusterRouteQuery } from '@/utils/navigation/cluster-query'
   import { kubeProxyAxios } from '@/api/kubeProxy'
   import {
@@ -578,6 +583,8 @@
   import type { K8sCronJob } from '@/api/kubernetes/cronjob'
   import { fetchK8sPodList } from '@/api/kubernetes/pod'
   import type { K8sPod } from '@/api/kubernetes/pod'
+  import { formatPodDisplayStatus, podStatusTagType } from '@/utils/kubernetes/podDisplay'
+  import { K8S_EVENT_MESSAGE_CELL_CLASS } from '@/utils/kubernetes/eventDisplay'
   import { fetchK8sServiceList } from '@/api/kubernetes/service'
   import type { K8sService } from '@/api/kubernetes/service'
   import {
@@ -619,6 +626,7 @@
   const isSystemNamespace = computed(() => namespace.value === 'default' || namespace.value.startsWith('kube-'))
 
   const clusterDetailCtx = inject(clusterDetailContextKey, undefined)
+  const cronJobApiVersion = computed(() => getCronJobApiVersion(clusterDetailCtx?.value?.version))
   const clusterAlias = computed(() => clusterDetailCtx?.value?.aliasName || cluster.value)
   const clusterDisplayName = computed(() => {
     const name = cluster.value
@@ -856,14 +864,8 @@
       podsLoading.value = false
     }
   }
-  function podStatusType(phase?: string) {
-    return phase === 'Running'
-      ? 'success'
-      : phase === 'Pending'
-        ? 'warning'
-        : phase === 'Failed'
-          ? 'danger'
-          : 'info'
+  function podStatusType(status: string) {
+    return podStatusTagType(status)
   }
   function podReadyCount(pod: K8sPod): number {
     return (pod.status?.containerStatuses ?? []).filter((s: any) => s.ready).length
@@ -883,7 +885,7 @@
     try {
       const { items } = await fetchK8sServiceList(cluster.value, {
         page: 1,
-        limit: 500,
+        limit: 999999,
         namespace: namespace.value
       })
       const deployLabels =
@@ -1037,7 +1039,7 @@
         await deleteK8sDaemonSet(cluster.value, namespace.value, name.value)
       else if (workloadKind.value === 'Job') await deleteK8sJob(cluster.value, namespace.value, name.value)
       else if (workloadKind.value === 'CronJob')
-        await deleteK8sCronJob(cluster.value, namespace.value, name.value)
+        await deleteK8sCronJob(cluster.value, namespace.value, name.value, cronJobApiVersion.value)
       ElMessage.success('已删除')
       goBack()
     } catch {
@@ -1066,7 +1068,7 @@
       } else if (workloadKind.value === 'Job') {
         obj = await fetchK8sJob(cluster.value, namespace.value, name.value)
       } else {
-        obj = await fetchK8sCronJob(cluster.value, namespace.value, name.value)
+        obj = await fetchK8sCronJob(cluster.value, namespace.value, name.value, cronJobApiVersion.value)
       }
       yamlContent.value = YAML.dump(obj)
       yamlVisible.value = true
@@ -1132,7 +1134,7 @@
       } else if (workloadKind.value === 'Job') {
         workload.value = await fetchK8sJob(cluster.value, namespace.value, name.value)
       } else {
-        workload.value = await fetchK8sCronJob(cluster.value, namespace.value, name.value)
+        workload.value = await fetchK8sCronJob(cluster.value, namespace.value, name.value, cronJobApiVersion.value)
       }
       scaleTarget.value = ((workload.value as K8sDeployment | K8sStatefulSet | undefined)?.spec?.replicas ?? 0)
     } catch (e: any) {

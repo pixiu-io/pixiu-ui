@@ -6,27 +6,17 @@ export const safeguardRoutes: AppRouteRecord = {
   component: '/index/index',
   meta: {
     title: 'menus.safeguard.title',
-    icon: 'ri:shield-check-line',
+    icon: 'ri:tools-fill',
     keepAlive: false
   },
   children: [
     {
-      path: 'host',
-      name: 'SafeguardHost',
-      component: '/safeguard/host',
+      path: 'runner',
+      name: 'SafeguardRunner',
+      component: '/safeguard/runner',
       meta: {
-        title: 'menus.safeguard.host',
-        icon: 'ri:server-line',
-        keepAlive: true
-      }
-    },
-    {
-      path: 'audit',
-      name: 'SafeguardAudit',
-      component: '/safeguard/audit',
-      meta: {
-        title: 'menus.safeguard.audit',
-        icon: 'ri:shield-check-line',
+        title: 'menus.safeguard.runner',
+        icon: 'ri:terminal-box-line',
         keepAlive: true
       }
     },
@@ -38,6 +28,30 @@ export const safeguardRoutes: AppRouteRecord = {
         title: 'menus.safeguard.agent',
         icon: 'ri:robot-2-line',
         keepAlive: true,
+        isHide: true
+      }
+    },
+    {
+      path: 'host',
+      name: 'SafeguardHost',
+      component: '/safeguard/host',
+      meta: {
+        title: 'menus.safeguard.host',
+        icon: 'ri:server-line',
+        keepAlive: true
+      }
+    },
+    {
+      path: 'distribution',
+      redirect: { name: 'SafeguardRunner', query: { tab: 'distribution' } },
+      meta: {
+        isHide: true
+      }
+    },
+    {
+      path: 'runner-distribution',
+      redirect: { name: 'SafeguardRunner' },
+      meta: {
         isHide: true
       }
     }

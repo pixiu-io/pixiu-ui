@@ -30,7 +30,7 @@ export interface ClusterOverviewK8sStats {
   workloads: ClusterOverviewK8sWorkloadCounts
 }
 
-function proxyPaths(cluster: string) {
+function proxyPaths(cluster: string, cronJobApiVersion = '') {
   const c = encodeURIComponent(cluster)
   const base = `/pixiu/proxy/${c}`
   return {
@@ -38,7 +38,7 @@ function proxyPaths(cluster: string) {
     deployments: `${base}/apis/apps/v1/deployments`,
     statefulSets: `${base}/apis/apps/v1/statefulsets`,
     daemonSets: `${base}/apis/apps/v1/daemonsets`,
-    cronJobs: `${base}/apis/batch/v1/cronjobs`,
+    cronJobs: `${base}/apis/${cronJobApiVersion}/cronjobs`,
     jobs: `${base}/apis/batch/v1/jobs`
   }
 }
@@ -59,7 +59,8 @@ export async function fetchClusterBasicNetwork(cluster: string): Promise<Cluster
   if (!cluster) return empty
   try {
     const { data } = await kubeProxyAxios.get<{ data?: Record<string, string> }>(
-      `/pixiu/proxy/${encodeURIComponent(cluster)}/api/v1/namespaces/kube-system/configmaps/kubeadm-config`
+      `/pixiu/proxy/${encodeURIComponent(cluster)}/api/v1/namespaces/kube-system/configmaps/kubeadm-config`,
+      { silence403: true } as any
     )
     const yamlText = data.data?.ClusterConfiguration ?? ''
     if (!yamlText) return empty
@@ -76,8 +77,12 @@ export async function fetchClusterBasicNetwork(cluster: string): Promise<Cluster
   }
 }
 
+const statsPromiseMap = new Map<string, Promise<ClusterOverviewK8sStats>>()
+
 export async function fetchClusterOverviewK8sStats(
-  cluster: string
+  cluster: string,
+  force = false,
+  cronJobApiVersion?: string
 ): Promise<ClusterOverviewK8sStats> {
   const emptyNodes: ClusterOverviewK8sNodeSplit = { controlPlane: 0, worker: 0, total: 0 }
   const emptyWl: ClusterOverviewK8sWorkloadCounts = {
@@ -92,54 +97,68 @@ export async function fetchClusterOverviewK8sStats(
     return { nodes: emptyNodes, workloads: emptyWl }
   }
 
-  const paths = proxyPaths(cluster)
-
-  const [
-    nodeTotal,
-    cpLabelCount,
-    masterLabelCount,
-    deployment,
-    statefulSet,
-    daemonSet,
-    cronJob,
-    job
-  ] = await Promise.all([
-    fetchKubeListCount({ path: paths.nodes }),
-    fetchKubeListCount({
-      path: paths.nodes,
-      labelSelector: 'node-role.kubernetes.io/control-plane'
-    }),
-    fetchKubeListCount({
-      path: paths.nodes,
-      labelSelector: 'node-role.kubernetes.io/master'
-    }),
-    fetchKubeListCount({ path: paths.deployments }),
-    fetchKubeListCount({ path: paths.statefulSets }),
-    fetchKubeListCount({ path: paths.daemonSets }),
-    fetchKubeListCount({ path: paths.cronJobs }),
-    fetchKubeListCount({ path: paths.jobs })
-  ])
-
-  let controlPlane = cpLabelCount + masterLabelCount
-  if (controlPlane > nodeTotal) {
-    controlPlane = Math.max(cpLabelCount, masterLabelCount)
+  if (!force && statsPromiseMap.has(cluster)) {
+    return statsPromiseMap.get(cluster)!
   }
-  const worker = Math.max(0, nodeTotal - controlPlane)
 
-  return {
-    nodes: {
-      controlPlane,
-      worker,
-      total: nodeTotal
-    },
-    workloads: {
-      deployment,
-      statefulSet,
-      daemonSet,
-      cronJob,
-      job
+  const promise = (async () => {
+    try {
+      const paths = proxyPaths(cluster, cronJobApiVersion || '')
+
+      const counts = await Promise.all([
+        fetchKubeListCount({ path: paths.nodes, silence403: true }),
+        fetchKubeListCount({
+          path: paths.nodes,
+          labelSelector: 'node-role.kubernetes.io/control-plane',
+          silence403: true
+        }),
+        fetchKubeListCount({
+          path: paths.nodes,
+          labelSelector: 'node-role.kubernetes.io/master',
+          silence403: true
+        }),
+        fetchKubeListCount({ path: paths.deployments, silence403: true }),
+        fetchKubeListCount({ path: paths.statefulSets, silence403: true }),
+        fetchKubeListCount({ path: paths.daemonSets, silence403: true }),
+        // 版本未知时跳过 CronJob 请求，避免 batch/v1 在旧集群 404
+        cronJobApiVersion ? fetchKubeListCount({ path: paths.cronJobs, silence403: true }) : Promise.resolve(0),
+        fetchKubeListCount({ path: paths.jobs, silence403: true })
+      ])
+
+      const [nodeTotal, cpLabelCount, masterLabelCount, deployment, statefulSet, daemonSet, cronJob, job] = counts
+
+      let controlPlane = cpLabelCount + masterLabelCount
+      if (controlPlane > nodeTotal) {
+        controlPlane = Math.max(cpLabelCount, masterLabelCount)
+      }
+      const worker = Math.max(0, nodeTotal - controlPlane)
+
+      return {
+        nodes: {
+          controlPlane,
+          worker,
+          total: nodeTotal
+        },
+        workloads: {
+          deployment,
+          statefulSet,
+          daemonSet,
+          cronJob,
+          job
+        }
+      }
+    } finally {
+      // 短暂保留缓存，避免极短时间内的重复调用。长期的由业务层控制。
+      setTimeout(() => {
+        if (statsPromiseMap.get(cluster) === promise) {
+          statsPromiseMap.delete(cluster)
+        }
+      }, 5000)
     }
-  }
+  })()
+
+  statsPromiseMap.set(cluster, promise)
+  return promise
 }
 
 export interface ClusterDetailInfo {
@@ -159,7 +178,8 @@ export async function detectCniFromDeployments(cluster: string): Promise<string>
   try {
     const c = encodeURIComponent(cluster)
     const { data } = await kubeProxyAxios.get<{ items: Array<{ metadata?: { name?: string } }> }>(
-      `/pixiu/proxy/${c}/apis/apps/v1/namespaces/kube-system/deployments`
+      `/pixiu/proxy/${c}/apis/apps/v1/namespaces/kube-system/deployments`,
+      { silence403: true } as any
     )
     for (const deploy of data.items ?? []) {
       const name = (deploy.metadata?.name ?? '').toLowerCase()
@@ -201,21 +221,24 @@ export async function fetchClusterDetailInfo(
       } catch {}
     }
     const { data: nodeRes } = await kubeProxyAxios.get<{ items: K8sNode[] }>(
-      `/pixiu/proxy/${c}/api/v1/nodes?limit=1`
+      `/pixiu/proxy/${c}/api/v1/nodes?limit=1`,
+      { silence403: true, skipErrorNotification: true } as any
     )
     const firstNode = nodeRes.items?.[0]
     if (firstNode) {
       empty.osImage = firstNode.status?.nodeInfo?.osImage ?? '-'
       empty.containerRuntime = firstNode.status?.nodeInfo?.containerRuntimeVersion ?? '-'
       const { data: allNodesRes } = await kubeProxyAxios.get<{ items: K8sNode[] }>(
-        `/pixiu/proxy/${c}/api/v1/nodes`
+        `/pixiu/proxy/${c}/api/v1/nodes`,
+        { silence403: true, skipErrorNotification: true } as any
       )
       const cpCount = (allNodesRes.items ?? []).filter(isK8sControlPlaneNode).length
       empty.haMode = cpCount > 1 ? 'ha' : 'single'
     }
     try {
       const { data: kpConfig } = await kubeProxyAxios.get<{ data?: Record<string, string> }>(
-        `/pixiu/proxy/${c}/api/v1/namespaces/kube-system/configmaps/kube-proxy`
+        `/pixiu/proxy/${c}/api/v1/namespaces/kube-system/configmaps/kube-proxy`,
+        { silence403: true } as any
       )
       const kpYaml = kpConfig.data?.config ?? kpConfig.data?.Config ?? kpConfig.data?.config_conf ?? ''
       const mode = kpYaml.match(/mode:\s*(\S+)/)?.[1]

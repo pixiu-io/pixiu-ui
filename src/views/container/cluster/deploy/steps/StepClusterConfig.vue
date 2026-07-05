@@ -80,6 +80,47 @@
       >
     </ElFormItem>
 
+    <ElFormItem label="自建 NFS" class="nfs-form-item">
+      <div class="nfs-config-block">
+        <div class="nfs-enable-row">
+          <ElCheckbox
+            :model-value="form.nfsEnabled"
+            :disabled="readOnly"
+            @update:model-value="onNfsEnabledChange as any"
+          >
+            启用
+          </ElCheckbox>
+          <span class="nfs-enable-tip">（部署 NFS Server 并创建 StorageClass，需配置 storage 角色节点）</span>
+        </div>
+        <div v-if="form.nfsEnabled" class="nfs-fields">
+          <div class="nfs-field-row">
+            <span class="nfs-field-label">StorageClass:</span>
+            <ElInput
+              :model-value="form.nfsStorageClassName"
+              placeholder="请输入 NFS 存储名称"
+              class="nfs-field-input"
+              clearable
+              :disabled="readOnly"
+              @update:model-value="emit('update:form', { ...form, nfsStorageClassName: $event })"
+            />
+          </div>
+          <div class="nfs-field-row">
+            <span class="nfs-field-label">StorageDataDir:</span>
+            <ElFormItem prop="nfsStorageDataDir" class="nfs-field-form-item" label-width="0">
+              <ElInput
+                :model-value="form.nfsStorageDataDir"
+                placeholder="请输入 NFS 存储的文件夹路径"
+                class="nfs-field-input"
+                clearable
+                :disabled="readOnly"
+                @update:model-value="emit('update:form', { ...form, nfsStorageDataDir: $event })"
+              />
+            </ElFormItem>
+          </div>
+        </div>
+      </div>
+    </ElFormItem>
+
     <ElFormItem label="Metrics Server">
       <ElCheckbox
         :model-value="form.metricsServer"
@@ -128,6 +169,35 @@
   const lockImmutableFields = computed(() => props.lockImmutableFields)
   const formRef = ref<FormInstance>()
 
+  function onNfsEnabledChange(checked: boolean) {
+    emit('update:form', {
+      ...props.form,
+      nfsEnabled: checked,
+      nfsStorageClassName: checked ? props.form.nfsStorageClassName : '',
+      nfsStorageDataDir: checked ? props.form.nfsStorageDataDir : ''
+    })
+    nextTick(() => {
+      formRef.value?.clearValidate('nfsStorageDataDir')
+    })
+  }
+
+  function validateNfsStorageDataDir(_r: unknown, value: string, cb: (err?: Error) => void) {
+    if (!props.form.nfsEnabled) {
+      cb()
+      return
+    }
+    const v = (value ?? '').trim()
+    if (!v) {
+      cb()
+      return
+    }
+    if (!v.startsWith('/')) {
+      cb(new Error('请输入以 / 开头的 Linux 文件夹路径'))
+      return
+    }
+    cb()
+  }
+
   const rules: FormRules = {
     highAvailability: [
       {
@@ -166,7 +236,8 @@
       }
     ],
     apiServerPort: [{ required: true, message: '请输入监听端口', trigger: 'change' }],
-    kubeProxyMode: [{ required: true, message: '请选择 Kube-proxy 模式', trigger: 'change' }]
+    kubeProxyMode: [{ required: true, message: '请选择 Kube-proxy 模式', trigger: 'change' }],
+    nfsStorageDataDir: [{ validator: validateNfsStorageDataDir, trigger: ['blur', 'change'] }]
   }
 
   function onHighAvailabilityChange(enabled: boolean | string | number) {
@@ -240,5 +311,105 @@
   }
   .step-cluster-config :deep(.el-checkbox__label) {
     font-size: 12px;
+  }
+
+  .nfs-form-item :deep(.el-form-item__content) {
+    align-items: flex-start;
+  }
+
+  .nfs-config-block {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-height: 32px;
+  }
+
+  .nfs-enable-row {
+    display: flex;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    max-width: 100%;
+    min-height: 32px;
+    line-height: 32px;
+  }
+
+  .nfs-enable-row :deep(.el-checkbox) {
+    flex-shrink: 0;
+    height: 32px;
+    margin-right: 0;
+  }
+
+  .nfs-enable-row :deep(.el-checkbox__label) {
+    font-size: 12px;
+    padding-right: 0;
+    line-height: 32px;
+  }
+
+  .nfs-enable-tip {
+    flex: 1;
+    min-width: 0;
+    margin: 0 0 0 4px;
+    font-size: 12px;
+    line-height: 32px;
+    color: var(--el-text-color-placeholder);
+    white-space: normal;
+  }
+
+  .nfs-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 10px;
+    padding-left: 0;
+  }
+
+  .nfs-field-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    min-height: 32px;
+  }
+
+  .nfs-field-form-item {
+    flex: 1;
+    margin-bottom: 0;
+  }
+
+  .nfs-field-form-item :deep(.el-form-item__label) {
+    display: none;
+  }
+
+  .nfs-field-form-item :deep(.el-form-item__content) {
+    margin-left: 0 !important;
+    line-height: normal;
+  }
+
+  .nfs-field-form-item :deep(.el-form-item__error) {
+    position: static;
+    padding-top: 4px;
+  }
+
+  .nfs-field-label {
+    flex-shrink: 0;
+    width: 108px;
+    font-size: 12px;
+    color: var(--el-text-color-regular);
+    line-height: 32px;
+    white-space: nowrap;
+  }
+
+  .nfs-field-input {
+    width: 320px;
+  }
+
+  .nfs-field-input :deep(.el-input__inner),
+  .nfs-field-input :deep(.el-input__wrapper) {
+    font-size: 12px;
+  }
+
+  .nfs-field-input :deep(.el-input__inner::placeholder),
+  .nfs-field-input :deep(.el-input__wrapper input::placeholder) {
+    font-size: 12px !important;
+    opacity: 1;
   }
 </style>

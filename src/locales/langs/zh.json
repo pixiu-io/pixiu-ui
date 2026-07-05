@@ -1,7 +1,7 @@
 {
   "httpMsg": {
     "unauthorized": "未授权访问，请重新登录",
-    "forbidden": "禁止访问该资源",
+    "forbidden": "无操作权限",
     "notFound": "请求的资源不存在",
     "methodNotAllowed": "请求方法不允许",
     "requestTimeout": "请求超时，请稍后重试",
@@ -224,21 +224,28 @@
     "dashboard": {
       "title": "仪表盘",
       "console": "工作台",
-      "analysis": "分析页",
-      "ecommerce": "电子商务"
+      "analysis": "分析页"
     },
     "system": {
-      "title": "系统管理",
-      "user": "用户管理",
-      "role": "角色管理",
+      "title": "安全管理",
+      "user": "用户",
+      "role": "角色",
+      "permission": "授权",
+      "sysMgr": "系统管理",
+      "tenant": "租户",
+      "api": "API",
       "userCenter": "个人中心",
       "menu": "菜单管理"
     },
     "safeguard": {
       "title": "运维管理",
       "host": "主机管理",
-      "audit": "操作审计",
-      "agent": "Agent"
+      "runner": "Runner",
+      "audit": "审计",
+      "agent": "Agent",
+      "monitor": "监控告警",
+      "datasource": "数据源",
+      "logs": "日志"
     },
     "appstore": {
       "title": "应用商店"

@@ -1,33 +1,45 @@
 import { kubeProxyAxios } from '@/api/kubeProxy'
 import { fetchKubeListPage } from './list'
 
+export interface K8sContainerState {
+  waiting?: { reason?: string; message?: string }
+  running?: { startedAt?: string }
+  terminated?: { reason?: string; exitCode?: number }
+}
+
+export interface K8sContainerStatus {
+  name?: string
+  restartCount?: number
+  ready?: boolean
+  state?: K8sContainerState
+}
+
 export interface K8sPod {
   metadata: {
     name: string
     namespace?: string
     uid?: string
     creationTimestamp?: string
+    deletionTimestamp?: string
   }
   spec?: {
     nodeName?: string
-    containers?: Array<{
-      name?: string
-    }>
+    initContainers?: Array<{ name?: string }>
+    containers?: Array<{ name?: string }>
   }
   status?: {
     phase?: string
+    reason?: string
     podIP?: string
     hostIP?: string
-    containerStatuses?: Array<{
-      restartCount?: number
-      ready?: boolean
-    }>
+    initContainerStatuses?: K8sContainerStatus[]
+    containerStatuses?: K8sContainerStatus[]
   }
 }
 
 export async function fetchK8sPodList(
   cluster: string,
-  params: { page: number; limit: number; namespace?: string; name?: string }
+  params: { page: number; limit: number; namespace?: string }
 ): Promise<{ items: K8sPod[]; total: number }> {
   const base = params.namespace
     ? `/pixiu/proxy/${encodeURIComponent(cluster)}/api/v1/namespaces/${encodeURIComponent(params.namespace)}/pods`
@@ -35,8 +47,7 @@ export async function fetchK8sPodList(
   return fetchKubeListPage<K8sPod>({
     path: base,
     page: params.page,
-    limit: params.limit,
-    fieldSelector: params.name ? `metadata.name=${params.name}` : undefined
+    limit: params.limit
   })
 }
 

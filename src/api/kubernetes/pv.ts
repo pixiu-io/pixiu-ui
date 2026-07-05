@@ -34,13 +34,12 @@ const pvBase = (cluster: string) =>
 
 export async function fetchK8sPVList(
   cluster: string,
-  params: { page: number; limit: number; name?: string }
+  params: { page: number; limit: number }
 ): Promise<{ items: K8sPV[]; total: number }> {
   return fetchKubeListPage<K8sPV>({
     path: pvBase(cluster),
     page: params.page,
-    limit: params.limit,
-    fieldSelector: params.name ? `metadata.name=${params.name}` : undefined
+    limit: params.limit
   })
 }
 

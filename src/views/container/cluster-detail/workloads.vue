@@ -37,6 +37,8 @@
                     v-model="deplNamespace"
                     placeholder="所有命名空间"
                     class="workloads-toolbar__namespace"
+                    filterable
+                    :reserve-keyword="false"
                     :fit-input-width="true"
                     popper-class="workloads-toolbar__namespace-popper"
                     @change="onDeplNamespaceChange"
@@ -223,8 +225,7 @@
               <div class="workloads-toolbar">
                 <ElButton
                   v-if="props.jobDataMode === 'events'"
-                  type="danger"
-                  plain
+                  v-ripple
                   :disabled="jobSelectedRows.length === 0"
                   @click="batchDeleteMirrorEvents"
                 >
@@ -641,6 +642,8 @@
   import { buildClusterRouteQuery } from '@/utils/navigation/cluster-query'
   import { useRoute, useRouter } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
+  import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
+  import { useClusterDetailActiveMenuKey } from '@/hooks/core/useClusterDetailNamespaceRefresh'
   import {
     fetchK8sDeploymentList,
     fetchK8sDeployment,
@@ -665,6 +668,7 @@
   import {
     fetchK8sDaemonSetList,
     fetchK8sDaemonSet,
+    patchK8sDaemonSet,
     deleteK8sDaemonSet,
     type K8sDaemonSet
   } from '@/api/kubernetes/daemonset'
@@ -673,6 +677,7 @@
     fetchK8sJob,
     deleteK8sJob,
     createK8sJob,
+    rerunK8sJob,
     type K8sJob
   } from '@/api/kubernetes/job'
   import {
@@ -684,7 +689,6 @@
   } from '@/api/kubernetes/cronjob'
   import { fetchK8sReplicaSetList, type K8sReplicaSet } from '@/api/kubernetes/replicaset'
   import { fetchK8sServiceList, type K8sService } from '@/api/kubernetes/service'
-  import { fetchK8sNamespaceList } from '@/api/kubernetes/namespace'
   import {
     deleteK8sEvent,
     fetchAggregatedEventList,
@@ -693,7 +697,10 @@
   } from '@/api/kubernetes/events'
   import { updateK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
   import { formatNodeCreationTime } from '@/utils/kubernetes/nodeDisplay'
-  import { clusterDetailNamespaceKey } from './context'
+  import { clusterDetailContextKey, clusterDetailNamespaceKey } from './context'
+  import { getCronJobApiVersion } from '@/utils/kubernetes/cronjob'
+  import { formatPodDisplayStatus, podStatusTagType } from '@/utils/kubernetes/podDisplay'
+  import { createK8sEventMessageColumn } from '@/utils/kubernetes/eventDisplay'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
 
   defineOptions({ name: 'ClusterDetailWorkloads' })
@@ -819,12 +826,12 @@
   const router = useRouter()
   const allowedTabs = new Set(['deploy', 'sts', 'ds', 'job', 'cj'])
   const queryTab = String(route.query.tab ?? '')
-  function resolveWorkloadKind(q: string, init: string): 'deploy' | 'sts' | 'ds' | 'job' | 'cj' {
-    if (allowedTabs.has(q)) return q as 'deploy' | 'sts' | 'ds' | 'job' | 'cj'
-    if (allowedTabs.has(init)) return init as 'deploy' | 'sts' | 'ds' | 'job' | 'cj'
+  function resolveWorkloadKind(q: string, init: string): string {
+    if (allowedTabs.has(q)) return q
+    if (allowedTabs.has(init)) return init
     return 'deploy'
   }
-  const kind = ref(resolveWorkloadKind(queryTab, String(props.initialTab ?? '')))
+  const kind = ref<string>(resolveWorkloadKind(queryTab, String(props.initialTab ?? '')))
   const deplNamespace = ref('')
   function parseSelectorMap(selector: string): Record<string, string> {
     const out: Record<string, string> = {}
@@ -850,25 +857,10 @@
   }
 
   const globalNs = inject(clusterDetailNamespaceKey, undefined)
+  const ctx = inject(clusterDetailContextKey, undefined)
+  const cronJobApiVersion = computed(() => getCronJobApiVersion(ctx?.value?.version))
   const globalNamespace = computed(() => globalNs?.namespace.value ?? '')
-  const ctxNsOptions = computed(() => globalNs?.namespaceOptions.value ?? [])
-  const localNsOptions = ref<string[]>([])
-  const nsOptions = computed(() =>
-    ctxNsOptions.value.length ? ctxNsOptions.value : localNsOptions.value
-  )
-
-  async function loadLocalNamespaceOptions(cluster: string) {
-    if (!cluster) {
-      localNsOptions.value = []
-      return
-    }
-    try {
-      const { items } = await fetchK8sNamespaceList(cluster, { page: 1, limit: 500 })
-      localNsOptions.value = items.map((n) => n.metadata.name).sort()
-    } catch {
-      localNsOptions.value = []
-    }
-  }
+  const nsOptions = computed(() => globalNs?.namespaceOptions.value ?? [])
 
   // ── Deployment tab state ──
   const deplSearchForm = ref<{ name?: string }>({})
@@ -1234,7 +1226,7 @@
           const ns = props.mirrorNamespace || params.namespace || undefined
           const { items } = await fetchK8sServiceList(cluster, {
             page: 1,
-            limit: 500,
+            limit: 999999,
             namespace: ns
           })
           const selector = parseSelectorMap(props.mirrorSelector || '')
@@ -1252,7 +1244,7 @@
             )
           const total = filtered.length
           const start = (params.current - 1) * params.size
-          const list = filtered.slice(start, start + params.size).map((s, i) => ({
+          let list = filtered.slice(start, start + params.size).map((s, i) => ({
             ...s,
             rowKey: s.metadata?.uid ?? s.metadata?.name ?? `svc-${start + i}`
           }))
@@ -1261,13 +1253,21 @@
             data: { records: list, total, current: params.current, size: params.size }
           }
         }
-        const { items, total } = await fetchK8sStatefulSetList(cluster, {
-          page: params.current,
-          limit: params.size,
-          namespace: params.namespace || undefined,
-          name: (params.name ?? '').trim() || undefined
+        // 拉取全部资源（不带 fieldSelector），本地模糊搜索
+        const { items: allItems } = await fetchK8sStatefulSetList(cluster, {
+          page: 1,
+          limit: 999999,
+          namespace: params.namespace || undefined
         })
-        let list = items.map((d, i) => ({
+        // 本地模糊筛选
+        const keyword = (params.name ?? '').trim().toLowerCase()
+        const filtered = keyword
+          ? allItems.filter((r) => (r.metadata?.name ?? '').toLowerCase().includes(keyword))
+          : allItems
+        // 本地分页
+        const start = (params.current - 1) * params.size
+        const end = start + params.size
+        let list = filtered.slice(start, end).map((d, i) => ({
           ...d,
           rowKey: d.metadata?.uid ?? d.metadata?.name ?? `sts-${i}`
         }))
@@ -1280,7 +1280,7 @@
         }
         return {
           code: 200,
-          data: { records: list, total, current: params.current, size: params.size }
+          data: { records: list, total: filtered.length, current: params.current, size: params.size }
         }
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
@@ -1501,7 +1501,7 @@
                     h(ArtButtonMore, {
                       list: [
                         { key: 'logs', label: '日志', icon: 'ri:file-text-line' },
-                        { key: 'yaml', label: '查看YAML', icon: 'ri:file-code-line' },
+                        { key: 'yaml', label: '编辑YAML', icon: 'ri:file-code-line' },
                         { key: 'images', label: '镜像管理', icon: 'ri:docker-line' },
                         { key: 'redeploy', label: '重新部署', icon: 'ri:refresh-line' },
                         {
@@ -1519,7 +1519,7 @@
   })
 
   const stsVisibleColumns = computed(() =>
-    stsColumns.value.filter((c) => !(globalNamespace.value && c.prop === 'metadata.namespace'))
+    stsColumns.value.filter((c: any) => !(globalNamespace.value && c.prop === 'metadata.namespace'))
   )
 
   function onStsNsChange() {
@@ -1604,13 +1604,21 @@
             data: { records: list, total, current: params.current, size: params.size }
           }
         }
-        const { items, total } = await fetchK8sDaemonSetList(cluster, {
-          page: params.current,
-          limit: params.size,
-          namespace: params.namespace || undefined,
-          name: (params.name ?? '').trim() || undefined
+        // 拉取全部资源（不带 fieldSelector），本地模糊搜索
+        const { items: allItems } = await fetchK8sDaemonSetList(cluster, {
+          page: 1,
+          limit: 999999,
+          namespace: params.namespace || undefined
         })
-        let list = items.map((d, i) => ({
+        // 本地模糊筛选
+        const keyword = (params.name ?? '').trim().toLowerCase()
+        const filtered = keyword
+          ? allItems.filter((r) => (r.metadata?.name ?? '').toLowerCase().includes(keyword))
+          : allItems
+        // 本地分页
+        const start = (params.current - 1) * params.size
+        const end = start + params.size
+        let list = filtered.slice(start, end).map((d, i) => ({
           ...d,
           rowKey: d.metadata?.uid ?? d.metadata?.name ?? `ds-${i}`
         }))
@@ -1623,7 +1631,7 @@
         }
         return {
           code: 200,
-          data: { records: list, total, current: params.current, size: params.size }
+          data: { records: list, total: filtered.length, current: params.current, size: params.size }
         }
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
@@ -1826,7 +1834,7 @@
                           onClick: () =>
                             void openSharedYamlDialog('ds', row.metadata?.namespace ?? '', row.metadata?.name ?? '')
                         },
-                        () => '查看YAML'
+                        () => '编辑YAML'
                       ),
                       h(ArtButtonMore, {
                         list: [
@@ -1848,7 +1856,7 @@
   })
 
   const dsVisibleColumns = computed(() =>
-    dsColumns.value.filter((c) => !(globalNamespace.value && c.prop === 'metadata.namespace'))
+    dsColumns.value.filter((c: any) => !(globalNamespace.value && c.prop === 'metadata.namespace'))
   )
 
   function onDsNsChange() {
@@ -2070,7 +2078,7 @@
           }
           const total = filtered.length
           const start = (params.current - 1) * params.size
-          const list = filtered.slice(start, start + params.size).map((e, i) => ({
+          let list = filtered.slice(start, start + params.size).map((e, i) => ({
             ...e,
             rowKey: e.metadata?.uid ?? `${e.reason ?? 'event'}-${start + i}`
           }))
@@ -2079,13 +2087,21 @@
             data: { records: list, total, current: params.current, size: params.size }
           }
         }
-        const { items, total } = await fetchK8sJobList(cluster, {
-          page: params.current,
-          limit: params.size,
-          namespace: params.namespace || undefined,
-          name: (params.name ?? '').trim() || undefined
+        // 拉取全部资源（不带 fieldSelector），本地模糊搜索
+        const { items: allItems } = await fetchK8sJobList(cluster, {
+          page: 1,
+          limit: 999999,
+          namespace: params.namespace || undefined
         })
-        let list = items.map((d, i) => ({
+        // 本地模糊筛选
+        const keyword = (params.name ?? '').trim().toLowerCase()
+        const filtered = keyword
+          ? allItems.filter((r) => (r.metadata?.name ?? '').toLowerCase().includes(keyword))
+          : allItems
+        // 本地分页
+        const start = (params.current - 1) * params.size
+        const end = start + params.size
+        let list = filtered.slice(start, end).map((d, i) => ({
           ...d,
           rowKey: d.metadata?.uid ?? d.metadata?.name ?? `job-${i}`
         }))
@@ -2098,7 +2114,7 @@
         }
         return {
           code: 200,
-          data: { records: list, total, current: params.current, size: params.size }
+          data: { records: list, total: filtered.length, current: params.current, size: params.size }
         }
       },
       apiParams: { current: 1, size: 10, name: undefined, type: undefined, namespace: undefined },
@@ -2141,7 +2157,7 @@
               {
                 prop: 'resource',
                 label: '资源',
-                minWidth: 200,
+                minWidth: 120,
                 showOverflowTooltip: true,
                 formatter: (row: any) =>
                   h(
@@ -2151,7 +2167,7 @@
                   )
               },
               { prop: 'count', label: '出现次数', width: 100 },
-              { prop: 'message', label: '内容', minWidth: 280, showOverflowTooltip: true },
+              createK8sEventMessageColumn(),
               {
                 prop: 'operation',
                 label: '操作',
@@ -2230,7 +2246,7 @@
                   h(
                     'span',
                     { style: 'font-size:12px;color:var(--el-text-color-regular)' },
-                    String(row.spec?.backoffLimit ?? 0)
+                    String((row.spec as any)?.backoffLimit ?? 0)
                   )
               },
               {
@@ -2308,7 +2324,7 @@
               {
                 prop: 'operation',
                 label: '操作',
-                minWidth: 120,
+                minWidth: 200,
                 fixed: 'right',
                 formatter: (row: K8sJob) =>
                   h('div', { class: 'workloads-op-cell' }, [
@@ -2342,22 +2358,17 @@
                       },
                       () => '日志'
                     ),
-                    h(
-                      ElLink,
-                      {
-                        type: 'primary',
-                        underline: 'never',
-                        style: 'font-size:12px',
-                        onClick: () =>
-                          void deleteWorkload(
-                            'job',
-                            row.metadata?.namespace ?? '',
-                            row.metadata?.name ?? '',
-                            onJobRefresh
-                          )
-                      },
-                      () => '删除'
-                    )
+                    h(ArtButtonMore, {
+                      list: [
+                        { key: 'rerun', label: '重新执行', icon: 'ri:refresh-line' },
+                        {
+                          key: 'delete',
+                          label: '删除',
+                          icon: 'ri:delete-bin-4-line'
+                        }
+                      ],
+                      onClick: (item: ButtonMoreItem) => jobMoreClick(item, row)
+                    })
                   ])
               }
             ]
@@ -2365,7 +2376,7 @@
   })
 
   const jobVisibleColumns = computed(() =>
-    jobColumns.value.filter((c) => !(globalNamespace.value && c.prop === 'metadata.namespace'))
+    jobColumns.value.filter((c: any) => !(globalNamespace.value && c.prop === 'metadata.namespace'))
   )
 
   function onJobNsChange() {
@@ -2535,19 +2546,28 @@
           }
           const total = filtered.length
           const start = (params.current - 1) * params.size
-          const list = filtered.slice(start, start + params.size)
+          let list = filtered.slice(start, start + params.size)
           return {
             code: 200,
             data: { records: list, total, current: params.current, size: params.size }
           }
         }
-        const { items, total } = await fetchK8sCronJobList(cluster, {
-          page: params.current,
-          limit: params.size,
+        // 拉取全部资源（不带 fieldSelector），本地模糊搜索
+        const { items: allItems } = await fetchK8sCronJobList(cluster, {
+          page: 1,
+          limit: 999999,
           namespace: params.namespace || undefined,
-          name: (params.name ?? '').trim() || undefined
+          cronJobApiVersion: cronJobApiVersion.value
         })
-        let list = items.map((d, i) => ({
+        // 本地模糊筛选
+        const keyword = (params.name ?? '').trim().toLowerCase()
+        const filtered = keyword
+          ? allItems.filter((r) => (r.metadata?.name ?? '').toLowerCase().includes(keyword))
+          : allItems
+        // 本地分页
+        const start = (params.current - 1) * params.size
+        const end = start + params.size
+        let list = filtered.slice(start, end).map((d, i) => ({
           ...d,
           rowKey: d.metadata?.uid ?? d.metadata?.name ?? `cj-${i}`
         }))
@@ -2560,7 +2580,7 @@
         }
         return {
           code: 200,
-          data: { records: list, total, current: params.current, size: params.size }
+          data: { records: list, total: filtered.length, current: params.current, size: params.size }
         }
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
@@ -2804,7 +2824,7 @@
                           icon: suspended ? 'ri:play-circle-line' : 'ri:pause-circle-line'
                         },
                         { key: 'trigger', label: '手动触发', icon: 'ri:flashlight-line' },
-                        { key: 'yaml', label: '查看YAML', icon: 'ri:file-code-line' },
+                        { key: 'yaml', label: '编辑YAML', icon: 'ri:file-code-line' },
                         {
                           key: 'delete',
                           label: '删除',
@@ -2821,7 +2841,7 @@
   })
 
   const cjVisibleColumns = computed(() =>
-    cjColumns.value.filter((c) => !(globalNamespace.value && c.prop === 'metadata.namespace'))
+    cjColumns.value.filter((c: any) => !(globalNamespace.value && c.prop === 'metadata.namespace'))
   )
 
   function onCjNsChange() {
@@ -2888,7 +2908,7 @@
     const name = row.metadata?.name
     if (!cluster || !ns || !name) return
     try {
-      await patchK8sCronJob(cluster, ns, name, { spec: { suspend: !row.spec?.suspend } })
+      await patchK8sCronJob(cluster, ns, name, { spec: { suspend: !row.spec?.suspend } }, cronJobApiVersion.value)
       ElMessage.success(row.spec?.suspend ? '已恢复' : '已暂停')
       onCjRefresh()
     } catch (e: unknown) {
@@ -2911,7 +2931,7 @@
     refreshData: refreshDeplData
   } = useTable({
     core: {
-      immediate: true,
+      immediate: false,
       apiFn: async (params: DeplParams) => {
         const cluster = String(route.query.cluster ?? '')
         if (!cluster) {
@@ -2983,13 +3003,21 @@
             data: { records: list, total, current: params.current, size: params.size }
           }
         }
-        const { items, total } = await fetchK8sDeploymentList(cluster, {
-          page: params.current,
-          limit: params.size,
-          namespace: params.namespace || undefined,
-          name: (params.name ?? '').trim() || undefined
+        // 拉取全部资源（不带 fieldSelector），本地模糊搜索
+        const { items: allItems } = await fetchK8sDeploymentList(cluster, {
+          page: 1,
+          limit: 999999,
+          namespace: params.namespace || undefined
         })
-        let list = items.map((d, i) => ({
+        // 本地模糊筛选
+        const keyword = (params.name ?? '').trim().toLowerCase()
+        const filtered = keyword
+          ? allItems.filter((r) => (r.metadata?.name ?? '').toLowerCase().includes(keyword))
+          : allItems
+        // 本地分页
+        const start = (params.current - 1) * params.size
+        const end = start + params.size
+        let list = filtered.slice(start, end).map((d, i) => ({
           ...d,
           rowKey: d.metadata?.uid ?? d.metadata?.name ?? `deploy-${i}`
         }))
@@ -3002,7 +3030,7 @@
         }
         return {
           code: 200,
-          data: { records: list, total, current: params.current, size: params.size }
+          data: { records: list, total: filtered.length, current: params.current, size: params.size }
         }
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
@@ -3021,16 +3049,8 @@
                 label: '状态',
                 width: 110,
                 formatter: (row: K8sPod) => {
-                  const phase = row.status?.phase ?? 'Unknown'
-                  const type =
-                    phase === 'Running'
-                      ? 'success'
-                      : phase === 'Pending'
-                        ? 'warning'
-                        : phase === 'Failed'
-                          ? 'danger'
-                          : 'info'
-                  return h(ElTag, { type, size: 'small' }, () => phase)
+                  const text = formatPodDisplayStatus(row)
+                  return h(ElTag, { type: podStatusTagType(text), size: 'small' }, () => text)
                 }
               },
               {
@@ -3337,7 +3357,7 @@
   })
 
   const deplVisibleColumns = computed(() =>
-    deplColumns.value.filter((c) => !(globalNamespace.value && c.prop === 'metadata.namespace'))
+    deplColumns.value.filter((c: any) => !(globalNamespace.value && c.prop === 'metadata.namespace'))
   )
 
   function onDeplSelectionChange(rows: Array<(K8sDeployment | K8sPod) & { rowKey: string }>) {
@@ -3460,6 +3480,7 @@
       const pod = await fetchK8sPod(cluster, namespace, podName)
       yamlText.value = yaml.dump(pod, { quotingType: '"' })
       yamlReadonly.value = true
+      yamlSourceKind.value = 'pod'
       yamlVisible.value = true
     } catch (e: unknown) {
       ElMessage.error(e instanceof Error ? e.message : '加载失败')
@@ -3687,6 +3708,7 @@
   const yamlText = ref('')
   const yamlSubmitting = ref(false)
   const yamlReadonly = ref(false)
+  const yamlSourceKind = ref<'deploy' | 'sts' | 'ds' | 'job' | 'cj' | 'pod' | null>(null)
 
   async function openYamlDialog(row: K8sDeployment) {
     const cluster = String(route.query.cluster ?? '')
@@ -3697,9 +3719,31 @@
       const deploy = await fetchK8sDeployment(cluster, ns, name)
       yamlText.value = yaml.dump(deploy, { quotingType: '"' })
       yamlReadonly.value = false
+      yamlSourceKind.value = 'deploy'
       yamlVisible.value = true
     } catch (e: unknown) {
       ElMessage.error(e instanceof Error ? e.message : '加载失败')
+    }
+  }
+
+  function refreshYamlSourceList() {
+    switch (yamlSourceKind.value) {
+      case 'sts':
+        onStsRefresh()
+        break
+      case 'ds':
+        onDsRefresh()
+        break
+      case 'job':
+        onJobRefresh()
+        break
+      case 'cj':
+        onCjRefresh()
+        break
+      case 'deploy':
+      default:
+        onDeplRefresh()
+        break
     }
   }
 
@@ -3711,7 +3755,7 @@
       await updateK8sResourceFromYaml(cluster, yamlText.value)
       ElMessage.success('YAML 更新成功')
       yamlVisible.value = false
-      onDeplRefresh()
+      refreshYamlSourceList()
     } catch (e: unknown) {
       ElMessage.error(e instanceof Error ? e.message : '更新失败')
     } finally {
@@ -3743,12 +3787,13 @@
       if (kind === 'sts') await deleteK8sStatefulSet(cluster, namespace, name)
       else if (kind === 'ds') await deleteK8sDaemonSet(cluster, namespace, name)
       else if (kind === 'job') await deleteK8sJob(cluster, namespace, name)
-      else if (kind === 'cj') await deleteK8sCronJob(cluster, namespace, name)
+      else if (kind === 'cj') await deleteK8sCronJob(cluster, namespace, name, cronJobApiVersion.value)
       else if (kind === 'pod') await deleteK8sPod(cluster, namespace, name)
       ElMessage.success('删除成功')
       refresh()
-    } catch {
-      // user cancel
+    } catch (e: unknown) {
+      if (e === 'cancel' || e === 'close') return
+      ElMessage.error(e instanceof Error ? e.message : '删除失败')
     }
   }
 
@@ -3765,9 +3810,10 @@
       if (kind === 'sts') resource = await fetchK8sStatefulSet(cluster, namespace, name)
       else if (kind === 'ds') resource = await fetchK8sDaemonSet(cluster, namespace, name)
       else if (kind === 'job') resource = await fetchK8sJob(cluster, namespace, name)
-      else resource = await fetchK8sCronJob(cluster, namespace, name)
+      else resource = await fetchK8sCronJob(cluster, namespace, name, cronJobApiVersion.value)
       yamlText.value = yaml.dump(resource, { quotingType: '"' })
-      yamlReadonly.value = true
+      yamlReadonly.value = false
+      yamlSourceKind.value = kind
       yamlVisible.value = true
     } catch (e: unknown) {
       ElMessage.error(e instanceof Error ? e.message : '加载失败')
@@ -3788,8 +3834,9 @@
       await deleteK8sDeployment(cluster, ns, name)
       ElMessage.success(`Deployment(${name}) 删除成功`)
       onDeplRefresh()
-    } catch {
-      // user cancel
+    } catch (e: unknown) {
+      if (e === 'cancel' || e === 'close') return
+      ElMessage.error(e instanceof Error ? e.message : '删除失败')
     }
   }
 
@@ -3877,6 +3924,50 @@
       case 'images':
         openWorkloadImageDialog(row.metadata?.namespace ?? '', row.metadata?.name ?? '', 'deploy')
         break
+    }
+  }
+
+  function jobMoreClick(item: ButtonMoreItem, row: K8sJob) {
+    switch (item.key) {
+      case 'rerun':
+        void confirmRerunJob(row)
+        break
+      case 'delete':
+        void deleteWorkload(
+          'job',
+          row.metadata?.namespace ?? '',
+          row.metadata?.name ?? '',
+          onJobRefresh
+        )
+        break
+    }
+  }
+
+  async function confirmRerunJob(row: K8sJob) {
+    const cluster = String(route.query.cluster ?? '')
+    const ns = row.metadata?.namespace ?? ''
+    const name = row.metadata?.name ?? ''
+    const resourceVersion = row.metadata?.resourceVersion ?? ''
+    if (!cluster || !ns || !name) {
+      ElMessage.warning('Job 信息不完整')
+      return
+    }
+    if (!resourceVersion) {
+      ElMessage.warning('缺少 resourceVersion，无法重新执行')
+      return
+    }
+    try {
+      await ElMessageBox.confirm(`确认重新执行 Job「${name}」?`, '重新执行', {
+        type: 'warning',
+        confirmButtonText: '确认',
+        cancelButtonText: '取消'
+      })
+      await rerunK8sJob(cluster, ns, name, resourceVersion)
+      ElMessage.success('已触发重新执行')
+      onJobRefresh()
+    } catch (e: unknown) {
+      if (e === 'cancel') return
+      ElMessage.error(e instanceof Error ? e.message : '重新执行失败')
     }
   }
 
@@ -4030,7 +4121,7 @@
           namespace: ns,
           ownerReferences: [
             {
-              apiVersion: 'batch/v1',
+              apiVersion: cronJobApiVersion.value,
               kind: 'CronJob',
               name: name,
               uid: row.metadata?.uid
@@ -4047,8 +4138,11 @@
     }
   }
 
-  // ── Global namespace watch ──
+  const activeMenuKey = useClusterDetailActiveMenuKey()
+
+  // ── Global namespace watch（非 immediate：首屏由 kind watch 拉数） ──
   watch(globalNamespace, (ns) => {
+    if (activeMenuKey?.value !== 'workloads') return
     const nsVal = ns || undefined
     if (!props.deployNamespace) {
       deplNamespace.value = ns ?? ''
@@ -4063,16 +4157,7 @@
     else if (kind.value === 'ds') getDsData()
     else if (kind.value === 'job') getJobData()
     else if (kind.value === 'cj') getCjData()
-  }, { immediate: true })
-
-  watch(
-    () => String(route.query.cluster ?? ''),
-    (cluster) => {
-      if (ctxNsOptions.value.length) return
-      void loadLocalNamespaceOptions(cluster)
-    },
-    { immediate: true }
-  )
+  })
 
   watch(
     () => [props.deployDataMode, props.deployNamespace, props.deployLabelSelector] as const,
@@ -4113,7 +4198,17 @@
       }
       const cluster = String(route.query.cluster ?? '')
       if (!cluster) return
-      if (val === 'sts') getStsData()
+      const nsVal = globalNamespace.value || undefined
+      if (!props.deployNamespace) {
+        deplNamespace.value = globalNamespace.value || ''
+      }
+      replaceDeplSearchParams({ namespace: getDeplNamespaceParam() || nsVal })
+      replaceStsSearchParams({ namespace: nsVal })
+      replaceDsSearchParams({ namespace: nsVal })
+      replaceJobSearchParams({ namespace: nsVal })
+      replaceCjSearchParams({ namespace: nsVal })
+      if (val === 'deploy') getDeplData()
+      else if (val === 'sts') getStsData()
       else if (val === 'ds') {
         if (props.dsDataMode === 'logs') {
           void loadDsLogPods()
@@ -4126,6 +4221,16 @@
     { immediate: true }
   )
 
+  function refreshActiveWorkloadTab() {
+    if (kind.value === 'deploy') refreshDeplData()
+    else if (kind.value === 'sts') refreshStsData()
+    else if (kind.value === 'ds') refreshDsData()
+    else if (kind.value === 'job') refreshJobData()
+    else if (kind.value === 'cj') refreshCjData()
+  }
+
+  useSkipFirstActivatedRefresh(refreshActiveWorkloadTab)
+
   // 父组件异步加载 workload 后 mirrorSelector 才会就绪，需补调一次 loadDsLogPods
   watch(
     () => [props.mirrorSelector, props.mirrorNamespace] as const,
@@ -4135,6 +4240,11 @@
       }
     }
   )
+
+  // 集群版本就绪后，重新拉取 CronJob 列表（此前因版本未知被跳过）
+  watch(cronJobApiVersion, (v, prev) => {
+    if (v && !prev && kind.value === 'cj') getCjData()
+  })
 </script>
 
 <style>

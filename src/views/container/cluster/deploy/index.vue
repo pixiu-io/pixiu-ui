@@ -8,7 +8,7 @@
         </ElButton>
         <ElDivider direction="vertical" class="deploy-create-header-divider" />
         <ElBreadcrumb separator="/">
-          <ElBreadcrumbItem :to="{ path: '/container/cluster' }">集群管理</ElBreadcrumbItem>
+          <ElBreadcrumbItem :to="{ path: '/container/plan' }">部署</ElBreadcrumbItem>
           <ElBreadcrumbItem>{{ pageTitle }}</ElBreadcrumbItem>
         </ElBreadcrumb>
         <template v-if="hasPlanId && !isCopyMode">
@@ -83,6 +83,7 @@
       </div>
 
       <div class="deploy-create-footer">
+        <ElButton @click="goBack">{{ isDetailMode ? '返回列表' : '取消' }}</ElButton>
         <ElButton v-if="!isReadOnlyMode && currentStep > 0" :disabled="stepping" @click="prevStep"
           >上一步</ElButton
         >
@@ -93,7 +94,6 @@
           @click="nextStep"
           >下一步</ElButton
         >
-        <ElButton @click="goBack">{{ isDetailMode ? '返回列表' : '取消' }}</ElButton>
         <ElButton
           v-if="!isReadOnlyMode && currentStep === 3"
           type="primary"
@@ -212,6 +212,7 @@
     osImage: '',
     description: '',
     protected: true,
+    changeSelinux: true,
     registryMirror: '',
     nodeNamingMode: 'auto' as 'auto' | 'manual',
     networkInterface: 'eth0',
@@ -223,6 +224,9 @@
     apiServerAddress: '',
     apiServerPort: 6443,
     kubeProxyMode: 'iptables',
+    nfsEnabled: false,
+    nfsStorageClassName: '',
+    nfsStorageDataDir: '',
     metricsServer: true,
     ingressNginx: true,
     nodes: [] as NodeConfig[],
@@ -234,11 +238,11 @@
 
   function detectOsTypeFromImage(osImage: string): string {
     const image = osImage.toLowerCase()
-    if (image.startsWith('centos')) return 'centos'
-    if (image.startsWith('ubuntu')) return 'ubuntu'
-    if (image.startsWith('debian')) return 'debian'
-    if (image.startsWith('openeuler')) return 'openEuler'
-    if (image.startsWith('rocky')) return 'rocky'
+    if (image.startsWith('centos')) return 'CentOS'
+    if (image.startsWith('ubuntu')) return 'Ubuntu'
+    if (image.startsWith('debian')) return 'Debian'
+    if (image.startsWith('openeuler')) return 'OpenEuler'
+    if (image.startsWith('rocky')) return 'RockyLinux'
     return ''
   }
 
@@ -246,7 +250,7 @@
     const authType = node?.auth?.type === 'key' ? 'key' : 'password'
     return {
       name: node?.name ?? '',
-      role: (node?.role ?? []) as ('master' | 'node')[],
+      role: (node?.role ?? []) as ('master' | 'node' | 'storage')[],
       ip: node?.ip ?? '',
       authType,
       user: node?.auth?.password?.user ?? 'root',
@@ -293,6 +297,7 @@
         osImage,
         description: detail.description ?? '',
         protected: k8s.protect ?? cfg.protect ?? true,
+        changeSelinux: k8s.change_selinux ?? cfg.change_selinux ?? true,
         registryMirror: k8s.image_repository ?? cfg.image_repository ?? '',
         nodeNamingMode: setHostname ? 'auto' : 'manual',
         networkInterface: cfg.network?.network_interface ?? 'eth0',
@@ -306,8 +311,11 @@
         ),
         apiServerPort,
         kubeProxyMode: 'iptables',
-        metricsServer: Boolean(cfg.component?.metric_server?.enable),
-        ingressNginx: Boolean(cfg.component?.ingress_nginx?.enable),
+        nfsEnabled: Boolean((cfg.component as any)?.nfs?.enable),
+        nfsStorageClassName: (cfg.component as any)?.nfs?.storage_class_name ?? '',
+        nfsStorageDataDir: (cfg.component as any)?.nfs?.storage_data_dir ?? '',
+        metricsServer: Boolean((cfg.component as any)?.metric_server?.enable),
+        ingressNginx: Boolean((cfg.component as any)?.ingress_nginx?.enable),
         nodes: (detail.nodes ?? []).map(mapNodeFromApi),
         enablePrometheus: Boolean(cfg.component?.prometheus?.enabled),
         enableLogging: Boolean(cfg.component?.logging?.enabled)
@@ -357,11 +365,7 @@
   }
 
   function goBack() {
-    if (isDetailMode.value || isEditMode.value || isCopyMode.value) {
-      router.push('/container/plan')
-    } else {
-      router.push('/container/cluster')
-    }
+    router.push('/container/plan')
   }
 
   function goEdit() {
@@ -446,7 +450,8 @@
           enable_public_ip: Boolean(f.apiServerAddress),
           image_repository: f.registryMirror,
           set_hostname: f.nodeNamingMode === 'auto',
-          protect: f.protected
+          protect: f.protected,
+          change_selinux: f.changeSelinux
         },
         network: {
           network_interface: f.networkInterface,
@@ -468,7 +473,16 @@
           ...(f.enablePrometheus ? { prometheus: { enabled: true } } : {}),
           ...(f.enableLogging ? { logging: { enabled: true } } : {}),
           metric_server: { enable: f.metricsServer },
-          ingress_nginx: { enable: f.ingressNginx }
+          ingress_nginx: { enable: f.ingressNginx },
+          ...(f.nfsEnabled
+            ? {
+                nfs: {
+                  enable: true,
+                  storage_class_name: f.nfsStorageClassName.trim(),
+                  storage_data_dir: f.nfsStorageDataDir.trim()
+                }
+              }
+            : {})
         }
       },
       nodes
@@ -476,9 +490,17 @@
   }
 
   async function onSubmit() {
-    // 新建模式：提交前逐步校验；编辑模式：直接提交，由后端做最终校验
+    // 提交前校验基础配置（含 Kubernetes 版本）；新建模式逐步校验全部步骤
+    const basicRef = getStepRef(0)
+    if (basicRef) {
+      const basicValid = await basicRef.validate()
+      if (!basicValid) {
+        activeTabName.value = '0'
+        return
+      }
+    }
     if (!isEditMode.value) {
-      for (let i = 0; i < 4; i++) {
+      for (let i = 1; i < 4; i++) {
         const ref = getStepRef(i)
         if (ref) {
           const valid = await ref.validate()
@@ -499,6 +521,7 @@
           ElMessage.error('缺少资源版本，无法修改，请重新进入页面后重试')
           return
         }
+        // @ts-ignore
         await fetchUpdatePlan(currentPlanId.value, {
           ...payload,
           resource_version: currentResourceVersion.value
@@ -506,6 +529,7 @@
         ElMessage.success('部署修改成功')
         router.push('/container/plan')
       } else {
+        // @ts-ignore
         await fetchCreatePlan(payload)
         ElMessage.success('部署集群创建成功')
         router.push('/container/plan')
@@ -715,6 +739,7 @@
     margin-top: 10px;
     display: flex;
     justify-content: center;
+    align-items: center;
     gap: 10px;
   }
 </style>

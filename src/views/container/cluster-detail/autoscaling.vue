@@ -93,6 +93,8 @@ import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
 import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
+  import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
+  import { useClusterDetailNamespaceRefresh } from '@/hooks/core/useClusterDetailNamespaceRefresh'
   import ArtButtonMore, { type ButtonMoreItem } from '@/components/core/forms/art-button-more/index.vue'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
   import { updateK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
@@ -214,14 +216,14 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       return currentMetrics.find((c) => c.type === 'Resource' && c.resource?.name === spec.resource?.name)
     }
     if (t === 'Pods' && spec.pods?.metric?.name) {
-      return currentMetrics.find((c) => c.type === 'Pods' && c.pods?.metric?.name === spec.pods.metric.name)
+      return currentMetrics.find((c) => c.type === 'Pods' && c.pods?.metric?.name === spec.pods!.metric!.name)
     }
     if (t === 'Object' && spec.object?.metric?.name) {
-      return currentMetrics.find((c) => c.type === 'Object' && c.object?.metric?.name === spec.object.metric.name)
+      return currentMetrics.find((c) => c.type === 'Object' && c.object?.metric?.name === spec.object!.metric!.name)
     }
     if (t === 'External' && spec.external?.metric?.name) {
       return currentMetrics.find(
-        (c) => c.type === 'External' && c.external?.metric?.name === spec.external.metric.name
+        (c) => c.type === 'External' && c.external?.metric?.name === spec.external!.metric!.name
       )
     }
     return undefined
@@ -480,8 +482,8 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       : columns.value
   )
 
-  watch(selectedNamespace, (ns) => {
-    replaceSearchParams({ namespace: ns || undefined })
+  useClusterDetailNamespaceRefresh('autoscaling', () => {
+    replaceSearchParams({ namespace: selectedNamespace.value || undefined })
     getData()
   })
 
@@ -501,6 +503,8 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   function onRefresh() {
     refreshData()
   }
+
+  useSkipFirstActivatedRefresh(refreshData)
 
   function onCreateHpaHint() {
     ElMessage.info('请通过集群详情页右上角「YAML创建」提交 HorizontalPodAutoscaler 资源（API 版本 autoscaling/v2）。')

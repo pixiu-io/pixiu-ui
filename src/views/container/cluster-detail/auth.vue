@@ -284,6 +284,8 @@ import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
 import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
+  import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
+  import { useClusterDetailNamespaceRefresh } from '@/hooks/core/useClusterDetailNamespaceRefresh'
   import yaml from 'js-yaml'
   import {
     deleteK8sClusterRole,
@@ -964,7 +966,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     else getSaData()
   })
 
-  watch(selectedNamespace, () => {
+  useClusterDetailNamespaceRefresh('auth', () => {
     if (kind.value === 'role') getRoleData()
     if (kind.value === 'rolebinding') getRbData()
     if (kind.value === 'serviceaccount') getSaData()
@@ -977,6 +979,8 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     },
     { immediate: true }
   )
+
+  useSkipFirstActivatedRefresh(refreshActiveTab)
 </script>
 
 <style>

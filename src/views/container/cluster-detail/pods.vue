@@ -104,10 +104,16 @@
       <template #header>
         <span class="drawer-title">事件查询</span>
       </template>
-      <ElAlert type="info" :closable="false" show-icon class="mb-4">获取 Pod 相关事件（与 dashboard 一致）。</ElAlert>
+      <ElAlert
+        type="info"
+        :closable="false"
+        show-icon
+        class="quota-alert"
+        description="获取 Pod 相关事件（与 dashboard 一致）。"
+      />
       <div class="event-toolbar">
         <ElButton type="primary" @click="loadEventList">查询</ElButton>
-        <ElButton :disabled="!eventSelection.length" @click="batchDeleteEvents">批量删除</ElButton>
+        <ElButton v-ripple :disabled="!eventSelection.length" @click="batchDeleteEvents">批量删除</ElButton>
       </div>
       <ElTable
         v-loading="eventLoading"
@@ -128,7 +134,11 @@
           <template #default="{ row }">{{ row.involvedObject?.name ?? '-' }}</template>
         </ElTableColumn>
         <ElTableColumn prop="count" label="出现次数" width="90" />
-        <ElTableColumn prop="message" label="内容" min-width="220" show-overflow-tooltip />
+        <ElTableColumn label="内容" min-width="220" :class-name="K8S_EVENT_MESSAGE_CELL_CLASS">
+          <template #default="{ row }">
+            <div class="k8s-event-message">{{ row.message?.trim() ? row.message : '-' }}</div>
+          </template>
+        </ElTableColumn>
       </ElTable>
       <div class="event-pagination">
         <ElPagination
@@ -203,9 +213,20 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute, useRouter } from 'vue-router'
   import { buildClusterRouteQuery } from '@/utils/navigation/cluster-query'
   import { useTable } from '@/hooks/core/useTable'
+  import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
+  import { useWatchAfterTableInit } from '@/hooks/core/useWatchAfterTableInit'
+  import { useClusterDetailActiveMenuKey } from '@/hooks/core/useClusterDetailNamespaceRefresh'
   import { deleteK8sEvent, fetchKubeRawEventList } from '@/api/kubernetes/events'
-  import { deleteK8sPod, fetchK8sPod, fetchK8sPodList, type K8sPod } from '@/api/kubernetes/pod'
+  import {
+    deleteK8sPod,
+    fetchK8sPod,
+    fetchK8sPodList,
+    type K8sPod
+  } from '@/api/kubernetes/pod'
+  import { PixiuApiError } from '@/api/container'
   import { formatNodeCreationTime } from '@/utils/kubernetes/nodeDisplay'
+  import { formatPodDisplayStatus, isPodCompleted, podStatusTagType } from '@/utils/kubernetes/podDisplay'
+  import { K8S_EVENT_MESSAGE_CELL_CLASS } from '@/utils/kubernetes/eventDisplay'
   import { clusterDetailNamespaceKey } from './context'
   import PodRemoteWebshell from './components/pod-remote-webshell.vue'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
@@ -246,17 +267,6 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
 
   const yamlVisible = ref(false)
   const podRemoteWebshellRef = ref<InstanceType<typeof PodRemoteWebshell> | null>(null)
-
-  function formatPodStatusText(row: K8sPod): string {
-    return row.status?.phase || '未知'
-  }
-
-  function podStatusTagType(text: string): 'success' | 'warning' | 'info' | 'danger' {
-    if (text === 'Running') return 'success'
-    if (text === 'Pending') return 'warning'
-    if (text === 'Failed') return 'danger'
-    return 'info'
-  }
 
   function formatRestartCount(row: K8sPod): number {
     return (row.status?.containerStatuses ?? []).reduce((sum, c) => sum + (c.restartCount ?? 0), 0)
@@ -332,22 +342,37 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
             data: { records: [] as (K8sPod & { rowKey?: string })[], total: 0, current: 1, size: params.size }
           }
         }
-        const { items, total } = await fetchK8sPodList(cluster, {
-          page: params.current,
-          limit: params.size,
-          namespace: params.namespace || undefined,
-          name: (params.name ?? '').trim() || undefined
+        // 拉取全部 pod（不带 fieldSelector），本地模糊搜索
+        const { items: allItems } = await fetchK8sPodList(cluster, {
+          page: 1,
+          limit: 999999,
+          namespace: params.namespace || undefined
         })
-        const records = items.map((row, i) => ({
+
+        // 本地模糊筛选
+        const keyword = (params.name ?? '').trim().toLowerCase()
+        const filtered = keyword
+          ? allItems.filter((p) => (p.metadata?.name ?? '').toLowerCase().includes(keyword))
+          : allItems
+
+        // 本地分页
+        const start = (params.current - 1) * params.size
+        const end = start + params.size
+        const records = filtered.slice(start, end).map((row, i) => ({
           ...row,
           rowKey: `${row.metadata?.namespace ?? 'default'}:${row.metadata?.name ?? `r-${i}`}`
         }))
         return {
           code: 200,
-          data: { records, total, current: params.current, size: params.size }
+          data: { records, total: filtered.length, current: params.current, size: params.size }
         }
       },
-      apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
+      apiParams: {
+        current: 1,
+        size: 10,
+        name: undefined,
+        namespace: selectedNamespace.value || undefined
+      },
       columnsFactory: () => [
         { type: 'selection', width: 30 },
         {
@@ -401,7 +426,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
           label: '状态',
           width: 110,
           formatter: (row: K8sPod) => {
-            const text = formatPodStatusText(row)
+            const text = formatPodDisplayStatus(row)
             return h(ElTag, { type: podStatusTagType(text), size: 'small' }, () => text)
           }
         },
@@ -413,7 +438,8 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
             const statuses = row.status?.containerStatuses ?? []
             const total = statuses.length || (row.spec?.containers?.length ?? 0)
             const ready = statuses.filter((c) => c.ready).length
-            const ok = total > 0 && ready === total
+            const completed = isPodCompleted(row)
+            const ok = completed || (total > 0 && ready === total)
             const valueLine = h('div', { style: 'display:flex;align-items:center;gap:4px' }, [
               h(
                 'span',
@@ -532,7 +558,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
             const containers = row.spec?.containers ?? []
             let cpuReqM = 0, cpuLimM = 0, memReqB = 0, memLimB = 0
             let hasCpuReq = false, hasCpuLim = false, hasMemReq = false, hasMemLim = false
-            for (const c of containers) {
+            for (const c of containers as any[]) {
               const cr = c.resources?.requests?.cpu
               const cl = c.resources?.limits?.cpu
               const mr = c.resources?.requests?.memory
@@ -594,10 +620,18 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       : columns.value
   )
 
-  watch(selectedNamespace, (ns) => {
-    replaceSearchParams({ namespace: ns || undefined })
-    getData()
-  }, { immediate: true })
+  const activeMenuKey = useClusterDetailActiveMenuKey()
+  useWatchAfterTableInit(
+    selectedNamespace,
+    (ns) => {
+      if (activeMenuKey?.value !== 'pods') return
+      replaceSearchParams({ namespace: ns || undefined })
+      getData()
+    },
+    { immediate: true }
+  )
+
+  useSkipFirstActivatedRefresh(refreshData)
 
   function onSelectionChange(rows: K8sPod[]) {
     selectedPods.value = rows
@@ -631,7 +665,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
 
   function runSearch() {
     const name = (searchForm.value.name ?? '').trim() || undefined
-    replaceSearchParams({ name })
+    replaceSearchParams({ name, namespace: selectedNamespace.value || undefined })
     getData()
   }
 
@@ -689,6 +723,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       onRefresh()
     } catch (e: unknown) {
       if (e === 'cancel') return
+      if (e instanceof PixiuApiError && e.notified) return
       ElMessage.error(e instanceof Error ? e.message : '删除失败')
     }
   }
@@ -829,7 +864,8 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       }
       ElMessage.success('已删除')
       await loadEventList()
-    } catch (e: unknown) {
+    } catch (e: any) {
+      if (e instanceof PixiuApiError && e.notified) return
       ElMessage.error(e instanceof Error ? e.message : '删除失败')
     }
   }

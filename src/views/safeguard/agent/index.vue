@@ -140,7 +140,8 @@
 
   // 搜索表单
   const searchForm = ref({
-    nameSelector: '',
+    // @ts-ignore
+      nameSelector: '',
     status: '' as string | number,
     userId: '',
   })
@@ -181,7 +182,8 @@
         const { total, items } = await fetchAgentList({
           page: params.current,
           limit: params.size,
-          nameSelector: searchForm.value.nameSelector || undefined,
+          // @ts-ignore
+      nameSelector: searchForm.value.nameSelector || undefined,
           userId: searchForm.value.userId ? Number(searchForm.value.userId) : undefined,
           status: searchForm.value.status !== '' ? Number(searchForm.value.status) : undefined,
         })
@@ -255,6 +257,7 @@
 
   function handleSearch() {
     replaceSearchParams({
+      // @ts-ignore
       nameSelector: searchForm.value.nameSelector.trim() || undefined,
       userId: searchForm.value.userId ? Number(searchForm.value.userId) : undefined,
       status: searchForm.value.status !== '' ? Number(searchForm.value.status) : undefined,
@@ -263,7 +266,8 @@
   }
 
   function handleReset() {
-    searchForm.value = { nameSelector: '', status: '', userId: '' }
+    searchForm.value = { // @ts-ignore
+      nameSelector: '', status: '', userId: '' }
     resetSearchParams()
   }
 

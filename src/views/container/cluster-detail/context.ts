@@ -20,6 +20,7 @@ export interface ClusterDetailContext {
   nodeCount: number
   nodeReady: number
   nodeNotReady: number
+  permissionId: number
   /** 由 name 派生的稳定整数，用于 Mock 图表/表格 */
   seed: number
 }
@@ -37,6 +38,10 @@ export const clusterDetailNamespaceKey: InjectionKey<ClusterDetailNamespaceConte
 
 /** 刷新当前集群详情（别名、保护状态等变更后） */
 export const clusterDetailRefreshKey: InjectionKey<() => Promise<void>> = Symbol('clusterDetailRefresh')
+
+/** 集群详情左侧菜单当前激活项（如 config、pods、workloads） */
+export const clusterDetailActiveMenuKey: InjectionKey<ComputedRef<string>> =
+  Symbol('clusterDetailActiveMenuKey')
 
 /** 将集群名哈希为稳定非负整数，供演示数据使用 */
 export function clusterNameSeed(name: string): number {

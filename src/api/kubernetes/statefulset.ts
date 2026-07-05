@@ -38,7 +38,7 @@ function stsBase(cluster: string, namespace: string) {
 
 export async function fetchK8sStatefulSetList(
   cluster: string,
-  params: { page: number; limit: number; namespace?: string; name?: string }
+  params: { page: number; limit: number; namespace?: string }
 ): Promise<{ items: K8sStatefulSet[]; total: number }> {
   const base = params.namespace
     ? `/pixiu/proxy/${encodeURIComponent(cluster)}/apis/apps/v1/namespaces/${encodeURIComponent(params.namespace)}/statefulsets`
@@ -46,8 +46,7 @@ export async function fetchK8sStatefulSetList(
   return fetchKubeListPage<K8sStatefulSet>({
     path: base,
     page: params.page,
-    limit: params.limit,
-    fieldSelector: params.name ? `metadata.name=${params.name}` : undefined
+    limit: params.limit
   })
 }
 
@@ -59,19 +58,19 @@ export async function fetchK8sStatefulSet(cluster: string, namespace: string, na
 }
 
 export async function deleteK8sStatefulSet(cluster: string, namespace: string, name: string): Promise<void> {
-  await kubeProxyAxios.delete(`${stsBase(cluster, namespace)}/${encodeURIComponent(name)}`)
+  await kubeProxyAxios.delete(`${stsBase(cluster, namespace)}/${encodeURIComponent(name)}`, { skipErrorNotification: true } as any)
 }
 
 export async function patchK8sStatefulSet(cluster: string, namespace: string, name: string, patch: object): Promise<K8sStatefulSet> {
   const { data } = await kubeProxyAxios.patch<K8sStatefulSet>(
     `${stsBase(cluster, namespace)}/${encodeURIComponent(name)}`,
     patch,
-    { headers: { 'Content-Type': 'application/merge-patch+json' } }
+    { headers: { 'Content-Type': 'application/merge-patch+json' }, skipErrorNotification: true } as any
   )
   return data
 }
 
 export async function createK8sStatefulSet(cluster: string, namespace: string, body: object): Promise<K8sStatefulSet> {
-  const { data } = await kubeProxyAxios.post<K8sStatefulSet>(stsBase(cluster, namespace), body)
+  const { data } = await kubeProxyAxios.post<K8sStatefulSet>(stsBase(cluster, namespace), body, { skipErrorNotification: true } as any)
   return data
 }

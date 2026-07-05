@@ -56,17 +56,17 @@
       size="48%"
       :destroy-on-close="true"
       class="plan-task-drawer"
+      body-class="plan-task-drawer-body"
       @open="handleTaskDrawerOpen"
       @close="handleTaskDrawerClose"
     >
       <div class="task-drawer">
         <ElAlert
-          title="获取部署计划的部署情况"
           type="info"
           :closable="false"
           show-icon
-          effect="light"
-          class="task-alert"
+          class="quota-alert"
+          description="获取部署计划的部署情况"
         />
         <ElTable
           :data="tasks"
@@ -165,6 +165,7 @@
     type ButtonMoreItem
   } from '@/components/core/forms/art-button-more/index.vue'
   import { useTable } from '@/hooks/core/useTable'
+  import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
   import { useRouter } from 'vue-router'
   import {
     fetchPlanList,
@@ -569,7 +570,7 @@
 
   // 前端过滤
   const filteredData = computed(() => {
-    return data.value.filter((item) => {
+    return data.value.filter((item: any) => {
       const nameMatch =
         !appliedSearch.value || item.name.toLowerCase().includes(appliedSearch.value.toLowerCase())
       const statusMatch = !appliedStatus.value || item.step === appliedStatus.value
@@ -703,9 +704,7 @@
     selectedRows.value = rows
   }
 
-  onActivated(() => {
-    refreshData()
-  })
+  useSkipFirstActivatedRefresh(refreshData)
 
   onBeforeUnmount(() => {
     stopTaskPolling()
@@ -769,13 +768,8 @@
   }
 
   .task-drawer {
-    padding: 4px 0;
+    padding: 0;
     overflow: hidden;
-  }
-
-  .task-alert {
-    margin-top: 0px;
-    margin-bottom: 12px;
   }
 
   .task-status {

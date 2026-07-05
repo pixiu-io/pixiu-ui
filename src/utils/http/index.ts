@@ -17,17 +17,20 @@
 import axios, { AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import { useUserStore } from '@/store/modules/user'
 import { ApiStatus } from './status'
-import { HttpError, handleError, showError, showSuccess } from './error'
+import { HttpError, handleError, showError, showSuccess, shortenError } from './error'
 import { $t } from '@/locales'
 import { BaseResponse } from '@/types'
 import { router } from '@/router'
+import { RoutesAlias } from '@/router/routesAlias'
 
 /** 请求配置常量 */
 const REQUEST_TIMEOUT = 15000
 const MAX_RETRIES = 0
 const RETRY_DELAY = 1000
 const UNAUTHORIZED_DEBOUNCE_TIME = 3000
-const UNAUTHORIZED_PATH = '/exception/401'
+const UNAUTHORIZED_PATH = RoutesAlias.Login
+/** 登录接口：业务码 401 表示密码错误，不应走会话失效的全局处理 */
+const LOGIN_API_PATH = '/pixiu/users/login'
 
 /** 401防抖状态 */
 let isUnauthorizedErrorShown = false
@@ -86,13 +89,22 @@ axiosInstance.interceptors.request.use(
   }
 )
 
+/** 是否为登录请求（密码错误等业务 401 由登录页自行提示） */
+function isLoginRequest(url?: string): boolean {
+  return !!url?.includes(LOGIN_API_PATH)
+}
+
 /** 响应拦截器 */
 axiosInstance.interceptors.response.use(
   (response: AxiosResponse<BaseResponse>) => {
     const { code, message: msg } = response.data
     if (code === ApiStatus.success) return response
-    if (code === ApiStatus.unauthorized) handleUnauthorizedError(msg)
-    throw createHttpError(msg || $t('httpMsg.requestFailed'), code)
+    if (code === ApiStatus.unauthorized && !isLoginRequest(response.config.url)) {
+      handleUnauthorizedError(msg)
+    }
+    // 业务错误也进行消息精简
+    const finalMsg = shortenError(msg || $t('httpMsg.requestFailed'), code)
+    throw createHttpError(finalMsg, code)
   },
   (error) => {
     if (error.response?.status === ApiStatus.unauthorized) handleUnauthorizedError()
@@ -111,6 +123,7 @@ function handleUnauthorizedError(message?: string): never {
 
   if (!isUnauthorizedErrorShown) {
     isUnauthorizedErrorShown = true
+    showError(error, true)
     redirectToUnauthorizedPage()
 
     unauthorizedTimer = setTimeout(resetUnauthorizedError, UNAUTHORIZED_DEBOUNCE_TIME)
@@ -121,8 +134,13 @@ function handleUnauthorizedError(message?: string): never {
 }
 
 function redirectToUnauthorizedPage() {
-  if (router.currentRoute.value.path === UNAUTHORIZED_PATH) return
-  router.push({ path: UNAUTHORIZED_PATH }).catch(() => undefined)
+  const currentPath = router.currentRoute.value.path
+  if (currentPath === UNAUTHORIZED_PATH || currentPath === '/login') return
+  // 清除登录态
+  const userStore = useUserStore()
+  userStore.setLoginStatus(false)
+  userStore.setToken('')
+  router.push({ name: 'Login' }).catch(() => undefined)
 }
 
 /** 重置401防抖状态 */

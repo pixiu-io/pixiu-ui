@@ -31,12 +31,15 @@
         allow-create
         default-first-option
         :reserve-keyword="false"
-        :disabled="readOnly || lockImmutableFields"
+        :disabled="readOnly"
         @update:model-value="emit('update:form', { ...form, kubernetesVersion: $event })"
       >
         <ElOption v-for="v in k8sVersions" :key="v" :label="v" :value="v" />
       </ElSelect>
-      <div class="form-tip">选择需要的 Kubernetes 版本，如果下拉选择中不存在，可手动输入版本</div>
+      <div class="form-tip"
+        >选择需要的 Kubernetes 版本。如果选择中不存在，则手动输入版本，格式为 1.28.6（不含 v
+        前缀）</div
+      >
     </ElFormItem>
 
     <ElFormItem label="容器运行时" prop="runtime">
@@ -51,7 +54,7 @@
           <ElRadio value="containerd">
             <span class="runtime-label">containerd</span>
           </ElRadio>
-          <ElRadio value="docker" :disabled="k8sGt124">
+          <ElRadio value="docker">
             <span class="runtime-label">docker</span>
           </ElRadio>
         </ElRadioGroup>
@@ -59,11 +62,14 @@
           Kubernetes 1.24.0 通过 Dockershim 对 Docker 的支持已移除，新建节点的容器运行时请使用
           Containerd
         </div>
+        <div v-if="form.runtime === 'docker' && k8sGt124" class="form-tip form-tip--danger">
+          通过 cri-dockerd 服务对 Docker 进行的支持（不推荐）
+        </div>
         <div class="runtime-custom-dir-row">
           <ElCheckbox
             :model-value="form.customRuntimeDir"
             :disabled="readOnly"
-            @update:model-value="onCustomRuntimeDirChange"
+            @update:model-value="onCustomRuntimeDirChange as any"
           >
             自定义数据目录
           </ElCheckbox>
@@ -152,7 +158,7 @@
         :model-value="form.cni"
         placeholder="请选择 CNI 插件"
         style="width: 240px"
-        :disabled="readOnly || lockImmutableFields"
+        :disabled="readOnly"
         @update:model-value="emit('update:form', { ...form, cni: $event })"
       >
         <ElOption label="Calico" value="calico" />
@@ -300,6 +306,18 @@
         />
         <div class="form-tip">开启后不允许删除该集群</div>
       </ElFormItem>
+      <ElFormItem label="关闭 Selinux">
+        <ElSwitch
+          :model-value="form.changeSelinux"
+          :disabled="readOnly"
+          size="small"
+          @update:model-value="emit('update:form', { ...form, changeSelinux: $event as boolean })"
+        />
+        <div class="form-tip"
+          >开启后将关闭目标主机的 Selinux，推荐开启；如果主机未安装 Selinux（如
+          openEuler），则需要关闭该配置</div
+        >
+      </ElFormItem>
       <ElFormItem label="Kubernetes 镜像仓库">
         <ElInput
           :model-value="form.registryMirror"
@@ -321,11 +339,12 @@
 <script setup lang="ts">
   import type { FormInstance, FormRules } from 'element-plus'
   import { WarningFilled } from '@element-plus/icons-vue'
-  import { fetchPlanDistributions } from '@/api/plan'
+  import { fetchAllDistributions } from '@/api/distribution'
+  import type { DistributionItem } from '@/api/distribution'
 
   export interface NodeConfig {
     name: string
-    role: ('master' | 'node')[]
+    role: ('master' | 'node' | 'storage')[]
     ip: string
     authType: 'password' | 'key'
     user: string
@@ -343,6 +362,7 @@
     osImage: string
     description: string
     protected: boolean
+    changeSelinux: boolean
     registryMirror: string
     nodeNamingMode: 'auto' | 'manual'
     networkInterface: string
@@ -354,6 +374,9 @@
     apiServerAddress: string
     apiServerPort: number
     kubeProxyMode: 'iptables' | 'ipvs'
+    nfsEnabled: boolean
+    nfsStorageClassName: string
+    nfsStorageDataDir: string
     metricsServer: boolean
     ingressNginx: boolean
     nodes: NodeConfig[]
@@ -375,9 +398,9 @@
   const showAdvancedOptions = ref(false)
 
   watch(
-    () => [props.form.registryMirror, props.form.protected] as const,
-    ([rm, pt]) => {
-      if (rm || !pt) showAdvancedOptions.value = true
+    () => [props.form.registryMirror, props.form.protected, props.form.changeSelinux] as const,
+    ([rm, pt, cs]) => {
+      if (rm || !pt || !cs) showAdvancedOptions.value = true
     },
     { immediate: true }
   )
@@ -386,7 +409,7 @@
 
   const formRef = ref<FormInstance>()
 
-  const k8sVersions = ['1.30.3', '1.29.7', '1.28.12', '1.27.16', '1.26.15']
+  const k8sVersions = ['1.34.1', '1.32.2', '1.30.0', '1.28.16', '1.26.15']
 
   const k8sGt124 = computed(() => {
     const v = props.form.kubernetesVersion
@@ -397,19 +420,19 @@
   })
 
   const osLabels: Record<string, string> = {
-    centos: 'CentOS',
-    ubuntu: 'Ubuntu',
-    debian: 'Debian',
-    openEuler: 'OpenEuler',
-    rocky: 'RockyLinux'
+    CentOS: 'CentOS',
+    Ubuntu: 'Ubuntu',
+    Debian: 'Debian',
+    OpenEuler: 'OpenEuler',
+    RockyLinux: 'RockyLinux'
   }
 
   const osIconMap: Record<string, string> = {
-    centos: 'ri:centos-fill',
-    ubuntu: 'simple-icons:ubuntu',
-    debian: 'simple-icons:debian',
-    openEuler: 'ri:openbase-fill',
-    rocky: 'simple-icons:rockylinux'
+    CentOS: 'ri:centos-fill',
+    Ubuntu: 'simple-icons:ubuntu',
+    Debian: 'simple-icons:debian',
+    OpenEuler: 'ri:openbase-fill',
+    RockyLinux: 'simple-icons:rockylinux'
   }
 
   function osIcon(os: string) {
@@ -418,11 +441,11 @@
 
   /** 品牌色 */
   const osBrandColors: Record<string, string> = {
-    centos: '#932279',
-    ubuntu: '#E95420',
-    debian: '#A81D33',
-    openEuler: '#0067C0',
-    rocky: '#10B981'
+    CentOS: '#932279',
+    Ubuntu: '#E95420',
+    Debian: '#A81D33',
+    OpenEuler: '#0067C0',
+    RockyLinux: '#10B981'
   }
 
   function osBrandColor(os: string) {
@@ -430,30 +453,61 @@
   }
 
   const osLoading = ref(false)
-  const distributions = ref<Record<string, string[]>>({})
+  const distributions = ref<DistributionItem[]>([])
 
-  const osTypes = computed(() => Object.keys(distributions.value))
-  const currentOsImages = computed(() => distributions.value[props.form.osType] ?? [])
+  const osTypes = computed(() => {
+    const uniqueFamilies = new Set<string>()
+    distributions.value.forEach(d => uniqueFamilies.add(d.family))
+    return Array.from(uniqueFamilies)
+  })
+
+  const currentOsImages = computed(() => {
+    return distributions.value
+      .filter(d => d.family.toLowerCase() === (props.form.osType || '').toLowerCase())
+      .map(d => d.name)
+  })
 
   onMounted(async () => {
     osLoading.value = true
     try {
-      distributions.value = await fetchPlanDistributions()
+      distributions.value = await fetchAllDistributions()
     } catch {
       // 加载失败时使用默认值
-      distributions.value = {
-        centos: ['centos7'],
-        ubuntu: ['ubuntu20.04', 'ubuntu22.04'],
-        debian: ['debian11'],
-        rocky: ['rocky9.2', 'rocky9.3']
-      }
+      distributions.value = [
+        { id: 1, resourceVersion: 1, family: 'CentOS', name: 'centos7', runner: 'runner-agent-v2' },
+        { id: 2, resourceVersion: 1, family: 'Ubuntu', name: 'ubuntu20.04', runner: 'runner-agent-v3' },
+        { id: 3, resourceVersion: 1, family: 'Ubuntu', name: 'ubuntu22.04', runner: 'runner-agent-v3' },
+        { id: 4, resourceVersion: 1, family: 'Debian', name: 'debian11', runner: 'runner-agent-v3' },
+        { id: 5, resourceVersion: 1, family: 'OpenEuler', name: 'openEuler22.03', runner: 'runner-agent-v3' },
+        { id: 6, resourceVersion: 1, family: 'OpenEuler', name: 'openEuler24.03', runner: 'runner-agent-v3' },
+        { id: 7, resourceVersion: 1, family: 'RockyLinux', name: 'rocky9.2', runner: 'runner-agent-v3' },
+        { id: 8, resourceVersion: 1, family: 'RockyLinux', name: 'rocky9.3', runner: 'runner-agent-v3' }
+      ]
     } finally {
       osLoading.value = false
+    }
+
+    // 数据加载完成后，如果 osType 有值但 osImage 为空，自动设置第一个可用版本
+    if (props.form.osType && !props.form.osImage) {
+      const images = distributions.value
+        .filter(d => d.family.toLowerCase() === props.form.osType.toLowerCase())
+        .map(d => d.name)
+      if (images.length > 0) {
+        // 确保 osType 使用正确的大小写格式
+        const correctFamily = distributions.value.find(d => d.family.toLowerCase() === props.form.osType.toLowerCase())?.family
+        emit('update:form', { 
+          ...props.form, 
+          osType: correctFamily || props.form.osType,
+          osImage: images[0] 
+        })
+      }
     }
   })
 
   function onOsTypeChange(osType: string) {
-    const images = distributions.value[osType] ?? []
+    const images = distributions.value
+      .filter(d => d.family === osType)
+      .map(d => d.name)
     emit('update:form', { ...props.form, osType, osImage: images[0] ?? '' })
   }
 
@@ -548,6 +602,23 @@
     })
   }
 
+  function validateKubernetesVersion(_r: unknown, value: string, cb: (err?: Error) => void) {
+    const v = (value ?? '').trim()
+    if (!v) {
+      cb(new Error('请选择 Kubernetes 版本'))
+      return
+    }
+    if (/^[vV]/.test(v)) {
+      cb(new Error('版本不能以 v 开头，请使用类似 1.23.16 的格式'))
+      return
+    }
+    if (!/^\d+\.\d+\.\d+$/.test(v)) {
+      cb(new Error('版本格式不正确，请使用类似 1.23.16 的格式（不含 v 前缀）'))
+      return
+    }
+    cb()
+  }
+
   function validateCidr(_r: unknown, value: string, cb: (err?: Error) => void) {
     const cidrRe = /^(\d{1,3}\.){3}\d{1,3}\/\d{1,2}$/
     if (!value || !cidrRe.test(value)) {
@@ -588,7 +659,9 @@
 
   const rules: FormRules = {
     name: [{ required: true, message: '请输入集群名称', trigger: 'blur' }],
-    kubernetesVersion: [{ required: true, message: '请选择 Kubernetes 版本', trigger: 'change' }],
+    kubernetesVersion: [
+      { required: true, validator: validateKubernetesVersion, trigger: ['change', 'blur'] }
+    ],
     runtime: [{ required: true, message: '请选择容器运行时', trigger: 'change' }],
     runtimeDir: [{ validator: validateRuntimeDir, trigger: ['blur', 'change'] }],
     osType: [{ required: true, message: '请选择操作系统', trigger: 'change' }],
@@ -769,6 +842,10 @@
     font-size: 12px;
     color: var(--el-text-color-placeholder);
     line-height: 1.5;
+  }
+
+  .form-tip--danger {
+    color: var(--el-color-danger);
   }
 
   .cidr-block {

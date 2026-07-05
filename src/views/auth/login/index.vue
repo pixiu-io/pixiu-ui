@@ -101,6 +101,8 @@
   import { useI18n } from 'vue-i18n'
   import { HttpError } from '@/utils/http/error'
   import { fetchLogin } from '@/api/auth'
+  import { resetRouteInitState } from '@/router/guards/beforeEach'
+  import { resolveLoginRedirect } from '@/utils/navigation/login-redirect'
   import { ElNotification, ElMessage, type FormInstance, type FormRules } from 'element-plus'
   import { useSettingStore } from '@/store/modules/setting'
 
@@ -139,10 +141,22 @@
   }))
 
   const loading = ref(false)
+  let loginSuccessTimer: ReturnType<typeof setTimeout> | null = null
+
+  function clearLoginSuccessNotice() {
+    if (loginSuccessTimer !== null) {
+      clearTimeout(loginSuccessTimer)
+      loginSuccessTimer = null
+    }
+  }
 
   // 登录
   const handleSubmit = async () => {
     if (!formRef.value) return
+
+    clearLoginSuccessNotice()
+
+    let loginApplied = false
 
     try {
       // 表单验证
@@ -172,9 +186,10 @@
 
       // 存储 token 和登录状态
       userStore.setToken(token)
+      loginApplied = true
 
       // 设置用户信息
-      const roleMap: Record<number, string> = { 0: 'R_USER', 1: 'R_ADMIN', 2: 'R_SUPER' }
+      const roleMap: Record<number, string> = { 0: 'R_SUPER', 1: 'R_ADMIN', 2: 'R_USER' }
       userStore.setUserInfo({
         userId: user_id,
         userName: user_name,
@@ -185,13 +200,18 @@
 
       userStore.setLoginStatus(true)
 
-      // 登录成功处理
-      showLoginSuccessNotice()
+      // 重置动态路由状态，避免沿用上次的失败标记；跳转首页或合法 redirect
+      resetRouteInitState()
+      await router.replace(resolveLoginRedirect(route.query.redirect))
 
-      // 获取 redirect 参数，如果存在则跳转到指定页面，否则跳转到首页
-      const redirect = route.query.redirect as string
-      router.push(redirect || '/')
+      // 仅在登录与跳转都成功后再提示
+      showLoginSuccessNotice()
     } catch (error) {
+      clearLoginSuccessNotice()
+      if (loginApplied) {
+        userStore.setLoginStatus(false)
+        userStore.setToken('')
+      }
       if (error instanceof HttpError) {
         ElMessage.error(error.message || '登录失败，请稍后重试')
       } else {
@@ -206,12 +226,14 @@
 
   // 重置拖拽验证
   const resetDragVerify = () => {
-    dragVerify.value.reset()
+    dragVerify.value?.reset()
   }
 
   // 登录成功提示
   const showLoginSuccessNotice = () => {
-    setTimeout(() => {
+    clearLoginSuccessNotice()
+    loginSuccessTimer = setTimeout(() => {
+      loginSuccessTimer = null
       ElNotification({
         title: t('login.success.title'),
         type: 'success',
@@ -219,8 +241,12 @@
         zIndex: 10000,
         message: `${t('login.success.message')}, ${systemName}!`
       })
-    }, 1000)
+    }, 300)
   }
+
+  onBeforeUnmount(() => {
+    clearLoginSuccessNotice()
+  })
 </script>
 
 <style scoped>

@@ -20,7 +20,7 @@ function cmBase(cluster: string, namespace: string) {
 
 export async function fetchK8sConfigMapList(
   cluster: string,
-  params: { page: number; limit: number; namespace?: string; name?: string }
+  params: { page: number; limit: number; namespace?: string }
 ): Promise<{ items: K8sConfigMap[]; total: number }> {
   const base = params.namespace
     ? `/pixiu/proxy/${encodeURIComponent(cluster)}/api/v1/namespaces/${encodeURIComponent(params.namespace)}/configmaps`
@@ -28,8 +28,7 @@ export async function fetchK8sConfigMapList(
   return fetchKubeListPage<K8sConfigMap>({
     path: base,
     page: params.page,
-    limit: params.limit,
-    fieldSelector: params.name ? `metadata.name=${params.name}` : undefined
+    limit: params.limit
   })
 }
 

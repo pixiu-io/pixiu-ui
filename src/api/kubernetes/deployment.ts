@@ -47,7 +47,7 @@ function deployBase(cluster: string, namespace: string) {
 
 export async function fetchK8sDeploymentList(
   cluster: string,
-  params: { page: number; limit: number; namespace?: string; name?: string }
+  params: { page: number; limit: number; namespace?: string }
 ): Promise<{ items: K8sDeployment[]; total: number }> {
   const base = params.namespace
     ? `/pixiu/proxy/${encodeURIComponent(cluster)}/apis/apps/v1/namespaces/${encodeURIComponent(params.namespace)}/deployments`
@@ -55,8 +55,7 @@ export async function fetchK8sDeploymentList(
   return fetchKubeListPage<K8sDeployment>({
     path: base,
     page: params.page,
-    limit: params.limit,
-    fieldSelector: params.name ? `metadata.name=${params.name}` : undefined
+    limit: params.limit
   })
 }
 
@@ -76,7 +75,11 @@ export async function createK8sDeployment(
   namespace: string,
   body: object
 ): Promise<K8sDeployment> {
-  const { data } = await kubeProxyAxios.post<K8sDeployment>(deployBase(cluster, namespace), body)
+  const { data } = await kubeProxyAxios.post<K8sDeployment>(
+    deployBase(cluster, namespace),
+    body,
+    { skipErrorNotification: true } as any
+  )
   return data
 }
 
@@ -86,7 +89,8 @@ export async function deleteK8sDeployment(
   name: string
 ): Promise<void> {
   await kubeProxyAxios.delete(
-    `${deployBase(cluster, namespace)}/${encodeURIComponent(name)}`
+    `${deployBase(cluster, namespace)}/${encodeURIComponent(name)}`,
+    { skipErrorNotification: true } as any
   )
 }
 
@@ -99,7 +103,7 @@ export async function patchK8sDeployment(
   const { data } = await kubeProxyAxios.patch<K8sDeployment>(
     `${deployBase(cluster, namespace)}/${encodeURIComponent(name)}`,
     patch,
-    { headers: { 'Content-Type': 'application/merge-patch+json' } }
+    { headers: { 'Content-Type': 'application/merge-patch+json' }, skipErrorNotification: true } as any
   )
   return data
 }

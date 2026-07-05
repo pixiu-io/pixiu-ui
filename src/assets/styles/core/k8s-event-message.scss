@@ -1,0 +1,20 @@
+/** K8s 事件列表「内容」列：完整换行展示 */
+.k8s-event-message {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--el-text-color-regular);
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.el-table td.k8s-event-message-cell {
+  vertical-align: top;
+}
+
+.el-table td.k8s-event-message-cell > .cell {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: unset !important;
+  line-height: 1.5;
+}

@@ -88,11 +88,7 @@
         </ElRow>
 
         <section class="section-title mt-6">用量概览（近 24 小时）</section>
-        <ElCard
-          v-loading="usageOverviewInitialLoading"
-          shadow="never"
-          class="usage-overview-card"
-        >
+        <ElCard v-loading="usageOverviewInitialLoading" shadow="never" class="usage-overview-card">
           <div class="usage-overview-grid">
             <MetricChartPanel
               title="CPU 利用率（%）"
@@ -214,7 +210,9 @@
                         disabled
                         size="small"
                       />
-                      <span class="info-dl__switch-text">{{ clusterDetail.haMode === 'ha' ? '已开启' : '未开启' }}</span>
+                      <span class="info-dl__switch-text">{{
+                        clusterDetail.haMode === 'ha' ? '已开启' : '未开启'
+                      }}</span>
                     </dd>
                   </div>
                   <div class="info-dl__row">
@@ -237,11 +235,13 @@
                   </div>
                   <div class="info-dl__row">
                     <dt>容器运行时</dt>
-                    <dd>{{ planDetail?.config?.runtime?.runtime || clusterDetail.containerRuntime }}</dd>
+                    <dd>{{
+                      planDetail?.config?.runtime?.runtime || clusterDetail.containerRuntime
+                    }}</dd>
                   </div>
                   <div class="info-dl__row">
                     <dt>集群描述</dt>
-                    <dd>{{ planDetail?.description || ctx.description || '-' }}</dd>
+                    <dd>{{ planDetail?.description || (ctx as any).description || '-' }}</dd>
                   </div>
                 </dl>
               </ElCol>
@@ -270,7 +270,9 @@
                   </div>
                   <div class="info-dl__row">
                     <dt>Service IP 段</dt>
-                    <dd>{{ planDetail?.config?.network?.service_network || basicNetwork.serviceCidr }}</dd>
+                    <dd>{{
+                      planDetail?.config?.network?.service_network || basicNetwork.serviceCidr
+                    }}</dd>
                   </div>
                   <div class="info-dl__row">
                     <dt>容器网络</dt>
@@ -278,7 +280,9 @@
                   </div>
                   <div class="info-dl__row">
                     <dt>kube-proxy 转发模式</dt>
-                    <dd>{{ planDetail?.config?.network?.network_interface || clusterDetail.kubeProxyMode }}</dd>
+                    <dd>{{
+                      planDetail?.config?.network?.network_interface || clusterDetail.kubeProxyMode
+                    }}</dd>
                   </div>
                 </dl>
               </ElCol>
@@ -299,9 +303,9 @@
                       <ElButton
                         link
                         class="info-dl__copy"
-                        @click="navigator.clipboard.writeText(basicNetwork.clusterDns); ElMessage.success('已复制')"
+                        @click="copyText(basicNetwork.clusterDns)"
                       >
-                        <ArtSvgIcon icon="ri:file-copy-line" style="font-size:13px" />
+                        <ArtSvgIcon icon="ri:file-copy-line" style="font-size: 13px" />
                       </ElButton>
                     </dd>
                   </div>
@@ -332,27 +336,6 @@
         <div class="basic-panel">
           <ElCard shadow="never" class="basic-info-card">
             <template #header>
-              <span class="basic-info-card__title">集群 APIServer 信息</span>
-            </template>
-            <div class="info-dl">
-              <div class="info-dl__row">
-                <dt>访问地址</dt>
-                <dd>
-                  <span>{{ apiServerAddr }}</span>
-                  <ElButton
-                    link
-                    class="info-dl__copy"
-                    @click="navigator.clipboard.writeText(apiServerAddr); ElMessage.success('已复制')"
-                  >
-                    <ArtSvgIcon icon="ri:file-copy-line" style="font-size:13px" />
-                  </ElButton>
-                </dd>
-              </div>
-            </div>
-          </ElCard>
-
-          <ElCard shadow="never" class="basic-info-card mt-2">
-            <template #header>
               <span class="basic-info-card__title">用户说明</span>
             </template>
             <div class="info-dl">
@@ -363,36 +346,69 @@
               <div class="info-dl__row">
                 <dt>操作指引</dt>
                 <dd>
-                  <span>请将 Kubeconfig 文件放置于本地 {{ kubeconfigPath }}，或通过环境变量 export KUBECONFIG 指定路径。</span>
-                  <ElButton
-                    link
-                    class="info-dl__copy"
-                    @click="navigator.clipboard.writeText(kubeconfigPath); ElMessage.success('已复制')"
+                  <span
+                    >请将 Kubeconfig 文件放置于本地 {{ kubeconfigPathHint }}，或通过环境变量 export
+                    KUBECONFIG 指定路径。</span
                   >
-                    <ArtSvgIcon icon="ri:file-copy-line" style="font-size:13px" />
+                  <ElButton link class="info-dl__copy" @click="copyText(kubeconfigPathHint)">
+                    <ArtSvgIcon icon="ri:file-copy-line" style="font-size: 13px" />
                   </ElButton>
                 </dd>
               </div>
             </div>
           </ElCard>
-        </div>
-      </ElTabPane>
 
-      <ElTabPane label="监控" name="monitor">
-        <ElRow :gutter="16" class="mt-2">
-          <ElCol :span="12">
-            <ElCard shadow="never">
-              <template #header>API 请求 QPS（Mock）</template>
-              <ArtLineChart height="200px" :data="qpsSeries" :x-axis-data="hourLabels" />
-            </ElCard>
-          </ElCol>
-          <ElCol :span="12">
-            <ElCard shadow="never">
-              <template #header>etcd 延迟 ms（Mock）</template>
-              <ArtLineChart height="200px" :data="etcdSeries" :x-axis-data="hourLabels" />
-            </ElCard>
-          </ElCol>
-        </ElRow>
+          <ElCard shadow="never" class="basic-info-card mt-2">
+            <template #header>
+              <div style="display: flex; align-items: center; justify-content: space-between">
+                <span class="basic-info-card__title">集群 KubeConfig</span>
+                <div class="kubeconfig-actions">
+                  <ElLink
+                    v-if="!kubeconfigVisible"
+                    type="primary"
+                    underline="never"
+                    class="kubeconfig-action"
+                    @click="kubeconfigVisible = true"
+                  >
+                    显示
+                  </ElLink>
+                  <ElLink
+                    v-else
+                    type="primary"
+                    underline="never"
+                    class="kubeconfig-action"
+                    @click="kubeconfigVisible = false"
+                  >
+                    隐藏
+                  </ElLink>
+                  <ElLink
+                    type="primary"
+                    underline="never"
+                    class="kubeconfig-action"
+                    @click="copyKubeconfig"
+                  >
+                    拷贝
+                  </ElLink>
+                  <ElLink
+                    type="primary"
+                    underline="never"
+                    class="kubeconfig-action"
+                    @click="downloadKubeconfig"
+                  >
+                    下载
+                  </ElLink>
+                </div>
+              </div>
+            </template>
+            <div v-loading="kubeconfigLoading" class="kubeconfig-body">
+              <pre v-if="kubeconfigContent && kubeconfigVisible" class="kubeconfig-pre">{{
+                kubeconfigContent
+              }}</pre>
+              <div v-else-if="kubeconfigContent" class="kubeconfig-hidden">KubeConfig 内容已隐藏</div>
+              <ElEmpty v-else description="暂无 KubeConfig 内容" :image-size="80" />
+            </div>
+          </ElCard>
+        </div>
       </ElTabPane>
     </ElTabs>
   </div>
@@ -400,9 +416,17 @@
 
 <script setup lang="ts">
   import { ElMessage } from 'element-plus'
-  import { inject, computed, onUnmounted, ref, watch } from 'vue'
+  import { inject, computed, onActivated, onDeactivated, onUnmounted, ref, watch } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
-  import { fetchProtectCluster, fetchUpdateClusterAlias, fetchGetCluster } from '@/api/container'
+  import {
+    decodeKubeConfigBase64,
+    fetchProtectCluster,
+    fetchUpdateClusterAlias,
+    fetchClusterByName,
+    fetchGetClusterKubeconfig,
+    PixiuApiError,
+    type KubeconfigResponse
+  } from '@/api/container'
   import { fetchPlanWithResources, type PlanResourcesDetail } from '@/api/plan'
   import {
     fetchClusterBasicNetwork,
@@ -413,10 +437,10 @@
     type ClusterOverviewK8sStats
   } from '@/api/kubernetes/cluster-overview-stats'
   import { useClusterNodesUsageMetrics } from '@/hooks/kubernetes/useClusterNodesUsageMetrics'
-  import ArtLineChart from '@/components/core/charts/art-line-chart/index.vue'
   import MetricChartPanel from '@/components/container/metric-chart-panel.vue'
   import ArtRingChart from '@/components/core/charts/art-ring-chart/index.vue'
   import { clusterDetailContextKey, clusterDetailRefreshKey } from './context'
+  import { getCronJobApiVersion } from '@/utils/kubernetes/cronjob'
 
   defineOptions({ name: 'ClusterDetailOverview' })
 
@@ -425,15 +449,23 @@
   const ctxRef = inject(clusterDetailContextKey)
   const refreshCluster = inject(clusterDetailRefreshKey)
   const ctx = computed(() => ctxRef!.value)
+  const cronJobApiVersion = computed(() => getCronJobApiVersion(ctx.value?.version))
 
   const innerTab = ref('main')
 
-  const OVERVIEW_TAB_NAMES = new Set(['main', 'basic', 'api', 'monitor'])
+  const OVERVIEW_ROUTE_NAME = 'ClusterDetailOverview'
+  const isOverviewRoute = computed(() => route.name === OVERVIEW_ROUTE_NAME)
+
+  const OVERVIEW_TAB_NAMES = new Set(['main', 'basic', 'api'])
 
   watch(
     () => route.query.overviewTab,
-    (raw) => {
+    (raw: any) => {
       const t = Array.isArray(raw) ? raw[0] : raw
+      if (typeof t === 'string' && t === 'kubeconfig') {
+        innerTab.value = 'api'
+        return
+      }
       innerTab.value = typeof t === 'string' && OVERVIEW_TAB_NAMES.has(t) ? t : 'main'
     },
     { immediate: true }
@@ -451,20 +483,29 @@
     }
   })
 
-  async function loadClusterResourceOverview() {
+  // 缓存当前已加载的集群概览数据，避免重复请求
+  const loadedOverviewCluster = ref('')
+
+  async function loadClusterResourceOverview(force = false) {
+    if (resourceOverviewLoading.value) return
     const cluster = String(route.query.cluster ?? '')
-    if (!cluster || innerTab.value !== 'main') return
+    if (!cluster || !isOverviewRoute.value) return
+    if (!force && loadedOverviewCluster.value === cluster) return
+
     resourceOverviewLoading.value = true
-    fetchClusterOverviewK8sStats(cluster).then(stats => {
+    try {
+      const stats = await fetchClusterOverviewK8sStats(cluster, force, cronJobApiVersion.value)
       k8sOverview.value = stats
-    }).catch(() => {
+      loadedOverviewCluster.value = cluster
+    } catch {
       k8sOverview.value = {
         nodes: { controlPlane: 0, worker: 0, total: 0 },
         workloads: { deployment: 0, statefulSet: 0, daemonSet: 0, cronJob: 0, job: 0 }
       }
-    }).finally(() => {
+      loadedOverviewCluster.value = ''
+    } finally {
       resourceOverviewLoading.value = false
-    })
+    }
   }
 
   const basicLoading = ref(false)
@@ -488,24 +529,129 @@
   const aliasSaving = ref(false)
   const protectSaving = ref(false)
 
-  const kubeconfigPath = computed(() => `~/.kube/${ctx.value.name || 'config'}`)
-  const apiServerAddr = ref('加载中...')
+  // 缓存当前已加载的基本信息集群，避免重复请求
+  const loadedBasicCluster = ref('')
 
-  function parseKubeConfigServer(kcText: string): string {
-    const match = kcText.match(/server:\s*(\S+)/)
-    return match?.[1] ?? ''
+  async function loadBasicInfo(force = false) {
+    if (basicLoading.value) return
+    const cluster = String(route.query.cluster ?? '')
+    if (!cluster || !isOverviewRoute.value) return
+    if (!force && loadedBasicCluster.value === cluster) return
+
+    basicLoading.value = true
+    // 并行发起统计和网络信息请求
+    try {
+      const [stats, network] = await Promise.all([
+        fetchClusterOverviewK8sStats(cluster, force, cronJobApiVersion.value),
+        fetchClusterBasicNetwork(cluster)
+      ])
+      k8sOverview.value = stats
+      basicNetwork.value = network
+      loadedOverviewCluster.value = cluster
+      loadedBasicCluster.value = cluster
+    } catch {
+      // 失败不更新 loadedBasicCluster，允许重试
+    } finally {
+      basicLoading.value = false
+    }
+
+    fetchClusterDetailInfo(cluster, undefined)
+      .then((detail) => {
+        clusterDetail.value = detail
+      })
+      .catch(() => {})
+
+    if (ctx.value.clusterType === 1 && ctx.value.planId) {
+      planLoading.value = true
+      fetchPlanWithResources(ctx.value.planId)
+        .then((plan) => {
+          planDetail.value = plan
+        })
+        .catch(() => {
+          planDetail.value = null
+        })
+        .finally(() => {
+          planLoading.value = false
+        })
+    }
   }
 
-  async function loadApiServerInfo() {
-    if (!ctx.value.id) return
+  const kubeconfigPathHint = '~/.kube/<下载的kubeconfig>'
+
+  // Kubeconfig 相关状态
+  const kubeconfigLoading = ref(false)
+  const kubeconfigContent = ref('')
+  const kubeconfigVisible = ref(false)
+  const kubeconfigData = ref<KubeconfigResponse | null>(null)
+  const loadedKubeconfigCluster = ref('')
+
+  async function resolveClusterId(): Promise<number> {
+    if (ctx.value.id) return ctx.value.id
+    const name = ctx.value.name
+    if (!name) return 0
+    const item = await fetchClusterByName(name)
+    return item?.id ?? 0
+  }
+
+  function decodeKubeconfigContent(encoded: string): string {
+    if (!encoded) return ''
     try {
-      const cluster = await fetchGetCluster(ctx.value.id)
-      const kcText = (cluster as { kube_config?: string }).kube_config ?? ''
-      const server = parseKubeConfigServer(kcText)
-      if (server) apiServerAddr.value = server
+      return decodeKubeConfigBase64(encoded)
     } catch {
-      // keep default
+      return encoded
     }
+  }
+
+  async function loadKubeconfig(force = false) {
+    if (kubeconfigLoading.value) return
+    const clusterKey = `${ctx.value.name}:${ctx.value.id}`
+    if (!force && loadedKubeconfigCluster.value === clusterKey) return
+
+    kubeconfigLoading.value = true
+    kubeconfigContent.value = ''
+    kubeconfigVisible.value = false
+    try {
+      const clusterId = await resolveClusterId()
+      if (!clusterId) {
+        ElMessage.warning('集群 ID 未就绪，请稍后重试')
+        return
+      }
+
+      const data = await fetchGetClusterKubeconfig(clusterId)
+      kubeconfigData.value = data
+      kubeconfigContent.value = decodeKubeconfigContent(data.content)
+      loadedKubeconfigCluster.value = clusterKey
+    } catch (e: unknown) {
+      kubeconfigContent.value = ''
+      if (e instanceof PixiuApiError && e.notified) return
+      ElMessage.error(e instanceof Error ? e.message : '获取 Kubeconfig 失败')
+    } finally {
+      kubeconfigLoading.value = false
+    }
+  }
+
+  function copyKubeconfig() {
+    if (!kubeconfigContent.value) {
+      ElMessage.warning('暂无 Kubeconfig 内容')
+      return
+    }
+    copyText(kubeconfigContent.value)
+  }
+
+  function downloadKubeconfig() {
+    if (!kubeconfigContent.value) {
+      ElMessage.warning('暂无 Kubeconfig 内容')
+      return
+    }
+
+    const fileName = `${kubeconfigData.value?.cluster_name || ctx.value.name || 'kubeconfig'}.yaml`
+    const blob = new Blob([kubeconfigContent.value], { type: 'text/yaml' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = fileName
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   const STATUS_MAP = {
@@ -526,35 +672,6 @@
   const basicNodeTotal = computed(() =>
     Math.max(ctx.value.nodeCount, k8sOverview.value.nodes.total)
   )
-
-  async function loadBasicInfo() {
-    const cluster = String(route.query.cluster ?? '')
-    if (!cluster || innerTab.value !== 'basic') return
-    basicLoading.value = true
-    // 并行发起所有请求，不互相阻塞
-    Promise.all([
-      fetchClusterOverviewK8sStats(cluster),
-      fetchClusterBasicNetwork(cluster)
-    ]).then(([stats, network]) => {
-      k8sOverview.value = stats
-      basicNetwork.value = network
-    }).catch(() => {}).finally(() => { basicLoading.value = false })
-
-    fetchClusterDetailInfo(cluster, undefined).then(detail => {
-      clusterDetail.value = detail
-    }).catch(() => {})
-
-    if (ctx.value.clusterType === 1 && ctx.value.planId) {
-      planLoading.value = true
-      fetchPlanWithResources(ctx.value.planId).then(plan => {
-        planDetail.value = plan
-      }).catch(() => {
-        planDetail.value = null
-      }).finally(() => {
-        planLoading.value = false
-      })
-    }
-  }
 
   function openAliasDialog() {
     aliasEditValue.value = ctx.value.aliasName
@@ -577,6 +694,7 @@
       const q = { ...route.query, aliasName: name }
       router.replace({ path: route.path, query: q })
     } catch (e: unknown) {
+      if (e instanceof PixiuApiError && e.notified) return
       ElMessage.error(e instanceof Error ? e.message : '更新失败')
     } finally {
       aliasSaving.value = false
@@ -592,6 +710,7 @@
       ElMessage.success(next ? '已开启删除保护' : '已关闭删除保护')
       await refreshCluster?.()
     } catch (e: unknown) {
+      if (e instanceof PixiuApiError && e.notified) return
       ElMessage.error(e instanceof Error ? e.message : '操作失败')
     } finally {
       protectSaving.value = false
@@ -637,7 +756,7 @@
   })
 
   const wlTotal = computed(() =>
-    Object.values(k8sOverview.value.workloads).reduce((a, b) => a + b, 0)
+    Object.values(k8sOverview.value.workloads).reduce((a: any, b: any) => a + b, 0)
   )
   const wlCenterText = computed(() => String(wlTotal.value))
 
@@ -650,17 +769,6 @@
       'var(--el-color-danger)'
     ])
   )
-
-  const hourLabels = computed(() =>
-    Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`)
-  )
-
-  function wave(seed: number, len: number) {
-    return Array.from({ length: len }, (_, i) => {
-      const t = (i / len) * Math.PI * 2
-      return Math.round(35 + seed * 3 + Math.sin(t + seed) * 12 + (i % 5))
-    })
-  }
 
   const clusterName = computed(() => ctx.value.name)
 
@@ -693,38 +801,67 @@
     }, 1500)
   }
 
-  watch(usageChartReady, (ready) => {
+  watch(usageChartReady, (ready: any) => {
     if (ready && !usageChartSilentUpdate.value) scheduleUsageChartSilentUpdate()
   })
 
+  function stopOverviewBackgroundLoads() {
+    stopUsageOverviewRefresh()
+    resetUsageOverviewCharts()
+    usageChartSilentUpdate.value = false
+    if (usageChartAnimateTimer) {
+      clearTimeout(usageChartAnimateTimer)
+      usageChartAnimateTimer = null
+    }
+  }
+
+  /** 仅在概览路由且 KeepAlive 激活时拉取各 Tab 数据，避免切到节点管理等页仍发统计请求 */
+  function syncOverviewTabLoads() {
+    if (!isOverviewRoute.value) {
+      stopOverviewBackgroundLoads()
+      return
+    }
+
+    const cluster = ctx.value.name
+    if (!cluster) return
+
+    const tab = innerTab.value
+    if (tab === 'main') {
+      void loadClusterResourceOverview()
+      startUsageOverviewRefresh()
+    } else {
+      stopOverviewBackgroundLoads()
+    }
+    if (tab === 'basic') void loadBasicInfo()
+    if (tab === 'api') void loadKubeconfig()
+  }
+
   watch(
-    () => [ctx.value.name, innerTab.value] as const,
-    ([cluster, tab]) => {
-      if (tab === 'main' && cluster) {
-        void loadClusterResourceOverview()
-        startUsageOverviewRefresh()
-      } else {
-        stopUsageOverviewRefresh()
-        resetUsageOverviewCharts()
-        usageChartSilentUpdate.value = false
-        if (usageChartAnimateTimer) {
-          clearTimeout(usageChartAnimateTimer)
-          usageChartAnimateTimer = null
-        }
-      }
-      if (tab === 'basic' && cluster) void loadBasicInfo()
-      if (tab === 'api' && cluster) void loadApiServerInfo()
+    () => [ctx.value.name, ctx.value.id, innerTab.value, route.name] as const,
+    () => {
+      syncOverviewTabLoads()
     },
     { immediate: true }
   )
 
-  onUnmounted(() => {
-    stopUsageOverviewRefresh()
-    if (usageChartAnimateTimer) clearTimeout(usageChartAnimateTimer)
+  // 集群版本就绪后，重新加载 CronJob 统计（此前因版本未知被跳过）
+  watch(cronJobApiVersion, (v: any, prev: any) => {
+    if (v && !prev) syncOverviewTabLoads()
   })
 
-  const qpsSeries = computed(() => wave(seed.value + 1, 24).map((n) => n * 8))
-  const etcdSeries = computed(() => wave(seed.value + 3, 24).map((n) => n / 10))
+  onActivated(() => {
+    // watch(immediate:true) 在初次挂载时已执行。
+    // 如果是 KeepAlive 重新激活，且 watch 依赖没变，则手动触发一次同步
+    syncOverviewTabLoads()
+  })
+
+  onDeactivated(() => {
+    stopOverviewBackgroundLoads()
+  })
+
+  onUnmounted(() => {
+    stopOverviewBackgroundLoads()
+  })
 
   const compSummary = computed(() => ({
     total: 18 + (seed.value % 7),
@@ -734,6 +871,11 @@
 
   function go(path: string) {
     router.push({ path: `/container/${path}`, query: { ...route.query } })
+  }
+
+  function copyText(text: string) {
+    void navigator.clipboard.writeText(text)
+    ElMessage.success('已复制')
   }
 </script>
 
@@ -1000,5 +1142,52 @@
   .info-dl__switch-text {
     color: var(--el-text-color-regular);
     font-size: 12px;
+  }
+
+  .kubeconfig-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .kubeconfig-action {
+    display: inline-flex;
+    align-items: center;
+    font-size: 12px;
+  }
+
+  .kubeconfig-action :deep(.el-link__inner) {
+    font-size: 12px;
+  }
+
+  .kubeconfig-body {
+    min-height: 480px;
+  }
+
+  .kubeconfig-hidden {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 440px;
+    padding: 16px;
+    background: var(--el-bg-color-page);
+    border: 1px solid var(--el-border-color-lighter);
+    border-radius: 4px;
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+  }
+
+  .kubeconfig-pre {
+    margin: 0;
+    padding: 16px;
+    background: var(--el-bg-color-page);
+    border: 1px solid var(--el-border-color-lighter);
+    border-radius: 4px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--el-text-color-regular);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    min-height: 440px;
   }
 </style>

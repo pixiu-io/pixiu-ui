@@ -306,7 +306,7 @@
 
   .app-card__footer {
     display: flex;
-    gap: 8px;
+    gap: 10px;
     padding-top: 6px;
     border-top: 1px solid var(--el-border-color-lighter);
   }

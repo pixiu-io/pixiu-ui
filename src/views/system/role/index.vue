@@ -1,87 +1,105 @@
 <!-- 角色管理页面 -->
 <template>
-  <div class="art-full-height">
-    <RoleSearch
-      v-show="showSearchBar"
-      v-model="searchForm"
-      @search="handleSearch"
-      @reset="resetSearchParams"
-    ></RoleSearch>
-
-    <ElCard class="art-table-card" :style="{ 'margin-top': showSearchBar ? '12px' : '0' }">
-      <ArtTableHeader
-        v-model:columns="columnChecks"
-        v-model:showSearchBar="showSearchBar"
-        :loading="loading"
-        @refresh="refreshData"
-      >
-        <template #left>
-          <ElSpace wrap>
-            <ElButton @click="showDialog('add')" v-ripple>新增角色</ElButton>
-          </ElSpace>
-        </template>
-      </ArtTableHeader>
-
-      <!-- 表格 -->
+  <div class="role-page art-full-height" style="padding-top: 10px">
+    <div
+      class="role-toolbar"
+      style="margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between"
+    >
+      <ElButton @click="showDialog('add')" v-ripple>创建角色</ElButton>
+      <div style="display: flex; align-items: center; gap: 8px">
+        <ElInput
+          v-model="searchForm.roleName"
+          clearable
+          placeholder="请输入角色名称"
+          style="width: 240px"
+          @keyup.enter="handleSearch"
+          @clear="resetSearchParams"
+        />
+        <ArtTableHeader v-model:columns="columnChecks" :loading="loading" @refresh="refreshData" />
+      </div>
+    </div>
+    <ElCard class="art-table-card">
       <ArtTable
+        row-key="id"
         :loading="loading"
         :data="data"
         :columns="columns"
         :pagination="pagination"
+        :pagination-options="{ align: 'right' }"
         @pagination:size-change="handleSizeChange"
         @pagination:current-change="handleCurrentChange"
-      >
-      </ArtTable>
+      />
+
+      <RoleDialog
+        v-model:visible="dialogVisible"
+        :type="dialogType"
+        :role-data="currentRoleData"
+        @submit="handleDialogSubmit"
+      />
+
+      <RoleApiDialog
+        v-model:visible="apiDialogVisible"
+        :role-data="currentRoleData"
+        :mode="apiDialogMode"
+        @success="refreshData"
+      />
     </ElCard>
-
-    <!-- 角色编辑弹窗 -->
-    <RoleEditDialog
-      v-model="dialogVisible"
-      :dialog-type="dialogType"
-      :role-data="currentRoleData"
-      @success="refreshData"
-    />
-
-    <!-- 菜单权限弹窗 -->
-    <RolePermissionDialog
-      v-model="permissionDialog"
-      :role-data="currentRoleData"
-      @success="refreshData"
-    />
   </div>
 </template>
 
 <script setup lang="ts">
-  import { ButtonMoreItem } from '@/components/core/forms/art-button-more/index.vue'
   import { useTable } from '@/hooks/core/useTable'
-  import { fetchGetRoleList } from '@/api/system-manage'
-  import ArtButtonMore from '@/components/core/forms/art-button-more/index.vue'
-  import RoleSearch from './modules/role-search.vue'
-  import RoleEditDialog from './modules/role-edit-dialog.vue'
-  import RolePermissionDialog from './modules/role-permission-dialog.vue'
-  import { ElTag, ElMessageBox } from 'element-plus'
+  import {
+    fetchCreateRole,
+    fetchDeleteRole,
+    fetchGetRoleList,
+    fetchGetTenantList,
+    fetchUpdateRole
+  } from '@/api/system-manage'
+  import RoleDialog from './modules/role-dialog.vue'
+  import RoleApiDialog from './modules/role-api-dialog.vue'
+  import { ElLink, ElMessage, ElMessageBox, ElTag } from 'element-plus'
+  import { DialogType } from '@/types'
 
   defineOptions({ name: 'Role' })
 
   type RoleListItem = Api.SystemManage.RoleListItem
-  type RoleSearchFormParams = Api.SystemManage.RoleSearchParams & {
-    daterange?: string[]
-  }
 
-  // 搜索表单
-  const searchForm = ref<RoleSearchFormParams>({
-    roleName: undefined,
-    roleCode: undefined,
-    description: undefined,
-    enabled: undefined,
-    daterange: undefined
+  const dialogType = ref<DialogType>('add')
+  const dialogVisible = ref(false)
+  const apiDialogVisible = ref(false)
+	const apiDialogMode = ref<'api' | 'kubernetes'>('api')
+  const currentRoleData = ref<Partial<RoleListItem>>({})
+
+  const searchForm = ref({
+    roleName: undefined as string | undefined
   })
 
-  const showSearchBar = ref(false)
+  const tenantNameMap = ref<Record<number, string>>({})
 
-  const dialogVisible = ref(false)
-  const permissionDialog = ref(false)
-  const currentRoleData = ref<RoleListItem | undefined>(undefined)
+  async function loadTenantMap() {
+    try {
+      const { records } = await fetchGetTenantList(
+        { current: 1, size: 500 },
+        { skipErrorNotification: true }
+      )
+      const map: Record<number, string> = {}
+      for (const item of records) {
+        map[item.id] = item.tenantName
+      }
+      tenantNameMap.value = map
+    } catch {
+      // ignore
+    }
+  }
+  onMounted(() => { void loadTenantMap() })
+
+  const getTenantTag = (tenantId?: number) => {
+    if (!tenantId) return { type: 'info' as const, text: '全局角色' }
+    const name = tenantNameMap.value[tenantId]
+    if (name) return { type: 'primary' as const, text: name }
+    return { type: 'primary' as const, text: `租户 ${tenantId}` }
+  }
 
   const {
     columns,
@@ -96,145 +114,204 @@
     handleCurrentChange,
     refreshData
   } = useTable({
-    // 核心配置
     core: {
       apiFn: fetchGetRoleList,
       apiParams: {
         current: 1,
-        size: 20
+        size: 10,
+        ...searchForm.value
       },
-      // 排除 apiParams 中的属性
-      excludeParams: ['daterange'],
       columnsFactory: () => [
-        {
-          prop: 'roleId',
-          label: '角色ID',
-          width: 100
-        },
         {
           prop: 'roleName',
           label: '角色名称',
-          minWidth: 120
+          width: 160,
+          formatter: (row) =>
+            h('span', { class: 'role-name', style: { fontSize: '12px' } }, row.roleName)
         },
         {
-          prop: 'roleCode',
-          label: '角色编码',
-          minWidth: 120
-        },
-        {
-          prop: 'description',
-          label: '角色描述',
-          minWidth: 150,
-          showOverflowTooltip: true
-        },
-        {
-          prop: 'enabled',
-          label: '角色状态',
-          width: 100,
+          prop: 'tenantId',
+          label: '租户',
           formatter: (row) => {
-            const statusConfig = row.enabled
-              ? { type: 'success', text: '启用' }
-              : { type: 'warning', text: '禁用' }
-            return h(
-              ElTag,
-              { type: statusConfig.type as 'success' | 'warning' },
-              () => statusConfig.text
-            )
+            const tag = getTenantTag(row.tenantId)
+            return h(ElTag, { type: tag.type, size: 'small' }, () => tag.text)
           }
         },
         {
           prop: 'createTime',
           label: '创建日期',
-          width: 180,
-          sortable: true
+          width: 170,
+          showOverflowTooltip: true,
+          sortable: true,
+          formatter: (row) =>
+            h('span', { class: 'create-time', style: { fontSize: '12px' } }, row.createTime ?? '')
+        },
+        {
+          prop: 'description',
+          label: '描述',
+          minWidth: 160,
+          showOverflowTooltip: true,
+          formatter: (row) =>
+            h('span', { style: { fontSize: '12px' } }, row.description || '-')
         },
         {
           prop: 'operation',
           label: '操作',
-          width: 80,
+          width: 180,
           fixed: 'right',
           formatter: (row) =>
-            h('div', [
-              h(ArtButtonMore, {
-                list: [
-                  {
-                    key: 'permission',
-                    label: '菜单权限',
-                    icon: 'ri:user-3-line'
-                  },
-                  {
-                    key: 'edit',
-                    label: '编辑角色',
-                    icon: 'ri:edit-2-line'
-                  },
-                  {
-                    key: 'delete',
-                    label: '删除角色',
-                    icon: 'ri:delete-bin-4-line',
-                    color: '#f56c6c'
-                  }
-                ],
-                onClick: (item: ButtonMoreItem) => buttonMoreClick(item, row)
-              })
+            h('div', { style: 'display:flex;align-items:center;gap:12px;flex-wrap:nowrap' }, [
+              h(
+                ElLink,
+                {
+                  type: 'primary',
+                  underline: 'never',
+                  style: 'font-size:12px',
+                  onClick: () => showDialog('edit', row)
+                },
+                () => '编辑'
+              ),
+              h(
+                ElLink,
+                {
+                  type: 'primary',
+                  underline: 'never',
+                  style: 'font-size:12px',
+                  onClick: () => showApiDialog(row)
+                },
+                () => '修改权限'
+              ),
+              h(
+                ElLink,
+                {
+                  type: 'primary',
+                  underline: 'never',
+                  style: 'font-size:12px',
+                  onClick: () => deleteRole(row)
+                },
+                () => '删除'
+              )
             ])
         }
       ]
     }
   })
 
-  const dialogType = ref<'add' | 'edit'>('add')
-
-  const showDialog = (type: 'add' | 'edit', row?: RoleListItem) => {
-    dialogVisible.value = true
-    dialogType.value = type
-    currentRoleData.value = row
-  }
-
-  /**
-   * 搜索处理
-   * @param params 搜索参数
-   */
-  const handleSearch = (params: RoleSearchFormParams) => {
-    // 处理日期区间参数，把 daterange 转换为 startTime 和 endTime
-    const { daterange, ...filtersParams } = params
-    const [startTime, endTime] = Array.isArray(daterange) ? daterange : [null, null]
-
-    replaceSearchParams({ ...filtersParams, startTime, endTime })
+  const handleSearch = () => {
+    replaceSearchParams({ roleName: searchForm.value.roleName })
     getData()
   }
 
-  const buttonMoreClick = (item: ButtonMoreItem, row: RoleListItem) => {
-    switch (item.key) {
-      case 'permission':
-        showPermissionDialog(row)
-        break
-      case 'edit':
-        showDialog('edit', row)
-        break
-      case 'delete':
-        deleteRole(row)
-        break
-    }
+  const showDialog = (type: DialogType, row?: RoleListItem): void => {
+    dialogType.value = type
+    currentRoleData.value = row || {}
+    nextTick(() => {
+      dialogVisible.value = true
+    })
   }
 
-  const showPermissionDialog = (row?: RoleListItem) => {
-    permissionDialog.value = true
+  const showApiDialog = (row: RoleListItem, mode: 'api' | 'kubernetes' = 'api'): void => {
+    apiDialogMode.value = mode
     currentRoleData.value = row
+    nextTick(() => {
+      apiDialogVisible.value = true
+    })
   }
 
-  const deleteRole = (row: RoleListItem) => {
-    ElMessageBox.confirm(`确定删除角色"${row.roleName}"吗？此操作不可恢复！`, '删除确认', {
+  const deleteRole = (row: RoleListItem): void => {
+    ElMessageBox.confirm(`确定要删除角色「${row.roleName}」吗？`, '删除角色', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
-      type: 'warning'
-    })
-      .then(() => {
-        // TODO: 调用删除接口
+      type: 'error'
+    }).then(async () => {
+      try {
+        await fetchDeleteRole(row.id)
         ElMessage.success('删除成功')
-        refreshData()
-      })
-      .catch(() => {
-        ElMessage.info('已取消删除')
-      })
+        await refreshData()
+      } catch (e: any) {
+        ElMessage.error(e?.message || '删除失败')
+      }
+    })
+  }
+
+  const handleDialogSubmit = async (data: {
+    roleName: string
+    tenantId?: number
+    description: string
+  }) => {
+    try {
+      if (dialogType.value === 'add') {
+        if (!data.tenantId || data.tenantId <= 0) {
+          ElMessage.warning('请选择租户')
+          return
+        }
+        await fetchCreateRole({
+          name: data.roleName,
+          tenantId: data.tenantId,
+          description: data.description || undefined
+        })
+        ElMessage.success('添加成功')
+      } else {
+        const row = currentRoleData.value
+        await fetchUpdateRole({
+          id: row.id!,
+          resourceVersion: row.resourceVersion ?? 0,
+          name: data.roleName,
+          description: data.description
+        })
+        ElMessage.success('更新成功')
+      }
+      dialogVisible.value = false
+      currentRoleData.value = {}
+      await refreshData()
+    } catch (e: any) {
+      ElMessage.error(e?.message || '操作失败')
+    }
   }
 </script>
+
+<style lang="scss" scoped>
+  .role-page :deep(.role-name),
+  .role-page :deep(.create-time) {
+    font-size: 12px;
+  }
+
+  .role-page :deep(.art-table-card > .el-card__body) {
+    padding-top: 8px;
+    padding-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .role-page :deep(.art-table) {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    height: auto !important;
+    overflow: visible;
+  }
+
+  .role-page :deep(.art-table .el-table) {
+    flex: 1 1 0;
+    min-height: 0;
+    height: 100% !important;
+  }
+
+  .role-page :deep(.custom-pagination) {
+    flex: 0 0 auto;
+    margin-top: 10px;
+    margin-bottom: 0;
+    padding-bottom: 4px;
+    box-sizing: border-box;
+  }
+
+  .role-page :deep(.el-pagination) {
+    padding: 0;
+  }
+
+  .role-toolbar {
+    flex-shrink: 0;
+  }
+</style>

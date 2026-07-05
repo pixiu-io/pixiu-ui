@@ -163,7 +163,6 @@ const targets = [
   'src/views/widgets',
   'src/views/template',
   'src/views/dashboard/analysis',
-  'src/views/dashboard/ecommerce',
   'src/mock/json',
   'src/mock/temp/articleList.ts',
   'src/mock/temp/commentDetail.ts',
@@ -320,6 +319,26 @@ export const systemRoutes: AppRouteRecord = {
       }
     },
     {
+      path: 'tenant',
+      name: 'Tenant',
+      component: '/system/tenant',
+      meta: {
+        title: 'menus.system.tenant',
+        keepAlive: true,
+        roles: ['R_SUPER']
+      }
+    },
+    {
+      path: 'api',
+      name: 'ApiManage',
+      component: '/system/api',
+      meta: {
+        title: 'menus.system.api',
+        keepAlive: true,
+        roles: ['R_SUPER']
+      }
+    },
+    {
       path: 'user-center',
       name: 'UserCenter',
       component: '/system/user-center',
@@ -459,9 +478,6 @@ async function cleanLanguageFiles() {
         if (langData.menus.dashboard) {
           if (langData.menus.dashboard.analysis) {
             delete langData.menus.dashboard.analysis
-          }
-          if (langData.menus.dashboard.ecommerce) {
-            delete langData.menus.dashboard.ecommerce
           }
         }
 

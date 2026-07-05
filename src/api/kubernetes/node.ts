@@ -30,19 +30,19 @@ export interface K8sNode {
 
 export async function fetchK8sNodeList(
   cluster: string,
-  params: { page: number; limit: number; name?: string }
+  params: { page: number; limit: number }
 ): Promise<{ items: K8sNode[]; total: number }> {
   return fetchKubeListPage<K8sNode>({
     path: `/pixiu/proxy/${encodeURIComponent(cluster)}/api/v1/nodes`,
     page: params.page,
-    limit: params.limit,
-    fieldSelector: params.name ? `metadata.name=${params.name}` : undefined
+    limit: params.limit
   })
 }
 
 export async function fetchK8sNode(cluster: string, name: string): Promise<K8sNode> {
   const { data } = await kubeProxyAxios.get<K8sNode>(
-    `/pixiu/proxy/${encodeURIComponent(cluster)}/api/v1/nodes/${encodeURIComponent(name)}`
+    `/pixiu/proxy/${encodeURIComponent(cluster)}/api/v1/nodes/${encodeURIComponent(name)}`,
+    { skipErrorNotification: true } as any
   )
   return data
 }
@@ -53,8 +53,9 @@ export async function patchK8sNode(cluster: string, name: string, body: unknown)
     `/pixiu/proxy/${encodeURIComponent(cluster)}/api/v1/nodes/${encodeURIComponent(name)}`,
     body,
     {
-      headers: { 'Content-Type': 'application/strategic-merge-patch+json' }
-    }
+      headers: { 'Content-Type': 'application/strategic-merge-patch+json' },
+      skipErrorNotification: true
+    } as any
   )
 }
 
@@ -65,6 +66,7 @@ export async function drainK8sNodeFetch(cluster: string, name: string): Promise<
 
 export async function deleteK8sNode(cluster: string, name: string): Promise<void> {
   await kubeProxyAxios.delete(
-    `/pixiu/proxy/${encodeURIComponent(cluster)}/api/v1/nodes/${encodeURIComponent(name)}`
+    `/pixiu/proxy/${encodeURIComponent(cluster)}/api/v1/nodes/${encodeURIComponent(name)}`,
+    { skipErrorNotification: true } as any
   )
 }

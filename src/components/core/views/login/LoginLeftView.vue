@@ -127,10 +127,25 @@
 
     .text-wrap {
       position: absolute;
+      right: 0;
       bottom: 80px;
+      left: 0;
+      z-index: 20;
+      box-sizing: border-box;
       width: 100%;
+      padding: 0 12% 0 8%;
       text-align: center;
       animation: slideInLeft 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+
+      h1,
+      p {
+        max-width: 640px;
+        margin-right: auto;
+        margin-left: auto;
+        line-height: 1.6;
+        overflow-wrap: break-word;
+        word-break: normal;
+      }
 
       h1 {
         font-size: 24px;
@@ -146,6 +161,11 @@
     }
 
     .geometric-decorations {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+
       .geo-element {
         position: absolute;
         opacity: 0;
@@ -348,6 +368,7 @@
         top: 3%;
         right: 3%;
         z-index: 100;
+        pointer-events: auto;
         width: 50px;
         height: 50px;
         cursor: pointer;
@@ -489,6 +510,12 @@
 
       .text-wrap {
         bottom: 40px;
+        padding: 0 14% 0 8%;
+
+        h1,
+        p {
+          max-width: 580px;
+        }
       }
     }
 

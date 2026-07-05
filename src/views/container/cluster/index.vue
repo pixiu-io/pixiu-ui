@@ -1,6 +1,6 @@
 <template>
   <div class="cluster-page art-full-height">
-    <ClusterSearch v-model="searchForm" @search="handleSearch" @reset="handleReset" />
+    <ClusterSearch v-model="searchForm" @search="handleSearch as any" @reset="handleReset" />
 
     <ElCard class="art-table-card">
       <ArtTableHeader v-model:columns="columnChecks" :loading="loading" @refresh="refreshData">
@@ -44,6 +44,7 @@
     </ElCard>
 
     <ClusterMonitor v-model="monitorVisible" :cluster="monitorCluster" />
+    <ClusterCloudShell ref="cloudShellRef" />
 
     <!-- 自建集群部署进度抽屉 -->
     <ElDrawer
@@ -52,17 +53,17 @@
       size="48%"
       :destroy-on-close="true"
       class="plan-task-drawer"
+      body-class="plan-task-drawer-body"
       @open="handleTaskDrawerOpen"
       @close="handleTaskDrawerClose"
     >
       <div class="task-drawer">
         <ElAlert
-          title="获取部署计划的部署情况"
           type="info"
           :closable="false"
           show-icon
-          effect="light"
-          class="task-alert"
+          class="quota-alert"
+          description="获取部署计划的部署情况"
         />
         <ElTable
           :data="tasks"
@@ -148,7 +149,7 @@
       <div class="rename-form">
         <div class="rename-row">
           <span class="rename-label">原名称</span>
-          <span class="rename-value">{{ renameRow?.aliasName }}</span>
+          <span class="rename-value">{{ renameRow?.aliasName || '-' }}</span>
         </div>
         <div class="rename-row">
           <span class="rename-label">新名称</span>
@@ -189,31 +190,61 @@
     type ButtonMoreItem
   } from '@/components/core/forms/art-button-more/index.vue'
   import { useTable } from '@/hooks/core/useTable'
+  import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
   import { useRouter } from 'vue-router'
   import ClusterSearch from './modules/cluster-search.vue'
   import ClusterAddDialog from './modules/cluster-add-dialog.vue'
   import ClusterMonitor from './modules/cluster-monitor.vue'
+  import ClusterCloudShell from './modules/cluster-cloud-shell.vue'
   import {
     fetchClusterList,
     fetchDeleteCluster,
+    fetchGetCluster,
     fetchUpdateClusterAlias,
-    fetchProtectCluster
+    fetchProtectCluster,
+    PixiuApiError
   } from '@/api/container'
   import { fetchDestroyPlan, fetchPlanTasks } from '@/api/plan'
   import { confirmDestroyPlan } from '../utils/destroy-plan-dialog'
   import type { ClusterItem } from '@/api/container'
   import type { PlanTask } from '@/api/plan'
   import { setClusterAliasCache } from '@/utils/navigation/cluster-query'
+  import { useUserStore } from '@/store/modules/user'
 
   defineOptions({ name: 'Cluster' })
 
   const router = useRouter()
+  const userStore = useUserStore()
+  const cloudShellRef = ref<InstanceType<typeof ClusterCloudShell> | null>(null)
 
   /** 集群详情 URL：cluster + aliasName */
   function clusterDetailQuery(row: ClusterItem) {
     const aliasName = row.aliasName || row.name
     setClusterAliasCache(row.name, aliasName)
     return { cluster: row.name, aliasName }
+  }
+
+  /** 先校验集群详情可访问（GET /pixiu/clusters/:id），成功后再跳转 */
+  async function ensureClusterDetailThen(
+    row: ClusterItem,
+    navigate: () => void
+  ): Promise<void> {
+    try {
+      await fetchGetCluster(row.id)
+      navigate()
+    } catch (e: unknown) {
+      if (e instanceof PixiuApiError && e.notified) return
+      const msg = e instanceof Error ? e.message : '获取集群详情失败'
+      ElMessage.error(msg)
+    }
+  }
+
+  /** 点击集群名称进入概览 */
+  function goToClusterOverview(row: ClusterItem) {
+    if (isCustomClusterNotRunning(row)) return
+    void ensureClusterDetailThen(row, () => {
+      router.push({ path: '/container/overview', query: clusterDetailQuery(row) })
+    })
   }
 
   /** 集群详情 - 概览页「API Server」标签（与 overview 内 overviewTab=api 一致） */
@@ -464,7 +495,8 @@
   }
 
   function shouldShowDeployProgress(row: ClusterItem): boolean {
-    return isCustomClusterNotRunning(row)
+    // 集群失联（status=4）不展示部署进度入口
+    return isCustomClusterNotRunning(row) && Number(row.status) !== 4
   }
 
   const {
@@ -515,7 +547,7 @@
                         style:
                           'font-size:12px;color:var(--el-color-primary);cursor:not-allowed'
                       },
-                      row.aliasName
+                      row.aliasName || '-'
                     )
                   : h(
                       ElLink,
@@ -523,21 +555,30 @@
                         type: 'primary',
                         underline: 'never',
                         style: 'font-size:12px',
-                        onClick: () =>
-                          router.push({ path: '/container/overview', query: clusterDetailQuery(row) })
+                        onClick: () => goToClusterOverview(row)
                       },
-                      () => row.aliasName
+                      () => row.aliasName || '-'
                     ),
+                row.permissionId
+                  ? h(
+                      ElTag,
+                      { type: 'warning', size: 'small', style: 'font-size: 10px' },
+                      () => '授权'
+                    )
+                  : null,
                 h(
                   'span',
                   {
                     class: 'icon-action',
-                    style:
-                      'cursor:pointer;color:var(--el-text-color-secondary);display:inline-flex;align-items:center',
-                    title: '编辑名称',
+                    style: row.permissionId
+                      ? 'cursor:not-allowed;color:var(--el-text-color-disabled);display:inline-flex;align-items:center'
+                      : 'cursor:pointer;color:var(--el-text-color-secondary);display:inline-flex;align-items:center',
+                    title: row.permissionId ? '授权集群不可修改名称' : '编辑名称',
                     onClick: (e: MouseEvent) => {
                       e.stopPropagation()
-                      openRenameDialog(row)
+                      if (!row.permissionId) {
+                        openRenameDialog(row)
+                      }
                     }
                   },
                   [h(Edit, { style: 'width:12px;height:12px' })]
@@ -673,14 +714,16 @@
           formatter: (row: ClusterItem) =>
             h(ElSwitch, {
               modelValue: row.isProtected,
+              disabled: !!row.permissionId,
               loading: protectingIds.value.has(row.id),
-              onChange: async (val: boolean) => {
+              onChange: async (val: any) => {
                 protectingIds.value.add(row.id)
                 try {
                   await fetchProtectCluster(row.id, row.resourceVersion, val)
                   ElMessage.success(val ? '已开启保护' : '已关闭保护')
                   refreshData()
                 } catch (e: any) {
+                  if (e instanceof PixiuApiError && e.notified) return
                   ElMessage.error(e.message || '操作失败')
                 } finally {
                   protectingIds.value.delete(row.id)
@@ -718,24 +761,30 @@
                 {
                   type: 'primary',
                   underline: 'never',
-                  style: 'font-size:12px',
-                  onClick: () => deleteCluster(row)
+                  style: `font-size:12px;${row.permissionId ? 'cursor:not-allowed;color:var(--el-text-color-disabled)' : ''}`,
+                  onClick: () => { if (!row.permissionId) deleteCluster(row) }
                 },
                 () => '删除'
               ),
               h(ArtButtonMore, {
                 list: [
                   {
+                    key: 'cloudShell',
+                    label: 'CloudShell',
+                    icon: 'ri:terminal-box-line',
+                    disabled: isCustomClusterNotRunning(row)
+                  },
+                  {
                     key: 'alert',
                     label: '配置告警',
                     icon: 'ri:alarm-warning-line',
-                    disabled: isCustomClusterNotRunning(row)
+                    disabled: isCustomClusterNotRunning(row) || !!row.permissionId
                   },
                   {
                     key: 'logs',
                     label: '采集日志',
                     icon: 'ri:file-list-3-line',
-                    disabled: isCustomClusterNotRunning(row)
+                    disabled: isCustomClusterNotRunning(row) || !!row.permissionId
                   },
                   {
                     key: 'destroy',
@@ -763,6 +812,21 @@
 
   function clusterMoreClick(item: ButtonMoreItem, row: ClusterItem) {
     switch (item.key) {
+      case 'cloudShell': {
+        if (isCustomClusterNotRunning(row)) return
+        const userId = Number(userStore.getUserInfo?.userId || 0)
+        if (!userId) {
+          ElMessage.warning('未获取到当前用户信息，请重新登录后重试')
+          return
+        }
+        cloudShellRef.value?.open({
+          clusterName: row.name,
+          clusterAlias: row.aliasName || row.name,
+          clusterId: row.id,
+          userId
+        })
+        break
+      }
       case 'alert':
         if (isCustomClusterNotRunning(row)) return
         openClusterTab(row, 'alert')
@@ -819,6 +883,7 @@
       renameVisible.value = false
       refreshData()
     } catch (e: any) {
+      if (e instanceof PixiuApiError && e.notified) return
       ElMessage.error(e.message || '修改失败')
     } finally {
       renameLoading.value = false
@@ -870,6 +935,7 @@
       refreshData()
     } catch (e: unknown) {
       if (e === 'cancel') return
+      if (e instanceof PixiuApiError && e.notified) return
       ElMessage.error(getErrorMessage(e, '删除失败'))
     }
   }
@@ -922,13 +988,7 @@
     }
   }
 
-  onMounted(() => {
-    refreshData()
-  })
-
-  onActivated(() => {
-    refreshData()
-  })
+  useSkipFirstActivatedRefresh(refreshData)
 
   onBeforeUnmount(() => {
     stopTaskPolling()
@@ -971,13 +1031,8 @@
   }
 
   .task-drawer {
-    padding: 4px 0;
+    padding: 0;
     overflow: hidden;
-  }
-
-  .task-alert {
-    margin-top: 0;
-    margin-bottom: 12px;
   }
 
   .task-status {

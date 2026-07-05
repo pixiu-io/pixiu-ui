@@ -144,6 +144,8 @@ import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
 import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
+  import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
+  import { useClusterDetailNamespaceRefresh } from '@/hooks/core/useClusterDetailNamespaceRefresh'
   import {
     fetchK8sConfigMapList,
     fetchK8sConfigMap,
@@ -392,19 +394,27 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       apiFn: async (params: CmParams) => {
         const cluster = String(route.query.cluster ?? '')
         if (!cluster) return { code: 200, data: { records: [] as (K8sConfigMap & { rowKey: string })[], total: 0, current: 1, size: params.size } }
-        const { items, total } = await fetchK8sConfigMapList(cluster, {
-          page: params.current, limit: params.size,
-          namespace: selectedNamespace.value || undefined,
-          name: (params.name ?? '').trim() || undefined
+        // 拉取全部资源（不带 fieldSelector），本地模糊搜索
+        const { items: allItems } = await fetchK8sConfigMapList(cluster, {
+          page: 1, limit: 999999,
+          namespace: selectedNamespace.value || undefined
         })
-        let list = items.map((d, i) => ({ ...d, rowKey: d.metadata?.uid ?? d.metadata?.name ?? `cm-${i}` }))
+        // 本地模糊筛选
+        const keyword = (params.name ?? '').trim().toLowerCase()
+        const filtered = keyword
+          ? allItems.filter((r) => (r.metadata?.name ?? '').toLowerCase().includes(keyword))
+          : allItems
+        // 本地分页
+        const start = (params.current - 1) * params.size
+        const end = start + params.size
+        let list = filtered.slice(start, end).map((d, i) => ({ ...d, rowKey: d.metadata?.uid ?? d.metadata?.name ?? `cm-${i}` }))
         if (cmSortOrder.value) {
           list = [...list].sort((a, b) => {
             const ta = a.metadata?.creationTimestamp ?? '', tb = b.metadata?.creationTimestamp ?? ''
             return cmSortOrder.value === 'ascending' ? ta.localeCompare(tb) : tb.localeCompare(ta)
           })
         }
-        return { code: 200, data: { records: list, total, current: params.current, size: params.size } }
+        return { code: 200, data: { records: list, total: filtered.length, current: params.current, size: params.size } }
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
       columnsFactory: () => [
@@ -455,7 +465,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   })
 
   const cmVisibleColumns = computed(() =>
-    cmColumns.value.filter((c) => !(selectedNamespace.value && c.prop === 'metadata.namespace'))
+    cmColumns.value.filter((c: any) => !(selectedNamespace.value && c.prop === 'metadata.namespace'))
   )
   function runCmSearch() {
     const name = (cmSearchForm.value.name ?? '').trim() || undefined
@@ -491,19 +501,27 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       apiFn: async (params: SecParams) => {
         const cluster = String(route.query.cluster ?? '')
         if (!cluster) return { code: 200, data: { records: [] as (K8sSecret & { rowKey: string })[], total: 0, current: 1, size: params.size } }
-        const { items, total } = await fetchK8sSecretList(cluster, {
-          page: params.current, limit: params.size,
-          namespace: selectedNamespace.value || undefined,
-          name: (params.name ?? '').trim() || undefined
+        // 拉取全部资源（不带 fieldSelector），本地模糊搜索
+        const { items: allItems } = await fetchK8sSecretList(cluster, {
+          page: 1, limit: 999999,
+          namespace: selectedNamespace.value || undefined
         })
-        let list = items.map((d, i) => ({ ...d, rowKey: d.metadata?.uid ?? d.metadata?.name ?? `sec-${i}` }))
+        // 本地模糊筛选
+        const keyword = (params.name ?? '').trim().toLowerCase()
+        const filtered = keyword
+          ? allItems.filter((r) => (r.metadata?.name ?? '').toLowerCase().includes(keyword))
+          : allItems
+        // 本地分页
+        const start = (params.current - 1) * params.size
+        const end = start + params.size
+        let list = filtered.slice(start, end).map((d, i) => ({ ...d, rowKey: d.metadata?.uid ?? d.metadata?.name ?? `sec-${i}` }))
         if (secSortOrder.value) {
           list = [...list].sort((a, b) => {
             const ta = a.metadata?.creationTimestamp ?? '', tb = b.metadata?.creationTimestamp ?? ''
             return secSortOrder.value === 'ascending' ? ta.localeCompare(tb) : tb.localeCompare(ta)
           })
         }
-        return { code: 200, data: { records: list, total, current: params.current, size: params.size } }
+        return { code: 200, data: { records: list, total: filtered.length, current: params.current, size: params.size } }
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
       columnsFactory: () => [
@@ -552,7 +570,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   })
 
   const secVisibleColumns = computed(() =>
-    secColumns.value.filter((c) => !(selectedNamespace.value && c.prop === 'metadata.namespace'))
+    secColumns.value.filter((c: any) => !(selectedNamespace.value && c.prop === 'metadata.namespace'))
   )
   function runSecSearch() {
     const name = (secSearchForm.value.name ?? '').trim() || undefined
@@ -586,10 +604,17 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     { immediate: true }
   )
 
-  watch(selectedNamespace, () => {
+  useClusterDetailNamespaceRefresh('config', () => {
     if (kind.value === 'cm') getCmData()
     if (kind.value === 'sec') getSecData()
   })
+
+  function refreshActiveConfigTab() {
+    if (kind.value === 'cm') refreshCmData()
+    else refreshSecData()
+  }
+
+  useSkipFirstActivatedRefresh(refreshActiveConfigTab)
 </script>
 
 <style>

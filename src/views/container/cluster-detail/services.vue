@@ -142,6 +142,8 @@ import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
 import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
+  import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
+  import { useClusterDetailNamespaceRefresh } from '@/hooks/core/useClusterDetailNamespaceRefresh'
   import {
     fetchK8sServiceList,
     fetchK8sService,
@@ -238,10 +240,10 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     ])
   }
 
-  function formatSvcPorts(ports: K8sService['spec']['ports']): string {
+  function formatSvcPorts(ports: any[]): string {
     if (!ports?.length) return '-'
     return ports
-      .map((p) => {
+      .map((p: any) => {
         const proto = p.protocol ?? 'TCP'
         if (p.nodePort) return `${p.port}:${p.nodePort}/${proto}`
         return `${p.port}/${proto}`
@@ -350,13 +352,21 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
               size: params.size
             }
           }
-        const { items, total } = await fetchK8sServiceList(cluster, {
-          page: params.current,
-          limit: params.size,
-          namespace: selectedNamespace.value || undefined,
-          name: (params.name ?? '').trim() || undefined
+        // 拉取全部资源（不带 fieldSelector），本地模糊搜索
+        const { items: allItems } = await fetchK8sServiceList(cluster, {
+          page: 1,
+          limit: 999999,
+          namespace: selectedNamespace.value || undefined
         })
-        let list = items.map((d, i) => ({
+        // 本地模糊筛选
+        const keyword = (params.name ?? '').trim().toLowerCase()
+        const filtered = keyword
+          ? allItems.filter((r) => (r.metadata?.name ?? '').toLowerCase().includes(keyword))
+          : allItems
+        // 本地分页
+        const start = (params.current - 1) * params.size
+        const end = start + params.size
+        let list = filtered.slice(start, end).map((d, i) => ({
           ...d,
           rowKey: d.metadata?.uid ?? d.metadata?.name ?? `svc-${i}`
         }))
@@ -369,7 +379,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
         }
         return {
           code: 200,
-          data: { records: list, total, current: params.current, size: params.size }
+          data: { records: list, total: filtered.length, current: params.current, size: params.size }
         }
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
@@ -427,7 +437,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
           label: '端口',
           minWidth: 180,
           formatter: (row: K8sService) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, formatSvcPorts(row.spec?.ports))
+            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, formatSvcPorts(row.spec?.ports as any))
         },
         {
           prop: 'metadata.creationTimestamp',
@@ -486,7 +496,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   })
 
   const svcVisibleColumns = computed(() =>
-    svcColumns.value.filter((c) => !(selectedNamespace.value && c.prop === 'metadata.namespace'))
+    svcColumns.value.filter((c: any) => !(selectedNamespace.value && c.prop === 'metadata.namespace'))
   )
 
   function runSvcSearch() {
@@ -537,13 +547,21 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
               size: params.size
             }
           }
-        const { items, total } = await fetchK8sIngressList(cluster, {
-          page: params.current,
-          limit: params.size,
-          namespace: selectedNamespace.value || undefined,
-          name: (params.name ?? '').trim() || undefined
+        // 拉取全部资源（不带 fieldSelector），本地模糊搜索
+        const { items: allItems } = await fetchK8sIngressList(cluster, {
+          page: 1,
+          limit: 999999,
+          namespace: selectedNamespace.value || undefined
         })
-        let list = items.map((d, i) => ({
+        // 本地模糊筛选
+        const keyword = (params.name ?? '').trim().toLowerCase()
+        const filtered = keyword
+          ? allItems.filter((r) => (r.metadata?.name ?? '').toLowerCase().includes(keyword))
+          : allItems
+        // 本地分页
+        const start = (params.current - 1) * params.size
+        const end = start + params.size
+        let list = filtered.slice(start, end).map((d, i) => ({
           ...d,
           rowKey: d.metadata?.uid ?? d.metadata?.name ?? `ing-${i}`
         }))
@@ -556,7 +574,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
         }
         return {
           code: 200,
-          data: { records: list, total, current: params.current, size: params.size }
+          data: { records: list, total: filtered.length, current: params.current, size: params.size }
         }
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
@@ -644,7 +662,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   })
 
   const ingVisibleColumns = computed(() =>
-    ingColumns.value.filter((c) => !(selectedNamespace.value && c.prop === 'metadata.namespace'))
+    ingColumns.value.filter((c: any) => !(selectedNamespace.value && c.prop === 'metadata.namespace'))
   )
 
   function runIngSearch() {
@@ -736,7 +754,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     else if (val === 'ing') getIngData()
   })
 
-  watch(selectedNamespace, () => {
+  useClusterDetailNamespaceRefresh('services', () => {
     if (kind.value === 'svc') getSvcData()
     if (kind.value === 'ing') getIngData()
   })
@@ -749,6 +767,13 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     },
     { immediate: true }
   )
+
+  function refreshActiveServicesTab() {
+    if (kind.value === 'svc') refreshSvcData()
+    else refreshIngData()
+  }
+
+  useSkipFirstActivatedRefresh(refreshActiveServicesTab)
 </script>
 
 <style>

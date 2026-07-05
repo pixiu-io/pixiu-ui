@@ -39,7 +39,7 @@ export async function confirmDestroyPlan(
             ElCheckbox,
             {
               modelValue: restart.value,
-              'onUpdate:modelValue': (value: boolean) => {
+              'onUpdate:modelValue': (value: any) => {
                 restart.value = value
               }
             },

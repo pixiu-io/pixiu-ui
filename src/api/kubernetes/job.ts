@@ -1,3 +1,4 @@
+import { pixiuAxios } from '@/api/container'
 import { kubeProxyAxios } from '@/api/kubeProxy'
 import { fetchKubeListPage } from './list'
 
@@ -6,6 +7,7 @@ export interface K8sJob {
     name?: string
     namespace?: string
     uid?: string
+    resourceVersion?: string
     creationTimestamp?: string
     labels?: Record<string, string>
     annotations?: Record<string, string>
@@ -32,7 +34,7 @@ function jobBase(cluster: string, namespace: string) {
 
 export async function fetchK8sJobList(
   cluster: string,
-  params: { page: number; limit: number; namespace?: string; name?: string }
+  params: { page: number; limit: number; namespace?: string }
 ): Promise<{ items: K8sJob[]; total: number }> {
   const base = params.namespace
     ? `/pixiu/proxy/${encodeURIComponent(cluster)}/apis/batch/v1/namespaces/${encodeURIComponent(params.namespace)}/jobs`
@@ -40,8 +42,7 @@ export async function fetchK8sJobList(
   return fetchKubeListPage<K8sJob>({
     path: base,
     page: params.page,
-    limit: params.limit,
-    fieldSelector: params.name ? `metadata.name=${params.name}` : undefined
+    limit: params.limit
   })
 }
 
@@ -53,10 +54,26 @@ export async function fetchK8sJob(cluster: string, namespace: string, name: stri
 }
 
 export async function deleteK8sJob(cluster: string, namespace: string, name: string): Promise<void> {
-  await kubeProxyAxios.delete(`${jobBase(cluster, namespace)}/${encodeURIComponent(name)}`)
+  await kubeProxyAxios.delete(`${jobBase(cluster, namespace)}/${encodeURIComponent(name)}`, { skipErrorNotification: true } as any)
 }
 
 export async function createK8sJob(cluster: string, namespace: string, body: object): Promise<K8sJob> {
-  const { data } = await kubeProxyAxios.post<K8sJob>(jobBase(cluster, namespace), body)
+  const { data } = await kubeProxyAxios.post<K8sJob>(jobBase(cluster, namespace), body, { skipErrorNotification: true } as any)
   return data
+}
+
+/** 重新执行 Job（Pixiu kubeproxy：action=rerun） */
+export async function rerunK8sJob(
+  cluster: string,
+  namespace: string,
+  name: string,
+  resourceVersion: string
+): Promise<void> {
+  const res = await pixiuAxios.post(
+    `/pixiu/kubeproxy/clusters/${encodeURIComponent(cluster)}/namespaces/${encodeURIComponent(namespace)}/jobs/${encodeURIComponent(name)}`,
+    undefined,
+    { params: { action: 'rerun', resourceVersion } }
+  )
+  const { code, message } = res.data as { code: number; message?: string }
+  if (code !== 200) throw new Error(message || '操作失败')
 }

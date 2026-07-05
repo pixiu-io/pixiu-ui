@@ -19,12 +19,30 @@
             @visible-change="onClusterSelectVisible"
             @change="onClusterSelectChange"
           >
+            <template #header>
+              <ElInput
+                ref="clusterSearchInputRef"
+                v-model="clusterSearchKeyword"
+                class="cluster-detail-cluster-search"
+                placeholder="搜索集群"
+                clearable
+                @click.stop
+                @keydown.stop
+              >
+                <template #prefix>
+                  <ElIcon><Search /></ElIcon>
+                </template>
+              </ElInput>
+            </template>
             <ElOption
-              v-for="c in clusterSelectOptions"
+              v-for="c in filteredClusterSelectOptions"
               :key="c.name"
               :label="c.aliasName || c.name"
               :value="c.name"
             />
+            <template #empty>
+              <span class="cluster-detail-cluster-empty">无匹配集群</span>
+            </template>
           </ElSelect>
         </div>
         <ElTag :type="statusTag.type" effect="light" class="cluster-detail-status">
@@ -41,7 +59,23 @@
             :loading="nsLoading"
             :fit-input-width="true"
             popper-class="cluster-detail-ns-select-popper"
+            @visible-change="onNamespaceSelectVisibleChange"
           >
+            <template #header>
+              <ElInput
+                ref="namespaceSearchInputRef"
+                v-model="namespaceSearchKeyword"
+                class="cluster-detail-ns-search"
+                placeholder="搜索命名空间"
+                clearable
+                @click.stop
+                @keydown.stop
+              >
+                <template #prefix>
+                  <ElIcon><Search /></ElIcon>
+                </template>
+              </ElInput>
+            </template>
             <template #label="{ label, value }">
               <span style="display: inline-flex; align-items: center; gap: 4px">
                 <span class="ns-selected-label">{{ label }}</span>
@@ -50,22 +84,42 @@
                 >
               </span>
             </template>
-            <ElOption v-for="ns in namespaceOptions" :key="ns" :value="ns" :label="ns">
+            <ElOption v-for="ns in filteredNamespaceOptions" :key="ns" :value="ns" :label="ns">
               <span style="display: inline-flex; align-items: center; gap: 0">
                 <span class="ns-option-name">{{ ns }}</span>
                 <span v-if="isSystemNamespace(ns)" class="ns-system-tag">系统</span>
               </span>
             </ElOption>
+            <template #empty>
+              <span class="cluster-detail-ns-empty">无匹配命名空间</span>
+            </template>
           </ElSelect>
+          <ElTag v-if="ctx.permissionId" type="success" effect="plain" style="margin-left: 8px">
+            授权
+          </ElTag>
         </div>
       </div>
       <div class="cluster-detail-header__right">
-        <ElButton v-ripple :disabled="!ctx.name" @click="yamlCreateVisible = true"
+        <ElButton
+          link
+          type="primary"
+          class="cluster-detail-remote-login-btn"
+          :disabled="cloudShellDisabled"
+          @click="openCloudShell"
+        >
+          连接集群
+        </ElButton>
+        <ElButton
+          v-ripple
+          class="cluster-detail-header-action-btn"
+          :disabled="!ctx.name"
+          @click="yamlCreateVisible = true"
           >YAML创建资源</ElButton
         >
       </div>
     </header>
 
+    <ClusterCloudShell ref="cloudShellRef" />
     <ClusterYamlCreateDialog v-model:visible="yamlCreateVisible" :cluster="ctx.name" />
 
     <div class="cluster-detail-body">
@@ -117,6 +171,7 @@
             <template #title>
               <span>监控告警</span>
             </template>
+            <ElMenuItem index="datasources">数据源</ElMenuItem>
             <ElMenuItem index="logs">
               <span>日志</span>
               <span class="menu-new-tag">NEW</span>
@@ -129,9 +184,11 @@
       </aside>
 
       <main class="cluster-detail-main">
-        <RouterView v-slot="{ Component }">
+        <RouterView v-slot="{ Component, route: childRoute }">
           <Transition name="fade-slide" mode="out-in">
-            <component :is="Component" />
+            <KeepAlive>
+              <component :is="Component" :key="clusterChildViewKey(childRoute)" />
+            </KeepAlive>
           </Transition>
         </RouterView>
       </main>
@@ -140,14 +197,19 @@
 </template>
 
 <script setup lang="ts">
-  import { ArrowLeft, Refresh } from '@element-plus/icons-vue'
-  import { computed, provide, ref, watch } from 'vue'
-  import { useRoute, useRouter } from 'vue-router'
+  import { ElMessage, type InputInstance } from 'element-plus'
+  import { ArrowLeft, Refresh, Search } from '@element-plus/icons-vue'
+  import { computed, nextTick, provide, ref, watch } from 'vue'
+  import { useRoute, useRouter, type RouteLocationNormalizedLoaded } from 'vue-router'
   import { fetchClusterByName, fetchClusterList } from '@/api/container'
   import type { ClusterItem } from '@/api/container'
-  import { fetchK8sNamespaceList } from '@/api/kubernetes/namespace'
+  import { resolveClusterNamespaces } from '@/api/kubernetes/namespace'
+  import type { PermissionListItem } from '@/api/system-manage'
   import ClusterYamlCreateDialog from './modules/cluster-yaml-create-dialog.vue'
+  import ClusterCloudShell from '@/views/container/cluster/modules/cluster-cloud-shell.vue'
+  import { useUserStore } from '@/store/modules/user'
   import {
+    clusterDetailActiveMenuKey,
     clusterDetailContextKey,
     clusterDetailNamespaceKey,
     clusterDetailRefreshKey,
@@ -162,6 +224,7 @@
 
   const route = useRoute()
   const router = useRouter()
+  const userStore = useUserStore()
   const settingStore = useSettingStore()
   const { getMenuTheme } = storeToRefs(settingStore)
 
@@ -184,6 +247,7 @@
     'crds',
     'apiservices',
     'alert',
+    'datasources',
     'logs',
     'events',
     'prometheus'
@@ -193,37 +257,81 @@
   const clusterListItems = ref<ClusterItem[]>([])
   const clusterListLoading = ref(false)
   const clusterListLoaded = ref(false)
+  let clusterListPromise: Promise<void> | null = null
   const yamlCreateVisible = ref(false)
+  const cloudShellRef = ref<InstanceType<typeof ClusterCloudShell> | null>(null)
 
   const selectedNamespace = ref('default')
   const namespaceOptions = ref<string[]>([])
+  const namespaceSearchKeyword = ref('')
+  const namespaceSearchInputRef = ref<InputInstance>()
+  const clusterSearchKeyword = ref('')
+  const clusterSearchInputRef = ref<InputInstance>()
   const nsLoading = ref(false)
+  const permissionDetail = ref<PermissionListItem | null>(null)
 
-  function getNsCacheKey(cluster: string) { return `pixiu-ns-${cluster}` }
+  const filteredNamespaceOptions = computed(() => {
+    const kw = namespaceSearchKeyword.value.trim().toLowerCase()
+    if (!kw) return namespaceOptions.value
+    return namespaceOptions.value.filter((ns) => ns.toLowerCase().includes(kw))
+  })
+
+  function onNamespaceSelectVisibleChange(visible: boolean) {
+    if (!visible) {
+      namespaceSearchKeyword.value = ''
+      return
+    }
+    const cluster = String(route.query.cluster ?? '')
+    const permissionId = Number(clusterRow.value?.permissionId) || 0
+    if (cluster && permissionId > 0) {
+      void loadNamespaceOptions(cluster)
+    }
+    void nextTick(() => namespaceSearchInputRef.value?.focus())
+  }
+
+  function getNsCacheKey(cluster: string) {
+    return `pixiu-ns-${cluster}`
+  }
   function loadCachedNamespace(cluster: string): string | null {
     try {
       const v = localStorage.getItem(getNsCacheKey(cluster))
-      return (v && v !== 'undefined' && v !== 'null') ? v : null
+      return v && v !== 'undefined' && v !== 'null' ? v : null
+    } catch {
+      return null
     }
-    catch { return null }
   }
   function saveCachedNamespace(cluster: string, ns: string) {
     if (!ns || ns === 'undefined' || ns === 'null') return
-    try { localStorage.setItem(getNsCacheKey(cluster), ns) }
-    catch { /* ignore */ }
+    try {
+      localStorage.setItem(getNsCacheKey(cluster), ns)
+    } catch {
+      /* ignore */
+    }
   }
 
   async function loadNamespaceOptions(clusterName: string) {
     if (!clusterName) {
       namespaceOptions.value = []
+      permissionDetail.value = null
       return
     }
     nsLoading.value = true
     try {
-      const { items } = await fetchK8sNamespaceList(clusterName, { page: 1, limit: 500 })
-      namespaceOptions.value = items.map((n) => n.metadata.name).sort()
+      const row = clusterRow.value || findClusterInList(clusterName)
+      const permissionId = Number(row?.permissionId) || 0
+      const { names, permissionDetail: detail } = await resolveClusterNamespaces(
+        clusterName,
+        permissionId
+      )
+      permissionDetail.value = detail
+      namespaceOptions.value = names
+
+      if (selectedNamespace.value && !namespaceOptions.value.includes(selectedNamespace.value)) {
+        selectedNamespace.value = namespaceOptions.value[0] || ''
+      }
     } catch {
       namespaceOptions.value = []
+      permissionDetail.value = null
     } finally {
       nsLoading.value = false
     }
@@ -240,39 +348,75 @@
 
   async function loadClusterListForSelect(force = false) {
     if (clusterListLoaded.value && !force) return
-    clusterListLoading.value = true
+    if (clusterListPromise && !force) return clusterListPromise
+
+    clusterListPromise = (async () => {
+      clusterListLoading.value = true
+      try {
+        const limit = 500
+        let page = 1
+        const acc: ClusterItem[] = []
+        let total = 0
+        do {
+          const res = await fetchClusterList({ page, limit })
+          total = res.total
+          acc.push(...res.items)
+          if (acc.length >= total || res.items.length === 0) break
+          page++
+          if (page > 40) break
+        } while (true)
+        clusterListItems.value = acc
+        clusterListLoaded.value = true
+      } catch {
+        clusterListItems.value = []
+        clusterListLoaded.value = false
+      } finally {
+        clusterListLoading.value = false
+        clusterListPromise = null
+      }
+    })()
+
+    return clusterListPromise
+  }
+
+  function findClusterInList(name: string): ClusterItem | undefined {
+    if (!name) return undefined
+    return clusterListItems.value.find((c) => c.name === name)
+  }
+
+  /** 优先用已加载的集群列表解析当前集群，避免与 loadClusterListForSelect 重复请求列表 */
+  async function loadClusterRow(name: string) {
+    if (!name) {
+      clusterRow.value = null
+      return
+    }
+    await loadClusterListForSelect()
+    const fromList = findClusterInList(name)
+    if (fromList) {
+      clusterRow.value = fromList
+      return
+    }
     try {
-      const limit = 500
-      let page = 1
-      const acc: ClusterItem[] = []
-      let total = 0
-      do {
-        const res = await fetchClusterList({ page, limit })
-        total = res.total
-        acc.push(...res.items)
-        if (acc.length >= total || res.items.length === 0) break
-        page++
-        if (page > 40) break
-      } while (true)
-      clusterListItems.value = acc
-      clusterListLoaded.value = true
+      clusterRow.value = await fetchClusterByName(name)
     } catch {
-      clusterListItems.value = []
-    } finally {
-      clusterListLoading.value = false
+      clusterRow.value = null
     }
   }
 
   function onClusterSelectVisible(visible: boolean) {
-    if (visible) void loadClusterListForSelect()
+    if (!visible) {
+      clusterSearchKeyword.value = ''
+      return
+    }
+    void loadClusterListForSelect()
+    void nextTick(() => clusterSearchInputRef.value?.focus())
   }
 
   function refreshClusterList() {
+    clusterListLoaded.value = false
+    clusterListPromise = null
     void loadClusterListForSelect(true)
   }
-
-  // 初始化时预加载集群列表，首次打开下拉时即时显示
-  void loadClusterListForSelect()
 
   function onClusterSelectChange(name: string | number | boolean | undefined) {
     if (name === undefined || name === null || name === '') return
@@ -281,30 +425,39 @@
     const selected = clusterListItems.value.find((c) => c.name === s)
     const aliasName = selected?.aliasName || s
     setClusterAliasCache(s, aliasName)
-    router.push({ path: route.path, query: buildClusterRouteQuery(route, { cluster: s, aliasName }) })
+    router.push({
+      path: route.path,
+      query: buildClusterRouteQuery(route, { cluster: s, aliasName })
+    })
   }
 
   watch(
     () => String(route.query.cluster ?? ''),
     async (name) => {
-      clusterRow.value = null
-      if (!name) return
-      try {
-        clusterRow.value = await fetchClusterByName(name)
-      } catch {
+      if (!name) {
         clusterRow.value = null
+        namespaceOptions.value = []
+        permissionDetail.value = null
+        return
       }
+
+      // 1. 优先加载集群基本信息（确保拿到正确的 permissionId）
+      await loadClusterRow(name)
+
+      // 2. 加载对应的命名空间选项
+      selectedNamespace.value = loadCachedNamespace(name) ?? 'default'
+      await loadNamespaceOptions(name)
     },
     { immediate: true }
   )
 
   watch(
-    () => String(route.query.cluster ?? ''),
-    (name) => {
-      selectedNamespace.value = loadCachedNamespace(name) ?? 'default'
-      void loadNamespaceOptions(name)
-    },
-    { immediate: true }
+    () => Number(clusterRow.value?.permissionId) || 0,
+    (permissionId, prev) => {
+      if (permissionId <= 0 || permissionId === prev) return
+      const cluster = String(route.query.cluster ?? '')
+      if (cluster) void loadNamespaceOptions(cluster)
+    }
   )
 
   const ctx = computed<ClusterDetailContext>(() => {
@@ -324,6 +477,7 @@
       nodeCount: row?.nodeCount ?? 0,
       nodeReady: row?.nodeReady ?? 0,
       nodeNotReady: row?.nodeNotReady ?? 0,
+      permissionId: row?.permissionId ?? 0,
       seed: clusterNameSeed(name)
     }
   })
@@ -343,7 +497,9 @@
       nodeNotReady: 0,
       nodeCount: 0,
       isProtected: false,
-      createTime: ''
+      permissionId: 0,
+      createTime: '',
+      planId: 0
     }
   }
 
@@ -361,10 +517,29 @@
     return [stubClusterRow(currentName), ...list]
   })
 
+  const filteredClusterSelectOptions = computed(() => {
+    const kw = clusterSearchKeyword.value.trim().toLowerCase()
+    const options = clusterSelectOptions.value
+    if (!kw) return options
+    return options.filter((c) => {
+      const alias = (c.aliasName || '').toLowerCase()
+      const name = (c.name || '').toLowerCase()
+      return alias.includes(kw) || name.includes(kw)
+    })
+  })
+
   async function refreshClusterRow() {
     const name = String(route.query.cluster ?? '')
     if (!name) {
       clusterRow.value = null
+      return
+    }
+    clusterListLoaded.value = false
+    clusterListPromise = null
+    await loadClusterListForSelect(true)
+    const fromList = findClusterInList(name)
+    if (fromList) {
+      clusterRow.value = fromList
       return
     }
     try {
@@ -374,8 +549,15 @@
     }
   }
 
+  const activeMenuKey = computed(() => {
+    const m = route.path.match(/\/container\/([^/]+)$/)
+    const seg = m?.[1] ?? 'overview'
+    return DETAIL_SEGMENTS.has(seg) ? seg : 'overview'
+  })
+
   provide(clusterDetailContextKey, ctx)
   provide(clusterDetailNamespaceKey, { namespace: selectedNamespace, namespaceOptions })
+  provide(clusterDetailActiveMenuKey, activeMenuKey)
   provide(clusterDetailRefreshKey, refreshClusterRow)
 
   watch(
@@ -427,11 +609,37 @@
     return STATUS_CONFIG[s as keyof typeof STATUS_CONFIG] ?? { type: 'info' as const, text: '未知' }
   })
 
-  const activeMenuKey = computed(() => {
-    const m = route.path.match(/\/container\/([^/]+)$/)
-    const seg = m?.[1] ?? 'overview'
-    return DETAIL_SEGMENTS.has(seg) ? seg : 'overview'
-  })
+  function isCustomClusterNotRunning(
+    row: Pick<ClusterDetailContext, 'clusterType' | 'status'>
+  ): boolean {
+    return Number(row.clusterType) === 1 && Number(row.status) !== 0
+  }
+
+  const cloudShellDisabled = computed(
+    () => !ctx.value.name || !ctx.value.id || isCustomClusterNotRunning(ctx.value)
+  )
+
+  function openCloudShell() {
+    if (cloudShellDisabled.value) return
+    const userId = Number(userStore.getUserInfo?.userId || 0)
+    if (!userId) {
+      ElMessage.warning('未获取到当前用户信息，请重新登录后重试')
+      return
+    }
+    cloudShellRef.value?.open({
+      clusterName: ctx.value.name,
+      clusterAlias: ctx.value.aliasName || ctx.value.name,
+      clusterId: ctx.value.id,
+      userId
+    })
+  }
+
+  /** 切换集群时强制重建子页面，避免 KeepAlive 复用旧集群数据 */
+  function clusterChildViewKey(childRoute: RouteLocationNormalizedLoaded): string {
+    const cluster = String(childRoute.query.cluster ?? '')
+    const routeKey = String(childRoute.name ?? childRoute.path)
+    return cluster ? `${routeKey}::${cluster}` : routeKey
+  }
 
   function preservedQuery(): Record<string, string> {
     return buildClusterRouteQuery(route)
@@ -452,7 +660,8 @@
               ? route.query.aliasName
               : undefined) ?? ctx.value.aliasName
         })
-        if (clusterQuerySignature(q) === clusterQuerySignature(buildClusterRouteQuery(route))) return
+        if (clusterQuerySignature(q) === clusterQuerySignature(buildClusterRouteQuery(route)))
+          return
         router.replace({ path: route.path, query: q })
       }
     },
@@ -511,6 +720,31 @@
     flex-shrink: 0;
     align-items: center;
     gap: 8px;
+  }
+
+  .cluster-detail-header-action-btn.el-button {
+    height: 28px;
+    padding: 0 12px;
+    font-size: 13px;
+    line-height: 1;
+  }
+
+  .cluster-detail-header-action-btn.el-button > span {
+    font-size: 13px;
+  }
+
+  .cluster-detail-remote-login-btn.el-button {
+    height: auto;
+    padding: 0 4px;
+    font-size: 12px;
+    line-height: 1;
+    /* 与下方 KubeConfig「下载」等 ElLink 一致：悬停为浅主色，避免 link 按钮默认变灰过深 */
+    --el-button-hover-link-text-color: var(--el-color-primary-light-3);
+    --el-button-active-color: var(--el-color-primary-dark-2);
+  }
+
+  .cluster-detail-remote-login-btn.el-button > span {
+    font-size: 12px;
   }
 
   .cluster-detail-name-wrap {
@@ -730,6 +964,19 @@
     vertical-align: middle;
   }
 
+  .cluster-detail-main:has(.logs-console:not(.logs-console--placeholder)) {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .cluster-detail-main:has(.logs-console:not(.logs-console--placeholder)) > * {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
   .cluster-detail-main {
     flex: 1;
     min-width: 0;
@@ -752,8 +999,32 @@
 </style>
 
 <style>
+  .cluster-detail-cluster-select-popper .el-select-dropdown__header {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+  }
+
+  .cluster-detail-cluster-select-popper .cluster-detail-cluster-search .el-input__wrapper {
+    min-height: 30px;
+    height: 30px;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .cluster-detail-cluster-select-popper .cluster-detail-cluster-search .el-input__inner {
+    font-size: 13px;
+  }
+
+  .cluster-detail-cluster-select-popper .cluster-detail-cluster-empty {
+    display: block;
+    padding: 8px 0;
+    font-size: 12px;
+    color: var(--el-text-color-placeholder);
+    text-align: center;
+  }
+
   .cluster-detail-cluster-select-popper .el-select-dropdown__list {
-    max-height: 320px;
+    max-height: 280px;
     overflow-x: auto;
     overflow-y: auto;
   }
@@ -762,6 +1033,30 @@
     overflow: visible;
     text-overflow: clip;
     white-space: nowrap;
+  }
+
+  .cluster-detail-ns-select-popper .el-select-dropdown__header {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+  }
+
+  .cluster-detail-ns-select-popper .cluster-detail-ns-search .el-input__wrapper {
+    min-height: 30px;
+    height: 30px;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .cluster-detail-ns-select-popper .cluster-detail-ns-search .el-input__inner {
+    font-size: 13px;
+  }
+
+  .cluster-detail-ns-select-popper .cluster-detail-ns-empty {
+    display: block;
+    padding: 8px 0;
+    font-size: 12px;
+    color: var(--el-text-color-placeholder);
+    text-align: center;
   }
 
   .cluster-detail-ns-select-popper .el-select-dropdown__list {

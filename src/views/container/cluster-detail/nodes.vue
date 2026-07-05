@@ -35,7 +35,7 @@
         @selection-change="handleNodeSelectionChange"
         @pagination:size-change="handleSizeChange"
         @pagination:current-change="handleCurrentChange"
->
+      >
         <template #empty>
           <ClusterTableEmpty />
         </template>
@@ -59,11 +59,18 @@
       title="标签管理"
       width="720px"
       destroy-on-close
+      class="label-dialog"
+      header-class="label-dialog-header"
+      body-class="label-dialog-body"
       @close="resetLabelForm"
     >
-      <ElAlert type="info" :closable="false" show-icon class="mb-3">
-        附加到 Kubernetes 对象上的键值对，用于标识与筛选对象。
-      </ElAlert>
+      <ElAlert
+        type="info"
+        :closable="false"
+        show-icon
+        class="quota-alert"
+        description="附加到 Kubernetes 对象上的键值对，用于标识与筛选对象。"
+      />
       <div v-for="(item, index) in labelRows" :key="index" class="label-row">
         <ElInput v-model="item.key" placeholder="键" class="label-row__key" />
         <ElInput v-model="item.value" placeholder="值" class="label-row__val" />
@@ -79,10 +86,22 @@
     </ElDialog>
 
     <!-- 清空节点 -->
-    <ElDialog v-model="drainVisible" title="清空节点" width="520px" destroy-on-close>
-      <ElAlert type="warning" :closable="false" show-icon>
-        此操作将按当前后端能力与 dashboard 一致发起节点信息校验（与 dashboard drain 接口相同）。
-      </ElAlert>
+    <ElDialog
+      v-model="drainVisible"
+      title="清空节点"
+      width="520px"
+      destroy-on-close
+      class="drain-dialog"
+      header-class="drain-dialog-header"
+      body-class="drain-dialog-body"
+    >
+      <ElAlert
+        type="info"
+        :closable="false"
+        show-icon
+        class="quota-alert"
+        description="此操作将清空节点上所有Pod(drain 接口相同），请谨慎操作！！！"
+      />
       <template #footer>
         <ElButton @click="drainVisible = false">取消</ElButton>
         <ElButton type="primary" :loading="drainLoading" @click="confirmDrain">确认</ElButton>
@@ -94,9 +113,13 @@
       <template #header>
         <span class="drawer-title">资源监控</span>
       </template>
-      <ElAlert type="info" :closable="false" show-icon class="mb-4"
-        >查看 Node 的资源指标（与 dashboard 相同 metrics 接口）。</ElAlert
-      >
+      <ElAlert
+        type="info"
+        :closable="false"
+        show-icon
+        class="pixiu-alert"
+        description="查看 Node 的资源指标（与 dashboard 相同 metrics 接口）。"
+      />
       <div class="monitor-charts">
         <MetricChartPanel
           title="CPU 使用率（%）"
@@ -122,12 +145,16 @@
       <template #header>
         <span class="drawer-title">事件查询</span>
       </template>
-      <ElAlert type="info" :closable="false" show-icon class="mb-4"
-        >获取 Node 相关事件（与 dashboard 相同 events 接口）。</ElAlert
-      >
+      <ElAlert
+        type="info"
+        :closable="false"
+        show-icon
+        class="pixiu-alert"
+        description="获取 Node 相关事件（与 dashboard 相同 events 接口）。"
+      />
       <div class="event-toolbar">
         <ElButton type="primary" @click="loadEventList">查询</ElButton>
-        <ElButton :disabled="!eventSelection.length" @click="batchDeleteEvents">批量删除</ElButton>
+        <ElButton v-ripple :disabled="!eventSelection.length" @click="batchDeleteEvents">批量删除</ElButton>
       </div>
       <ElTable
         v-loading="eventLoading"
@@ -148,7 +175,11 @@
           <template #default="{ row }">{{ row.involvedObject?.name ?? '-' }}</template>
         </ElTableColumn>
         <ElTableColumn prop="count" label="出现次数" width="90" />
-        <ElTableColumn prop="message" label="内容" min-width="220" show-overflow-tooltip />
+        <ElTableColumn label="内容" min-width="220" :class-name="K8S_EVENT_MESSAGE_CELL_CLASS">
+          <template #default="{ row }">
+            <div class="k8s-event-message">{{ row.message?.trim() ? row.message : '-' }}</div>
+          </template>
+        </ElTableColumn>
       </ElTable>
       <div class="event-pagination">
         <ElPagination
@@ -265,11 +296,12 @@
   } from '@/components/core/forms/art-button-more/index.vue'
   import { CopyDocument, InfoFilled } from '@element-plus/icons-vue'
   import { h, ref, computed, onUnmounted } from 'vue'
-import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
-import ClusterTableEmpty from './components/cluster-table-empty.vue'
+  import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
+  import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute, useRouter } from 'vue-router'
   import { buildClusterRouteQuery } from '@/utils/navigation/cluster-query'
   import { useTable } from '@/hooks/core/useTable'
+  import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
   import {
     deleteK8sNode,
     drainK8sNodeFetch,
@@ -290,6 +322,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     formatNodeTypeText,
     nodeStatusTagType
   } from '@/utils/kubernetes/nodeDisplay'
+  import { K8S_EVENT_MESSAGE_CELL_CLASS } from '@/utils/kubernetes/eventDisplay'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
   import { updateK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
   import yaml from 'js-yaml'
@@ -413,13 +446,22 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
               size: params.size
             }
           }
-        const { items, total } = await fetchK8sNodeList(cluster, {
-          page: params.current,
-          limit: params.size,
-          name: (params.name ?? '').trim() || undefined
+        // 拉取全部节点（不带 fieldSelector），本地模糊搜索
+        const { items: allItems } = await fetchK8sNodeList(cluster, {
+          page: 1,
+          limit: 999999
         })
-        const list = items
-        const records = list.map((n, i) => ({
+
+        // 本地模糊筛选
+        const keyword = (params.name ?? '').trim().toLowerCase()
+        const filtered = keyword
+          ? allItems.filter((n) => (n.metadata?.name ?? '').toLowerCase().includes(keyword))
+          : allItems
+
+        // 本地分页
+        const start = (params.current - 1) * params.size
+        const end = start + params.size
+        const records = filtered.slice(start, end).map((n, i) => ({
           ...n,
           rowKey: n.metadata?.uid ?? n.metadata?.name ?? `node-${i}`
         }))
@@ -427,7 +469,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
           code: 200,
           data: {
             records,
-            total,
+            total: filtered.length,
             current: params.current,
             size: params.size
           }
@@ -564,7 +606,54 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
             minWidth: 160,
             showOverflowTooltip: true,
             formatter: (row: K8sNode) =>
-              h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, formatContainerRuntime(row))
+              h(
+                'span',
+                { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+                formatContainerRuntime(row)
+              )
+          },
+          {
+            prop: 'ip',
+            label: 'IP地址',
+            minWidth: 170,
+            formatter: (row: K8sNode) => {
+              const addresses = row.status?.addresses ?? []
+              const internalIp = addresses.find((a) => a.type === 'InternalIP')?.address
+              const externalIp = addresses.find((a) => a.type === 'ExternalIP')?.address
+              const parts = [internalIp, externalIp].filter(Boolean) as string[]
+              if (!parts.length)
+                return h(
+                  'span',
+                  { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+                  '-'
+                )
+              return h(
+                'div',
+                { style: 'line-height:1.6' },
+                parts.map((ip) =>
+                  h(
+                    'div',
+                    {
+                      style:
+                        'display:flex;align-items:center;gap:4px;font-size:12px;color:var(--el-text-color-regular);white-space:nowrap'
+                    },
+                    [
+                      h('span', ip),
+                      h(CopyDocument, {
+                        class: 'icon-action',
+                        style:
+                          'width:12px;height:12px;cursor:pointer;color:var(--el-text-color-secondary);flex-shrink:0',
+                        onClick: (e: MouseEvent) => {
+                          e.stopPropagation()
+                          void navigator.clipboard.writeText(ip)
+                          ElMessage.success('已复制')
+                        }
+                      })
+                    ]
+                  )
+                )
+              )
+            }
           },
           {
             prop: 'os',
@@ -574,6 +663,20 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
             formatter: (row: K8sNode) => {
               const os = row.status?.nodeInfo?.osImage ?? '-'
               return h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, os)
+            }
+          },
+          {
+            prop: 'kernel',
+            label: '内核版本',
+            minWidth: 160,
+            showOverflowTooltip: true,
+            formatter: (row: K8sNode) => {
+              const kernel = row.status?.nodeInfo?.kernelVersion ?? '-'
+              return h(
+                'span',
+                { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+                kernel
+              )
             }
           },
           {
@@ -635,9 +738,8 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
                   h(
                     ElLink,
                     {
-                      type: 'danger',
                       underline: 'never',
-                      style: 'font-size:12px',
+                      style: 'font-size:12px;color:var(--el-text-color-primary)',
                       onClick: () => deleteLocalNode(row._localIndex)
                     },
                     () => '删除'
@@ -676,7 +778,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
                         key: 'delete',
                         label: '删除',
                         icon: 'ri:delete-bin-4-line',
-                        color: '#409eff'
+                        color: 'var(--el-text-color-primary)'
                       }
                     ],
                     onClick: (item: ButtonMoreItem) => nodeMoreClick(item, row)
@@ -707,6 +809,8 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   function onRefresh() {
     refreshData()
   }
+
+  useSkipFirstActivatedRefresh(refreshData)
 
   // -- YAML --
   const addNodeDialogVisible = ref(false)
@@ -1148,7 +1252,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
         namespaced: false,
         limit: 500
       })
-      eventAll.value = items as K8sEventRow[]
+      eventAll.value = items as unknown as K8sEventRow[]
     } catch (e: unknown) {
       ElMessage.error(e instanceof Error ? e.message : '加载事件失败')
       eventAll.value = []
@@ -1347,6 +1451,43 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     line-height: 1.5;
     color: var(--el-text-color-regular);
     word-break: break-all;
+  }
+</style>
+
+<style>
+  .label-dialog-header,
+  .drain-dialog-header {
+    padding: 10px 24px 0 !important;
+    margin-bottom: 0 !important;
+  }
+
+  .label-dialog-body,
+  .drain-dialog-body {
+    padding: 0 24px 12px !important;
+    font-size: 12px;
+  }
+
+  .label-dialog-body .label-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    font-size: 12px;
+  }
+
+  .label-dialog-body .label-row__key,
+  .label-dialog-body .label-row__val {
+    flex: 1;
+    max-width: 300px;
+  }
+
+  .label-dialog-body .label-row .el-input__wrapper,
+  .label-dialog-body .label-row .el-input__inner {
+    font-size: 12px;
+  }
+
+  .label-dialog-body .el-button {
+    font-size: 12px;
   }
 </style>
 

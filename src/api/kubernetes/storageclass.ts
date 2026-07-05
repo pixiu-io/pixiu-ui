@@ -21,13 +21,12 @@ const scBase = (cluster: string) =>
 
 export async function fetchK8sStorageClassList(
   cluster: string,
-  params: { page: number; limit: number; name?: string }
+  params: { page: number; limit: number }
 ): Promise<{ items: K8sStorageClass[]; total: number }> {
   return fetchKubeListPage<K8sStorageClass>({
     path: scBase(cluster),
     page: params.page,
-    limit: params.limit,
-    fieldSelector: params.name ? `metadata.name=${params.name}` : undefined
+    limit: params.limit
   })
 }
 

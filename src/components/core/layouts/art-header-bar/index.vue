@@ -22,6 +22,11 @@
           @click="visibleMenu"
         />
 
+        <!-- 快速入口 -->
+        <ArtFastEnter v-if="shouldShowFastEnter && width >= headerBarFastEnterMinWidth">
+          <ArtIconButton icon="ri:function-line" class="ml-3" />
+        </ArtFastEnter>
+
         <!-- 刷新按钮 -->
         <ArtIconButton
           v-if="shouldShowRefreshButton"
@@ -29,16 +34,6 @@
           class="!ml-3 refresh-btn max-sm:!hidden"
           :style="{ marginLeft: !isLeftMenu ? '10px' : '0' }"
           @click="reload"
-        />
-
-        <!-- 快速入口 -->
-        <ArtFastEnter v-if="shouldShowFastEnter && width >= headerBarFastEnterMinWidth">
-          <ArtIconButton icon="ri:function-line" class="ml-3" />
-        </ArtFastEnter>
-
-        <!-- 面包屑 -->
-        <ArtBreadcrumb
-          v-if="(shouldShowBreadcrumb && isLeftMenu) || (shouldShowBreadcrumb && isDualMenu)"
         />
 
         <!-- 顶部菜单 -->
@@ -191,7 +186,6 @@
     shouldShowMenuButton,
     shouldShowRefreshButton,
     shouldShowFastEnter,
-    shouldShowBreadcrumb,
     shouldShowGlobalSearch,
     shouldShowFullscreen,
     shouldShowNotification,
@@ -212,7 +206,6 @@
 
   // 菜单类型判断
   const isLeftMenu = computed(() => menuType.value === MenuTypeEnum.LEFT)
-  const isDualMenu = computed(() => menuType.value === MenuTypeEnum.DUAL_MENU)
   const isTopMenu = computed(() => menuType.value === MenuTypeEnum.TOP)
   const isTopLeftMenu = computed(() => menuType.value === MenuTypeEnum.TOP_LEFT)
 

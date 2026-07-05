@@ -132,11 +132,12 @@
     type ButtonMoreItem
   } from '@/components/core/forms/art-button-more/index.vue'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
-  import { h, ref, watch } from 'vue'
+  import { h, inject, ref, watch } from 'vue'
 import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
 import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
+  import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
   import {
     createK8sNamespaceQuota,
     createK8sNamespace,
@@ -144,10 +145,11 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     deleteK8sNamespace,
     fetchK8sNamespace,
     fetchK8sNamespaceQuotaList,
-    fetchK8sNamespaceList,
     patchK8sNamespaceQuota,
+    resolveClusterNamespaces,
     type K8sNamespace
   } from '@/api/kubernetes/namespace'
+  import { clusterDetailContextKey } from './context'
   import { fetchK8sPodList } from '@/api/kubernetes/pod'
   import { updateK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
   import { formatNodeCreationTime } from '@/utils/kubernetes/nodeDisplay'
@@ -155,6 +157,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   defineOptions({ name: 'ClusterDetailNamespaces' })
 
   const route = useRoute()
+  const ctx = inject(clusterDetailContextKey)
 
   const searchForm = ref<{ name?: string }>({})
   const createDialogVisible = ref(false)
@@ -224,13 +227,20 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
               size: params.size
             }
           }
-        const { items, total } = await fetchK8sNamespaceList(cluster, {
-          page: params.current,
-          limit: params.size,
-          name: (params.name ?? '').trim() || undefined
-        })
-        const records = items.map((row, i) => ({ ...row, rowKey: row.metadata?.name ?? `ns-${i}` }))
-        return { code: 200, data: { records, total, current: params.current, size: params.size } }
+        const permissionId = Number(ctx?.value?.permissionId) || 0
+        const { items: allItems } = await resolveClusterNamespaces(cluster, permissionId)
+
+        // 本地模糊筛选
+        const keyword = (params.name ?? '').trim().toLowerCase()
+        const filtered = keyword
+          ? allItems.filter((n) => (n.metadata?.name ?? '').toLowerCase().includes(keyword))
+          : allItems
+
+        // 本地分页
+        const start = (params.current - 1) * params.size
+        const end = start + params.size
+        const records = filtered.slice(start, end).map((row, i) => ({ ...row, rowKey: row.metadata?.name ?? `ns-${i}` }))
+        return { code: 200, data: { records, total: filtered.length, current: params.current, size: params.size } }
       },
       apiParams: { current: 1, size: 10, name: undefined },
       columnsFactory: () => [
@@ -367,6 +377,15 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   function onRefresh() {
     refreshData()
   }
+
+  useSkipFirstActivatedRefresh(refreshData)
+
+  watch(
+    () => Number(ctx?.value?.permissionId) || 0,
+    (permissionId, prev) => {
+      if (permissionId > 0 && permissionId !== prev) refreshData()
+    }
+  )
 
   async function submitCreate() {
     const cluster = String(route.query.cluster ?? '')
@@ -679,16 +698,5 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
 
   :global(.quota-dialog-body) {
     padding: 0 24px 12px !important;
-  }
-
-  .quota-alert :deep(.el-alert__icon) {
-    font-size: 20px;
-    color: #0958d9 !important;
-    margin-right: 4px !important;
-  }
-
-  .quota-alert :deep(.el-alert__description) {
-    font-size: 12px;
-    color: #0958d9 !important;
   }
 </style>

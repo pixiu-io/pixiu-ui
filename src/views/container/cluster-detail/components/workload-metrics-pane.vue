@@ -14,7 +14,7 @@
         <ElIcon :size="16"><Refresh /></ElIcon>
       </ElButton>
     </div>
-    <div class="chart-grid">
+    <div class="chart-grid" :key="`cpu-${metricsVersion}`">
       <MetricChartPanel
         v-for="item in cpuMetrics"
         :key="item.title"
@@ -28,7 +28,7 @@
     </div>
 
     <div class="tab-section-title tab-section-title--spaced">内存</div>
-    <div class="chart-grid">
+    <div class="chart-grid" :key="`mem-${metricsVersion}`">
       <MetricChartPanel
         v-for="item in memoryMetrics"
         :key="item.title"
@@ -84,14 +84,16 @@
   )
 
   const chartSilentUpdate = ref(false)
+  const metricsVersion = ref(0)
   let chartAnimateTimer: ReturnType<typeof setTimeout> | null = null
 
   function isChartEmpty(data: number[] | LineDataItem[]) {
     if (!Array.isArray(data) || !data.length) return true
     if (isMultiSeriesData(data)) {
-      return data.every((s) => !s.data?.length || s.data.every((v) => v == null || v === 0))
+      // 多系列：只要有任一系列存在非 null 数据点即视为有数据
+      return data.every((s) => !s.data?.length || s.data.every((v) => v == null))
     }
-    return data.every((v) => v === 0)
+    return false
   }
 
   function scheduleChartSilentUpdate() {
@@ -126,7 +128,9 @@
       const hasTarget =
         Boolean(props.podNames?.length) || Boolean(String(props.labelSelector ?? '').trim())
       if (active && cluster && namespace && hasTarget) {
+        metricsVersion.value++
         startRefresh()
+        chartSilentUpdate.value = false
       } else {
         stopRefresh()
         resetCharts()

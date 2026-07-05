@@ -220,8 +220,7 @@
 
   .cluster-monitor-drawer :deep(.el-drawer__header) {
     margin-bottom: 0;
-    padding-top: 8px;
-    padding-bottom: 0;
+    padding: 8px 20px 0;
   }
 
   .cluster-monitor-drawer-header {
@@ -229,7 +228,7 @@
     align-items: center;
     justify-content: space-between;
     width: 100%;
-    min-height: 28px;
+    min-height: 24px;
     padding-right: 4px;
   }
 
@@ -273,7 +272,7 @@
     min-height: 0;
     overflow-x: hidden;
     overflow-y: auto;
-    padding-top: 2px;
+    padding: 0 20px 16px;
   }
 
   .resource-metrics-pane {
@@ -283,8 +282,8 @@
   }
 
   .resource-metrics-pane__toolbar {
-    margin-top: 0;
-    margin-bottom: 14px;
+    margin-top: 20px;
+    margin-bottom: 12px;
   }
 
   /* 抽屉内工具栏视觉压缩：贴近监控台样式 */
@@ -408,5 +407,17 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 16px;
+  }
+</style>
+
+<style>
+  /* ElDrawer 挂载到 body，需全局样式确保标题与工具栏间距生效 */
+  .cluster-monitor-drawer.el-drawer .el-drawer__header {
+    margin-bottom: 0 !important;
+    padding: 8px 20px 0 !important;
+  }
+
+  .cluster-monitor-drawer.el-drawer .el-drawer__body {
+    padding: 0 20px 16px !important;
   }
 </style>

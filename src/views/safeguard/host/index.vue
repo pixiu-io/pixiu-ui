@@ -141,12 +141,13 @@
 </template>
 
 <script setup lang="ts">
-  import { h, nextTick, onActivated, reactive, ref } from 'vue'
+  import { h, nextTick, reactive, ref } from 'vue'
   import { CopyDocument } from '@element-plus/icons-vue'
   import { ElLink, ElMessage, ElMessageBox } from 'element-plus'
   import type { FormInstance, FormRules } from 'element-plus'
   import ArtButtonMore, { type ButtonMoreItem } from '@/components/core/forms/art-button-more/index.vue'
   import { useTable } from '@/hooks/core/useTable'
+  import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
   import {
     fetchCreatePixiuNode,
     fetchDeletePixiuNode,
@@ -154,14 +155,14 @@
     fetchUpdatePixiuNode,
     type PixiuNodeItem
   } from '@/api/node'
-  import { fetchPlanList, fetchPlanWithResources } from '@/api/plan'
-  import { useRoute } from 'vue-router'
+  import { PixiuApiError } from '@/api/container'
+  import { useUserStore } from '@/store/modules/user'
   import HostSearch from './modules/host-search.vue'
   import HostRemoteSsh from './modules/host-remote-ssh.vue'
 
   defineOptions({ name: 'SafeguardHost' })
 
-  const route = useRoute()
+  const userStore = useUserStore()
   const hostRemoteSshRef = ref<InstanceType<typeof HostRemoteSsh> | null>(null)
 
   const searchForm = ref<{ hostName?: string }>({})
@@ -209,21 +210,6 @@
     } catch {
       return { authType: 'password', password: '', privateKey: '' }
     }
-  }
-
-  /** 无下拉时：URL ?planId= 或全平台仅 1 个部署计划 */
-  async function resolvePlanIdForCreate(): Promise<number | null> {
-    const raw = route.query.planId
-    const s = Array.isArray(raw) ? raw[0] : raw
-    const fromQuery = Number(s)
-    if (Number.isFinite(fromQuery) && fromQuery > 0) return Math.trunc(fromQuery)
-    try {
-      const { list } = await fetchPlanList({ page: 1, limit: 2 })
-      if (list.length === 1) return list[0].id
-    } catch {
-      /* ignore */
-    }
-    return null
   }
 
   /** -- 新增节点 -- */
@@ -297,20 +283,9 @@
       .catch(() => false)
     if (!valid) return
 
-    const planId = await resolvePlanIdForCreate()
-    if (planId == null) {
-      ElMessage.warning(
-        '无法确定部署计划：请在地址栏增加 ?planId=计划ID（数字），或确保系统中仅存在一个部署计划'
-      )
-      return
-    }
-
     addNodeSubmitting.value = true
+    let created = false
     try {
-      const resources = await fetchPlanWithResources(planId)
-      const rt = resources.config?.runtime?.runtime
-      const cri = rt === 'docker' || rt === 'containerd' ? rt : 'containerd'
-
       const auth =
         addNodeForm.authType === 'password'
           ? {
@@ -321,21 +296,25 @@
 
       await fetchCreatePixiuNode({
         name: addNodeForm.name.trim(),
-        plan_id: planId,
-        role: ['node'],
-        cri,
+        user_id: userStore.getUserInfo?.userId,
         ip: addNodeForm.ip.trim(),
         auth
       })
-      ElMessage.success('新增节点成功')
-      addNodeVisible.value = false
-      await refreshData()
+      created = true
     } catch (e: unknown) {
+      if (e instanceof PixiuApiError && e.notified) return
       const msg = e instanceof Error ? e.message : '新增节点失败'
       ElMessage.error(msg)
+      return
     } finally {
       addNodeSubmitting.value = false
     }
+
+    if (!created) return
+
+    ElMessage.success('新增节点成功')
+    addNodeVisible.value = false
+    await refreshData()
   }
 
   /** -- 编辑节点 -- */
@@ -344,9 +323,6 @@
   const editNodeSubmitting = ref(false)
   const editingNodeId = ref(0)
   const editingResourceVersion = ref(0)
-  const editingPlanId = ref(0)
-  const editingNodeRole = ref<string[]>(['node'])
-  const editingNodeCri = ref<'docker' | 'containerd'>('containerd')
 
   const editNodeEmpty = () => ({
     name: '',
@@ -381,15 +357,6 @@
     editingResourceVersion.value =
       typeof rv === 'number' && !Number.isNaN(rv) ? rv : 0
     const parsed = parseAuthForForm(row.auth || '{}')
-    const roles = row.role
-      ? row.role
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean)
-      : []
-    editingPlanId.value = row.plan_id
-    editingNodeRole.value = roles.length ? roles : ['node']
-    editingNodeCri.value = row.cri === 'docker' ? 'docker' : 'containerd'
     Object.assign(editNodeForm, {
       name: row.name,
       ip: row.ip,
@@ -405,9 +372,6 @@
     Object.assign(editNodeForm, editNodeEmpty())
     editingNodeId.value = 0
     editingResourceVersion.value = 0
-    editingPlanId.value = 0
-    editingNodeRole.value = ['node']
-    editingNodeCri.value = 'containerd'
     editNodeFormRef.value?.clearValidate()
   }
 
@@ -436,9 +400,6 @@
             ? editingResourceVersion.value
             : 0,
         name: editNodeForm.name.trim(),
-        plan_id: editingPlanId.value,
-        role: [...editingNodeRole.value],
-        cri: editingNodeCri.value,
         ip: editNodeForm.ip.trim(),
         auth
       })
@@ -496,6 +457,7 @@
         const { list, total } = await fetchPixiuNodeList({
           page: params.current,
           limit: params.size,
+          user_id: userStore.getUserInfo?.userId,
           nameSelector: params.hostName?.trim() || undefined,
           plan_id: undefined
         })
@@ -641,9 +603,7 @@
     await refreshData()
   }
 
-  onActivated(() => {
-    void refreshData()
-  })
+  useSkipFirstActivatedRefresh(refreshData)
 </script>
 
 <style>

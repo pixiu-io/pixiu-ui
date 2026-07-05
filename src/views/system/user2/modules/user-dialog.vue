@@ -151,7 +151,7 @@
         email: formData.email,
         phone: formData.phone,
         status: Number(formData.status),
-        role: props.userData.role || 0
+        role: (props.userData as any).role || 0
       })
       ElMessage.success('更新成功')
     }

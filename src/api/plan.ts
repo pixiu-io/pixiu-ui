@@ -1,4 +1,5 @@
 import { pixiuAxios } from './container'
+import { useUserStore } from '@/store/modules/user'
 
 /** 节点认证信息 */
 export interface PlanNodeAuth {
@@ -33,6 +34,7 @@ export interface CreatePlanParams {
       image_repository?: string
       set_hostname?: boolean
       protect?: boolean
+      change_selinux?: boolean
     }
     network: {
       network_interface: string
@@ -51,6 +53,13 @@ export interface CreatePlanParams {
     component: {
       prometheus?: { enabled: boolean }
       logging?: { enabled: boolean }
+      metric_server?: { enable: boolean }
+      ingress_nginx?: { enable: boolean }
+      nfs?: {
+        enable: boolean
+        storage_class_name?: string
+        storage_data_dir?: string
+      }
     }
   }
   nodes: PlanNodeParams[]
@@ -173,11 +182,13 @@ export interface PlanResourcesDetail {
     image_repository?: string
     set_hostname?: boolean
     protect?: boolean
+    change_selinux?: boolean
     kubernetes?: {
       kubernetes_version?: string
       image_repository?: string
       set_hostname?: boolean
       protect?: boolean
+      change_selinux?: boolean
     }
     network?: {
       network_interface?: string
@@ -189,6 +200,13 @@ export interface PlanResourcesDetail {
     component?: {
       prometheus?: { enabled?: boolean }
       logging?: { enabled?: boolean }
+      metric_server?: { enable?: boolean }
+      ingress_nginx?: { enable?: boolean }
+      nfs?: {
+        enable?: boolean
+        storage_class_name?: string
+        storage_data_dir?: string
+      }
     }
   }
   nodes?: PlanNodeDetail[]
@@ -208,11 +226,11 @@ function toPlanItem(p: PlanItem): PlanItemFormatted {
 }
 
 /**
- * GET /pixiu/plans/distributions
+ * GET /pixiu/os
  * 获取支持的操作系统分发版列表
  */
 export async function fetchPlanDistributions(): Promise<Record<string, string[]>> {
-  const res = await pixiuAxios.get('/pixiu/plans/distributions')
+  const res = await pixiuAxios.get('/pixiu/os')
   const { code, result, message } = res.data
   if (code !== 200) throw new Error(message || '获取操作系统列表失败')
   return result as Record<string, string[]>
@@ -235,8 +253,15 @@ export async function fetchPlanList(params?: {
   limit?: number
   nameSelector?: string
   step?: string
+  user_id?: number
 }): Promise<{ list: PlanItemFormatted[]; total: number }> {
-  const res = await pixiuAxios.get('/pixiu/plans', { params })
+  const userStore = useUserStore()
+  const query: Record<string, unknown> = { ...params }
+  if (!query.user_id) {
+    const uid = userStore.getUserInfo?.userId
+    if (uid) query.user_id = Number(uid)
+  }
+  const res = await pixiuAxios.get('/pixiu/plans', { params: query })
   const { code, result, message } = res.data
   if (code !== 200) throw new Error(message || '获取部署计划列表失败')
   const pageResult = result as PlanPageResponse
@@ -340,7 +365,11 @@ export async function fetchPlanWithResources(id: number): Promise<PlanResourcesD
  * 一次性创建完整部署计划（含 config + nodes）
  */
 export async function fetchCreatePlan(params: CreatePlanParams): Promise<void> {
-  const res = await pixiuAxios.post('/pixiu/plans', params)
+  const userStore = useUserStore()
+  const res = await pixiuAxios.post('/pixiu/plans', {
+    ...params,
+    user_id: userStore.getUserInfo?.userId ?? 0
+  }, { skipErrorNotification: true } as any)
   const { code, message } = res.data
   if (code !== 200) throw new Error(message || '创建部署计划失败')
 }

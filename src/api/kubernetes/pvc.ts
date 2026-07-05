@@ -32,7 +32,7 @@ function pvcBase(cluster: string, namespace: string) {
 
 export async function fetchK8sPVCList(
   cluster: string,
-  params: { page: number; limit: number; namespace?: string; name?: string }
+  params: { page: number; limit: number; namespace?: string }
 ): Promise<{ items: K8sPVC[]; total: number }> {
   const base = params.namespace
     ? `/pixiu/proxy/${encodeURIComponent(cluster)}/api/v1/namespaces/${encodeURIComponent(params.namespace)}/persistentvolumeclaims`
@@ -40,8 +40,7 @@ export async function fetchK8sPVCList(
   return fetchKubeListPage<K8sPVC>({
     path: base,
     page: params.page,
-    limit: params.limit,
-    fieldSelector: params.name ? `metadata.name=${params.name}` : undefined
+    limit: params.limit
   })
 }
 

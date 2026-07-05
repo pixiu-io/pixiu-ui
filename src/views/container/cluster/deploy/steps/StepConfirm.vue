@@ -100,6 +100,24 @@
           <div class="kv-value">{{ form.kubeProxyMode || '-' }}</div>
         </div>
         <div class="kv-item">
+          <div class="kv-label">自建 NFS</div>
+          <div class="kv-value">
+            <ElTag :type="form.nfsEnabled ? 'success' : 'info'" size="small">
+              {{ form.nfsEnabled ? '启用' : '关闭' }}
+            </ElTag>
+          </div>
+        </div>
+        <template v-if="form.nfsEnabled">
+          <div class="kv-item">
+            <div class="kv-label">NFS 存储名称</div>
+            <div class="kv-value">{{ form.nfsStorageClassName || '-' }}</div>
+          </div>
+          <div class="kv-item">
+            <div class="kv-label">NFS 存储地址</div>
+            <div class="kv-value mono">{{ form.nfsStorageDataDir || '-' }}</div>
+          </div>
+        </template>
+        <div class="kv-item">
           <div class="kv-label">Metrics Server</div>
           <div class="kv-value">
             <ElTag :type="form.metricsServer ? 'success' : 'info'" size="small">
@@ -133,7 +151,7 @@
             <ElTag
               v-for="r in row.role"
               :key="r"
-              :type="r === 'master' ? 'primary' : 'info'"
+              :type="r === 'master' ? 'primary' : r === 'storage' ? 'warning' : 'info'"
               size="small"
               style="margin-right: 4px"
               >{{ r }}</ElTag
