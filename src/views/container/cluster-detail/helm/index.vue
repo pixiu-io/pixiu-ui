@@ -136,7 +136,7 @@
         </ElTableColumn>
         <ElTableColumn label="操作" width="90" fixed="right">
           <template #default="{ row }">
-            <ElButton link type="primary" @click="confirmRollback(row)">回滚</ElButton>
+            <ElButton link type="primary" style="font-size: 12px" @click="confirmRollback(row)">回滚</ElButton>
           </template>
         </ElTableColumn>
       </ElTable>
@@ -367,5 +367,13 @@
       flex: 1;
       justify-content: center;
     }
+  }
+
+  .helm-dashboard :deep(.el-dialog .el-table) {
+    font-size: 12px;
+  }
+
+  .helm-dashboard :deep(.el-dialog .el-button--link) {
+    font-size: 12px;
   }
 </style>

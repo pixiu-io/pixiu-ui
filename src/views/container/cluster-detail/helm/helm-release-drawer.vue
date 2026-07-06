@@ -1,22 +1,16 @@
 <template>
   <ElDrawer
     v-model="visible"
-    size="520px"
+    size="50%"
     destroy-on-close
     class="helm-release-drawer"
     :title="release?.name ?? 'Release 详情'"
   >
     <template v-if="release">
       <div class="helm-release-drawer__hero">
-        <div class="helm-release-drawer__icon">
-          <ArtSvgIcon icon="simple-icons:helm" />
-        </div>
-        <div class="helm-release-drawer__meta">
-          <h3>{{ release.name }}</h3>
-          <div class="helm-release-drawer__tags">
-            <ElTag :type="statusMeta.type" size="small" effect="light">{{ statusMeta.label }}</ElTag>
-            <ElTag type="info" size="small" effect="plain">Rev {{ release.version ?? '-' }}</ElTag>
-          </div>
+        <div class="helm-release-drawer__tags">
+          <ElTag :type="statusMeta.type" size="small" effect="light">{{ statusMeta.label }}</ElTag>
+          <ElTag type="info" size="small" effect="plain">Rev {{ release.version ?? '-' }}</ElTag>
         </div>
       </div>
 
@@ -40,8 +34,8 @@
       </div>
 
       <div class="helm-release-drawer__actions">
-        <ElButton type="primary" plain @click="emit('upgrade', release)">升级</ElButton>
-        <ElButton plain @click="emit('uninstall', release)">卸载</ElButton>
+        <ElButton link type="primary" style="font-size: 12px" @click="emit('upgrade', release)">升级</ElButton>
+        <ElButton link type="primary" style="font-size: 12px" @click="emit('uninstall', release)">卸载</ElButton>
       </div>
 
       <div class="helm-release-drawer__section">
@@ -89,7 +83,6 @@
 
 <script setup lang="ts">
   import { computed } from 'vue'
-  import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
   import type { HelmReleaseItem } from '@/api/helm'
   import { formatChartLabel, formatHelmTime, releaseStatusMeta } from './shared'
 
@@ -111,30 +104,27 @@
   const chartLabel = computed(() => formatChartLabel(props.release?.chart))
 </script>
 
+<style lang="scss">
+  .helm-release-drawer.el-drawer {
+    .el-drawer__header {
+      margin-bottom: 0 !important;
+      padding: 12px 20px 0 !important;
+    }
+
+    .el-drawer__title {
+      margin: 0;
+      line-height: 1.4;
+    }
+
+    .el-drawer__body {
+      padding: 23px 20px 20px !important;
+    }
+  }
+</style>
+
 <style scoped>
   .helm-release-drawer__hero {
-    display: flex;
-    gap: 14px;
-    align-items: center;
-    margin-bottom: 18px;
-  }
-
-  .helm-release-drawer__icon {
-    display: flex;
-    width: 52px;
-    height: 52px;
-    align-items: center;
-    justify-content: center;
-    border-radius: 14px;
-    background: var(--helm-brand-bg);
-    color: var(--helm-brand-fg);
-    font-size: 26px;
-  }
-
-  .helm-release-drawer__meta h3 {
-    margin: 0 0 8px;
-    font-size: 18px;
-    font-weight: 600;
+    margin: 0 0 18px;
   }
 
   .helm-release-drawer__tags {
@@ -172,7 +162,7 @@
 
   .helm-release-drawer__actions {
     display: flex;
-    gap: 10px;
+    gap: 0;
     margin-bottom: 22px;
   }
 

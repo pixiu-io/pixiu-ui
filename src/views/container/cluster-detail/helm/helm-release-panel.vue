@@ -2,9 +2,17 @@
   <section class="helm-release-panel">
     <div class="helm-panel-toolbar">
       <div class="helm-panel-toolbar__left">
-        <ElButton type="primary" @click="emit('install')">
+        <ElButton v-ripple @click="emit('install')">
           部署应用
         </ElButton>
+        <ElAlert
+          v-if="!namespace"
+          type="info"
+          :closable="false"
+          show-icon
+          class="quota-alert helm-panel-toolbar__tip"
+          description="应用列表暂不支持所有命名空间查询，请切换至具体空间。"
+        />
       </div>
       <div class="helm-panel-toolbar__right">
         <ElInput
@@ -36,15 +44,6 @@
       </div>
     </div>
 
-    <ElAlert
-      v-if="!namespace"
-      type="warning"
-      show-icon
-      :closable="false"
-      title="请先在顶部选择命名空间，再查看或部署 Helm 应用。"
-      class="helm-panel-alert"
-    />
-
     <div v-loading="loading" class="helm-release-panel__body">
       <template v-if="layout === 'grid'">
         <div v-if="releases.length" class="helm-release-grid">
@@ -52,17 +51,17 @@
             v-for="row in releases"
             :key="row.name"
             class="helm-release-card"
-            @click="emit('open-detail', row)"
           >
             <div class="helm-release-card__head">
-              <div class="helm-release-card__icon">
-                <ArtSvgIcon icon="simple-icons:helm" />
-              </div>
               <div class="helm-release-card__title-wrap">
                 <h4 class="helm-release-card__title" :title="row.name">{{ row.name }}</h4>
-                <span class="helm-release-card__rev">Rev {{ row.version ?? '-' }}</span>
+                <div class="helm-release-card__meta-line">
+                  <span class="helm-release-card__rev">Rev {{ row.version ?? '-' }}</span>
+                  <span class="helm-status-dot" :class="releaseStatusMeta(row.info?.status).dot" />
+                  <span class="helm-release-card__status-text">{{ releaseStatusMeta(row.info?.status).label }}</span>
+                </div>
               </div>
-              <ElDropdown trigger="click" @click.stop>
+              <ElDropdown trigger="click">
                 <ElButton text class="helm-release-card__menu">
                   <ArtSvgIcon icon="ri:more-2-fill" />
                 </ElButton>
@@ -75,11 +74,6 @@
                   </ElDropdownMenu>
                 </template>
               </ElDropdown>
-            </div>
-
-            <div class="helm-release-card__status">
-              <span class="helm-status-dot" :class="releaseStatusMeta(row.info?.status).dot" />
-              <span>{{ releaseStatusMeta(row.info?.status).label }}</span>
             </div>
 
             <div class="helm-release-card__facts">
@@ -102,7 +96,7 @@
             </div>
           </article>
         </div>
-        <ElEmpty v-else description="当前命名空间暂无 Helm 应用" :image-size="64" class="helm-release-empty" />
+        <ElEmpty v-else description="当前命名空间暂无 Helm 应用，请切换命名空间" :image-size="64" class="helm-release-empty" />
       </template>
 
       <template v-else>
@@ -112,7 +106,7 @@
           row-key="name"
           class="helm-release-table"
         >
-          <ElTableColumn label="应用" min-width="180">
+          <ElTableColumn label="应用名称" min-width="180">
             <template #default="{ row }">
               <button type="button" class="helm-table-link" @click="emit('open-detail', row)">
                 {{ row.name }}
@@ -133,7 +127,7 @@
           <ElTableColumn label="更新时间" width="170">
             <template #default="{ row }">{{ formatHelmTime(row.info?.last_deployed) }}</template>
           </ElTableColumn>
-          <ElTableColumn label="操作" width="200" fixed="right">
+          <ElTableColumn label="操作" width="140" fixed="right">
             <template #default="{ row }">
               <ElButton link type="primary" @click="emit('upgrade', row)">升级</ElButton>
               <ElButton link type="primary" @click="emit('history', row)">历史</ElButton>
@@ -208,21 +202,52 @@
     max-width: 100%;
   }
 
-  .helm-panel-alert {
-    margin-bottom: 16px;
+  .helm-panel-toolbar__tip {
+    margin: 0 !important;
+    padding: 0 10px !important;
+    flex-shrink: 1;
+    min-width: 0;
+    display: inline-flex;
+    width: auto;
+    align-items: center;
+    height: 32px !important;
+    background: transparent;
+  }
+
+  .helm-panel-toolbar__tip :deep(.el-alert__content) {
+    padding: 0;
+  }
+
+  .helm-panel-toolbar__tip :deep(.el-alert__icon) {
+    width: 16px !important;
+    height: 16px !important;
+    margin-right: 6px !important;
+    font-size: 16px !important;
+  }
+
+  .helm-panel-toolbar__tip :deep(.el-alert__icon .el-icon),
+  .helm-panel-toolbar__tip :deep(.el-alert__icon svg) {
+    width: 16px !important;
+    height: 16px !important;
+    font-size: 16px !important;
+  }
+
+  .helm-panel-toolbar__tip :deep(.el-alert__description) {
+    margin: 0;
+    line-height: 32px;
   }
 
   .helm-release-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 14px;
+    gap: 12px;
   }
 
   .helm-release-card {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 16px;
+    gap: 5px;
+    padding: 12px 16px 8px 16px;
     border: 1px solid var(--helm-border);
     border-radius: 14px;
     background: var(--helm-surface);
@@ -271,6 +296,7 @@
     font-weight: 600;
     text-overflow: ellipsis;
     white-space: nowrap;
+    min-width: 0;
   }
 
   .helm-release-card__rev {
@@ -278,16 +304,19 @@
     font-size: 12px;
   }
 
-  .helm-release-card__menu {
-    padding: 4px;
-  }
-
-  .helm-release-card__status {
-    display: inline-flex;
+  .helm-release-card__meta-line {
+    display: flex;
     align-items: center;
     gap: 8px;
+  }
+
+  .helm-release-card__status-text {
     color: var(--el-text-color-regular);
     font-size: 12px;
+  }
+
+  .helm-release-card__menu {
+    padding: 4px;
   }
 
   .helm-status-dot {
@@ -347,14 +376,35 @@
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    padding-top: 4px;
+    padding-top: 0px;
+    margin-top: 0px;
     color: var(--el-text-color-secondary);
     font-size: 12px;
   }
 
   .helm-release-card__actions {
     display: flex;
-    gap: 4px;
+    gap: 0px;
+  }
+
+  .helm-release-card__actions :deep(.el-button) {
+    font-size: 12px !important;
+    padding: 4px 8px !important;
+  }
+
+  .helm-release-card__actions :deep(.el-button--link) {
+    font-size: 12px !important;
+    padding: 4px 8px !important;
+  }
+
+  .helm-release-card :deep(.el-button) {
+    font-size: 12px !important;
+    padding: 4px 8px !important;
+  }
+
+  .helm-release-card :deep(.el-button--link) {
+    font-size: 12px !important;
+    padding: 4px 8px !important;
   }
 
   .helm-table-link {
@@ -363,10 +413,37 @@
     background: none;
     color: var(--el-color-primary);
     cursor: pointer;
-    font-size: 13px;
+    font-size: 12px;
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
   }
 
   .helm-release-table :deep(.el-table__cell) {
-    font-size: 12px;
+    font-size: 12px !important;
   }
+
+  .helm-release-table :deep(.el-button--link) {
+    font-size: 12px !important;
+  }
+
+  .helm-release-table :deep(.el-button) {
+    font-size: 12px !important;
+  }
+</style>
+
+<style>
+.helm-release-card__actions .el-button,
+.helm-release-card__actions .el-button--link {
+  font-size: 12px !important;
+  padding: 2px 4px !important;
+  margin: 0 !important;
+}
+
+.helm-release-card__actions .el-button + .el-button {
+  margin-left: -4px !important;
+}
 </style>
