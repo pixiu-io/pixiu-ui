@@ -171,11 +171,6 @@
             <template #title>
               <span>监控告警</span>
             </template>
-            <ElMenuItem index="datasources">数据源</ElMenuItem>
-            <ElMenuItem index="logs">
-              <span>日志</span>
-              <span class="menu-new-tag">NEW</span>
-            </ElMenuItem>
             <ElMenuItem index="events">事件</ElMenuItem>
             <ElMenuItem index="alert">配置告警</ElMenuItem>
             <ElMenuItem index="prometheus">Prometheus监控</ElMenuItem>
@@ -247,8 +242,6 @@
     'crds',
     'apiservices',
     'alert',
-    'datasources',
-    'logs',
     'events',
     'prometheus'
   ])
@@ -950,31 +943,6 @@
   .cluster-detail-menu :deep(.el-menu-item) {
     height: 40px;
     line-height: 40px;
-  }
-
-  .menu-new-tag {
-    display: inline-block;
-    margin-left: 6px;
-    padding: 0 5px;
-    font-size: 10px;
-    line-height: 16px;
-    color: #fff;
-    background: #f56c6c;
-    border-radius: 3px;
-    vertical-align: middle;
-  }
-
-  .cluster-detail-main:has(.logs-console:not(.logs-console--placeholder)) {
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  .cluster-detail-main:has(.logs-console:not(.logs-console--placeholder)) > * {
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
   }
 
   .cluster-detail-main {

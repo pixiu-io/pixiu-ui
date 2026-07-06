@@ -69,7 +69,6 @@
     ClusterDetailApiservices: 'APIService',
     ClusterDetailAddonComponents: '扩展组件',
     ClusterDetailAlert: '告警',
-    ClusterDetailLogs: '日志',
     ClusterDetailEvents: '事件',
     ClusterDetailPrometheus: '监控'
   }
