@@ -835,7 +835,7 @@
   .datasource-dialog {
     .el-dialog__header {
       padding-top: 16px;
-      padding-bottom: 8px;
+      padding-bottom: 4px;
       margin-bottom: 0;
     }
 
@@ -845,8 +845,8 @@
     }
 
     .el-dialog__body {
-      padding-top: 0;
-      padding-bottom: 16px;
+      padding-top: 10px !important;
+      padding-bottom: 16px !important;
     }
   }
 

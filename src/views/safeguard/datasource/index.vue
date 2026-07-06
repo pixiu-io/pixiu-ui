@@ -208,6 +208,13 @@
           }
         },
         {
+          prop: 'external',
+          label: '来源',
+          minWidth: 100,
+          formatter: (row: DatasourceItem) =>
+            h('span', { style: { fontSize: '12px' } }, row.external ? '外部' : '内部')
+        },
+        {
           prop: 'clusterName',
           label: '关联集群',
           minWidth: 140,
