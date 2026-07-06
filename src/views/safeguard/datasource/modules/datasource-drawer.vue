@@ -22,12 +22,17 @@
           <ElRow :gutter="16">
             <ElCol :span="12">
               <ElFormItem label="名称" prop="name">
-                <ElInput v-model="formData.name" maxlength="64" show-word-limit placeholder="请输入数据源名称" />
+                <ElInput
+                  v-model="formData.name"
+                  maxlength="64"
+                  show-word-limit
+                  placeholder="请输入数据源名称"
+                />
               </ElFormItem>
             </ElCol>
 
             <ElCol :span="12">
-              <ElFormItem label="关联集群">
+              <ElFormItem v-if="!externalOnly" label="关联集群">
                 <ElSelect
                   v-if="clusterOptionList.length || clusterListLoading"
                   v-model="formData.cluster_name"
@@ -101,7 +106,11 @@
           <ElFormItem label="接入地址" prop="url">
             <ElInput
               v-model="formData.url"
-              placeholder="请输入接入地址，如: http://xx.example.com"
+              :placeholder="
+                externalOnly
+                  ? '请输入接入地址，如: http://192.168.100.210:30442'
+                  : '请输入接入地址，如: http://xx.example.com'
+              "
             />
           </ElFormItem>
 
@@ -121,10 +130,7 @@
           <div class="datasource-form-section__title">高级配置</div>
 
           <ElCollapse v-model="advancedPanels" class="datasource-advanced-collapse">
-            <ElCollapseItem
-              name="auth"
-              class="datasource-advanced-collapse__item"
-            >
+            <ElCollapseItem name="auth" class="datasource-advanced-collapse__item">
               <template #title>
                 <div class="datasource-advanced-collapse__title">
                   <span>鉴权</span>
@@ -262,6 +268,7 @@
 
   const props = defineProps<{
     editId?: number
+    externalOnly?: boolean
   }>()
 
   const visible = defineModel<boolean>({ default: false })
@@ -270,6 +277,7 @@
   }>()
 
   const isEdit = computed(() => props.editId != null && props.editId > 0)
+  const externalOnly = computed(() => Boolean(props.externalOnly))
   const editLoading = ref(false)
   const submitting = ref(false)
   const formRef = ref<FormInstance>()
@@ -298,16 +306,27 @@
     headers: [{ key: '', value: '' }]
   })
 
+  function validateUrl(_rule: unknown, value: string, callback: (error?: Error) => void) {
+    const trimmed = String(value || '').trim()
+    if (!trimmed) {
+      callback(new Error('请输入接入地址'))
+      return
+    }
+    if (externalOnly.value && !/^https?:\/\//i.test(trimmed)) {
+      callback(new Error('接入地址必须以 http:// 或 https:// 开头'))
+      return
+    }
+    callback()
+  }
+
   const rules: FormRules = {
     name: [{ required: true, message: '请输入数据源名称', trigger: 'blur' }],
     type: [{ required: true, message: '请选择类型', trigger: 'change' }],
     sub_type: [{ required: true, message: '请选择数据来源', trigger: 'change' }],
-    url: [{ required: true, message: '请输入接入地址', trigger: 'blur' }]
+    url: [{ validator: validateUrl, trigger: 'blur' }]
   }
 
-  const currentSubTypeOptions = computed(() =>
-    formData.type === 0 ? logSubTypes : alertSubTypes
-  )
+  const currentSubTypeOptions = computed(() => (formData.type === 0 ? logSubTypes : alertSubTypes))
 
   const selectedSubType = computed(() =>
     currentSubTypeOptions.value.find((item) => item.value === formData.sub_type)
@@ -499,7 +518,7 @@
       const data = await fetchGetDatasource(id)
       Object.assign(formData, {
         name: data.name,
-        cluster_name: resolveClusterName(data.clusterName || ''),
+        cluster_name: externalOnly.value ? '' : resolveClusterName(data.clusterName || ''),
         type: data.type,
         sub_type: data.subType,
         url: '',
@@ -544,11 +563,12 @@
         const payload: UpdateDatasourcePayload = {
           id: props.editId,
           resourceVersion: editResourceVersion.value,
-          clusterName: formData.cluster_name || undefined,
+          clusterName: externalOnly.value ? '' : formData.cluster_name || undefined,
           name: formData.name,
           type: formData.type,
           subType: formData.sub_type,
           url,
+          external: externalOnly.value,
           config,
           isDefault: formData.is_default,
           description: formData.description || undefined
@@ -557,11 +577,12 @@
         ElMessage.success('修改成功')
       } else {
         const payload: CreateDatasourcePayload = {
-          clusterName: formData.cluster_name || '',
+          clusterName: externalOnly.value ? '' : formData.cluster_name || '',
           name: formData.name,
           type: formData.type,
           subType: formData.sub_type,
           url,
+          external: externalOnly.value,
           config,
           isDefault: formData.is_default,
           description: formData.description || ''

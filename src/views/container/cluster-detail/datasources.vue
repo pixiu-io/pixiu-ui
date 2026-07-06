@@ -192,10 +192,7 @@
           <div class="datasource-form-section__title">高级配置</div>
 
           <ElCollapse v-model="advancedPanels" class="datasource-advanced-collapse">
-            <ElCollapseItem
-              name="auth"
-              class="datasource-advanced-collapse__item"
-            >
+            <ElCollapseItem name="auth" class="datasource-advanced-collapse__item">
               <template #title>
                 <div class="datasource-advanced-collapse__title">
                   <span>鉴权</span>
@@ -314,7 +311,10 @@
           </ElDescriptionsItem>
         </ElDescriptions>
 
-        <div v-if="detailItem.type === 0 || detailItem.type === 1" class="datasource-detail__section">
+        <div
+          v-if="detailItem.type === 0 || detailItem.type === 1"
+          class="datasource-detail__section"
+        >
           <div class="datasource-detail__section-title">认证信息</div>
           <ElDescriptions :column="1" border>
             <ElDescriptionsItem label="用户名">
@@ -326,9 +326,11 @@
             </ElDescriptionsItem>
             <ElDescriptionsItem label="密码">
               {{
-                (detailItem.type === 0
-                  ? detailItem.config.log?.password
-                  : detailItem.config.alert?.password)
+                (
+                  detailItem.type === 0
+                    ? detailItem.config.log?.password
+                    : detailItem.config.alert?.password
+                )
                   ? '已配置'
                   : '未配置'
               }}
@@ -434,7 +436,9 @@
   )
 
   const filteredItems = computed(() => {
-    const scoped = items.value.filter((item) => item.clusterName === ctxRef.value.name)
+    const scoped = items.value.filter(
+      (item) => item.clusterName === ctxRef.value.name && !item.external
+    )
 
     const matched = scoped.filter((item) => {
       if (typeFilter.value === 'log' && item.type !== 0) return false
@@ -490,6 +494,7 @@
       type: createForm.value.type,
       subType: createForm.value.subType,
       url: createForm.value.url.trim(),
+      external: false,
       isDefault: createForm.value.isDefault,
       description: createForm.value.description.trim(),
       config: {

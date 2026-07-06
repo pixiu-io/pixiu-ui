@@ -49,7 +49,12 @@
       />
     </ElCard>
 
-    <DatasourceDrawer v-model="drawerVisible" :edit-id="editId" @success="refreshData" />
+    <DatasourceDrawer
+      v-model="drawerVisible"
+      :edit-id="editId"
+      external-only
+      @success="refreshData"
+    />
   </div>
 </template>
 
@@ -58,7 +63,7 @@
   import { useTable } from '@/hooks/core/useTable'
   import { ElAlert, ElButton, ElInput, ElLink, ElMessage, ElMessageBox, ElTag } from 'element-plus'
   import {
-    fetchGetDatasourceList,
+    fetchDatasourceList,
     fetchDeleteDatasource,
     resolveDatasourceUrl,
     type DatasourceItem,
@@ -144,11 +149,21 @@
     core: {
       apiFn: async (params: { current: number; size: number; nameSelector?: string }) => {
         await loadClusterAliasMap()
-        return await fetchGetDatasourceList({
-          current: params.current,
-          size: params.size,
+        const { items } = await fetchDatasourceList({
+          page: 1,
+          limit: 500,
           nameSelector: params.nameSelector
         })
+        const externalItems = items.filter((item) => item.external)
+        const current = params.current
+        const size = params.size
+        const start = (current - 1) * size
+        return {
+          records: externalItems.slice(start, start + size),
+          total: externalItems.length,
+          current,
+          size
+        }
       },
       apiParams: {
         current: 1,
@@ -206,7 +221,11 @@
           label: '关联集群',
           minWidth: 140,
           formatter: (row: DatasourceItem) =>
-            h('span', { style: { fontSize: '12px' } }, getClusterAlias(row.clusterName))
+            h(
+              'span',
+              { style: { fontSize: '12px' } },
+              row.clusterName ? getClusterAlias(row.clusterName) : '-'
+            )
         },
         {
           prop: 'type',
@@ -219,8 +238,7 @@
           prop: 'gmtCreate',
           label: '创建时间',
           minWidth: 160,
-          formatter: (row: any) =>
-            h('span', { style: { fontSize: '12px' } }, row.gmtCreate || '-')
+          formatter: (row: any) => h('span', { style: { fontSize: '12px' } }, row.gmtCreate || '-')
         },
         {
           prop: 'operation',

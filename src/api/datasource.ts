@@ -47,6 +47,7 @@ export interface DatasourceItem {
   url?: string
   config: DatasourceConfig
   isDefault: boolean
+  external: boolean
   description: string
   gmtCreate: string
   gmtModified: string
@@ -91,6 +92,7 @@ interface BackendDatasourceItem {
   url?: string
   config?: BackendDatasourceConfig | null
   is_default?: boolean
+  external?: boolean
   description?: string
   gmt_create?: string
   gmt_modified?: string
@@ -127,6 +129,7 @@ export interface CreateDatasourcePayload {
   type: DatasourceType
   subType: DatasourceSubType
   url: string
+  external?: boolean
   config?: {
     headers?: DatasourceHeader[]
     log?: {
@@ -152,6 +155,7 @@ export interface UpdateDatasourcePayload {
   type?: DatasourceType
   subType?: DatasourceSubType
   url?: string
+  external?: boolean
   config?: {
     headers?: DatasourceHeader[]
     log?: {
@@ -241,6 +245,7 @@ function toDatasourceItem(item: BackendDatasourceItem): DatasourceItem {
     url: item.url ?? '',
     config: normalizeConfig(item.config, item.url),
     isDefault: Boolean(item.is_default),
+    external: Boolean(item.external),
     description: item.description ?? '',
     gmtCreate: item.gmt_create ?? '',
     gmtModified: item.gmt_modified ?? ''
@@ -311,6 +316,7 @@ export async function fetchCreateDatasource(payload: CreateDatasourcePayload): P
     url: payload.url,
     config: toBackendConfig(payload.config, payload.url),
     is_default: payload.isDefault ?? false,
+    external: payload.external ?? false,
     description: payload.description ?? ''
   })
 
@@ -330,6 +336,7 @@ export async function fetchUpdateDatasource(payload: UpdateDatasourcePayload): P
   if (payload.url !== undefined) data.url = payload.url
   if (payload.config !== undefined) data.config = toBackendConfig(payload.config, payload.url)
   if (payload.isDefault !== undefined) data.is_default = payload.isDefault
+  if (payload.external !== undefined) data.external = payload.external
   if (payload.description !== undefined) data.description = payload.description
 
   const res = await pixiuAxios.put(`/pixiu/datasources/${payload.id}`, data)
