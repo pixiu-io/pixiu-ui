@@ -33,9 +33,15 @@
           <ElRadioButton value="realtime">实时日志</ElRadioButton>
           <ElRadioButton value="history">历史日志</ElRadioButton>
         </ElRadioGroup>
-        <div class="workloads-log-search">
-          <ElInput v-model="keyword" placeholder="名称搜索关键字" clearable />
-          <ElButton type="primary" :loading="loading" @click="fetchLogs">查询</ElButton>
+        <div class="workloads-log-actions-right">
+          <div class="workloads-log-auto-refresh">
+            <span class="workloads-log-auto-refresh__label">自动刷新</span>
+            <ElSwitch v-model="logAutoRefresh" />
+          </div>
+          <div class="workloads-log-search">
+            <ElInput v-model="keyword" placeholder="名称搜索关键字" clearable />
+            <ElButton type="primary" :loading="loading" @click="fetchLogs()">查询</ElButton>
+          </div>
         </div>
       </div>
     </div>
@@ -43,7 +49,7 @@
     <div class="workloads-log-content-label">日志内容</div>
     <K8sLogOutput
       :lines="logLines"
-      :loading="loading"
+      :loading="loading || streaming"
       :download-name="downloadName"
       empty-text="暂无日志"
     />
@@ -51,13 +57,14 @@
 </template>
 
 <script setup lang="ts">
-  import { computed, ref, watch } from 'vue'
+  import { computed, onBeforeUnmount, ref, watch } from 'vue'
   import { ElMessage } from 'element-plus'
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
   import K8sLogOutput from '@/components/kubernetes/k8s-log-output.vue'
   import { fetchK8sPod } from '@/api/kubernetes/pod'
   import type { K8sPod } from '@/api/kubernetes/pod'
   import { kubeProxyAxios } from '@/api/kubeProxy'
+  import { resolvePixiuWsOrigin } from '@/utils/pixiu-ws-origin'
 
   defineOptions({ name: 'K8sPodLogsPane' })
 
@@ -78,9 +85,17 @@
   const tailLines = ref(10)
   const keyword = ref('')
   const logMode = ref<'history' | 'realtime'>('realtime')
+  const logAutoRefresh = ref(false)
   const loading = ref(false)
   const refreshing = ref(false)
-  const logLines = ref<string[]>([])
+  const streaming = ref(false)
+  const logAllLines = ref<string[]>([])
+  const logLines = computed(() => {
+    const kw = keyword.value.trim()
+    if (!kw) return logAllLines.value
+    return logAllLines.value.filter((line) => line.includes(kw))
+  })
+  let logSocket: WebSocket | null = null
 
   const downloadName = computed(
     () => `${podName.value || 'pod'}-${logContainer.value || 'container'}.log`
@@ -136,7 +151,85 @@
     return errorMessage
   }
 
+  function buildLogWsUrl(): string {
+    if (!props.cluster || !props.namespace || !podName.value || !logContainer.value) return ''
+    const base = resolvePixiuWsOrigin()
+    return (
+      `${base}/pixiu/kubeproxy/clusters/${encodeURIComponent(props.cluster)}/namespaces/${encodeURIComponent(props.namespace)}/pods/${encodeURIComponent(podName.value)}/log` +
+      `?container=${encodeURIComponent(logContainer.value)}&tailLines=${tailLines.value}`
+    )
+  }
+
+  function closeLogStream() {
+    if (logSocket) {
+      logSocket.onopen = null
+      logSocket.onmessage = null
+      logSocket.onerror = null
+      logSocket.onclose = null
+      logSocket.close()
+      logSocket = null
+    }
+    streaming.value = false
+  }
+
+  function appendLogStreamText(text: string) {
+    const parts = text.split('\n')
+    for (const part of parts) {
+      if (part !== '') logAllLines.value.push(part)
+    }
+  }
+
+  function connectLogStream() {
+    closeLogStream()
+    if (!props.cluster || !props.namespace || !podName.value || !logContainer.value) {
+      ElMessage.warning('请先选择容器')
+      return
+    }
+    if (logMode.value !== 'realtime') {
+      ElMessage.warning('自动刷新仅支持实时日志')
+      logAutoRefresh.value = false
+      return
+    }
+
+    logAllLines.value = []
+    streaming.value = true
+    const url = buildLogWsUrl()
+    if (!url) {
+      streaming.value = false
+      return
+    }
+
+    const token = localStorage.getItem('pixiu-access-token')
+    logSocket = token ? new WebSocket(url, [token]) : new WebSocket(url)
+
+    logSocket.onopen = () => {
+      streaming.value = false
+    }
+
+    logSocket.onmessage = (event) => {
+      const text =
+        typeof event.data === 'string'
+          ? event.data
+          : new TextDecoder().decode(event.data as ArrayBuffer)
+      appendLogStreamText(text)
+    }
+
+    logSocket.onerror = () => {
+      streaming.value = false
+      appendLogStreamText('[连接出错]')
+    }
+
+    logSocket.onclose = () => {
+      streaming.value = false
+    }
+  }
+
   async function fetchLogs() {
+    if (logAutoRefresh.value && logMode.value === 'realtime') {
+      connectLogStream()
+      return
+    }
+
     if (!props.cluster || !props.namespace || !podName.value || !logContainer.value) {
       ElMessage.warning('请先选择容器')
       return
@@ -153,18 +246,57 @@
         },
         responseType: 'text'
       })
-      const kw = keyword.value.trim()
-      logLines.value = String(data || '')
+      logAllLines.value = String(data || '')
         .split('\n')
         .filter((line) => line.length > 0)
-        .filter((line) => !kw || line.includes(kw))
     } catch (e: unknown) {
-      logLines.value = []
+      logAllLines.value = []
       ElMessage.error(parseLogError(e))
     } finally {
       loading.value = false
     }
   }
+
+  function stopLogAutoRefresh() {
+    closeLogStream()
+  }
+
+  function startLogAutoRefresh() {
+    if (!logAutoRefresh.value || !props.active) return
+    connectLogStream()
+  }
+
+  watch(logAutoRefresh, (enabled) => {
+    if (enabled) startLogAutoRefresh()
+    else stopLogAutoRefresh()
+  })
+
+  watch(logMode, (mode) => {
+    if (mode === 'history' && logAutoRefresh.value) {
+      logAutoRefresh.value = false
+      closeLogStream()
+    }
+  })
+
+  watch(
+    () => [logContainer.value, tailLines.value, logMode.value, podName.value] as const,
+    () => {
+      if (logAutoRefresh.value && logMode.value === 'realtime' && props.active) {
+        connectLogStream()
+      }
+    }
+  )
+
+  watch(
+    () => props.active,
+    (active) => {
+      if (!active) {
+        stopLogAutoRefresh()
+      } else if (logAutoRefresh.value) {
+        startLogAutoRefresh()
+      }
+    }
+  )
 
   watch(
     () => [props.active, props.cluster, props.namespace, props.podName] as const,
@@ -173,6 +305,10 @@
     },
     { immediate: true }
   )
+
+  onBeforeUnmount(() => {
+    stopLogAutoRefresh()
+  })
 </script>
 
 <style scoped>
@@ -248,8 +384,27 @@
     flex-wrap: wrap;
   }
 
-  .workloads-log-search {
+  .workloads-log-actions-right {
     margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .workloads-log-auto-refresh {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .workloads-log-auto-refresh__label {
+    font-size: 12px;
+    color: var(--el-text-color-primary);
+    white-space: nowrap;
+  }
+
+  .workloads-log-search {
     display: flex;
     align-items: center;
     gap: 10px;
