@@ -115,7 +115,7 @@
           >
             <template #left>
               <div class="workloads-toolbar">
-                <ElButton v-ripple @click="goCreateSts">新建</ElButton>
+                <ElButton v-ripple @click="onStsCreateClick">新建</ElButton>
                 <div class="workloads-toolbar__filters">
                   <ElInput
                     v-model="stsSearchForm.name"
@@ -3566,6 +3566,36 @@
         tab: 'sts'
       })
     })
+  }
+
+  function goCreateService() {
+    const cluster = String(route.query.cluster ?? '')
+    if (!cluster) {
+      ElMessage.warning('缺少集群参数')
+      return
+    }
+    const namespace =
+      String(route.query.namespace ?? '') ||
+      props.mirrorNamespace ||
+      props.deployNamespace ||
+      globalNamespace.value ||
+      nsOptions.value[0] ||
+      ''
+    router.push({
+      path: '/container/service-create',
+      query: buildClusterRouteQuery(route, {
+        ...(namespace ? { namespace } : {}),
+        tab: 'services'
+      })
+    })
+  }
+
+  function onStsCreateClick() {
+    if (props.stsDataMode === 'services') {
+      goCreateService()
+      return
+    }
+    goCreateSts()
   }
 
   function goCreateDs() {

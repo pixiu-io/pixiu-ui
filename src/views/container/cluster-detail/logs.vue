@@ -397,7 +397,32 @@
                     </label>
                   </div>
                 </div>
-                <div v-if="resultViewMode === 'table'" class="logs-console__column-settings">
+                <div v-if="resultViewMode === 'raw'" class="logs-console__column-settings">
+                  <ElPopover
+                    placement="bottom-end"
+                    trigger="click"
+                    :width="156"
+                    popper-class="logs-column-settings-popper"
+                  >
+                    <template #reference>
+                      <button type="button" class="logs-column-settings__trigger">
+                        <ElIcon><Setting /></ElIcon>
+                        显示列
+                      </button>
+                    </template>
+                    <div class="logs-column-settings__panel">
+                      <div
+                        v-for="column in rawColumnOptions"
+                        :key="column.key"
+                        class="logs-column-settings__row"
+                      >
+                        <span>{{ column.label }}</span>
+                        <ElSwitch v-model="rawColumnVisibility[column.key]" size="small" />
+                      </div>
+                    </div>
+                  </ElPopover>
+                </div>
+                <div v-else-if="resultViewMode === 'table'" class="logs-console__column-settings">
                   <ElPopover
                     placement="bottom-end"
                     trigger="click"
@@ -468,9 +493,13 @@
                     :class="{ 'is-wrap': wordWrap }"
                   >
                     <span v-if="showLineNumber" class="logs-raw-line__no">{{ index + 1 }}</span>
-                    <span v-if="showLogTime" class="logs-raw-line__time">{{ row.time }}</span>
-                    <span class="logs-raw-line__pod" :title="row.pod">{{ row.pod }}</span>
-                    <span class="logs-raw-line__msg">{{ row.msg }}</span>
+                    <span v-if="rawColumnVisibility.time" class="logs-raw-line__time">{{ row.time }}</span>
+                    <span
+                      v-if="rawColumnVisibility.pod"
+                      class="logs-raw-line__pod"
+                      :title="row.pod"
+                    >{{ row.pod }}</span>
+                    <span v-if="rawColumnVisibility.msg" class="logs-raw-line__msg">{{ row.msg }}</span>
                   </div>
                   <div v-if="!displayLogs.length" class="logs-empty">{{ emptyText }}</div>
                 </div>
@@ -729,7 +758,20 @@
   const wordWrap = ref(true)
   const showTrendChart = ref(true)
 
+  type RawColumnKey = 'time' | 'pod' | 'msg'
   type TableColumnKey = 'time' | 'ns' | 'pod' | 'container' | 'msg'
+
+  const rawColumnOptions: Array<{ key: RawColumnKey; label: string }> = [
+    { key: 'time', label: '时间' },
+    { key: 'pod', label: 'POD' },
+    { key: 'msg', label: '内容' }
+  ]
+
+  const rawColumnVisibility = ref<Record<RawColumnKey, boolean>>({
+    time: true,
+    pod: true,
+    msg: true
+  })
 
   const tableColumnOptions: Array<{ key: TableColumnKey; label: string }> = [
     { key: 'time', label: '时间' },
