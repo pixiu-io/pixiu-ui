@@ -475,7 +475,7 @@
           <div class="workloads-log-content-label">日志内容</div>
           <K8sLogOutput
             :lines="dsLogLines"
-            :loading="dsLogLoading"
+            :loading="dsLogLoading || dsLogStreaming"
             :download-name="dsLogDownloadName"
             empty-text="暂无日志"
           />
@@ -646,6 +646,7 @@
   import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
   import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { buildClusterRouteQuery } from '@/utils/navigation/cluster-query'
+  import { resolvePixiuWsOrigin } from '@/utils/pixiu-ws-origin'
   import { useRoute, useRouter } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
   import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
@@ -892,9 +893,14 @@
   const dsLogAutoRefresh = ref(false)
   const dsLogLoading = ref(false)
   const dsLogRefreshing = ref(false)
-  const dsLogLines = ref<string[]>([])
-  const DS_LOG_AUTO_REFRESH_MS = 5000
-  let dsLogAutoRefreshTimer: ReturnType<typeof setInterval> | null = null
+  const dsLogStreaming = ref(false)
+  const dsLogAllLines = ref<string[]>([])
+  const dsLogLines = computed(() => {
+    const kw = dsLogKeyword.value.trim()
+    if (!kw) return dsLogAllLines.value
+    return dsLogAllLines.value.filter((line) => line.includes(kw))
+  })
+  let dsLogSocket: WebSocket | null = null
   const dsLogDownloadName = computed(
     () => `${dsLogPod.value || 'pod'}-${dsLogContainer.value || 'container'}.log`
   )
@@ -1934,7 +1940,89 @@
     dsLogContainer.value = dsLogContainerOptions.value[0] ?? ''
   }
 
+  function buildDsLogWsUrl(): string {
+    const cluster = String(route.query.cluster ?? '')
+    const namespace = props.mirrorNamespace || globalNamespace.value
+    if (!cluster || !namespace || !dsLogPod.value || !dsLogContainer.value) return ''
+    const base = resolvePixiuWsOrigin()
+    return (
+      `${base}/pixiu/kubeproxy/clusters/${encodeURIComponent(cluster)}/namespaces/${encodeURIComponent(namespace)}/pods/${encodeURIComponent(dsLogPod.value)}/log` +
+      `?container=${encodeURIComponent(dsLogContainer.value)}&tailLines=${dsLogTailLines.value}`
+    )
+  }
+
+  function closeDsLogStream() {
+    if (dsLogSocket) {
+      dsLogSocket.onopen = null
+      dsLogSocket.onmessage = null
+      dsLogSocket.onerror = null
+      dsLogSocket.onclose = null
+      dsLogSocket.close()
+      dsLogSocket = null
+    }
+    dsLogStreaming.value = false
+  }
+
+  function appendDsLogStreamText(text: string) {
+    const parts = text.split('\n')
+    for (const part of parts) {
+      if (part !== '') dsLogAllLines.value.push(part)
+    }
+  }
+
+  function connectDsLogStream() {
+    closeDsLogStream()
+    const cluster = String(route.query.cluster ?? '')
+    const namespace = props.mirrorNamespace || globalNamespace.value
+    if (!cluster || !namespace || !dsLogPod.value || !dsLogContainer.value) {
+      ElMessage.warning('请先选择 Pod 和容器')
+      return
+    }
+    if (dsLogMode.value !== 'realtime') {
+      ElMessage.warning('自动刷新仅支持实时日志')
+      dsLogAutoRefresh.value = false
+      return
+    }
+
+    dsLogAllLines.value = []
+    dsLogStreaming.value = true
+    const url = buildDsLogWsUrl()
+    if (!url) {
+      dsLogStreaming.value = false
+      return
+    }
+
+    const token = localStorage.getItem('pixiu-access-token')
+    dsLogSocket = token ? new WebSocket(url, [token]) : new WebSocket(url)
+
+    dsLogSocket.onopen = () => {
+      dsLogStreaming.value = false
+    }
+
+    dsLogSocket.onmessage = (event) => {
+      const text =
+        typeof event.data === 'string'
+          ? event.data
+          : new TextDecoder().decode(event.data as ArrayBuffer)
+      appendDsLogStreamText(text)
+    }
+
+    dsLogSocket.onerror = () => {
+      dsLogStreaming.value = false
+      appendDsLogStreamText('[连接出错]')
+    }
+
+    dsLogSocket.onclose = () => {
+      dsLogStreaming.value = false
+    }
+  }
+
   async function fetchDsLogs(options?: { silent?: boolean }) {
+    if (dsLogAutoRefresh.value && dsLogMode.value === 'realtime') {
+      connectDsLogStream()
+      return
+    }
+
     const silent = options?.silent ?? false
     const cluster = String(route.query.cluster ?? '')
     const namespace = props.mirrorNamespace || globalNamespace.value
@@ -1957,11 +2045,10 @@
       const lines = String(data || '')
         .split('\n')
         .filter((line) => line.length > 0)
-        .filter((line) => !dsLogKeyword.value.trim() || line.includes(dsLogKeyword.value.trim()))
-      dsLogLines.value = lines
+      dsLogAllLines.value = lines
     } catch (e: unknown) {
       if (!silent) {
-        dsLogLines.value = []
+        dsLogAllLines.value = []
         let errorMessage = '获取日志失败'
         if (typeof e === 'object' && e !== null) {
           const maybeAxios = e as {
@@ -1993,25 +2080,40 @@
   }
 
   function stopDsLogAutoRefresh() {
-    if (dsLogAutoRefreshTimer) {
-      clearInterval(dsLogAutoRefreshTimer)
-      dsLogAutoRefreshTimer = null
-    }
+    closeDsLogStream()
   }
 
   function startDsLogAutoRefresh() {
-    stopDsLogAutoRefresh()
     if (!dsLogAutoRefresh.value || kind.value !== 'ds' || props.dsDataMode !== 'logs') return
-    void fetchDsLogs({ silent: true })
-    dsLogAutoRefreshTimer = setInterval(() => {
-      void fetchDsLogs({ silent: true })
-    }, DS_LOG_AUTO_REFRESH_MS)
+    connectDsLogStream()
   }
 
   watch(dsLogAutoRefresh, (enabled) => {
     if (enabled) startDsLogAutoRefresh()
     else stopDsLogAutoRefresh()
   })
+
+  watch(dsLogMode, (mode) => {
+    if (mode === 'history' && dsLogAutoRefresh.value) {
+      dsLogAutoRefresh.value = false
+      closeDsLogStream()
+    }
+  })
+
+  watch(
+    () =>
+      [
+        dsLogPod.value,
+        dsLogContainer.value,
+        dsLogTailLines.value,
+        dsLogMode.value
+      ] as const,
+    () => {
+      if (dsLogAutoRefresh.value && dsLogMode.value === 'realtime') {
+        connectDsLogStream()
+      }
+    }
+  )
 
   watch(
     () => [kind.value, props.dsDataMode] as const,
