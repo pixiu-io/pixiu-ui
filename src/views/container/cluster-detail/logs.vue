@@ -28,13 +28,26 @@
           <div class="logs-console__rule-main">
             <div class="logs-console__rule-left">
               <slot name="before-datasource" />
-              <span class="logs-console__rule-label">数据源</span>
+              <span class="logs-console__rule-label">日志来源</span>
               <ElSelect
-                v-model="selectedDatasourceId"
-                placeholder="请选择数据源"
-                class="logs-console__rule-select"
-                :loading="datasourceLoading"
+                v-model="sourceFilter"
+                class="logs-console__rule-select logs-console__source-select"
               >
+                <ElOption
+                  v-for="opt in sourceOptions"
+                  :key="opt.value"
+                  :label="opt.label"
+                  :value="opt.value"
+                />
+              </ElSelect>
+              <span class="logs-console__rule-label">数据源</span>
+              <span class="logs-console__datasource-wrap">
+                <ElSelect
+                  v-model="selectedDatasourceId"
+                  placeholder="请选择数据源"
+                  class="logs-console__rule-select"
+                  :loading="datasourceLoading"
+                >
                 <template #label="{ value }">
                   <span
                     v-if="value && getDatasourceById(Number(value))"
@@ -55,7 +68,7 @@
                   </span>
                 </template>
                 <ElOption
-                  v-for="item in datasourceOptions"
+                  v-for="item in filteredDatasourceOptions"
                   :key="item.id"
                   :label="item.name"
                   :value="item.id"
@@ -71,6 +84,15 @@
                   </span>
                 </ElOption>
               </ElSelect>
+              <ElTag
+                v-if="sourceFilter === 'internal' && selectedDatasource"
+                class="logs-console__datasource-cluster-tag"
+                size="small"
+                effect="light"
+              >
+                {{ getClusterLabel(selectedDatasource.clusterName || '') }}
+              </ElTag>
+            </span>
             </div>
             <ElButton link type="primary" class="logs-console__external-link" disabled>
               在日志服务中查看更多
@@ -567,7 +589,7 @@
 </template>
 
 <script setup lang="ts">
-  import { computed, inject, ref, watch } from 'vue'
+  import { computed, inject, nextTick, ref, watch } from 'vue'
   import { useRouter } from 'vue-router'
   import { ElMessage } from 'element-plus'
   import {
@@ -587,10 +609,11 @@
   import {
     fetchDatasourceList,
     resolveDatasourceUrl,
+    type DatasourceHeader,
     type DatasourceItem,
     type DatasourceSubType
   } from '@/api/datasource'
-  import { PixiuApiError } from '@/api/container'
+  import { PixiuApiError, fetchClusterList } from '@/api/container'
   import { buildDatasourceProxyHeaders, kubeProxyAxios } from '@/api/kubeProxy'
   import { fetchK8sService, fetchK8sServiceList, type K8sService } from '@/api/kubernetes/service'
   import { clusterDetailContextKey, clusterNameSeed, type ClusterDetailContext } from './context'
@@ -738,7 +761,32 @@
   const errorMessage = ref('')
 
   const datasourceOptions = ref<DatasourceItem[]>([])
+  const allDatasourceItems = ref<DatasourceItem[]>([])
   const selectedDatasourceId = ref<number>()
+  const sourceFilter = ref<'internal' | 'external'>('external')
+
+  const sourceOptions = computed(() => {
+    const hasInternal = allDatasourceItems.value.some((item) => !item.external)
+    const hasExternal = allDatasourceItems.value.some((item) => item.external)
+    const options: { label: string; value: 'internal' | 'external' }[] = []
+    if (hasInternal) options.push({ label: '内部数据源', value: 'internal' })
+    if (hasExternal) options.push({ label: '外部数据源', value: 'external' })
+    return options
+  })
+
+  const filteredDatasourceOptions = computed(() => {
+    if (sourceFilter.value === 'internal') {
+      return datasourceOptions.value.filter((item) => !item.external)
+    }
+    return datasourceOptions.value.filter((item) => item.external)
+  })
+
+  function getClusterLabel(clusterName: string): string {
+    if (!clusterName) return '-'
+    return clusterAliasMap.value[clusterName] || clusterName
+  }
+
+  const clusterAliasMap = ref<Record<string, string>>({})
   const timeRangeMinutes = ref(15)
   const lineLimit = ref(200)
   const keyword = ref('')
@@ -759,10 +807,20 @@
   const expandedRowKeys = ref<string[]>([])
 
   const currentCluster = computed(() => ctxRef.value.name)
-  const selectedDatasource = computed(
-    () => datasourceOptions.value.find((item) => item.id === selectedDatasourceId.value) ?? null
-  )
   const isExternalMode = computed(() => props.externalOnly)
+  /** 与原先集群详情日志一致：经集群内 Service 代理，而非 datasource 直连代理 */
+  const usesClusterServiceProxy = computed(
+    () => !isExternalMode.value || sourceFilter.value === 'internal'
+  )
+  const effectiveCluster = computed(() => {
+    if (isExternalMode.value && usesClusterServiceProxy.value) {
+      return selectedDatasource.value?.clusterName || ''
+    }
+    return currentCluster.value
+  })
+  const selectedDatasource = computed(
+    () => filteredDatasourceOptions.value.find((item) => item.id === selectedDatasourceId.value) ?? null
+  )
   const isLokiDatasource = computed(() => selectedDatasource.value?.subType === 'loki')
   const isEsDatasource = computed(() => selectedDatasource.value?.subType === 'es')
   const filteredFieldKeys = computed(() => {
@@ -892,7 +950,7 @@
   const canQuery = computed(
     () => Boolean(selectedDatasource.value) && Boolean(effectiveQuery.value.trim())
   )
-  const hasConfiguredDatasource = computed(() => datasourceOptions.value.length > 0)
+  const hasConfiguredDatasource = computed(() => filteredDatasourceOptions.value.length > 0)
   const isPlaceholderState = computed(() => {
     if (!props.compactPlaceholder) return false
     return !detectResolved.value || !hasConfiguredDatasource.value
@@ -1014,7 +1072,7 @@
   }
 
   function getDatasourceById(id: number) {
-    return datasourceOptions.value.find((item) => item.id === id) ?? null
+    return datasourceOptions.value.find((item) => item.id === id) ?? filteredDatasourceOptions.value.find((item) => item.id === id) ?? null
   }
 
   function onFilterKeyChange(filter: FilterRow) {
@@ -1069,20 +1127,22 @@
   }
 
   function serviceProxyBase(path: string): string {
-    if (isExternalMode.value) {
-      const datasourceId = selectedDatasourceId.value
-      if (!datasourceId) return ''
+    if (!usesClusterServiceProxy.value) {
+      const datasource = selectedDatasource.value
+      const rawUrl = datasource ? resolveDatasourceUrl(datasource) : ''
+      if (!rawUrl) return ''
       const requestPath = path.startsWith('/') ? path : `/${path}`
-      return `/pixiu/proxy/datasources/${encodeURIComponent(String(datasourceId))}${requestPath}`
+      return `/pixiu/external${requestPath}?url=${encodeURIComponent(rawUrl)}`
     }
 
     const endpoint = resolvedEndpoint.value
     const service = resolvedService.value?.metadata?.name
     const namespace = resolvedServiceNamespace.value
-    if (!endpoint || !service || !namespace) return ''
+    const clusterName = effectiveCluster.value
+    if (!endpoint || !service || !namespace || !clusterName) return ''
     const requestPath = path.startsWith('/') ? path : `/${path}`
     return (
-      `/pixiu/proxy/${encodeURIComponent(currentCluster.value)}/api/v1/namespaces/${encodeURIComponent(namespace)}` +
+      `/pixiu/proxy/${encodeURIComponent(clusterName)}/api/v1/namespaces/${encodeURIComponent(namespace)}` +
       `/services/${encodeURIComponent(service)}:${endpoint.port}/proxy${endpoint.basePath}${requestPath}`
     )
   }
@@ -1095,17 +1155,27 @@
         limit: 200,
         type: 0
       })
-      datasourceOptions.value = items.filter(
+      allDatasourceItems.value = items.filter(
+        (item) => item.subType === 'loki' || item.subType === 'es'
+      )
+      datasourceOptions.value = allDatasourceItems.value.filter(
         (item) =>
-          (item.subType === 'loki' || item.subType === 'es') &&
           (props.externalOnly
-            ? item.external
+            ? true
             : item.clusterName === currentCluster.value && !item.external)
       )
-      if (datasourceOptions.value.length > 0) {
+      if (sourceOptions.value.length > 0) {
+        const prefer = sourceOptions.value.find(o => o.value === 'internal')
+        if (prefer && sourceFilter.value !== 'internal') {
+          sourceFilter.value = 'internal'
+        } else if (!prefer && sourceFilter.value !== sourceOptions.value[0].value) {
+          sourceFilter.value = sourceOptions.value[0].value
+        }
+      }
+      if (filteredDatasourceOptions.value.length > 0) {
         selectedDatasourceId.value =
-          datasourceOptions.value.find((item) => item.isDefault)?.id ??
-          datasourceOptions.value[0]?.id
+          filteredDatasourceOptions.value.find((item) => item.isDefault)?.id ??
+          filteredDatasourceOptions.value[0]?.id
       } else {
         selectedDatasourceId.value = undefined
         errorMessage.value = ''
@@ -1121,6 +1191,20 @@
     } finally {
       datasourceLoading.value = false
     }
+    loadClusterAliasMap()
+  }
+
+  async function loadClusterAliasMap() {
+    try {
+      const { items } = await fetchClusterList({ page: 1, limit: 999 })
+      const aliasMap: Record<string, string> = {}
+      for (const c of items) {
+        aliasMap[c.name] = c.aliasName || c.name
+      }
+      clusterAliasMap.value = aliasMap
+    } catch {
+      // 集群列表加载失败时静默处理
+    }
   }
 
   async function resolveServiceByEndpoint(
@@ -1133,7 +1217,7 @@
     if (endpoint.namespace) {
       return {
         service: await fetchK8sService(
-          currentCluster.value,
+          effectiveCluster.value,
           endpoint.namespace,
           endpoint.serviceName,
           skipErrorNotification
@@ -1142,7 +1226,7 @@
       }
     }
 
-    const { items } = await fetchK8sServiceList(currentCluster.value, {
+    const { items } = await fetchK8sServiceList(effectiveCluster.value, {
       page: 1,
       limit: 999999,
       skipErrorNotification
@@ -1167,9 +1251,11 @@
     if (!url) return
     const nowNs = Date.now() * 1_000_000
     const startNs = nowNs - timeRangeMinutes.value * 60 * 1_000_000_000
+    const headers = getLokiRequestHeaders()
     const { data } = await kubeProxyAxios.get<{ status?: string; data?: string[]; error?: string }>(
       url,
       {
+        headers,
         params: {
           start: String(startNs),
           end: String(nowNs)
@@ -1195,11 +1281,13 @@
     const startNs = nowNs - timeRangeMinutes.value * 60 * 1_000_000_000
     filter.loading = true
     try {
+      const headers = getLokiRequestHeaders()
       const { data } = await kubeProxyAxios.get<{
         status?: string
         data?: string[]
         error?: string
       }>(url, {
+        headers,
         params: {
           start: String(startNs),
           end: String(nowNs)
@@ -1219,7 +1307,7 @@
     options: { resetState?: boolean } = {}
   ) {
     const { resetState = true } = options
-    if (datasourceOptions.value.length === 0) return
+    if (filteredDatasourceOptions.value.length === 0) return
 
     const datasource = selectedDatasource.value
     const rawUrl = datasource ? resolveDatasourceUrl(datasource) : ''
@@ -1241,7 +1329,7 @@
       return
     }
 
-    if (isExternalMode.value) {
+    if (!usesClusterServiceProxy.value) {
       resolvedEndpoint.value = {
         serviceName: '',
         namespace: '',
@@ -1286,21 +1374,21 @@
   }
 
   async function ensureServiceResolved(skipErrorNotification = false): Promise<boolean> {
-    if (isExternalMode.value) {
+    if (!usesClusterServiceProxy.value) {
       if (!selectedDatasource.value) return false
       if (resolvedEndpoint.value) return true
       await resolveServiceContext(skipErrorNotification, { resetState: false })
       return Boolean(selectedDatasource.value)
     }
-    if (resolvedService.value && resolvedEndpoint.value) return true
+    if (resolvedService.value?.metadata?.name && resolvedEndpoint.value?.serviceName) return true
     await resolveServiceContext(skipErrorNotification, { resetState: false })
-    return Boolean(resolvedEndpoint.value)
+    return Boolean(resolvedService.value?.metadata?.name && resolvedEndpoint.value?.serviceName)
   }
 
   async function refreshContext(skipErrorNotification = false, resolveService = false) {
     detectResolved.value = false
     await loadDatasources()
-    if (resolveService && datasourceOptions.value.length > 0 && selectedDatasource.value) {
+    if (resolveService && filteredDatasourceOptions.value.length > 0 && selectedDatasource.value) {
       await resolveServiceContext(skipErrorNotification)
     } else {
       errorMessage.value = ''
@@ -1464,19 +1552,54 @@
   }
 
   function getEsRequestHeaders(): Record<string, string> {
-    if (isExternalMode.value) {
-      return {}
+    if (!usesClusterServiceProxy.value) {
+      return getExternalProxyHeaders()
     }
 
     const datasourceId = selectedDatasourceId.value
-    const datasource = selectedDatasource.value
-    const authUserName = datasource?.config.log?.userName?.trim()
-    const authPassword = datasource?.config.log?.password?.trim()
-    if (!datasourceId || !authUserName || !authPassword) {
+    if (!datasourceId) {
       return {}
     }
 
     return buildDatasourceProxyHeaders(datasourceId)
+  }
+
+  function buildExternalAuthHeader(datasource: DatasourceItem | null): string {
+    const username = datasource?.config.log?.userName?.trim() || datasource?.config.alert?.userName?.trim() || ''
+    const password = datasource?.config.log?.password ?? datasource?.config.alert?.password ?? ''
+    if (!username && !password) return ''
+    return `Basic ${btoa(`${username}:${password}`)}`
+  }
+
+  function applyExternalDatasourceHeaders(
+    target: Record<string, string>,
+    headers: DatasourceHeader[] | undefined
+  ) {
+    for (const header of headers ?? []) {
+      const key = header.key.trim()
+      if (!key) continue
+      target[key] = header.value
+    }
+  }
+
+  function getExternalProxyHeaders(): Record<string, string> {
+    const datasource = selectedDatasource.value
+    if (!datasource) return {}
+
+    const headers: Record<string, string> = {}
+    const authHeader = buildExternalAuthHeader(datasource)
+    if (authHeader) {
+      headers['X-Pixiu-Proxy-Authorization'] = authHeader
+    }
+    applyExternalDatasourceHeaders(headers, datasource.config.headers)
+    return headers
+  }
+
+  function getLokiRequestHeaders(): Record<string, string> {
+    if (!usesClusterServiceProxy.value) {
+      return getExternalProxyHeaders()
+    }
+    return {}
   }
 
   async function loadLogs() {
@@ -1507,10 +1630,12 @@
     const nowMs = Date.now()
     const startMs = nowMs - timeRangeMinutes.value * 60 * 1000
     queryTimeRange.value = { start: startMs, end: nowMs }
+    const headers = getLokiRequestHeaders()
 
     const nowNs = nowMs * 1_000_000
     const startNs = startMs * 1_000_000
     const { data } = await kubeProxyAxios.get<LokiQueryRangeResponse>(url, {
+      headers,
       params: {
         query: effectiveQuery.value,
         limit: lineLimit.value,
@@ -1979,7 +2104,7 @@
 
   // 只在手动切换数据源时更新 service 上下文
   watch(selectedDatasourceId, (newVal, oldVal) => {
-    if (!datasourceOptions.value.length || newVal === oldVal) return
+    if (!filteredDatasourceOptions.value.length || newVal === oldVal) return
 
     if (oldVal !== undefined) {
       filters.value = []
@@ -1996,6 +2121,29 @@
     queryDirty.value = false
     keyword.value = ''
     syncQueryDraftFromDatasource()
+  })
+
+  watch(sourceFilter, () => {
+    errorMessage.value = ''
+    resolvedService.value = null
+    resolvedServiceNamespace.value = ''
+    resolvedEndpoint.value = null
+    labelKeys.value = []
+    labelValueCache.value = {}
+    logs.value = []
+    expandedRowKeys.value = []
+    queryDirty.value = false
+    keyword.value = ''
+    filters.value = []
+
+    if (filteredDatasourceOptions.value.length > 0) {
+      selectedDatasourceId.value =
+        filteredDatasourceOptions.value.find((item) => item.isDefault)?.id ??
+        filteredDatasourceOptions.value[0]?.id
+      syncQueryDraftFromDatasource()
+    } else {
+      selectedDatasourceId.value = undefined
+    }
   })
 </script>
 
@@ -2074,6 +2222,26 @@
   .logs-console__rule-select {
     width: 220px;
     max-width: 100%;
+  }
+
+  .logs-console__source-select {
+    width: 130px;
+  }
+
+  .logs-console__datasource-wrap {
+    position: relative;
+    display: inline-flex;
+  }
+
+  .logs-console__datasource-cluster-tag {
+    position: absolute;
+    top: -6px;
+    right: -9px;
+    z-index: 1;
+    font-size: 10px;
+    padding: 0 4px;
+    height: 16px;
+    line-height: 16px;
   }
 
   .logs-console__datasource-option {

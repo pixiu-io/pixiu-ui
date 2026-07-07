@@ -209,10 +209,10 @@
         },
         {
           prop: 'external',
-          label: '来源',
+          label: '外部数据源',
           minWidth: 100,
           formatter: (row: DatasourceItem) =>
-            h('span', { style: { fontSize: '12px' } }, row.external ? '外部' : '内部')
+            h('span', { style: { fontSize: '12px' } }, row.external ? '是' : '否')
         },
         {
           prop: 'clusterName',

@@ -16,8 +16,7 @@ export const monitorRoutes: AppRouteRecord = {
       component: '/safeguard/datasource',
       meta: {
         title: 'menus.safeguard.datasource',
-        icon: 'ri:database-2-line',
-        keepAlive: true
+        icon: 'ri:database-2-line'
       }
     },
     {
@@ -26,8 +25,7 @@ export const monitorRoutes: AppRouteRecord = {
       component: '/safeguard/logs',
       meta: {
         title: 'menus.safeguard.logs',
-        icon: 'ri:file-text-line',
-        keepAlive: true
+        icon: 'ri:file-text-line'
       }
     }
   ]
