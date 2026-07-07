@@ -457,11 +457,17 @@
                 <ElRadioButton value="realtime">实时日志</ElRadioButton>
                 <ElRadioButton value="history">历史日志</ElRadioButton>
               </ElRadioGroup>
-              <div class="workloads-log-search">
-                <ElInput v-model="dsLogKeyword" placeholder="名称搜索关键字" clearable />
-                <ElButton type="primary" :loading="dsLogLoading" @click="fetchDsLogs"
-                  >查询</ElButton
-                >
+              <div class="workloads-log-actions-right">
+                <div class="workloads-log-auto-refresh">
+                  <span class="workloads-log-auto-refresh__label">自动刷新</span>
+                  <ElSwitch v-model="dsLogAutoRefresh" />
+                </div>
+                <div class="workloads-log-search">
+                  <ElInput v-model="dsLogKeyword" placeholder="名称搜索关键字" clearable />
+                  <ElButton type="primary" :loading="dsLogLoading" @click="fetchDsLogs()"
+                    >查询</ElButton
+                  >
+                </div>
               </div>
             </div>
           </div>
@@ -636,7 +642,7 @@
   import ArtButtonMore, {
     type ButtonMoreItem
   } from '@/components/core/forms/art-button-more/index.vue'
-  import { computed, h, ref, watch, inject } from 'vue'
+  import { computed, h, ref, watch, inject, onBeforeUnmount } from 'vue'
   import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
   import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { buildClusterRouteQuery } from '@/utils/navigation/cluster-query'
@@ -883,9 +889,12 @@
   const dsLogKeyword = ref('')
   /** 实时：当前容器日志；历史：上一实例容器日志（kubectl logs --previous） */
   const dsLogMode = ref<'history' | 'realtime'>('realtime')
+  const dsLogAutoRefresh = ref(false)
   const dsLogLoading = ref(false)
   const dsLogRefreshing = ref(false)
   const dsLogLines = ref<string[]>([])
+  const DS_LOG_AUTO_REFRESH_MS = 5000
+  let dsLogAutoRefreshTimer: ReturnType<typeof setInterval> | null = null
   const dsLogDownloadName = computed(
     () => `${dsLogPod.value || 'pod'}-${dsLogContainer.value || 'container'}.log`
   )
@@ -1925,14 +1934,15 @@
     dsLogContainer.value = dsLogContainerOptions.value[0] ?? ''
   }
 
-  async function fetchDsLogs() {
+  async function fetchDsLogs(options?: { silent?: boolean }) {
+    const silent = options?.silent ?? false
     const cluster = String(route.query.cluster ?? '')
     const namespace = props.mirrorNamespace || globalNamespace.value
     if (!cluster || !namespace || !dsLogPod.value || !dsLogContainer.value) {
-      ElMessage.warning('请先选择 Pod 和容器')
+      if (!silent) ElMessage.warning('请先选择 Pod 和容器')
       return
     }
-    dsLogLoading.value = true
+    if (!silent) dsLogLoading.value = true
     try {
       const url = `/pixiu/proxy/${encodeURIComponent(cluster)}/api/v1/namespaces/${encodeURIComponent(namespace)}/pods/${encodeURIComponent(dsLogPod.value)}/log`
       const { data } = await kubeProxyAxios.get<string>(url, {
@@ -1950,35 +1960,73 @@
         .filter((line) => !dsLogKeyword.value.trim() || line.includes(dsLogKeyword.value.trim()))
       dsLogLines.value = lines
     } catch (e: unknown) {
-      dsLogLines.value = []
-      let errorMessage = '获取日志失败'
-      if (typeof e === 'object' && e !== null) {
-        const maybeAxios = e as {
-          message?: string
-          response?: { data?: unknown }
-        }
-        const responseData = maybeAxios.response?.data
-        if (typeof responseData === 'string') {
-          try {
-            const parsed = JSON.parse(responseData) as { message?: string }
-            errorMessage = parsed.message || responseData || maybeAxios.message || errorMessage
-          } catch {
-            errorMessage = responseData || maybeAxios.message || errorMessage
+      if (!silent) {
+        dsLogLines.value = []
+        let errorMessage = '获取日志失败'
+        if (typeof e === 'object' && e !== null) {
+          const maybeAxios = e as {
+            message?: string
+            response?: { data?: unknown }
           }
-        } else if (typeof responseData === 'object' && responseData !== null) {
-          const payload = responseData as { message?: string }
-          errorMessage = payload.message || maybeAxios.message || errorMessage
-        } else if (maybeAxios.message) {
-          errorMessage = maybeAxios.message
+          const responseData = maybeAxios.response?.data
+          if (typeof responseData === 'string') {
+            try {
+              const parsed = JSON.parse(responseData) as { message?: string }
+              errorMessage = parsed.message || responseData || maybeAxios.message || errorMessage
+            } catch {
+              errorMessage = responseData || maybeAxios.message || errorMessage
+            }
+          } else if (typeof responseData === 'object' && responseData !== null) {
+            const payload = responseData as { message?: string }
+            errorMessage = payload.message || maybeAxios.message || errorMessage
+          } else if (maybeAxios.message) {
+            errorMessage = maybeAxios.message
+          }
+        } else if (typeof e === 'string') {
+          errorMessage = e
         }
-      } else if (typeof e === 'string') {
-        errorMessage = e
+        ElMessage.error(errorMessage)
       }
-      ElMessage.error(errorMessage)
     } finally {
-      dsLogLoading.value = false
+      if (!silent) dsLogLoading.value = false
     }
   }
+
+  function stopDsLogAutoRefresh() {
+    if (dsLogAutoRefreshTimer) {
+      clearInterval(dsLogAutoRefreshTimer)
+      dsLogAutoRefreshTimer = null
+    }
+  }
+
+  function startDsLogAutoRefresh() {
+    stopDsLogAutoRefresh()
+    if (!dsLogAutoRefresh.value || kind.value !== 'ds' || props.dsDataMode !== 'logs') return
+    void fetchDsLogs({ silent: true })
+    dsLogAutoRefreshTimer = setInterval(() => {
+      void fetchDsLogs({ silent: true })
+    }, DS_LOG_AUTO_REFRESH_MS)
+  }
+
+  watch(dsLogAutoRefresh, (enabled) => {
+    if (enabled) startDsLogAutoRefresh()
+    else stopDsLogAutoRefresh()
+  })
+
+  watch(
+    () => [kind.value, props.dsDataMode] as const,
+    ([tab, mode]) => {
+      if (tab !== 'ds' || mode !== 'logs') {
+        stopDsLogAutoRefresh()
+      } else if (dsLogAutoRefresh.value) {
+        startDsLogAutoRefresh()
+      }
+    }
+  )
+
+  onBeforeUnmount(() => {
+    stopDsLogAutoRefresh()
+  })
 
   // ── Job useTable ──
 
@@ -4697,8 +4745,27 @@
     flex-wrap: wrap;
   }
 
-  .workloads-log-search {
+  .workloads-log-actions-right {
     margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .workloads-log-auto-refresh {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .workloads-log-auto-refresh__label {
+    font-size: 12px;
+    color: var(--el-text-color-primary);
+    white-space: nowrap;
+  }
+
+  .workloads-log-search {
     display: flex;
     align-items: center;
     gap: 10px;
