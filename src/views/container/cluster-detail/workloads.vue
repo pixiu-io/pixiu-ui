@@ -3585,6 +3585,9 @@
       path: '/container/service-create',
       query: buildClusterRouteQuery(route, {
         ...(namespace ? { namespace } : {}),
+        returnPath: route.path,
+        returnName: String(route.query.name ?? props.mirrorResourceName ?? ''),
+        returnNamespace: String(route.query.namespace ?? props.mirrorNamespace ?? props.deployNamespace ?? namespace),
         tab: 'services'
       })
     })

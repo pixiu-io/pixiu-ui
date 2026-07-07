@@ -88,20 +88,42 @@
             </div>
             <span v-else class="dd-v">-</span>
           </div>
-          <div class="dd-info-cell">
+          <div class="dd-info-cell dd-info-cell--annotations">
             <span class="dd-k">注释</span>
-            <div class="dd-tag-group">
+            <div class="dd-tag-group dd-tag-group--annotations">
               <template v-if="visibleAnnotationEntries.length">
-                <el-tag
+                <ElTooltip
                   v-for="item in visibleAnnotationEntries"
                   :key="item.key"
-                  size="small"
-                  type="primary"
-                  effect="plain"
-                  class="mono-tag"
+                  placement="top-start"
+                  effect="light"
+                  :show-after="200"
+                  :disabled="!isAnnotationOverflow(item.key, item.value)"
+                  popper-class="dd-annotation-tooltip"
                 >
-                  {{ item.key }}:{{ item.value }}
-                </el-tag>
+                  <template #content>
+                    <div class="dd-annotation-tooltip__content">
+                      {{ formatAnnotationText(item.key, item.value) }}
+                    </div>
+                  </template>
+                  <span
+                    class="dd-annotation-tag-wrap"
+                    :class="{
+                      'dd-annotation-tag-wrap--pointer': isAnnotationOverflow(item.key, item.value)
+                    }"
+                  >
+                    <el-tag
+                      size="small"
+                      type="primary"
+                      effect="plain"
+                      class="mono-tag mono-tag--ellipsis"
+                    >
+                      <span class="mono-tag-ellipsis-text">{{
+                        formatAnnotationText(item.key, item.value)
+                      }}</span>
+                    </el-tag>
+                  </span>
+                </ElTooltip>
                 <el-button
                   v-if="hasMoreAnnotations"
                   link
@@ -730,6 +752,9 @@
       ? annotationEntries.value
       : annotationEntries.value.slice(0, 2)
   )
+  const formatAnnotationText = (key: string, value: string) => `${key}:${value}`
+  const isAnnotationOverflow = (key: string, value: string) =>
+    formatAnnotationText(key, value).length > 48
   const rollingUpdateValues = computed(() => {
     const ru = (workload.value as K8sDeployment | undefined)?.spec?.strategy?.rollingUpdate
     if (!ru) return null
@@ -1308,11 +1333,17 @@
     column-gap: 20px;
     row-gap: 2px;
   }
+  .dd-info-grid > .dd-info-cell {
+    min-width: 0;
+  }
   .dd-info-cell {
     display: flex;
     align-items: flex-start;
     gap: 10px;
     padding: 6px 16px 6px 45px;
+  }
+  .dd-info-cell--annotations {
+    overflow: hidden;
   }
   .dd-info-cell--span {
     grid-column: span 2;
@@ -1370,6 +1401,22 @@
     min-height: 24px;
     align-items: center;
   }
+  .dd-tag-group--annotations {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+  }
+  .dd-annotation-tag-wrap {
+    display: inline-flex;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    vertical-align: top;
+  }
+  .dd-annotation-tag-wrap--pointer,
+  .dd-annotation-tag-wrap--pointer .mono-tag--ellipsis {
+    cursor: pointer;
+  }
   .dd-more-btn {
     height: 24px;
     padding: 0 2px;
@@ -1382,6 +1429,37 @@
   .mono-tag {
     font-family: 'JetBrains Mono', Consolas, monospace;
     font-size: 12px;
+  }
+  .mono-tag--ellipsis {
+    display: inline-grid !important;
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    vertical-align: top;
+  }
+  .mono-tag--ellipsis :deep(.el-tag__content) {
+    min-width: 0;
+    overflow: hidden;
+  }
+  .mono-tag-ellipsis-text {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  :global(.dd-annotation-tooltip) {
+    max-width: min(680px, calc(100vw - 48px));
+  }
+  :global(.dd-annotation-tooltip .dd-annotation-tooltip__content) {
+    max-height: 240px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    line-height: 1.6;
+    font-size: 12px;
+    font-family: 'JetBrains Mono', Consolas, monospace;
   }
 
   /* ── Tabs card ── */
