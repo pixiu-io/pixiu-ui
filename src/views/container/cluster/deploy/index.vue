@@ -221,6 +221,7 @@
     serviceNetwork: '10.254.0.0/16',
     highAvailability: false,
     selfLoadBalance: false,
+    keepalivedVirtualRouterId: '',
     apiServerAddress: '',
     apiServerPort: 6443,
     kubeProxyMode: 'iptables',
@@ -287,6 +288,10 @@
       const dataDir = cfg.runtime?.data_dir ?? ''
       const setHostname =
         k8s.set_hostname ?? cfg.set_hostname ?? false
+      const haproxy = (cfg.component as any)?.haproxy
+      const selfLoadBalance =
+        highAvailability &&
+        Boolean(haproxy?.enable ?? (cfg.network as any)?.self_load_balance)
       form.value = {
         name: detail.name ?? '',
         kubernetesVersion: k8s.kubernetes_version ?? '1.28.12',
@@ -305,7 +310,8 @@
         podNetwork: cfg.network?.pod_network ?? '172.30.0.0/16',
         serviceNetwork: cfg.network?.service_network ?? '10.254.0.0/16',
         highAvailability,
-        selfLoadBalance: highAvailability && Boolean((cfg.network as any)?.self_load_balance),
+        selfLoadBalance,
+        keepalivedVirtualRouterId: String(haproxy?.keepalived_virtual_router_id ?? ''),
         apiServerAddress: String(
           (cfg.network as any)?.api_server_address ?? (cfg.kubernetes as any)?.api_server ?? ''
         ),
@@ -460,8 +466,6 @@
           service_network: f.serviceNetwork,
           api_server_address: f.apiServerAddress || undefined,
           api_server_port: f.apiServerPort,
-          self_load_balance: f.selfLoadBalance,
-          // Backward-compatible: keep both old/new keys.
           kube_proxy_mode: 'iptables',
           kube_proxy: 'iptables'
         },
@@ -474,6 +478,14 @@
           ...(f.enableLogging ? { logging: { enabled: true } } : {}),
           metric_server: { enable: f.metricsServer },
           ingress_nginx: { enable: f.ingressNginx },
+          ...(f.selfLoadBalance
+            ? {
+                haproxy: {
+                  enable: true,
+                  keepalived_virtual_router_id: f.keepalivedVirtualRouterId.trim()
+                }
+              }
+            : {}),
           ...(f.nfsEnabled
             ? {
                 nfs: {
