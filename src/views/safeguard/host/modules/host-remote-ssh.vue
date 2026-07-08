@@ -207,6 +207,14 @@
     return TERMINAL_THEME_DARK
   }
 
+  function writeWelcomeBanner(xterm: Terminal) {
+    const reset = '\x1b[0m'
+    const hint = '\x1b[36m'
+    xterm.writeln('Welcome to Pixiu Host Shell!')
+    xterm.writeln(`${hint}Type commands to interact with your remote host${reset}`)
+    xterm.writeln('')
+  }
+
   function applyTerminalThemeToAll() {
     const theme = getTerminalTheme()
     for (const tab of tabs.value) {
@@ -500,6 +508,7 @@
     const fitAddon = new FitAddon()
     xterm.loadAddon(fitAddon)
     xterm.open(host)
+    writeWelcomeBanner(xterm)
     fitAddon.fit()
     xterm.onData((data) => {
       sendSshData(tab.id, data)

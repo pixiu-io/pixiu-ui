@@ -225,6 +225,19 @@
     return TERMINAL_THEME_DARK
   }
 
+  /** 参考云厂商 CloudShell，连接成功后展示欢迎语 */
+  function writeWelcomeBanner(xterm: Terminal, clusterAlias: string) {
+    const reset = '\x1b[0m'
+    const hint = '\x1b[36m'
+    const muted = '\x1b[90m'
+    xterm.writeln('Welcome to Pixiu Cloud Shell!')
+    xterm.writeln(`${hint}Type "kubectl" to manage your kubernetes cluster${reset}`)
+    if (clusterAlias) {
+      xterm.writeln(`${muted}Cluster: ${clusterAlias}${reset}`)
+    }
+    xterm.writeln('')
+  }
+
   function applyTerminalThemeToAll() {
     const theme = getTerminalTheme()
     for (const tab of tabs.value) {
@@ -387,6 +400,7 @@
     const fitAddon = new FitAddon()
     xterm.loadAddon(fitAddon)
     xterm.open(host)
+    writeWelcomeBanner(xterm, tab.clusterAlias)
     fitAddon.fit()
     xterm.onData((data) => {
       if (!rt.ws || rt.ws.readyState !== WebSocket.OPEN) return

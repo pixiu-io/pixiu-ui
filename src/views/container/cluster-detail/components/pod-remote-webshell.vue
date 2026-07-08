@@ -222,6 +222,15 @@
     return TERMINAL_THEME_DARK
   }
 
+  /** 参考 CloudShell，连接成功后展示欢迎语 */
+  function writeWelcomeBanner(xterm: Terminal) {
+    const reset = '\x1b[0m'
+    const hint = '\x1b[36m'
+    xterm.writeln('Welcome to Pixiu Pod Shell!')
+    xterm.writeln(`${hint}Type commands to interact with your container${reset}`)
+    xterm.writeln('')
+  }
+
   function applyTerminalThemeToAll() {
     const theme = getTerminalTheme()
     for (const tab of tabs.value) {
@@ -508,6 +517,7 @@
     const fitAddon = new FitAddon()
     xterm.loadAddon(fitAddon)
     xterm.open(host)
+    writeWelcomeBanner(xterm)
     fitAddon.fit()
     xterm.onData((data) => sendStdin(tab.id, data))
     rt.xterm = xterm
@@ -524,20 +534,11 @@
     return String(raw)
   }
 
-  function trySwitchToShAfterBashFailure(
-    tab: PodShellTab,
-    rt: TabRuntime,
-    source: 'exec' | 'ws'
-  ): boolean {
+  function trySwitchToShAfterBashFailure(tab: PodShellTab, rt: TabRuntime): boolean {
     if (rt.bashToShFallbackDone || !tab.allowShFallback || tab.command !== '/bin/bash') return false
     rt.bashToShFallbackDone = true
     tab.command = '/bin/sh'
     tab.allowShFallback = false
-    const msg =
-      source === 'exec'
-        ? '[/bin/bash 无法启动，正在尝试 /bin/sh…]'
-        : '[/bin/bash 连接异常，正在尝试 /bin/sh…]'
-    if (rt.xterm) writeSystemLine(tab.id, msg, 'yellow')
     rt.suppressNextSocketCloseMessage = true
     closeSocket(tab.id)
     setTabConnectionState(tab.id, { connecting: true, connected: false })
@@ -553,8 +554,6 @@
       disposeXterm(tabId)
       rt.bashToShFallbackDone = false
       rt.suppressNextSocketCloseMessage = false
-    } else if (rt.xterm) {
-      writeSystemLine(tabId, '[正在重新连接...]')
     }
     setTabConnectionState(tabId, { connecting: true, connected: false })
 
@@ -582,9 +581,6 @@
           return
         }
         if (!runtime.xterm) initXterm(currentTab)
-        if (currentTab.allowShFallback && currentTab.command === '/bin/bash' && !options?.keepLog) {
-          writeSystemLine(tabId, '[正在连接 Shell…]')
-        }
         if (tabId === activeTabId.value) {
           syncPanelRect()
           fitTab(tabId)
@@ -604,18 +600,18 @@
         const op = msg.operation
         const data = msg.data != null ? String(msg.data) : ''
         if ((op === 'stdout' || op === 'stderr') && data) {
-          if (EXEC_FAIL_RE.test(data) && trySwitchToShAfterBashFailure(currentTab, rt, 'exec')) return
+          if (EXEC_FAIL_RE.test(data) && trySwitchToShAfterBashFailure(currentTab, rt)) return
           rt.xterm?.write(data)
         }
       } catch {
-        if (EXEC_FAIL_RE.test(str) && trySwitchToShAfterBashFailure(currentTab, rt, 'exec')) return
+        if (EXEC_FAIL_RE.test(str) && trySwitchToShAfterBashFailure(currentTab, rt)) return
         rt.xterm?.write(str)
       }
     }
 
     ws.onerror = () => {
       const currentTab = findTab(tabId)
-      if (currentTab && trySwitchToShAfterBashFailure(currentTab, rt, 'ws')) return
+      if (currentTab && trySwitchToShAfterBashFailure(currentTab, rt)) return
       setTabConnectionState(tabId, { connecting: false, connected: false })
       clearIdleTimer(rt)
       if (rt.xterm) writeSystemLine(tabId, '[连接出错，请检查集群、命名空间与容器是否可用]', 'red')
