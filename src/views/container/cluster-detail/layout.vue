@@ -173,7 +173,6 @@
             </template>
             <ElMenuItem index="events">事件</ElMenuItem>
             <ElMenuItem index="alert">配置告警</ElMenuItem>
-            <ElMenuItem index="prometheus">Prometheus监控</ElMenuItem>
           </ElSubMenu>
         </ElMenu>
       </aside>
@@ -242,8 +241,7 @@
     'crds',
     'apiservices',
     'alert',
-    'events',
-    'prometheus'
+    'events'
   ])
 
   const clusterRow = ref<ClusterItem | null>(null)

@@ -52,12 +52,7 @@ const clusterDetailChildren: AppRouteRecord[] = [
     component: '/container/cluster-detail/apiservices'
   },
   { path: 'alert', name: 'ClusterDetailAlert', component: '/container/cluster-detail/alert' },
-  { path: 'events', name: 'ClusterDetailEvents', component: '/container/cluster-detail/events' },
-  {
-    path: 'prometheus',
-    name: 'ClusterDetailPrometheus',
-    component: '/container/cluster-detail/prometheus'
-  }
+  { path: 'events', name: 'ClusterDetailEvents', component: '/container/cluster-detail/events' }
 ].map((c) => ({
   path: c.path,
   component: CLUSTER_DETAIL_LAYOUT,

@@ -9,8 +9,8 @@ declare global {
   const EffectScope: typeof import('vue').EffectScope
   const ElLoading: typeof import('element-plus/es').ElLoading
   const ElMessage: typeof import('element-plus/es').ElMessage
-  const ElMessageBox: typeof import('element-plus/es')['ElMessageBox']
-  const ElTag: typeof import('element-plus/es')['ElTag']
+  const ElMessageBox: typeof import('element-plus/es').ElMessageBox
+  const ElTag: typeof import('element-plus/es').ElTag
   const acceptHMRUpdate: typeof import('pinia').acceptHMRUpdate
   const asyncComputed: typeof import('@vueuse/core').asyncComputed
   const autoResetRef: typeof import('@vueuse/core').autoResetRef

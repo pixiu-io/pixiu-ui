@@ -20,6 +20,15 @@ export const monitorRoutes: AppRouteRecord = {
       }
     },
     {
+      path: 'realtime-query',
+      name: 'MonitorRealtimeQuery',
+      component: '/safeguard/realtime-query/index',
+      meta: {
+        title: 'menus.safeguard.realtimeQuery',
+        icon: 'ri:line-chart-line'
+      }
+    },
+    {
       path: 'logs',
       name: 'MonitorLogs',
       component: '/safeguard/logs',

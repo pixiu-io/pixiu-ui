@@ -70,7 +70,7 @@
               <ElFormItem label="类型" prop="type">
                 <ElSelect v-model="formData.type" class="w-full" @change="onTypeChange">
                   <ElOption label="日志" :value="0" />
-                  <ElOption label="告警" :value="1" disabled />
+                  <ElOption label="告警" :value="1" />
                 </ElSelect>
               </ElFormItem>
             </ElCol>
@@ -267,8 +267,7 @@
       value: 'prometheus',
       label: 'Prometheus',
       icon: 'simple-icons:prometheus',
-      color: '#E6522C',
-      disabled: true
+      color: '#E6522C'
     }
   ]
 

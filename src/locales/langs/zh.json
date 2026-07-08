@@ -245,7 +245,8 @@
       "agent": "Agent",
       "monitor": "监控告警",
       "datasource": "数据源",
-      "logs": "日志"
+      "logs": "日志",
+      "realtimeQuery": "实时查询"
     },
     "appstore": {
       "title": "应用商店"

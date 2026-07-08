@@ -14,3 +14,4 @@ dist-ssr
 # tsc 编译产物，不应提交进 git
 src/**/*.js
 src/**/*.js.map
+.env.development
