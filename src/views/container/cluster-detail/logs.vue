@@ -769,7 +769,7 @@
 
   const rawColumnVisibility = ref<Record<RawColumnKey, boolean>>({
     time: true,
-    pod: true,
+    pod: false,
     msg: true
   })
 
