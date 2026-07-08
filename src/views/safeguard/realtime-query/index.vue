@@ -268,7 +268,7 @@ const promqlInputStyle: CSSProperties = {
   fontFamily: 'Consolas, Monaco, sans-serif',
   fontSize: '12px',
   lineHeight: '16.8px',
-  color: '#262626',
+  color: 'var(--el-text-color-primary)',
 }
 import { Search } from '@element-plus/icons-vue'
 import {
@@ -909,7 +909,7 @@ onMounted(() => {
   font-family: Consolas, Monaco, sans-serif !important;
   font-size: 12px !important;
   line-height: 16.8px !important;
-  color: #262626 !important;
+  color: var(--el-text-color-primary) !important;
 }
 
 .rq-query-input :deep(.el-input__inner::placeholder),
@@ -924,7 +924,7 @@ onMounted(() => {
   font-family: Consolas, Monaco, sans-serif !important;
   font-size: 12px !important;
   line-height: 16.8px !important;
-  color: #262626 !important;
+  color: var(--el-text-color-primary) !important;
 }
 
 .rq-search-btn {
@@ -1064,7 +1064,7 @@ onMounted(() => {
   gap: 6px;
   padding: 8px 0;
   border-bottom: 1px solid var(--el-border-color-lighter);
-  background: #fff;
+  background: transparent;
 }
 
 .rq-table-toolbar-item {
@@ -1074,9 +1074,9 @@ onMounted(() => {
   padding: 0 10px;
   border: 1px solid var(--el-border-color);
   border-radius: 2px;
-  background: #fff;
+  background: var(--el-fill-color-blank);
   font-size: 12px;
-  color: #606266;
+  color: var(--el-text-color-regular);
 }
 
 .rq-table-toolbar-item.is-wide {
@@ -1089,16 +1089,30 @@ onMounted(() => {
   margin: 0 -12px;
   padding: 0 12px;
   font-size: 12px;
-  color: #7a4f01;
-  background: #fff7ea;
-  border-bottom: 1px solid #f3d8a6;
+  color: var(--el-color-warning-dark-2);
+  background: var(--el-color-warning-light-9);
+  border-bottom: 1px solid var(--el-color-warning-light-5);
+}
+
+.rq-result-table {
+  --el-table-bg-color: var(--el-fill-color-blank);
+  --el-table-tr-bg-color: var(--el-fill-color-blank);
+  --el-table-header-bg-color: var(--el-fill-color-light);
+  --el-table-row-hover-bg-color: var(--el-fill-color-light);
+  --el-table-text-color: var(--el-text-color-regular);
+  --el-table-header-text-color: var(--el-text-color-regular);
+  --el-table-border-color: var(--el-border-color-lighter);
 }
 
 .rq-result-table :deep(.el-table__header th) {
-  background: #fafafa;
-  color: #606266;
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-regular);
   font-size: 12px;
   font-weight: 500;
+}
+
+.rq-result-table :deep(.el-table__empty-text) {
+  color: var(--el-text-color-secondary);
 }
 
 .rq-result-table :deep(.el-table__cell) {
@@ -1113,7 +1127,7 @@ onMounted(() => {
 
 .rq-metric-cell {
   font-size: 12px;
-  color: #262626;
+  color: var(--el-text-color-regular);
   line-height: 1.7;
   word-break: break-all;
   font-family: Consolas, Monaco, sans-serif;
@@ -1125,15 +1139,15 @@ onMounted(() => {
 
 .rq-metric-brace,
 .rq-metric-sep {
-  color: #262626;
+  color: var(--el-text-color-regular);
 }
 
 .rq-metric-label-key {
-  color: #262626;
+  color: var(--el-text-color-regular);
 }
 
 .rq-metric-label-val {
-  color: #262626;
+  color: var(--el-text-color-regular);
 }
 
 .rq-graph-wrap {
@@ -1173,7 +1187,7 @@ onMounted(() => {
 .rq-series-list {
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 4px;
-  background: #fff;
+  background: var(--el-fill-color-blank);
   padding: 6px 10px;
   max-height: 140px;
   overflow: auto;
@@ -1220,7 +1234,7 @@ onMounted(() => {
 
 :global(.rq-promql-suggestions li:hover),
 :global(.rq-promql-suggestions li.highlighted) {
-  background: #eaf3ff;
+  background: var(--el-color-primary-light-9);
 }
 
 .rq-suggestion-item {
@@ -1239,7 +1253,7 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   flex: none;
-  color: #409eff;
+  color: var(--el-color-primary);
   opacity: 0.95;
 }
 
@@ -1257,11 +1271,15 @@ onMounted(() => {
   font-family: Consolas, Monaco, sans-serif;
   font-size: 12px;
   line-height: 16.8px;
-  color: #262626;
+  color: var(--el-text-color-primary);
 }
 
 .rq-suggestion-text-match {
-  color: #409eff;
+  color: var(--el-color-primary);
   font-weight: 600;
+}
+
+:global(html.dark) .rq-metric-name {
+  color: #2dd4bf;
 }
 </style>
