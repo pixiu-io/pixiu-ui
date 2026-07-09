@@ -288,7 +288,7 @@ export async function fetchPlan(id: number): Promise<PlanItemFormatted> {
  * 删除部署计划
  */
 export async function fetchDeletePlan(id: number): Promise<void> {
-  const res = await pixiuAxios.delete(`/pixiu/plans/${id}`)
+  const res = await pixiuAxios.delete(`/pixiu/plans/${id}`, { skipErrorNotification: true })
   const { code, message } = res.data
   if (code !== 200) throw new Error(message || '删除失败')
 }
@@ -299,7 +299,7 @@ export async function fetchDeletePlan(id: number): Promise<void> {
  */
 export async function fetchStartPlan(id: number): Promise<void> {
   try {
-    const res = await pixiuAxios.post(`/pixiu/plans/${id}/start`)
+    const res = await pixiuAxios.post(`/pixiu/plans/${id}/start`, {}, { skipErrorNotification: true })
     const code = Number(res?.data?.code)
     if (code !== 200) {
       const msg = parseMessageFromPayload(res?.data) || '启动失败'
@@ -315,7 +315,7 @@ export async function fetchStartPlan(id: number): Promise<void> {
  * 销毁部署任务
  */
 export async function fetchDestroyPlan(id: number, restart: boolean = false): Promise<void> {
-  const res = await pixiuAxios.post(`/pixiu/plans/${id}/destroy`, { restart })
+  const res = await pixiuAxios.post(`/pixiu/plans/${id}/destroy`, { restart }, { skipErrorNotification: true })
   const { code, message } = res.data
   if (code !== 200) throw new Error(message || '销毁失败')
 }
