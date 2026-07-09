@@ -6,7 +6,6 @@
       closable
       show-icon
       class="quota-alert"
-      style="margin: 5px 0 20px 0"
       description="支持查询内部/外部 Prometheus 数据源；外部源会自动透传认证与自定义请求头。请先选择数据源，再输入 PromQL 与时间范围进行查询。"
       @close="alertVisible = false"
     />
@@ -82,10 +81,21 @@
       <div class="rq-query-body">
         <div class="rq-query-toolbar">
           <div class="rq-query-toolbar-left">
-            <span class="rq-query-mode">PromQL语句</span>
-            <ElButton text size="small" disabled>收藏夹</ElButton>
-            <ElButton text size="small" disabled>历史记录</ElButton>
-            <ElButton text size="small" disabled>语句模板</ElButton>
+            <span :class="['rq-query-tab', { 'is-active': activeQueryTab === 'promql' }]" @click="activeQueryTab = 'promql'">
+              PromQL语句
+            </span>
+            <span :class="['rq-query-tab', { 'is-active': activeQueryTab === 'favorite' }]" @click="activeQueryTab = 'favorite'">
+              收藏夹
+            </span>
+            <span
+              :class="['rq-query-tab', { 'is-active': activeQueryTab === 'history' }]"
+              @click.stop="activeQueryTab = 'history'"
+            >
+              历史记录
+            </span>
+            <span :class="['rq-query-tab', { 'is-active': activeQueryTab === 'template' }]" @click="activeQueryTab = 'template'">
+              语句模板
+            </span>
           </div>
           <div class="rq-query-toolbar-right">
             <ElButton text size="small" disabled>推荐仪表盘</ElButton>
@@ -97,34 +107,46 @@
           </div>
         </div>
         <div class="rq-query-input-wrap">
-          <div class="rq-query-input">
-            <ElAutocomplete
-              v-model="promql"
-              placeholder="请输入 PromQL 查询语句，如 up、rate(http_requests_total[5m])"
-              :disabled="!selectedDatasource"
-              clearable
-              :input-style="promqlInputStyle"
-              :fetch-suggestions="queryMetricSuggestions"
-              :trigger-on-focus="false"
-              popper-class="rq-promql-suggestions"
-              @focus="prefetchMetricNames"
-              @select="onPromqlSuggestionSelect"
-              @keyup.enter="executeQuery"
-            >
-              <template #default="{ item }">
-                <div class="rq-suggestion-item">
-                  <span class="rq-suggestion-kind" aria-hidden="true">
-                    <ArtSvgIcon icon="ri:line-chart-line" class="rq-suggestion-kind-icon" />
-                  </span>
-                  <span class="rq-suggestion-text">
-                    <template v-for="(part, idx) in getSuggestionParts(item.value)" :key="idx">
-                      <span v-if="part.highlight" class="rq-suggestion-text-match">{{ part.text }}</span>
-                      <span v-else>{{ part.text }}</span>
-                    </template>
-                  </span>
-                </div>
-              </template>
-            </ElAutocomplete>
+          <div class="rq-query-input-stack">
+            <div class="rq-query-input">
+              <ElAutocomplete
+                v-model="promql"
+                placeholder="请输入 PromQL 查询语句，如 up、rate(http_requests_total[5m])"
+                :disabled="!selectedDatasource"
+                clearable
+                :input-style="promqlInputStyle"
+                :fetch-suggestions="queryMetricSuggestions"
+                :trigger-on-focus="false"
+                popper-class="rq-promql-suggestions"
+                @focus="prefetchMetricNames"
+                @select="onPromqlSuggestionSelect"
+                @keyup.enter="executeQuery"
+              >
+                <template #default="{ item }">
+                  <div class="rq-suggestion-item">
+                    <span class="rq-suggestion-kind" aria-hidden="true">
+                      <ArtSvgIcon icon="ri:line-chart-line" class="rq-suggestion-kind-icon" />
+                    </span>
+                    <span class="rq-suggestion-text">
+                      <template v-for="(part, idx) in getSuggestionParts(item.value)" :key="idx">
+                        <span v-if="part.highlight" class="rq-suggestion-text-match">{{ part.text }}</span>
+                        <span v-else>{{ part.text }}</span>
+                      </template>
+                    </span>
+                  </div>
+                </template>
+              </ElAutocomplete>
+            </div>
+            <transition name="el-zoom-in-top">
+              <div v-if="showHistory" ref="historyRef" class="rq-history-wrapper">
+                <QueryHistoryDropdown
+                  :history="history"
+                  @select="onRestoreRecord"
+                  @delete="removeRecord"
+                  @clear="clearAll"
+                />
+              </div>
+            </transition>
           </div>
           <ElSelect v-model="timeRangeMinutes" class="rq-time-range">
             <ElOption :value="15" label="近15分钟" />
@@ -167,14 +189,15 @@
             表格
           </span>
           <span
-            :class="['rq-result-tab', 'is-disabled', { 'is-active': resultMode === 'graph' }]"
+            :class="['rq-result-tab', { 'is-active': resultMode === 'graph' }]"
+            @click="resultMode = 'graph'"
           >
             图表
           </span>
         </div>
         <div v-if="queryResult" class="rq-result-summary">
           <span>查询耗时: {{ queryDuration }}ms</span>
-          <span>结果数: {{ totalResultCount }}</span>
+          <span>{{ resultMode === 'graph' ? '序列数' : '结果数' }}: {{ totalResultCount }}</span>
         </div>
       </div>
 
@@ -192,14 +215,15 @@
             <div class="rq-table-toolbar-item is-wide">SI short</div>
             <div class="rq-table-toolbar-item">值</div>
           </div>
-          <ElTable
-            :data="tableData"
-            class="rq-result-table"
-            style="width: 100%"
-            :max-height="430"
-            size="small"
-            empty-text="暂无数据"
-          >
+          <div class="rq-table-scroll">
+            <ElTable
+              :data="tableData"
+              class="rq-result-table"
+              style="width: 100%"
+              :show-header="false"
+              size="small"
+              empty-text="暂无数据"
+            >
             <ElTableColumn prop="time" label="Time" width="176" />
             <ElTableColumn label="指标">
               <template #default="{ row }">
@@ -210,8 +234,8 @@
                     <template v-for="(label, i) in row.labels" :key="`${label.key}-${i}`">
                       <span v-if="i > 0" class="rq-metric-sep">, </span>
                       <span class="rq-metric-label-key">{{ label.key }}</span>
-                      <span class="rq-metric-sep">: </span>
-                      <span class="rq-metric-label-val">{{ label.value }}</span>
+                      <span class="rq-metric-sep">=</span>
+                      <span class="rq-metric-label-val">"{{ label.value }}"</span>
                     </template>
                     <span class="rq-metric-brace">}</span>
                   </template>
@@ -219,42 +243,78 @@
               </template>
             </ElTableColumn>
             <ElTableColumn prop="value" label="值" width="110" />
-          </ElTable>
-          <div v-if="queryResult && totalResultCount > tablePageSize" class="rq-table-pagination">
-            <ElPagination
-              v-model:current-page="tablePage"
-              :page-size="tablePageSize"
-              :total="totalResultCount"
-              layout="prev, pager, next"
-              small
-            />
+            </ElTable>
           </div>
         </div>
 
-        <div v-else-if="queryResult && resultMode === 'graph'" class="rq-graph-wrap">
+        <div v-else-if="resultMode === 'graph'" class="rq-graph-wrap">
           <div class="rq-graph-toolbar">
-            <ElSelect v-model="timeRangeMinutes" class="rq-graph-range" size="small">
-              <ElOption :value="15" label="最近 15 分钟" />
-              <ElOption :value="60" label="最近 1 小时" />
-              <ElOption :value="360" label="最近 6 小时" />
-              <ElOption :value="1440" label="最近 24 小时" />
-            </ElSelect>
+            <div class="rq-graph-toolbar-left">
+              <ElInput
+                v-model="graphStepInput"
+                class="rq-graph-step"
+                size="small"
+                placeholder="Res. (s)"
+                clearable
+                @change="onGraphStepChange"
+              />
+            </div>
             <div class="rq-graph-toolbar-right">
-              <span class="rq-graph-tool is-active">线</span>
-              <span class="rq-graph-tool">点</span>
-              <span class="rq-graph-tool">Show Legend</span>
+              <span class="rq-graph-unit-label">Unit</span>
+              <ElSelect v-model="graphUnit" class="rq-graph-unit-select">
+                <ElOption label="SI short" value="si" />
+                <ElOption label="none" value="none" />
+              </ElSelect>
+              <ElCheckbox v-model="showSeriesLegend" class="rq-graph-legend-toggle">
+                Show Legend
+              </ElCheckbox>
+              <ElCheckbox v-model="multiTooltipDesc" class="rq-graph-legend-toggle">
+                Multi Tooltip, order value desc
+              </ElCheckbox>
             </div>
           </div>
-          <div ref="chartRef" class="rq-chart" />
-          <div v-if="chartEmpty" class="rq-chart-empty-overlay">
-            <ElEmpty description="图表渲染开发中" :image-size="90" />
-          </div>
-          <div class="rq-series-list">
-            <div class="rq-series-title">Series ({{ totalResultCount }})</div>
-            <div v-for="(item, idx) in seriesPreview" :key="idx" class="rq-series-row">
-              {{ item }}
+
+          <div ref="graphBodyRef" class="rq-graph-body" :class="{ 'is-empty': chartEmpty }">
+            <div ref="graphMainRef" class="rq-graph-main">
+              <div ref="chartRef" class="rq-chart" />
+            </div>
+
+            <div v-if="chartEmpty || showSeriesLegend" class="rq-series-panel">
+              <div class="rq-series-head">
+                <span class="rq-series-title">Series ({{ seriesList.length }})</span>
+                <span class="rq-series-last">
+                  Last
+                  <ArtSvgIcon icon="ri:arrow-up-down-line" class="rq-series-sort-icon" />
+                </span>
+              </div>
+              <div v-if="seriesList.length" class="rq-series-list">
+                <div
+                  v-for="(item, idx) in seriesList"
+                  :key="`${item.name}-${idx}`"
+                  :class="[
+                    'rq-series-row',
+                    {
+                      'is-highlighted': hoveredSeriesIndex === idx,
+                      'is-selected': selectedSeriesIndex === idx
+                    }
+                  ]"
+                  @click="toggleSeriesSelection(idx)"
+                  @mouseenter="hoveredSeriesIndex = idx"
+                  @mouseleave="hoveredSeriesIndex = null"
+                >
+                  <span class="rq-series-dot" :style="{ backgroundColor: item.color }" />
+                  <span class="rq-series-name">{{ item.name }}</span>
+                  <span class="rq-series-value">
+                    {{ item.lastValue !== null ? formatGraphAxisValue(item.lastValue) : '-' }}
+                  </span>
+                </div>
+              </div>
+              <div v-else class="rq-series-empty">
+                <span class="rq-graph-empty-text">{{ querying ? '查询中...' : '暂无数据' }}</span>
+              </div>
             </div>
           </div>
+
         </div>
       </div>
     </section>
@@ -262,12 +322,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onBeforeUnmount, onMounted, type CSSProperties } from 'vue'
+import { ref, computed, watch, onBeforeUnmount, onMounted, nextTick, type CSSProperties } from 'vue'
+import { useQueryHistory, type QueryHistoryRecord } from './useQueryHistory'
+import QueryHistoryDropdown from './modules/QueryHistoryDropdown.vue'
 
 const promqlInputStyle: CSSProperties = {
-  fontFamily: 'Consolas, Monaco, sans-serif',
   fontSize: '12px',
-  lineHeight: '16.8px',
+  lineHeight: '1.5',
   color: 'var(--el-text-color-primary)',
 }
 import { Search } from '@element-plus/icons-vue'
@@ -276,13 +337,14 @@ import {
   ElAutocomplete,
   ElButton,
   ElCheckbox,
-  ElEmpty,
+  ElInput,
   ElOption,
-  ElPagination,
   ElSelect,
   ElTable,
   ElTableColumn
 } from 'element-plus'
+import { useChart } from '@/hooks/core/useChart'
+import { echarts, type EChartsOption } from '@/plugins/echarts'
 import {
   fetchDatasourceList,
   resolveDatasourceUrl,
@@ -437,6 +499,16 @@ function resolveTimeRange(): { start: number; end: number } {
 }
 
 // ---- 查询 ----
+const {
+  history,
+  showHistory,
+  addRecord,
+  removeRecord,
+  clearAll,
+  closeHistory
+} = useQueryHistory()
+
+const activeQueryTab = ref<'promql' | 'favorite' | 'history' | 'template'>('promql')
 const promql = ref('')
 const autocompleteEnabled = ref(true)
 const metricNameOptions = ref<string[]>([])
@@ -524,6 +596,16 @@ function onPromqlSuggestionSelect(item: { value: string }) {
   promql.value = promql.value.slice(0, promql.value.length - token.length) + item.value
 }
 
+watch(activeQueryTab, (tab) => {
+  showHistory.value = tab === 'history'
+})
+
+function handleGlobalHistoryClick() {
+  if (activeQueryTab.value !== 'history') return
+  activeQueryTab.value = 'promql'
+  closeHistory()
+}
+
 async function executeQuery() {
   const ds = selectedDatasource.value
   if (!ds || !promql.value.trim()) return
@@ -531,7 +613,6 @@ async function executeQuery() {
   queryError.value = ''
   queryResult.value = null
   querying.value = true
-  tablePage.value = 1
 
   const dsUrl = resolveDatasourceUrl(ds)
   const proxyHeaders = getExternalProxyHeaders(ds)
@@ -543,7 +624,7 @@ async function executeQuery() {
       resultMode.value === 'graph'
         ? await (() => {
             const { start, end } = resolveTimeRange()
-            const step = calcStep(start, end)
+            const step = resolveGraphStep(start, end)
             return fetchPrometheusRangeQuery(dsUrl, query, start, end, step, {
               headers: proxyHeaders
             })
@@ -556,6 +637,14 @@ async function executeQuery() {
 
     if (res.status === 'success') {
       queryResult.value = res.data
+      addRecord({
+        promql: promql.value.trim(),
+        selectedDsId: selectedDsId.value,
+        sourceFilter: sourceFilter.value,
+        timeRangeMinutes: timeRangeMinutes.value,
+        resultMode: resultMode.value,
+        datasourceName: selectedDatasource.value?.name ?? ''
+      })
     } else {
       queryError.value = res.error || '查询失败'
     }
@@ -574,27 +663,26 @@ function calcStep(start: number, end: number): string {
   return step + 's'
 }
 
+function resolveGraphStep(start: number, end: number): string {
+  const custom = Number(graphStepInput.value)
+  if (Number.isFinite(custom) && custom > 0) {
+    return `${Math.floor(custom)}s`
+  }
+  return calcStep(start, end)
+}
+
 const totalResultCount = computed(() => {
   return queryResult.value?.result?.length ?? 0
 })
 
 // ---- 结果展示 ----
 const resultMode = ref<'table' | 'graph'>('table')
-const tablePage = ref(1)
-const tablePageSize = 15
+const tableDisplayLimit = 1000
 
 const tableData = computed(() => {
   if (!queryResult.value) return []
-  const all = queryResult.value.result
-  const start = (tablePage.value - 1) * tablePageSize
-  const end = start + tablePageSize
-
-  return all.slice(start, end).map((item, idx) => {
-    const metric = item.metric ?? {}
-    const metricName = metric.__name__ || 'metric'
-    const labels = Object.entries(metric)
-      .filter(([key]) => key !== '__name__')
-      .map(([key, value]) => ({ key, value: String(value ?? '') }))
+  return queryResult.value.result.slice(0, tableDisplayLimit).map((item, idx) => {
+    const { metricName, labels } = parseMetricLabels(item.metric ?? {})
     const point = item.value ?? item.values?.[item.values.length - 1]
     return {
       _idx: idx,
@@ -606,19 +694,88 @@ const tableData = computed(() => {
   })
 })
 
-const seriesPreview = computed(() => {
-  if (!queryResult.value) return []
-  return queryResult.value.result.slice(0, 8).map((item) => {
-    const labels = Object.entries(item.metric ?? {})
-      .map(([k, v]) => `${k}="${v}"`)
-      .join(', ')
-    return labels || '{}'
+const CHART_COLORS = [
+  '#e03131',
+  '#2f9e44',
+  '#1971c2',
+  '#f08c00',
+  '#9c36b5',
+  '#0ca678',
+  '#e67700',
+  '#495057',
+  '#c92a2a',
+  '#1864ab',
+  '#862e9c'
+]
+
+function getChartSeriesColor(index: number): string {
+  if (index < CHART_COLORS.length) return CHART_COLORS[index]
+  const hue = (index * 47) % 360
+  return `hsl(${hue}, 72%, 42%)`
+}
+
+interface GraphSeriesItem {
+  name: string
+  color: string
+  data: Array<[number, number]>
+  lastValue: number | null
+}
+
+const seriesList = computed<GraphSeriesItem[]>(() => {
+  if (!queryResult.value?.result?.length) return []
+  return queryResult.value.result.map((item, idx) => {
+    const points =
+      item.values?.map(([ts, val]) => [ts * 1000, Number(val)] as [number, number]) ??
+      (item.value ? [[item.value[0] * 1000, Number(item.value[1])] as [number, number]] : [])
+    const data = points.filter((point) => Number.isFinite(point[1]))
+    const lastPoint = data.length ? data[data.length - 1] : null
+    return {
+      name: formatMetricSeriesText(item.metric ?? {}),
+      color: getChartSeriesColor(idx),
+      data,
+      lastValue: lastPoint ? lastPoint[1] : null
+    }
   })
 })
 
+function formatMetricSeriesText(metric: Record<string, string>): string {
+  const { metricName, labels } = parseMetricLabels(metric)
+  if (!labels.length) return metricName
+  const labelText = labels.map((l) => `${l.key}="${escapeLabelValue(l.value)}"`).join(', ')
+  return `${metricName}{${labelText}}`
+}
+
+function parseMetricLabels(metric: Record<string, string>): {
+  metricName: string
+  labels: Array<{ key: string; value: string }>
+} {
+  const metricName = metric.__name__ || 'metric'
+  const labels = Object.entries(metric)
+    .filter(([key]) => key !== '__name__')
+    .map(([key, value]) => ({ key, value: String(value ?? '') }))
+  return { metricName, labels }
+}
+
+function escapeLabelValue(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+}
+
 watch(resultMode, async (mode, prevMode) => {
   if (mode === prevMode) return
-  if (!selectedDatasource.value || !promql.value.trim() || querying.value) return
+  if (prevMode === 'graph') {
+    disposeGraphChart()
+    teardownGraphLayoutObserver()
+  }
+  if (mode === 'graph') {
+    await nextTick()
+    setupGraphLayoutObserver()
+  }
+  if (!selectedDatasource.value || !promql.value.trim() || querying.value) {
+    if (mode === 'graph') {
+      await renderGraphChart()
+    }
+    return
+  }
   await executeQuery()
 })
 
@@ -635,9 +792,306 @@ function formatPointValue(value: string): string {
   return Number(num.toFixed(6)).toString()
 }
 
-// ---- 图表 (预留) ----
-const chartRef = ref<HTMLDivElement | null>(null)
-const chartEmpty = ref(true)
+// ---- 图表 ----
+const chartRef = ref<HTMLElement>()
+const graphBodyRef = ref<HTMLElement>()
+const graphMainRef = ref<HTMLElement>()
+const {
+  getAxisLineStyle,
+  getSplitLineStyle,
+  getAxisLabelStyle,
+  getTooltipStyle
+} = useChart()
+
+let graphChart: echarts.ECharts | null = null
+let graphLayoutObserver: ResizeObserver | null = null
+let graphRenderer: 'svg' | 'canvas' | null = null
+
+const graphStepInput = ref('')
+const graphUnit = ref<'si' | 'none'>('si')
+const showSeriesLegend = ref(true)
+const multiTooltipDesc = ref(false)
+const hoveredSeriesIndex = ref<number | null>(null)
+const selectedSeriesIndex = ref<number | null>(null)
+const tooltipSeriesName = ref('')
+
+const chartEmpty = computed(() => {
+  if (!queryResult.value) return true
+  return seriesList.value.length === 0 || seriesList.value.every((item) => item.data.length === 0)
+})
+
+function formatSiShort(value: number): string {
+  if (!Number.isFinite(value)) return String(value)
+  const units = ['', 'K', 'M', 'G', 'T', 'P', 'E']
+  let current = Math.abs(value)
+  let unitIndex = 0
+  while (current >= 1000 && unitIndex < units.length - 1) {
+    current /= 1000
+    unitIndex += 1
+  }
+  const digits = current >= 100 ? 1 : current >= 10 ? 2 : 3
+  const formatted = Number(current.toFixed(digits)).toString()
+  return `${value < 0 ? '-' : ''}${formatted}${units[unitIndex]}`
+}
+
+function formatGraphAxisValue(value: number): string {
+  if (graphUnit.value === 'si') return formatSiShort(value)
+  if (!Number.isFinite(value)) return String(value)
+  if (Math.abs(value) >= 1000 || (Math.abs(value) > 0 && Math.abs(value) < 0.01)) {
+    return value.toExponential(2)
+  }
+  return Number(value.toFixed(4)).toString()
+}
+
+function formatChartAxisTime(value: number): string {
+  const date = new Date(value)
+  const hh = String(date.getHours()).padStart(2, '0')
+  const mm = String(date.getMinutes()).padStart(2, '0')
+  return `${hh}:${mm}`
+}
+
+function formatTooltipTime(value: number): string {
+  const date = new Date(value)
+  const yyyy = date.getFullYear()
+  const mm = String(date.getMonth() + 1).padStart(2, '0')
+  const dd = String(date.getDate()).padStart(2, '0')
+  const hh = String(date.getHours()).padStart(2, '0')
+  const mi = String(date.getMinutes()).padStart(2, '0')
+  const ss = String(date.getSeconds()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`
+}
+
+function resolveGraphLineWidth(_seriesCount: number): number {
+  return 0.5
+}
+
+function resolveGraphLineOpacity(seriesCount: number): number {
+  return 0.96
+}
+
+const GRAPH_GRID = {
+  left: 8,
+  right: 12,
+  top: 12,
+  bottom: 20,
+  containLabel: true
+}
+
+function buildGraphXAxis(extra: Record<string, unknown> = {}) {
+  return {
+    type: 'time' as const,
+    boundaryGap: false,
+    axisLine: getAxisLineStyle(),
+    splitLine: getSplitLineStyle(false),
+    axisTick: { show: false },
+    axisLabel: {
+      ...getAxisLabelStyle(),
+      fontSize: 12,
+      margin: 4,
+      hideOverlap: true,
+      formatter: (value: number) => formatChartAxisTime(value)
+    },
+    ...extra
+  }
+}
+
+function buildEmptyGraphChartOption(): EChartsOption {
+  const { start, end } = resolveTimeRange()
+  const startMs = start * 1000
+  const endMs = end * 1000
+
+  return {
+    animation: false,
+    grid: GRAPH_GRID,
+    xAxis: buildGraphXAxis({ min: startMs, max: endMs }),
+    yAxis: {
+      type: 'value',
+      show: false,
+      splitLine: { show: false }
+    },
+    series: []
+  }
+}
+
+function buildGraphChartOption(): EChartsOption {
+  const visibleSeries =
+    selectedSeriesIndex.value !== null
+      ? seriesList.value.filter((_, idx) => idx === selectedSeriesIndex.value)
+      : seriesList.value
+  const singleSeriesSelected = selectedSeriesIndex.value !== null && visibleSeries.length === 1
+  const lineWidth = resolveGraphLineWidth(visibleSeries.length)
+  const lineOpacity = resolveGraphLineOpacity(visibleSeries.length)
+
+  const series = visibleSeries.map((item) => {
+    return {
+      name: item.name,
+      type: 'line',
+      showSymbol: false,
+      symbolSize: 0,
+      smooth: true,
+      lineStyle: {
+        width: lineWidth,
+        color: item.color,
+        opacity: lineOpacity,
+        cap: 'butt',
+        join: 'miter'
+      },
+      itemStyle: { color: item.color, opacity: lineOpacity },
+      emphasis: {
+        scale: false,
+        lineStyle: {
+          width: lineWidth,
+          opacity: lineOpacity
+        },
+        itemStyle: { opacity: lineOpacity }
+      },
+      data: item.data
+    }
+  })
+
+  return {
+    animation: false,
+    grid: GRAPH_GRID,
+    tooltip: getTooltipStyle('axis', {
+      axisPointer: { type: 'line', lineStyle: { width: 0.5, type: 'dashed' } },
+      confine: true,
+      enterable: true,
+      extraCssText:
+        'max-width: 420px; max-height: 320px; overflow-y: auto; white-space: normal; word-break: break-all;',
+      formatter: (params: unknown) => {
+        const items = Array.isArray(params) ? params : [params]
+        if (!items.length) return ''
+        const timeValue = items[0].data?.[0] ?? items[0].axisValue
+        const timeLabel = timeValue !== undefined ? formatTooltipTime(Number(timeValue)) : ''
+        const rows = items
+          .map((item: { color?: string; seriesName?: string; data?: [number, number] }) => {
+            const val = formatGraphAxisValue(item.data?.[1] ?? 0)
+            return `<div style="margin:2px 0;line-height:1.4"><span style="color:${item.color}">●</span> <span>${item.seriesName}</span>: <b>${val}</b></div>`
+          })
+          .join('')
+        return `<div style="font-size:12px">${
+          timeLabel ? `<div style="margin-bottom:4px;font-weight:600">${timeLabel}</div>` : ''
+        }${rows}</div>`
+      }
+    }),
+    xAxis: buildGraphXAxis(),
+    yAxis: {
+      type: 'value',
+      scale: true,
+      axisLine: getAxisLineStyle(false),
+      splitLine: singleSeriesSelected ? { show: false } : getSplitLineStyle(true),
+      axisTick: { show: false },
+      axisLabel: {
+        ...getAxisLabelStyle(),
+        fontSize: 11,
+        formatter: (value: number) => formatGraphAxisValue(value)
+      }
+    },
+    series
+  }
+}
+
+async function renderGraphChart() {
+  await nextTick()
+  if (resultMode.value !== 'graph' || !chartRef.value) return
+
+  const nextRenderer: 'svg' | 'canvas' = 'svg'
+
+  if (graphChart && graphRenderer !== nextRenderer) {
+    graphChart.dispose()
+    graphChart = null
+  }
+
+  if (!graphChart) {
+    graphChart = echarts.init(chartRef.value, undefined, {
+      renderer: nextRenderer,
+      devicePixelRatio: window.devicePixelRatio || 1
+    })
+    graphRenderer = nextRenderer
+  } else {
+    graphChart.resize()
+  }
+
+  const options = chartEmpty.value ? buildEmptyGraphChartOption() : buildGraphChartOption()
+  graphChart.setOption(options, true)
+  graphChart.off('mouseover')
+  graphChart.on('mouseover', (params: { componentType?: string; seriesName?: string }) => {
+    if (params.componentType === 'series' && params.seriesName) {
+      tooltipSeriesName.value = params.seriesName
+    }
+  })
+  graphChart.off('globalout')
+  graphChart.on('globalout', () => {
+    tooltipSeriesName.value = ''
+  })
+  graphChart.off('click')
+  graphChart.on('click', (params: { componentType?: string; seriesName?: string }) => {
+    if (params.componentType !== 'series' || !params.seriesName) return
+    const targetIndex = seriesList.value.findIndex((item) => item.name === params.seriesName)
+    if (targetIndex === -1) return
+    selectedSeriesIndex.value = selectedSeriesIndex.value === targetIndex ? null : targetIndex
+    tooltipSeriesName.value = params.seriesName
+  })
+  await nextTick()
+  graphChart.resize()
+}
+
+function disposeGraphChart() {
+  if (!graphChart) return
+  graphChart.dispose()
+  graphChart = null
+  graphRenderer = null
+}
+
+function onRestoreRecord(record: QueryHistoryRecord) {
+  closeHistory()
+  activeQueryTab.value = 'promql'
+  sourceFilter.value = record.sourceFilter
+  selectedDsId.value = record.selectedDsId
+  timeRangeMinutes.value = record.timeRangeMinutes
+  promql.value = record.promql
+  if (record.resultMode !== resultMode.value) {
+    resultMode.value = record.resultMode
+  } else {
+    executeQuery()
+  }
+}
+
+function toggleSeriesSelection(index: number) {
+  selectedSeriesIndex.value = selectedSeriesIndex.value === index ? null : index
+}
+
+watch(queryResult, () => {
+  selectedSeriesIndex.value = null
+})
+
+watch(seriesList, (list) => {
+  if (selectedSeriesIndex.value !== null && selectedSeriesIndex.value >= list.length) {
+    selectedSeriesIndex.value = null
+  }
+})
+
+function onGraphStepChange() {
+  if (resultMode.value !== 'graph') return
+  if (!selectedDatasource.value || !promql.value.trim() || querying.value) return
+  executeQuery()
+}
+
+watch(
+  [queryResult, seriesList, graphUnit, multiTooltipDesc, resultMode, timeRangeMinutes, chartEmpty, selectedSeriesIndex],
+  () => {
+    if (resultMode.value === 'graph') {
+      renderGraphChart()
+    }
+  },
+  { deep: true }
+)
+
+watch(timeRangeMinutes, async () => {
+  if (resultMode.value !== 'graph') return
+  if (!selectedDatasource.value || !promql.value.trim() || querying.value) return
+  await executeQuery()
+})
 
 // ---- 自动刷新 ----
 const autoRefresh = ref(0)
@@ -661,12 +1115,52 @@ function stopAutoRefresh() {
   }
 }
 
+function handleGraphResize() {
+  if (resultMode.value === 'graph') {
+    graphChart?.resize()
+  }
+}
+
+function setupGraphLayoutObserver() {
+  graphLayoutObserver?.disconnect()
+  graphLayoutObserver = null
+  const target = graphMainRef.value ?? graphBodyRef.value
+  if (!target) return
+
+  graphLayoutObserver = new ResizeObserver(() => {
+    handleGraphResize()
+  })
+  graphLayoutObserver.observe(target)
+}
+
+function teardownGraphLayoutObserver() {
+  graphLayoutObserver?.disconnect()
+  graphLayoutObserver = null
+}
+
+watch(alertVisible, async () => {
+  await nextTick()
+  handleGraphResize()
+  window.setTimeout(handleGraphResize, 120)
+})
+
 onBeforeUnmount(() => {
   stopAutoRefresh()
+  disposeGraphChart()
+  teardownGraphLayoutObserver()
+  window.removeEventListener('resize', handleGraphResize)
+  document.removeEventListener('click', handleGlobalHistoryClick)
 })
 
 onMounted(() => {
   loadPrometheusDatasources()
+  window.addEventListener('resize', handleGraphResize)
+  document.addEventListener('click', handleGlobalHistoryClick)
+  nextTick(() => {
+    if (resultMode.value === 'graph') {
+      setupGraphLayoutObserver()
+    }
+  })
 })
 </script>
 
@@ -677,10 +1171,12 @@ onMounted(() => {
   gap: 0;
   min-height: 0;
   padding: 0;
+  overflow: hidden;
 }
 
 .quota-alert {
   flex-shrink: 0;
+  margin: 0 0 12px;
 }
 
 /* ---- 顶部卡片 ---- */
@@ -820,6 +1316,7 @@ onMounted(() => {
 
 /* ---- 查询输入 ---- */
 .rq-query-body {
+  position: relative;
   display: flex;
   flex-direction: column;
   margin-top: 20px;
@@ -847,15 +1344,28 @@ onMounted(() => {
   justify-content: flex-end;
 }
 
-.rq-query-mode {
-  margin-right: 2px;
+.rq-query-tab {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
   font-size: 12px;
-  color: var(--el-text-color-primary);
-  font-weight: 500;
+  line-height: 1.2;
+  color: var(--el-text-color-secondary);
+  font-weight: 400;
   white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.15s ease;
 }
 
-.rq-query-toolbar-left :deep(.el-button),
+.rq-query-tab:hover,
+.rq-query-tab.is-active {
+  color: var(--el-text-color-primary);
+}
+
+.rq-query-tab.is-active {
+  font-weight: 500;
+}
+
 .rq-query-toolbar-right :deep(.el-button) {
   height: auto !important;
   padding: 0 !important;
@@ -892,10 +1402,15 @@ onMounted(() => {
   flex-wrap: nowrap;
 }
 
-.rq-query-input {
+.rq-query-input-stack {
+  position: relative;
   flex: 1;
   min-width: 0;
   max-width: calc(100% - 360px);
+}
+
+.rq-query-input {
+  width: 100%;
 }
 
 .rq-query-input :deep(.el-autocomplete) {
@@ -906,24 +1421,22 @@ onMounted(() => {
 .rq-query-input :deep(.el-input__wrapper),
 .rq-query-input :deep(.el-input__inner),
 .rq-query-input :deep(.el-input__wrapper input) {
-  font-family: Consolas, Monaco, sans-serif !important;
   font-size: 12px !important;
-  line-height: 16.8px !important;
+  line-height: 1.5 !important;
   color: var(--el-text-color-primary) !important;
 }
 
 .rq-query-input :deep(.el-input__inner::placeholder),
 .rq-query-input :deep(.el-input__wrapper input::placeholder),
 .rq-query-input :deep(.el-input__placeholder) {
-  font-family: Consolas, Monaco, sans-serif !important;
   font-size: 12px !important;
+  color: var(--el-text-color-placeholder);
 }
 
 :global(.realtime-query-page .rq-query-input .el-input__inner),
 :global(.realtime-query-page .rq-query-input .el-input__wrapper input) {
-  font-family: Consolas, Monaco, sans-serif !important;
   font-size: 12px !important;
-  line-height: 16.8px !important;
+  line-height: 1.5 !important;
   color: var(--el-text-color-primary) !important;
 }
 
@@ -954,6 +1467,7 @@ onMounted(() => {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 8px;
   background: var(--el-fill-color-blank);
@@ -1019,49 +1533,41 @@ onMounted(() => {
 .rq-result-body {
   flex: 1;
   min-height: 0;
-  padding: 0;
-}
-
-.rq-error-hint,
-.rq-graph-wrap {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 18px 12px;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
 }
 
 .rq-error-hint {
+  flex: 1;
+  min-height: 0;
+  display: flex;
   padding: 16px;
   align-items: flex-start;
-}
-
-.rq-chart {
-  width: 100%;
-  height: 340px;
-  position: relative;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 4px;
-  background: var(--el-fill-color-lighter);
-}
-
-.rq-chart-empty-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--el-bg-color);
-  opacity: 0.85;
+  overflow: auto;
 }
 
 .rq-table-wrap {
-  padding: 0 12px 12px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0 12px;
+  overflow: hidden;
+}
+
+.rq-table-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .rq-table-toolbar {
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-shrink: 0;
   padding: 8px 0;
   border-bottom: 1px solid var(--el-border-color-lighter);
   background: transparent;
@@ -1084,6 +1590,7 @@ onMounted(() => {
 }
 
 .rq-result-warning {
+  flex-shrink: 0;
   height: 28px;
   line-height: 28px;
   margin: 0 -12px;
@@ -1099,7 +1606,7 @@ onMounted(() => {
   --el-table-tr-bg-color: var(--el-fill-color-blank);
   --el-table-header-bg-color: var(--el-fill-color-light);
   --el-table-row-hover-bg-color: var(--el-fill-color-light);
-  --el-table-text-color: var(--el-text-color-regular);
+  --el-table-text-color: var(--el-text-color-primary);
   --el-table-header-text-color: var(--el-text-color-regular);
   --el-table-border-color: var(--el-border-color-lighter);
 }
@@ -1113,24 +1620,27 @@ onMounted(() => {
 
 .rq-result-table :deep(.el-table__empty-text) {
   color: var(--el-text-color-secondary);
+  font-size: 12px;
 }
 
 .rq-result-table :deep(.el-table__cell) {
   padding: 10px 0;
   font-size: 12px;
+  color: var(--el-text-color-primary);
   vertical-align: top;
 }
 
 .rq-result-table :deep(.cell) {
+  font-size: 12px;
   line-height: 1.5;
+  color: var(--el-text-color-primary);
 }
 
 .rq-metric-cell {
   font-size: 12px;
-  color: var(--el-text-color-regular);
-  line-height: 1.7;
+  color: inherit;
+  line-height: 1.5;
   word-break: break-all;
-  font-family: Consolas, Monaco, sans-serif;
 }
 
 .rq-metric-name {
@@ -1139,22 +1649,75 @@ onMounted(() => {
 
 .rq-metric-brace,
 .rq-metric-sep {
-  color: var(--el-text-color-regular);
+  color: inherit;
 }
 
 .rq-metric-label-key {
-  color: var(--el-text-color-regular);
+  display: inline-block;
+  padding: 0 4px;
+  margin: 0 1px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--el-text-color-primary);
+  background: var(--el-fill-color-dark);
 }
 
 .rq-metric-label-val {
-  color: var(--el-text-color-regular);
+  color: inherit;
 }
 
 .rq-graph-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
   flex-direction: column;
   align-items: stretch;
   justify-content: flex-start;
-  gap: 10px;
+  gap: 8px;
+  padding: 8px 12px 10px;
+  overflow: hidden;
+}
+
+.rq-graph-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--el-fill-color-blank);
+}
+
+.rq-graph-main {
+  height: 55%;
+  flex: none;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.rq-series-panel {
+  height: 45%;
+  flex: none;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--el-border-color-lighter);
+}
+
+.rq-chart {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.rq-graph-body.is-empty .rq-series-empty {
+  flex: 1;
+  min-height: 0;
 }
 
 .rq-graph-toolbar {
@@ -1162,57 +1725,254 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
-.rq-graph-range {
-  width: 130px;
-}
-
+.rq-graph-toolbar-left,
 .rq-graph-toolbar-right {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.rq-graph-step {
+  width: 120px;
+}
+
+.rq-graph-step :deep(.el-input__wrapper) {
+  height: 28px;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 2px;
+  background: var(--el-fill-color-blank);
+  box-shadow: 0 0 0 1px var(--el-border-color) inset;
+}
+
+.rq-graph-step :deep(.el-input__wrapper:hover) {
+  box-shadow: 0 0 0 1px var(--el-border-color) inset;
+}
+
+.rq-graph-step :deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px var(--el-border-color) inset;
+}
+
+.rq-graph-step :deep(.el-input__inner) {
+  height: 26px;
+  line-height: 26px;
+  font-size: 12px;
+  color: var(--el-text-color-regular);
+}
+
+.rq-graph-step :deep(.el-input__inner::placeholder) {
+  font-size: 12px;
+  color: var(--el-text-color-placeholder);
+}
+
+.rq-graph-unit-label {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.rq-graph-unit-select {
+  width: 120px;
+  flex: none;
+}
+
+.rq-graph-unit-select :deep(.el-select__wrapper) {
+  min-height: 28px !important;
+  height: 28px !important;
+  padding: 0 10px;
+  border-radius: 2px;
+  background: var(--el-fill-color-blank);
+  box-shadow: 0 0 0 1px var(--el-border-color) inset !important;
+}
+
+.rq-graph-unit-select :deep(.el-select__wrapper:hover),
+.rq-graph-unit-select :deep(.el-select__wrapper.is-focused) {
+  box-shadow: 0 0 0 1px var(--el-border-color) inset !important;
+}
+
+.rq-graph-unit-select :deep(.el-select__selection) {
+  height: 26px;
+  line-height: 26px;
+}
+
+.rq-graph-unit-select :deep(.el-select__selected-item),
+.rq-graph-unit-select :deep(.el-select__placeholder) {
+  font-size: 12px;
+  line-height: 26px;
+}
+
+.rq-graph-toolbar-right {
   color: var(--el-text-color-secondary);
   font-size: 12px;
 }
 
 .rq-graph-tool {
-  cursor: default;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
 }
 
 .rq-graph-tool.is-active {
   color: var(--el-color-primary);
+  border-color: var(--el-color-primary-light-5);
+  background: var(--el-color-primary-light-9);
+}
+
+.rq-graph-legend-toggle {
+  margin-right: 0;
+}
+
+.rq-graph-legend-toggle :deep(.el-checkbox__label) {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.rq-series-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 28px;
+  padding: 0 12px;
+  background: var(--el-fill-color-light);
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  font-size: 12px;
+  color: var(--el-text-color-regular);
+}
+
+.rq-series-last {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--el-text-color-secondary);
+}
+
+.rq-series-sort-icon {
+  width: 14px;
+  height: 14px;
+  font-size: 14px;
 }
 
 .rq-series-list {
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 4px;
+  flex: 1;
+  min-height: 0;
+  overflow-x: scroll;
+  overflow-y: auto;
+  padding: 4px 10px 6px;
   background: var(--el-fill-color-blank);
-  padding: 6px 10px;
-  max-height: 140px;
-  overflow: auto;
+  scrollbar-gutter: stable both-edges;
+  scrollbar-width: thin;
+  scrollbar-color: var(--el-border-color-darker) var(--el-fill-color-light);
+}
+
+.rq-series-list::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.rq-series-list::-webkit-scrollbar-track {
+  background: var(--el-fill-color-light);
+  border-radius: 4px;
+}
+
+.rq-series-list::-webkit-scrollbar-thumb {
+  background: var(--el-border-color-darker);
+  border-radius: 4px;
+}
+
+.rq-series-list::-webkit-scrollbar-thumb:hover {
+  background: var(--el-text-color-placeholder);
 }
 
 .rq-series-title {
   font-size: 12px;
   color: var(--el-text-color-regular);
-  margin-bottom: 6px;
+}
+
+.rq-series-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 72px;
+  padding: 0 12px;
+  background: var(--el-fill-color-blank);
+}
+
+.rq-graph-empty-text {
+  width: 100%;
+  text-align: center;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  line-height: 60px;
 }
 
 .rq-series-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: max-content;
+  min-width: 100%;
+  padding: 4px 2px;
   font-size: 12px;
-  color: var(--el-text-color-secondary);
-  line-height: 1.6;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 20px;
+  font-weight: 400;
+  color: var(--el-text-color-primary);
+  box-sizing: border-box;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
 }
 
-.rq-table-pagination {
-  display: flex;
-  justify-content: center;
-  padding: 12px 0 0;
+.rq-series-row:hover {
+  background: var(--el-fill-color-light);
 }
+
+.rq-series-row.is-highlighted {
+  color: var(--el-text-color-primary);
+  font-weight: 400;
+}
+
+.rq-series-row.is-selected {
+  color: var(--el-text-color-primary);
+  font-weight: 400;
+  background: var(--el-color-primary-light-9);
+}
+
+.rq-series-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.rq-series-name {
+  flex: none;
+  white-space: nowrap;
+  color: var(--el-text-color-primary);
+}
+
+.rq-series-value {
+  flex: none;
+  margin-left: 16px;
+  white-space: nowrap;
+  font-size: 12px;
+  line-height: 20px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  color: var(--el-text-color-primary);
+}
+
 
 :global(.rq-promql-suggestions) {
   border-radius: 6px;
@@ -1268,9 +2028,8 @@ onMounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: Consolas, Monaco, sans-serif;
   font-size: 12px;
-  line-height: 16.8px;
+  line-height: 1.5;
   color: var(--el-text-color-primary);
 }
 
@@ -1281,5 +2040,19 @@ onMounted(() => {
 
 :global(html.dark) .rq-metric-name {
   color: #2dd4bf;
+}
+
+/* ---- 查询历史记录下拉 ---- */
+.rq-history-wrapper {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 100%;
+  z-index: 2000;
+  background: var(--el-bg-color-overlay);
+  border: 1px solid var(--el-border-color-light);
+  border-radius: 6px;
+  box-shadow: var(--el-box-shadow-light);
+  overflow: hidden;
 }
 </style>

@@ -38,7 +38,7 @@ import {
 } from 'echarts/components'
 
 // 导入渲染器
-import { CanvasRenderer } from 'echarts/renderers'
+import { CanvasRenderer, SVGRenderer } from 'echarts/renderers'
 
 // 注册必要的组件
 echarts.use([
@@ -65,7 +65,8 @@ echarts.use([
   VisualMapComponent,
 
   // 渲染器
-  CanvasRenderer
+  CanvasRenderer,
+  SVGRenderer
 ])
 
 // 导出 echarts 实例和类型
