@@ -11,6 +11,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AppFeedback: typeof import('./../../components/core/layouts/app-feedback/index.vue')['default']
     ArtBackToTop: typeof import('./../../components/core/base/art-back-to-top/index.vue')['default']
     ArtBarChart: typeof import('./../../components/core/charts/art-bar-chart/index.vue')['default']
     ArtBarChartCard: typeof import('./../../components/core/cards/art-bar-chart-card/index.vue')['default']
