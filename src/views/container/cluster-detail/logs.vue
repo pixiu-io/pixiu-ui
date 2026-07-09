@@ -4,7 +4,11 @@
     :class="{ 'logs-console--placeholder': isPlaceholderState }"
   >
     <div v-if="!detectResolved" class="logs-loading-state">
-      <div class="logs-loading-card" v-loading="true" element-loading-text="正在加载日志数据源..." />
+      <div
+        class="logs-loading-card"
+        v-loading="true"
+        element-loading-text="正在加载日志数据源..."
+      />
     </div>
 
     <div v-else-if="!hasConfiguredDatasource" class="logs-unavailable-state">
@@ -21,145 +25,168 @@
     <template v-else>
       <section class="logs-console__top-card">
         <div class="logs-console__rule-bar">
-        <div class="logs-console__rule-main">
-          <div class="logs-console__rule-left">
-            <slot name="before-datasource" />
-            <span class="logs-console__rule-label">数据源</span>
-            <ElSelect
-              v-model="selectedDatasourceId"
-              placeholder="请选择数据源"
-              class="logs-console__rule-select"
-              :loading="datasourceLoading"
-            >
-              <template #label="{ value }">
-                <span
-                  v-if="value && getDatasourceById(Number(value))"
-                  class="logs-console__datasource-option"
-                >
-                  <span
-                    class="logs-console__datasource-logo"
-                    :class="`is-${getDatasourceById(Number(value))?.subType}`"
-                  >
-                    <ArtSvgIcon
-                      :icon="subTypeMeta[getDatasourceById(Number(value))!.subType].icon"
-                      class="logs-console__datasource-logo-icon"
-                    />
-                  </span>
-                  <span class="logs-console__datasource-name">
-                    {{ getDatasourceById(Number(value))?.name }}
-                  </span>
-                </span>
-              </template>
-              <ElOption
-                v-for="item in datasourceOptions"
-                :key="item.id"
-                :label="item.name"
-                :value="item.id"
+          <div class="logs-console__rule-main">
+            <div class="logs-console__rule-left">
+              <slot name="before-datasource" />
+              <span class="logs-console__rule-label">日志来源</span>
+              <ElSelect
+                v-model="sourceFilter"
+                class="logs-console__rule-select logs-console__source-select"
               >
-                <span class="logs-console__datasource-option">
-                  <span class="logs-console__datasource-logo" :class="`is-${item.subType}`">
-                    <ArtSvgIcon
-                      :icon="subTypeMeta[item.subType].icon"
-                      class="logs-console__datasource-logo-icon"
-                    />
+                <ElOption
+                  v-for="opt in sourceOptions"
+                  :key="opt.value"
+                  :label="opt.label"
+                  :value="opt.value"
+                />
+              </ElSelect>
+              <span class="logs-console__rule-label">数据源</span>
+              <span class="logs-console__datasource-wrap">
+                <ElSelect
+                  v-model="selectedDatasourceId"
+                  placeholder="请选择数据源"
+                  class="logs-console__rule-select"
+                  :loading="datasourceLoading"
+                >
+                <template #label="{ value }">
+                  <span
+                    v-if="value && getDatasourceById(Number(value))"
+                    class="logs-console__datasource-option"
+                  >
+                    <span
+                      class="logs-console__datasource-logo"
+                      :class="`is-${getDatasourceById(Number(value))?.subType}`"
+                    >
+                      <ArtSvgIcon
+                        :icon="subTypeMeta[getDatasourceById(Number(value))!.subType].icon"
+                        class="logs-console__datasource-logo-icon"
+                      />
+                    </span>
+                    <span class="logs-console__datasource-name">
+                      {{ getDatasourceById(Number(value))?.name }}
+                    </span>
                   </span>
-                  <span class="logs-console__datasource-name">{{ item.name }}</span>
-                </span>
-              </ElOption>
+                </template>
+                <ElOption
+                  v-for="item in filteredDatasourceOptions"
+                  :key="item.id"
+                  :label="item.name"
+                  :value="item.id"
+                >
+                  <span class="logs-console__datasource-option">
+                    <span class="logs-console__datasource-logo" :class="`is-${item.subType}`">
+                      <ArtSvgIcon
+                        :icon="subTypeMeta[item.subType].icon"
+                        class="logs-console__datasource-logo-icon"
+                      />
+                    </span>
+                    <span class="logs-console__datasource-name">{{ item.name }}</span>
+                  </span>
+                </ElOption>
+              </ElSelect>
+              <ElTag
+                v-if="sourceFilter === 'internal' && selectedDatasource"
+                class="logs-console__datasource-cluster-tag"
+                size="small"
+                effect="light"
+              >
+                {{ getClusterLabel(selectedDatasource.clusterName || '') }}
+              </ElTag>
+            </span>
+            </div>
+            <ElButton link type="primary" class="logs-console__external-link" disabled>
+              在日志服务中查看更多
+              <ElIcon class="logs-console__external-link-icon"><Link /></ElIcon>
+            </ElButton>
+          </div>
+          <div class="logs-console__query-toolbar">
+            <div class="logs-console__query-toolbar-left">
+              <span class="logs-console__query-mode">语句模式</span>
+              <ElButton text size="small" disabled>收藏夹</ElButton>
+              <ElButton text size="small" disabled>历史记录</ElButton>
+              <ElButton text size="small" disabled>语句模板</ElButton>
+            </div>
+            <div class="logs-console__query-toolbar-right">
+              <ElButton text size="small" disabled>推荐仪表盘</ElButton>
+              <span class="logs-console__hot-tag">HOT</span>
+              <ElButton text size="small" disabled>告警</ElButton>
+              <ElButton text size="small" disabled>采集配置</ElButton>
+              <ElButton text size="small" disabled>索引配置</ElButton>
+              <ElButton text size="small" disabled>更多</ElButton>
+            </div>
+          </div>
+          <div class="logs-console__query-body">
+            <ElInput
+              v-model="queryDraft"
+              :placeholder="queryDraftPlaceholder"
+              class="logs-query-input"
+              clearable
+              @input="handleQueryDraftInput"
+              @keyup.enter="loadLogs"
+            />
+            <ElSelect v-model="timeRangeMinutes" class="logs-time-range">
+              <ElOption :value="15" label="近15分钟" />
+              <ElOption :value="60" label="近1小时" />
+              <ElOption :value="360" label="近6小时" />
+              <ElOption :value="1440" label="近24小时" />
             </ElSelect>
-          </div>
-          <ElButton link type="primary" class="logs-console__external-link" disabled>
-            在日志服务中查看更多
-            <ElIcon class="logs-console__external-link-icon"><Link /></ElIcon>
-          </ElButton>
-        </div>
-        <div class="logs-console__query-toolbar">
-          <div class="logs-console__query-toolbar-left">
-            <span class="logs-console__query-mode">语句模式</span>
-            <ElButton text size="small" disabled>收藏夹</ElButton>
-            <ElButton text size="small" disabled>历史记录</ElButton>
-            <ElButton text size="small" disabled>语句模板</ElButton>
-          </div>
-          <div class="logs-console__query-toolbar-right">
-            <ElButton text size="small" disabled>推荐仪表盘</ElButton>
-            <span class="logs-console__hot-tag">HOT</span>
-            <ElButton text size="small" disabled>告警</ElButton>
-            <ElButton text size="small" disabled>采集配置</ElButton>
-            <ElButton text size="small" disabled>索引配置</ElButton>
-            <ElButton text size="small" disabled>更多</ElButton>
-          </div>
-        </div>
-        <div class="logs-console__query-body">
-          <ElInput
-            v-model="queryDraft"
-            :placeholder="queryDraftPlaceholder"
-            class="logs-query-input"
-            clearable
-            @input="handleQueryDraftInput"
-            @keyup.enter="loadLogs"
-          />
-          <ElSelect v-model="timeRangeMinutes" class="logs-time-range">
-            <ElOption :value="15" label="近15分钟" />
-            <ElOption :value="60" label="近1小时" />
-            <ElOption :value="360" label="近6小时" />
-            <ElOption :value="1440" label="近24小时" />
-          </ElSelect>
-          <ElButton
-            type="primary"
-            class="logs-search-btn"
-            :icon="Search"
-            :loading="loading"
-            :disabled="!canQuery"
-            @click="loadLogs"
-          >
-            搜索
-          </ElButton>
-        </div>
-        <div v-if="isLokiDatasource" class="logs-console__query-actions">
-          <span v-if="isLokiDatasource" class="logs-console__query-link" @click="addFilter">添加条件</span>
-          <span v-if="queryDirty" class="logs-console__query-link" @click="resetQueryDraft">恢复生成</span>
-        </div>
-        <div v-if="isLokiDatasource && filters.length" class="logs-filter-list">
-          <div v-for="filter in filters" :key="filter.id" class="logs-filter-row">
-            <ElSelect
-              v-model="filter.key"
-              placeholder="标签"
-              class="logs-filter-key"
-              filterable
-              @change="onFilterKeyChange(filter)"
+            <ElButton
+              type="primary"
+              class="logs-search-btn"
+              :icon="Search"
+              :loading="loading"
+              :disabled="!canQuery"
+              @click="loadLogs"
             >
-              <ElOption v-for="item in labelKeys" :key="item" :label="item" :value="item" />
-            </ElSelect>
-            <ElSelect v-model="filter.operator" class="logs-filter-operator">
-              <ElOption v-for="item in operatorOptions" :key="item" :label="item" :value="item" />
-            </ElSelect>
-            <ElSelect
-              v-model="filter.value"
-              placeholder="标签值"
-              class="logs-filter-value"
-              filterable
-              allow-create
-              default-first-option
-              :loading="filter.loading"
-              @visible-change="(visible) => visible && ensureFilterValues(filter)"
-            >
-              <ElOption
-                v-for="item in filter.options"
-                :key="`${filter.key}-${item}`"
-                :label="item"
-                :value="item"
-              />
-            </ElSelect>
-            <span class="logs-console__query-link" @click="removeFilter(filter.id)">删除</span>
+              搜索
+            </ElButton>
           </div>
-        </div>
+          <div v-if="isLokiDatasource" class="logs-console__query-actions">
+            <span v-if="isLokiDatasource" class="logs-console__query-link" @click="addFilter"
+              >添加条件</span
+            >
+            <span v-if="queryDirty" class="logs-console__query-link" @click="resetQueryDraft"
+              >恢复生成</span
+            >
+          </div>
+          <div v-if="isLokiDatasource && filters.length" class="logs-filter-list">
+            <div v-for="filter in filters" :key="filter.id" class="logs-filter-row">
+              <ElSelect
+                v-model="filter.key"
+                placeholder="标签"
+                class="logs-filter-key"
+                filterable
+                @change="onFilterKeyChange(filter)"
+              >
+                <ElOption v-for="item in labelKeys" :key="item" :label="item" :value="item" />
+              </ElSelect>
+              <ElSelect v-model="filter.operator" class="logs-filter-operator">
+                <ElOption v-for="item in operatorOptions" :key="item" :label="item" :value="item" />
+              </ElSelect>
+              <ElSelect
+                v-model="filter.value"
+                placeholder="标签值"
+                class="logs-filter-value"
+                filterable
+                allow-create
+                default-first-option
+                :loading="filter.loading"
+                @visible-change="(visible) => visible && ensureFilterValues(filter)"
+              >
+                <ElOption
+                  v-for="item in filter.options"
+                  :key="`${filter.key}-${item}`"
+                  :label="item"
+                  :value="item"
+                />
+              </ElSelect>
+              <span class="logs-console__query-link" @click="removeFilter(filter.id)">删除</span>
+            </div>
+          </div>
         </div>
       </section>
 
-      <section
-        class="logs-console__results"
-        :class="{ 'is-fields-collapsed': isFieldsCollapsed }"
-      >
+      <section class="logs-console__results" :class="{ 'is-fields-collapsed': isFieldsCollapsed }">
         <div class="logs-console__results-tabs">
           <button
             type="button"
@@ -180,127 +207,263 @@
         </div>
 
         <div class="logs-console__results-body">
-        <aside class="logs-console__fields" :class="{ 'is-collapsed': isFieldsCollapsed }">
-          <div class="logs-console__fields-header">
-            <div v-if="!isFieldsCollapsed" class="logs-console__fields-title">字段列表</div>
-            <button
-              type="button"
-              class="logs-console__fields-toggle"
-              :title="isFieldsCollapsed ? '展开字段列表' : '折叠字段列表'"
-              @click="isFieldsCollapsed = !isFieldsCollapsed"
-            >
-              <ElIcon :size="16">
-                <component :is="isFieldsCollapsed ? Expand : Fold" />
-              </ElIcon>
-            </button>
-          </div>
-          <template v-if="!isFieldsCollapsed">
-          <ElInput
-            v-model="fieldSearch"
-            clearable
-            placeholder="搜索字段"
-            class="logs-console__fields-search"
-          />
-          <div class="logs-field-tree">
-            <div
-              v-for="field in filteredFieldKeys"
-              :key="field"
-              class="logs-field-node"
-              :class="{ 'is-expanded': expandedFieldKey === field }"
-            >
-              <button type="button" class="logs-field-node__head" @click="toggleFieldExpand(field)">
-                <ElIcon class="logs-field-node__arrow">
-                  <CaretBottom v-if="expandedFieldKey === field" />
-                  <CaretRight v-else />
+          <aside class="logs-console__fields" :class="{ 'is-collapsed': isFieldsCollapsed }">
+            <div class="logs-console__fields-header">
+              <div v-if="!isFieldsCollapsed" class="logs-console__fields-title">字段列表</div>
+              <button
+                type="button"
+                class="logs-console__fields-toggle"
+                :title="isFieldsCollapsed ? '展开字段列表' : '折叠字段列表'"
+                @click="isFieldsCollapsed = !isFieldsCollapsed"
+              >
+                <ElIcon :size="16">
+                  <component :is="isFieldsCollapsed ? Expand : Fold" />
                 </ElIcon>
-                <span class="logs-field-node__name" :title="field">{{ field }}</span>
-                <span
-                  v-if="getSelectedFieldValues(field).length"
-                  class="logs-field-node__badge"
-                >
-                  {{ getSelectedFieldValues(field).length }}
-                </span>
               </button>
-              <div v-if="expandedFieldKey === field" class="logs-field-node__body">
-                <ElInput
-                  :model-value="getFieldValueSearch(field)"
-                  placeholder="搜索值"
-                  size="small"
-                  clearable
-                  class="logs-field-node__search"
-                  @update:model-value="setFieldValueSearch(field, $event)"
-                />
-                <div class="logs-field-node__options">
-                  <label
-                    v-for="value in getFilteredFieldValues(field)"
-                    :key="`${field}-${value}`"
-                    class="logs-field-node__option"
+            </div>
+            <template v-if="!isFieldsCollapsed">
+              <ElInput
+                v-model="fieldSearch"
+                clearable
+                placeholder="搜索字段"
+                class="logs-console__fields-search"
+              />
+              <div class="logs-field-tree">
+                <div
+                  v-for="field in filteredFieldKeys"
+                  :key="field"
+                  class="logs-field-node"
+                  :class="{ 'is-expanded': expandedFieldKey === field }"
+                >
+                  <button
+                    type="button"
+                    class="logs-field-node__head"
+                    @click="toggleFieldExpand(field)"
                   >
-                    <ElCheckbox
-                      :model-value="isFieldValueSelected(field, value)"
-                      @change="(checked: boolean) => toggleFieldValue(field, value, checked)"
+                    <ElIcon class="logs-field-node__arrow">
+                      <CaretBottom v-if="expandedFieldKey === field" />
+                      <CaretRight v-else />
+                    </ElIcon>
+                    <span class="logs-field-node__name" :title="field">{{ field }}</span>
+                    <span
+                      v-if="getSelectedFieldValues(field).length"
+                      class="logs-field-node__badge"
+                    >
+                      {{ getSelectedFieldValues(field).length }}
+                    </span>
+                  </button>
+                  <div v-if="expandedFieldKey === field" class="logs-field-node__body">
+                    <ElInput
+                      :model-value="getFieldValueSearch(field)"
+                      placeholder="搜索值"
+                      size="small"
+                      clearable
+                      class="logs-field-node__search"
+                      @update:model-value="setFieldValueSearch(field, $event)"
                     />
-                    <span class="logs-field-node__value" :title="value">{{ value }}</span>
-                  </label>
-                  <div v-if="!getFilteredFieldValues(field).length" class="logs-field-node__empty">
-                    暂无值
+                    <div class="logs-field-node__options">
+                      <label
+                        v-for="value in getFilteredFieldValues(field)"
+                        :key="`${field}-${value}`"
+                        class="logs-field-node__option"
+                      >
+                        <ElCheckbox
+                          :model-value="isFieldValueSelected(field, value)"
+                          @change="(checked: boolean) => toggleFieldValue(field, value, checked)"
+                        />
+                        <span class="logs-field-node__value" :title="value">{{ value }}</span>
+                      </label>
+                      <div
+                        v-if="!getFilteredFieldValues(field).length"
+                        class="logs-field-node__empty"
+                      >
+                        暂无值
+                      </div>
+                    </div>
                   </div>
+                </div>
+                <div v-if="!filteredFieldKeys.length" class="logs-console__fields-empty">
+                  {{ logs.length ? '未匹配到字段' : '暂无字段' }}
+                </div>
+              </div>
+            </template>
+          </aside>
+
+          <main class="logs-console__main">
+            <div class="logs-console__main-header">
+              <div class="logs-console__main-header-top">
+                <span class="logs-console__count">
+                  日志条数 {{ displayLogs.length }}
+                  <span
+                    v-if="hasActiveFieldFilters && displayLogs.length !== logs.length"
+                    class="logs-console__count-filtered"
+                  >
+                    / {{ logs.length }}
+                  </span>
+                </span>
+                <div class="logs-console__main-toolbar">
+                  <ElButton text size="small" disabled>添加到仪表盘</ElButton>
+                  <ElButton text size="small" disabled>添加告警策略</ElButton>
+                  <ElButton
+                    text
+                    size="small"
+                    :icon="Download"
+                    class="logs-console__download-btn"
+                    :disabled="!displayLogs.length"
+                    @click="downloadLogs"
+                  >
+                    下载
+                  </ElButton>
+                </div>
+              </div>
+              <div v-if="resultPanelTab === 'logs'" class="logs-trend-chart">
+                <div v-if="showTrendChart" class="logs-trend-chart__panel">
+                  <button
+                    type="button"
+                    class="logs-trend-chart__toggle"
+                    @click="showTrendChart = false"
+                  >
+                    <ElIcon><Hide /></ElIcon>
+                    隐藏图表
+                  </button>
+                  <div class="logs-trend-chart__plot">
+                    <div class="logs-trend-chart__bars">
+                      <div
+                        v-for="item in trendChartData"
+                        :key="item.key"
+                        class="logs-trend-chart__bar-wrap"
+                        :title="`${item.fullLabel}\n日志数量：${item.count}`"
+                      >
+                        <div
+                          class="logs-trend-chart__bar"
+                          :title="`${item.fullLabel}\n日志数量：${item.count}`"
+                          :style="{
+                            height: `${item.count ? Math.max(6, (item.count / maxTrendCount) * 100) : 0}%`
+                          }"
+                        />
+                      </div>
+                    </div>
+                    <div class="logs-trend-chart__axis">
+                      <span
+                        v-for="item in trendChartData"
+                        :key="`axis-${item.key}`"
+                        class="logs-trend-chart__axis-label"
+                        :title="item.showLabel ? item.fullLabel : ''"
+                      >
+                        {{ item.showLabel ? item.label : '' }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  v-else
+                  type="button"
+                  class="logs-trend-chart__show"
+                  @click="showTrendChart = true"
+                >
+                  <ElIcon><View /></ElIcon>
+                  显示图表
+                </button>
+              </div>
+              <div class="logs-console__view-mode">
+                <div class="logs-console__view-mode-left">
+                  <div class="logs-view-segment">
+                    <button
+                      type="button"
+                      class="logs-view-segment__item"
+                      :class="{ 'is-active': resultViewMode === 'raw' }"
+                      @click="resultViewMode = 'raw'"
+                    >
+                      原始
+                    </button>
+                    <button
+                      type="button"
+                      class="logs-view-segment__item"
+                      :class="{ 'is-active': resultViewMode === 'table' }"
+                      @click="resultViewMode = 'table'"
+                    >
+                      表格
+                    </button>
+                  </div>
+                  <div class="logs-console__display-options">
+                    <label class="logs-console__display-check">
+                      <ElCheckbox v-model="wordWrap" />换行
+                    </label>
+                    <label class="logs-console__display-check">
+                      <ElCheckbox v-model="showLineNumber" />行号
+                    </label>
+                    <label class="logs-console__display-check">
+                      <ElCheckbox v-model="showLogTime" />日志时间
+                    </label>
+                  </div>
+                </div>
+                <div v-if="resultViewMode === 'raw'" class="logs-console__column-settings">
+                  <ElPopover
+                    placement="bottom-end"
+                    trigger="click"
+                    :width="156"
+                    popper-class="logs-column-settings-popper"
+                  >
+                    <template #reference>
+                      <button type="button" class="logs-column-settings__trigger">
+                        <ElIcon><Setting /></ElIcon>
+                        显示列
+                      </button>
+                    </template>
+                    <div class="logs-column-settings__panel">
+                      <div
+                        v-for="column in rawColumnOptions"
+                        :key="column.key"
+                        class="logs-column-settings__row"
+                      >
+                        <span>{{ column.label }}</span>
+                        <ElSwitch v-model="rawColumnVisibility[column.key]" size="small" />
+                      </div>
+                    </div>
+                  </ElPopover>
+                </div>
+                <div v-else-if="resultViewMode === 'table'" class="logs-console__column-settings">
+                  <ElPopover
+                    placement="bottom-end"
+                    trigger="click"
+                    :width="156"
+                    popper-class="logs-column-settings-popper"
+                  >
+                    <template #reference>
+                      <button type="button" class="logs-column-settings__trigger">
+                        <ElIcon><Setting /></ElIcon>
+                        显示列
+                      </button>
+                    </template>
+                    <div class="logs-column-settings__panel">
+                      <div
+                        v-for="column in tableColumnOptions"
+                        :key="column.key"
+                        class="logs-column-settings__row"
+                      >
+                        <span>{{ column.label }}</span>
+                        <ElSwitch v-model="tableColumnVisibility[column.key]" size="small" />
+                      </div>
+                    </div>
+                  </ElPopover>
                 </div>
               </div>
             </div>
-            <div v-if="!filteredFieldKeys.length" class="logs-console__fields-empty">
-              {{ logs.length ? '未匹配到字段' : '暂无字段' }}
-            </div>
-          </div>
-          </template>
-        </aside>
 
-        <main class="logs-console__main">
-          <div class="logs-console__main-header">
-            <div class="logs-console__main-header-top">
-              <span class="logs-console__count">
-                日志条数 {{ displayLogs.length }}
-                <span
-                  v-if="hasActiveFieldFilters && displayLogs.length !== logs.length"
-                  class="logs-console__count-filtered"
-                >
-                  / {{ logs.length }}
-                </span>
-              </span>
-              <div class="logs-console__main-toolbar">
-                <ElButton text size="small" disabled>添加到仪表盘</ElButton>
-                <ElButton text size="small" disabled>添加告警策略</ElButton>
-                <ElButton
-                  text
-                  size="small"
-                  :icon="Download"
-                  class="logs-console__download-btn"
-                  :disabled="!displayLogs.length"
-                  @click="downloadLogs"
-                >
-                  下载
-                </ElButton>
-              </div>
-            </div>
-            <div v-if="resultPanelTab === 'logs'" class="logs-trend-chart">
-              <div v-if="showTrendChart" class="logs-trend-chart__panel">
-                <button type="button" class="logs-trend-chart__toggle" @click="showTrendChart = false">
-                  <ElIcon><Hide /></ElIcon>
-                  隐藏图表
-                </button>
+            <div v-if="resultPanelTab === 'chart'" class="logs-console__chart-panel">
+              <div v-if="displayLogs.length" class="logs-trend-chart__panel is-large">
                 <div class="logs-trend-chart__plot">
                   <div class="logs-trend-chart__bars">
                     <div
                       v-for="item in trendChartData"
-                      :key="item.key"
+                      :key="`chart-${item.key}`"
                       class="logs-trend-chart__bar-wrap"
-                      :title="`${item.fullLabel}\n日志数量：${item.count}`"
+                      :title="`${item.label}: ${item.count}`"
                     >
                       <div
                         class="logs-trend-chart__bar"
-                        :title="`${item.fullLabel}\n日志数量：${item.count}`"
                         :style="{
-                          height: `${item.count ? Math.max(6, (item.count / maxTrendCount) * 100) : 0}%`
+                          height: `${item.count ? Math.max(8, (item.count / maxTrendCount) * 100) : 0}%`
                         }"
                       />
                     </div>
@@ -308,7 +471,7 @@
                   <div class="logs-trend-chart__axis">
                     <span
                       v-for="item in trendChartData"
-                      :key="`axis-${item.key}`"
+                      :key="`chart-axis-${item.key}`"
                       class="logs-trend-chart__axis-label"
                       :title="item.showLabel ? item.fullLabel : ''"
                     >
@@ -317,202 +480,137 @@
                   </div>
                 </div>
               </div>
-              <button v-else type="button" class="logs-trend-chart__show" @click="showTrendChart = true">
-                <ElIcon><View /></ElIcon>
-                显示图表
-              </button>
+              <ElEmpty v-else description="暂无统计数据，请先搜索日志" />
             </div>
-            <div class="logs-console__view-mode">
-              <div class="logs-console__view-mode-left">
-                <div class="logs-view-segment">
-                  <button
-                    type="button"
-                    class="logs-view-segment__item"
-                    :class="{ 'is-active': resultViewMode === 'raw' }"
-                    @click="resultViewMode = 'raw'"
-                  >
-                    原始
-                  </button>
-                  <button
-                    type="button"
-                    class="logs-view-segment__item"
-                    :class="{ 'is-active': resultViewMode === 'table' }"
-                    @click="resultViewMode = 'table'"
-                  >
-                    表格
-                  </button>
-                </div>
-                <div class="logs-console__display-options">
-                  <label class="logs-console__display-check">
-                    <ElCheckbox v-model="wordWrap" />换行
-                  </label>
-                  <label class="logs-console__display-check">
-                    <ElCheckbox v-model="showLineNumber" />行号
-                  </label>
-                  <label class="logs-console__display-check">
-                    <ElCheckbox v-model="showLogTime" />日志时间
-                  </label>
-                </div>
-              </div>
-              <div v-if="resultViewMode === 'table'" class="logs-console__column-settings">
-                <ElPopover placement="bottom-end" trigger="click" :width="156" popper-class="logs-column-settings-popper">
-                  <template #reference>
-                    <button type="button" class="logs-column-settings__trigger">
-                      <ElIcon><Setting /></ElIcon>
-                      显示列
-                    </button>
-                  </template>
-                  <div class="logs-column-settings__panel">
-                    <div
-                      v-for="column in tableColumnOptions"
-                      :key="column.key"
-                      class="logs-column-settings__row"
-                    >
-                      <span>{{ column.label }}</span>
-                      <ElSwitch v-model="tableColumnVisibility[column.key]" size="small" />
-                    </div>
-                  </div>
-                </ElPopover>
-              </div>
-            </div>
-          </div>
 
-          <div v-if="resultPanelTab === 'chart'" class="logs-console__chart-panel">
-            <div v-if="displayLogs.length" class="logs-trend-chart__panel is-large">
-              <div class="logs-trend-chart__plot">
-                <div class="logs-trend-chart__bars">
+            <template v-else>
+              <div v-loading="loading" class="logs-console__content">
+                <div v-if="resultViewMode === 'raw'" class="logs-raw-list">
                   <div
-                    v-for="item in trendChartData"
-                    :key="`chart-${item.key}`"
-                    class="logs-trend-chart__bar-wrap"
-                    :title="`${item.label}: ${item.count}`"
+                    v-for="(row, index) in displayLogs"
+                    :key="row.id"
+                    class="logs-raw-line"
+                    :class="{ 'is-wrap': wordWrap }"
                   >
-                    <div
-                      class="logs-trend-chart__bar"
-                      :style="{
-                        height: `${item.count ? Math.max(8, (item.count / maxTrendCount) * 100) : 0}%`
-                      }"
-                    />
+                    <span v-if="showLineNumber" class="logs-raw-line__no">{{ index + 1 }}</span>
+                    <span v-if="rawColumnVisibility.time" class="logs-raw-line__time">{{ row.time }}</span>
+                    <span
+                      v-if="rawColumnVisibility.pod"
+                      class="logs-raw-line__pod"
+                      :title="row.pod"
+                    >{{ row.pod }}</span>
+                    <span v-if="rawColumnVisibility.msg" class="logs-raw-line__msg">{{ row.msg }}</span>
                   </div>
+                  <div v-if="!displayLogs.length" class="logs-empty">{{ emptyText }}</div>
                 </div>
-                <div class="logs-trend-chart__axis">
-                  <span
-                    v-for="item in trendChartData"
-                    :key="`chart-axis-${item.key}`"
-                    class="logs-trend-chart__axis-label"
-                    :title="item.showLabel ? item.fullLabel : ''"
-                  >
-                    {{ item.showLabel ? item.label : '' }}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <ElEmpty v-else description="暂无统计数据，请先搜索日志" />
-          </div>
 
-          <template v-else>
-            <div v-loading="loading" class="logs-console__content">
-              <div v-if="resultViewMode === 'raw'" class="logs-raw-list">
-                <div
-                  v-for="(row, index) in displayLogs"
-                  :key="row.id"
-                  class="logs-raw-line"
+                <ElTable
+                  v-else
+                  :data="displayLogs"
+                  :row-key="getLogRowKey"
+                  :expand-row-keys="expandedRowKeys"
+                  size="small"
+                  class="logs-table"
                   :class="{ 'is-wrap': wordWrap }"
+                  @expand-change="handleExpandChange"
                 >
-                  <span v-if="showLineNumber" class="logs-raw-line__no">{{ index + 1 }}</span>
-                  <span v-if="showLogTime" class="logs-raw-line__time">{{ row.time }}</span>
-                  <span class="logs-raw-line__pod" :title="row.pod">{{ row.pod }}</span>
-                  <span class="logs-raw-line__msg">{{ row.msg }}</span>
-                </div>
-                <div v-if="!displayLogs.length" class="logs-empty">{{ emptyText }}</div>
-              </div>
-
-              <ElTable
-                v-else
-                :data="displayLogs"
-                :row-key="getLogRowKey"
-                :expand-row-keys="expandedRowKeys"
-                size="small"
-                class="logs-table"
-                :class="{ 'is-wrap': wordWrap }"
-                @expand-change="handleExpandChange"
-              >
-                <template #empty>
-                  <div class="logs-empty">{{ emptyText }}</div>
-                </template>
-                <ElTableColumn type="expand" width="44">
-                  <template #default="{ row }">
-                    <div class="logs-inline-detail">
-                      <div class="logs-inline-detail__panel">
-                        <div class="logs-inline-detail__panel-head">
-                          <span class="logs-inline-detail__panel-title">字段</span>
-                          <span class="logs-inline-detail__panel-count">
-                            {{ getLogFieldEntries(row as LogTableRow).length }} 项
-                          </span>
-                        </div>
-                        <div class="logs-field-grid">
-                          <div
-                            v-for="item in getLogFieldEntries(row as LogTableRow)"
-                            :key="`${(row as LogTableRow).id}-${item.key}`"
-                            class="logs-field-row"
-                          >
-                            <span class="logs-field-row__key">{{ item.key }}</span>
-                            <span
-                              class="logs-field-row__value"
-                              :class="getFieldValueClass(item)"
-                            >
-                              {{ item.value }}
+                  <template #empty>
+                    <div class="logs-empty">{{ emptyText }}</div>
+                  </template>
+                  <ElTableColumn type="expand" width="44">
+                    <template #default="{ row }">
+                      <div class="logs-inline-detail">
+                        <div class="logs-inline-detail__panel">
+                          <div class="logs-inline-detail__panel-head">
+                            <span class="logs-inline-detail__panel-title">字段</span>
+                            <span class="logs-inline-detail__panel-count">
+                              {{ getLogFieldEntries(row as LogTableRow).length }} 项
                             </span>
-                            <button
-                              type="button"
-                              class="logs-field-row__copy"
-                              title="复制"
-                              @click="copyFieldValue(item.value)"
+                          </div>
+                          <div class="logs-field-grid">
+                            <div
+                              v-for="item in getLogFieldEntries(row as LogTableRow)"
+                              :key="`${(row as LogTableRow).id}-${item.key}`"
+                              class="logs-field-row"
                             >
-                              <ElIcon><DocumentCopy /></ElIcon>
-                            </button>
+                              <span class="logs-field-row__key">{{ item.key }}</span>
+                              <span class="logs-field-row__value" :class="getFieldValueClass(item)">
+                                {{ item.value }}
+                              </span>
+                              <button
+                                type="button"
+                                class="logs-field-row__copy"
+                                title="复制"
+                                @click="copyFieldValue(item.value)"
+                              >
+                                <ElIcon><DocumentCopy /></ElIcon>
+                              </button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <div class="logs-inline-detail__panel">
-                        <div class="logs-inline-detail__panel-head">
-                          <span class="logs-inline-detail__panel-title">日志内容</span>
-                          <button
-                            type="button"
-                            class="logs-inline-detail__copy-btn"
-                            @click="copyFieldValue((row as LogTableRow).raw)"
-                          >
-                            <ElIcon><DocumentCopy /></ElIcon>
-                            复制
-                          </button>
+                        <div class="logs-inline-detail__panel">
+                          <div class="logs-inline-detail__panel-head">
+                            <span class="logs-inline-detail__panel-title">日志内容</span>
+                            <button
+                              type="button"
+                              class="logs-inline-detail__copy-btn"
+                              @click="copyFieldValue((row as LogTableRow).raw)"
+                            >
+                              <ElIcon><DocumentCopy /></ElIcon>
+                              复制
+                            </button>
+                          </div>
+                          <pre class="logs-inline-detail__code">{{ (row as LogTableRow).raw }}</pre>
                         </div>
-                        <pre class="logs-inline-detail__code">{{ (row as LogTableRow).raw }}</pre>
                       </div>
-                    </div>
-                  </template>
-                </ElTableColumn>
-                <ElTableColumn v-if="tableColumnVisibility.time" prop="time" label="时间" width="190" show-overflow-tooltip />
-                <ElTableColumn v-if="tableColumnVisibility.ns" prop="ns" label="命名空间" width="140" show-overflow-tooltip />
-                <ElTableColumn v-if="tableColumnVisibility.pod" prop="pod" label="Pod" min-width="220" show-overflow-tooltip />
-                <ElTableColumn
-                  v-if="tableColumnVisibility.container"
-                  prop="container"
-                  label="容器"
-                  width="180"
-                  show-overflow-tooltip
-                />
-                <ElTableColumn v-if="tableColumnVisibility.msg" prop="msg" label="内容" min-width="420" show-overflow-tooltip />
-                <ElTableColumn label="操作" width="90" fixed="right">
-                  <template #default="{ row }">
-                    <ElButton link type="primary" @click="toggleLogDetail(row as LogTableRow)">
-                      {{ isExpanded(row as LogTableRow) ? '收起' : '详情' }}
-                    </ElButton>
-                  </template>
-                </ElTableColumn>
-              </ElTable>
-            </div>
-          </template>
-        </main>
+                    </template>
+                  </ElTableColumn>
+                  <ElTableColumn
+                    v-if="tableColumnVisibility.time"
+                    prop="time"
+                    label="时间"
+                    width="190"
+                    show-overflow-tooltip
+                  />
+                  <ElTableColumn
+                    v-if="tableColumnVisibility.ns"
+                    prop="ns"
+                    label="命名空间"
+                    width="140"
+                    show-overflow-tooltip
+                  />
+                  <ElTableColumn
+                    v-if="tableColumnVisibility.pod"
+                    prop="pod"
+                    label="Pod"
+                    min-width="220"
+                    show-overflow-tooltip
+                  />
+                  <ElTableColumn
+                    v-if="tableColumnVisibility.container"
+                    prop="container"
+                    label="容器"
+                    width="180"
+                    show-overflow-tooltip
+                  />
+                  <ElTableColumn
+                    v-if="tableColumnVisibility.msg"
+                    prop="msg"
+                    label="内容"
+                    min-width="420"
+                    show-overflow-tooltip
+                  />
+                  <ElTableColumn label="操作" width="90" fixed="right">
+                    <template #default="{ row }">
+                      <ElButton link type="primary" @click="toggleLogDetail(row as LogTableRow)">
+                        {{ isExpanded(row as LogTableRow) ? '收起' : '详情' }}
+                      </ElButton>
+                    </template>
+                  </ElTableColumn>
+                </ElTable>
+              </div>
+            </template>
+          </main>
         </div>
       </section>
     </template>
@@ -520,7 +618,7 @@
 </template>
 
 <script setup lang="ts">
-  import { computed, inject, ref, watch } from 'vue'
+  import { computed, inject, nextTick, ref, watch } from 'vue'
   import { useRouter } from 'vue-router'
   import { ElMessage } from 'element-plus'
   import {
@@ -540,13 +638,14 @@
   import {
     fetchDatasourceList,
     resolveDatasourceUrl,
+    type DatasourceHeader,
     type DatasourceItem,
     type DatasourceSubType
   } from '@/api/datasource'
-  import { PixiuApiError } from '@/api/container'
-  import { buildUpstreamBasicAuthorizationHeader, kubeProxyAxios } from '@/api/kubeProxy'
+  import { PixiuApiError, fetchClusterList } from '@/api/container'
+  import { buildDatasourceProxyHeaders, kubeProxyAxios } from '@/api/kubeProxy'
   import { fetchK8sService, fetchK8sServiceList, type K8sService } from '@/api/kubernetes/service'
-  import { clusterDetailContextKey } from './context'
+  import { clusterDetailContextKey, clusterNameSeed, type ClusterDetailContext } from './context'
 
   const router = useRouter()
 
@@ -556,9 +655,11 @@
     defineProps<{
       /** 监控页：占位态使用紧凑卡片 */
       compactPlaceholder?: boolean
+      externalOnly?: boolean
     }>(),
     {
-      compactPlaceholder: false
+      compactPlaceholder: false,
+      externalOnly: false
     }
   )
   const emit = defineEmits<{
@@ -627,7 +728,24 @@
     loading: boolean
   }
 
-  const ctxRef = inject(clusterDetailContextKey)!
+  const fallbackCtx = computed<ClusterDetailContext>(() => ({
+    name: '',
+    aliasName: '',
+    id: 0,
+    resourceVersion: 0,
+    status: 0,
+    version: '-',
+    clusterType: 0,
+    planId: 0,
+    isProtected: false,
+    createTime: '-',
+    nodeCount: 0,
+    nodeReady: 0,
+    nodeNotReady: 0,
+    permissionId: 0,
+    seed: clusterNameSeed('external')
+  }))
+  const ctxRef = inject(clusterDetailContextKey, fallbackCtx)
   const resultPanelTab = ref<'logs' | 'chart'>('logs')
   const resultViewMode = ref<'raw' | 'table'>('raw')
   const fieldSearch = ref('')
@@ -640,7 +758,20 @@
   const wordWrap = ref(true)
   const showTrendChart = ref(true)
 
+  type RawColumnKey = 'time' | 'pod' | 'msg'
   type TableColumnKey = 'time' | 'ns' | 'pod' | 'container' | 'msg'
+
+  const rawColumnOptions: Array<{ key: RawColumnKey; label: string }> = [
+    { key: 'time', label: '时间' },
+    { key: 'pod', label: 'POD' },
+    { key: 'msg', label: '内容' }
+  ]
+
+  const rawColumnVisibility = ref<Record<RawColumnKey, boolean>>({
+    time: true,
+    pod: false,
+    msg: true
+  })
 
   const tableColumnOptions: Array<{ key: TableColumnKey; label: string }> = [
     { key: 'time', label: '时间' },
@@ -672,7 +803,32 @@
   const errorMessage = ref('')
 
   const datasourceOptions = ref<DatasourceItem[]>([])
+  const allDatasourceItems = ref<DatasourceItem[]>([])
   const selectedDatasourceId = ref<number>()
+  const sourceFilter = ref<'internal' | 'external'>('external')
+
+  const sourceOptions = computed(() => {
+    const hasInternal = allDatasourceItems.value.some((item) => !item.external)
+    const hasExternal = allDatasourceItems.value.some((item) => item.external)
+    const options: { label: string; value: 'internal' | 'external' }[] = []
+    if (hasInternal) options.push({ label: '内部数据源', value: 'internal' })
+    if (hasExternal) options.push({ label: '外部数据源', value: 'external' })
+    return options
+  })
+
+  const filteredDatasourceOptions = computed(() => {
+    if (sourceFilter.value === 'internal') {
+      return datasourceOptions.value.filter((item) => !item.external)
+    }
+    return datasourceOptions.value.filter((item) => item.external)
+  })
+
+  function getClusterLabel(clusterName: string): string {
+    if (!clusterName) return '-'
+    return clusterAliasMap.value[clusterName] || clusterName
+  }
+
+  const clusterAliasMap = ref<Record<string, string>>({})
   const timeRangeMinutes = ref(15)
   const lineLimit = ref(200)
   const keyword = ref('')
@@ -693,8 +849,19 @@
   const expandedRowKeys = ref<string[]>([])
 
   const currentCluster = computed(() => ctxRef.value.name)
+  const isExternalMode = computed(() => props.externalOnly)
+  /** 与原先集群详情日志一致：经集群内 Service 代理，而非 datasource 直连代理 */
+  const usesClusterServiceProxy = computed(
+    () => !isExternalMode.value || sourceFilter.value === 'internal'
+  )
+  const effectiveCluster = computed(() => {
+    if (isExternalMode.value && usesClusterServiceProxy.value) {
+      return selectedDatasource.value?.clusterName || ''
+    }
+    return currentCluster.value
+  })
   const selectedDatasource = computed(
-    () => datasourceOptions.value.find((item) => item.id === selectedDatasourceId.value) ?? null
+    () => filteredDatasourceOptions.value.find((item) => item.id === selectedDatasourceId.value) ?? null
   )
   const isLokiDatasource = computed(() => selectedDatasource.value?.subType === 'loki')
   const isEsDatasource = computed(() => selectedDatasource.value?.subType === 'es')
@@ -787,7 +954,9 @@
 
     return buckets
   })
-  const maxTrendCount = computed(() => Math.max(...trendChartData.value.map((item) => item.count), 1))
+  const maxTrendCount = computed(() =>
+    Math.max(...trendChartData.value.map((item) => item.count), 1)
+  )
   const queryDraftPlaceholder = computed(() =>
     isLokiDatasource.value
       ? '支持手写 LogQL，例如 {namespace="default"} |= "error"'
@@ -820,8 +989,10 @@
     if (isEsDatasource.value && !query) return '*'
     return query
   })
-  const canQuery = computed(() => Boolean(selectedDatasource.value) && Boolean(effectiveQuery.value.trim()))
-  const hasConfiguredDatasource = computed(() => datasourceOptions.value.length > 0)
+  const canQuery = computed(
+    () => Boolean(selectedDatasource.value) && Boolean(effectiveQuery.value.trim())
+  )
+  const hasConfiguredDatasource = computed(() => filteredDatasourceOptions.value.length > 0)
   const isPlaceholderState = computed(() => {
     if (!props.compactPlaceholder) return false
     return !detectResolved.value || !hasConfiguredDatasource.value
@@ -943,7 +1114,7 @@
   }
 
   function getDatasourceById(id: number) {
-    return datasourceOptions.value.find((item) => item.id === id) ?? null
+    return datasourceOptions.value.find((item) => item.id === id) ?? filteredDatasourceOptions.value.find((item) => item.id === id) ?? null
   }
 
   function onFilterKeyChange(filter: FilterRow) {
@@ -998,13 +1169,22 @@
   }
 
   function serviceProxyBase(path: string): string {
+    if (!usesClusterServiceProxy.value) {
+      const datasource = selectedDatasource.value
+      const rawUrl = datasource ? resolveDatasourceUrl(datasource) : ''
+      if (!rawUrl) return ''
+      const requestPath = path.startsWith('/') ? path : `/${path}`
+      return `/pixiu/external${requestPath}?url=${encodeURIComponent(rawUrl)}`
+    }
+
     const endpoint = resolvedEndpoint.value
     const service = resolvedService.value?.metadata?.name
     const namespace = resolvedServiceNamespace.value
-    if (!endpoint || !service || !namespace) return ''
+    const clusterName = effectiveCluster.value
+    if (!endpoint || !service || !namespace || !clusterName) return ''
     const requestPath = path.startsWith('/') ? path : `/${path}`
     return (
-      `/pixiu/proxy/${encodeURIComponent(currentCluster.value)}/api/v1/namespaces/${encodeURIComponent(namespace)}` +
+      `/pixiu/proxy/${encodeURIComponent(clusterName)}/api/v1/namespaces/${encodeURIComponent(namespace)}` +
       `/services/${encodeURIComponent(service)}:${endpoint.port}/proxy${endpoint.basePath}${requestPath}`
     )
   }
@@ -1012,18 +1192,32 @@
   async function loadDatasources() {
     datasourceLoading.value = true
     try {
-      const { items } = await fetchDatasourceList({ 
-        page: 1, 
+      const { items } = await fetchDatasourceList({
+        page: 1,
         limit: 200,
-        clusterName: currentCluster.value,
         type: 0
       })
-      datasourceOptions.value = items.filter(
-        (item) => (item.subType === 'loki' || item.subType === 'es')
+      allDatasourceItems.value = items.filter(
+        (item) => item.subType === 'loki' || item.subType === 'es'
       )
-      if (datasourceOptions.value.length > 0) {
+      datasourceOptions.value = allDatasourceItems.value.filter(
+        (item) =>
+          (props.externalOnly
+            ? true
+            : item.clusterName === currentCluster.value && !item.external)
+      )
+      if (sourceOptions.value.length > 0) {
+        const prefer = sourceOptions.value.find(o => o.value === 'internal')
+        if (prefer && sourceFilter.value !== 'internal') {
+          sourceFilter.value = 'internal'
+        } else if (!prefer && sourceFilter.value !== sourceOptions.value[0].value) {
+          sourceFilter.value = sourceOptions.value[0].value
+        }
+      }
+      if (filteredDatasourceOptions.value.length > 0) {
         selectedDatasourceId.value =
-          datasourceOptions.value.find((item) => item.isDefault)?.id ?? datasourceOptions.value[0]?.id
+          filteredDatasourceOptions.value.find((item) => item.isDefault)?.id ??
+          filteredDatasourceOptions.value[0]?.id
       } else {
         selectedDatasourceId.value = undefined
         errorMessage.value = ''
@@ -1039,16 +1233,33 @@
     } finally {
       datasourceLoading.value = false
     }
+    loadClusterAliasMap()
   }
 
-  async function resolveServiceByEndpoint(endpoint: ParsedDatasourceEndpoint, skipErrorNotification = false): Promise<{
+  async function loadClusterAliasMap() {
+    try {
+      const { items } = await fetchClusterList({ page: 1, limit: 999 })
+      const aliasMap: Record<string, string> = {}
+      for (const c of items) {
+        aliasMap[c.name] = c.aliasName || c.name
+      }
+      clusterAliasMap.value = aliasMap
+    } catch {
+      // 集群列表加载失败时静默处理
+    }
+  }
+
+  async function resolveServiceByEndpoint(
+    endpoint: ParsedDatasourceEndpoint,
+    skipErrorNotification = false
+  ): Promise<{
     service: K8sService
     namespace: string
   }> {
     if (endpoint.namespace) {
       return {
         service: await fetchK8sService(
-          currentCluster.value,
+          effectiveCluster.value,
           endpoint.namespace,
           endpoint.serviceName,
           skipErrorNotification
@@ -1057,10 +1268,10 @@
       }
     }
 
-    const { items } = await fetchK8sServiceList(currentCluster.value, { 
-      page: 1, 
-      limit: 999999, 
-      skipErrorNotification 
+    const { items } = await fetchK8sServiceList(effectiveCluster.value, {
+      page: 1,
+      limit: 999999,
+      skipErrorNotification
     })
     const matchedItems = items.filter((item) => item.metadata?.name === endpoint.serviceName)
     if (matchedItems.length > 1) {
@@ -1082,9 +1293,11 @@
     if (!url) return
     const nowNs = Date.now() * 1_000_000
     const startNs = nowNs - timeRangeMinutes.value * 60 * 1_000_000_000
+    const headers = getLokiRequestHeaders()
     const { data } = await kubeProxyAxios.get<{ status?: string; data?: string[]; error?: string }>(
       url,
       {
+        headers,
         params: {
           start: String(startNs),
           end: String(nowNs)
@@ -1110,11 +1323,13 @@
     const startNs = nowNs - timeRangeMinutes.value * 60 * 1_000_000_000
     filter.loading = true
     try {
+      const headers = getLokiRequestHeaders()
       const { data } = await kubeProxyAxios.get<{
         status?: string
         data?: string[]
         error?: string
       }>(url, {
+        headers,
         params: {
           start: String(startNs),
           end: String(nowNs)
@@ -1134,7 +1349,7 @@
     options: { resetState?: boolean } = {}
   ) {
     const { resetState = true } = options
-    if (datasourceOptions.value.length === 0) return
+    if (filteredDatasourceOptions.value.length === 0) return
 
     const datasource = selectedDatasource.value
     const rawUrl = datasource ? resolveDatasourceUrl(datasource) : ''
@@ -1156,6 +1371,21 @@
       return
     }
 
+    if (!usesClusterServiceProxy.value) {
+      resolvedEndpoint.value = {
+        serviceName: '',
+        namespace: '',
+        host: '',
+        port: 0,
+        protocol: 'http',
+        basePath: ''
+      }
+      if (isLokiDatasource.value) {
+        await loadLabelKeys()
+      }
+      return
+    }
+
     const endpoint = parseDatasourceEndpoint(rawUrl)
     if (!endpoint?.serviceName) {
       errorMessage.value = '数据源 URL 不是合法的集群内 HTTP 地址'
@@ -1174,7 +1404,10 @@
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : '解析日志 Service 失败'
       // 不显示 service not found 类型的错误信息
-      if (!errorMsg.toLowerCase().includes('not found') && !errorMsg.toLowerCase().includes('services')) {
+      if (
+        !errorMsg.toLowerCase().includes('not found') &&
+        !errorMsg.toLowerCase().includes('services')
+      ) {
         errorMessage.value = errorMsg
       }
     } finally {
@@ -1183,15 +1416,21 @@
   }
 
   async function ensureServiceResolved(skipErrorNotification = false): Promise<boolean> {
-    if (resolvedService.value && resolvedEndpoint.value) return true
+    if (!usesClusterServiceProxy.value) {
+      if (!selectedDatasource.value) return false
+      if (resolvedEndpoint.value) return true
+      await resolveServiceContext(skipErrorNotification, { resetState: false })
+      return Boolean(selectedDatasource.value)
+    }
+    if (resolvedService.value?.metadata?.name && resolvedEndpoint.value?.serviceName) return true
     await resolveServiceContext(skipErrorNotification, { resetState: false })
-    return Boolean(resolvedEndpoint.value)
+    return Boolean(resolvedService.value?.metadata?.name && resolvedEndpoint.value?.serviceName)
   }
 
   async function refreshContext(skipErrorNotification = false, resolveService = false) {
     detectResolved.value = false
     await loadDatasources()
-    if (resolveService && datasourceOptions.value.length > 0 && selectedDatasource.value) {
+    if (resolveService && filteredDatasourceOptions.value.length > 0 && selectedDatasource.value) {
       await resolveServiceContext(skipErrorNotification)
     } else {
       errorMessage.value = ''
@@ -1354,13 +1593,55 @@
     return '请求失败'
   }
 
-  function getEsRequestHeaders(): Record<string, string> | undefined {
-    const username = selectedDatasource.value?.config.log?.userName?.trim() ?? ''
-    const password = selectedDatasource.value?.config.log?.password ?? ''
-    if (!username && !password) {
-      return undefined
+  function getEsRequestHeaders(): Record<string, string> {
+    if (!usesClusterServiceProxy.value) {
+      return getExternalProxyHeaders()
     }
-    return buildUpstreamBasicAuthorizationHeader(username, password)
+
+    const datasourceId = selectedDatasourceId.value
+    if (!datasourceId) {
+      return {}
+    }
+
+    return buildDatasourceProxyHeaders(datasourceId)
+  }
+
+  function buildExternalAuthHeader(datasource: DatasourceItem | null): string {
+    const username = datasource?.config.log?.userName?.trim() || datasource?.config.alert?.userName?.trim() || ''
+    const password = datasource?.config.log?.password ?? datasource?.config.alert?.password ?? ''
+    if (!username && !password) return ''
+    return `Basic ${btoa(`${username}:${password}`)}`
+  }
+
+  function applyExternalDatasourceHeaders(
+    target: Record<string, string>,
+    headers: DatasourceHeader[] | undefined
+  ) {
+    for (const header of headers ?? []) {
+      const key = header.key.trim()
+      if (!key) continue
+      target[key] = header.value
+    }
+  }
+
+  function getExternalProxyHeaders(): Record<string, string> {
+    const datasource = selectedDatasource.value
+    if (!datasource) return {}
+
+    const headers: Record<string, string> = {}
+    const authHeader = buildExternalAuthHeader(datasource)
+    if (authHeader) {
+      headers['X-Pixiu-Proxy-Authorization'] = authHeader
+    }
+    applyExternalDatasourceHeaders(headers, datasource.config.headers)
+    return headers
+  }
+
+  function getLokiRequestHeaders(): Record<string, string> {
+    if (!usesClusterServiceProxy.value) {
+      return getExternalProxyHeaders()
+    }
+    return {}
   }
 
   async function loadLogs() {
@@ -1391,10 +1672,12 @@
     const nowMs = Date.now()
     const startMs = nowMs - timeRangeMinutes.value * 60 * 1000
     queryTimeRange.value = { start: startMs, end: nowMs }
+    const headers = getLokiRequestHeaders()
 
     const nowNs = nowMs * 1_000_000
     const startNs = startMs * 1_000_000
     const { data } = await kubeProxyAxios.get<LokiQueryRangeResponse>(url, {
+      headers,
       params: {
         query: effectiveQuery.value,
         limit: lineLimit.value,
@@ -1500,7 +1783,7 @@
           }
         }
       },
-      esHeaders ? { headers: esHeaders } : undefined
+      { headers: esHeaders }
     )
 
     if (data?.error) {
@@ -1515,14 +1798,28 @@
 
   function mapEsHitToRow(hit: EsSearchHit, index: number): LogTableRow {
     const source = hit._source && typeof hit._source === 'object' ? hit._source : {}
-    const rawTimestamp = getFirstValue(source, ['time', '@timestamp', 'timestamp', 'state.timestamp', 'log.time', 'date'])
+    const rawTimestamp = getFirstValue(source, [
+      'time',
+      '@timestamp',
+      'timestamp',
+      'state.timestamp',
+      'log.time',
+      'date'
+    ])
     let timestampMs = resolveEsTimestampMs(source, hit.sort, hit.fields)
-    const message = getFirstValue(source, ['message', 'msg', 'log', 'log.message', 'event.original'])
+    const message = getFirstValue(source, [
+      'message',
+      'msg',
+      'log',
+      'log.message',
+      'event.original'
+    ])
     const labels = flattenRecord(source)
     const raw = JSON.stringify(source, null, 2)
     const originalMessage = stringifyValue(message, raw)
     const level = resolveLogLevel(labels, originalMessage)
-    const time = timestampMs != null ? formatDateTime(timestampMs) : formatAnyTimestamp(rawTimestamp)
+    const time =
+      timestampMs != null ? formatDateTime(timestampMs) : formatAnyTimestamp(rawTimestamp)
     if (timestampMs == null && time !== '-') {
       timestampMs = parseLogTime(time)
     }
@@ -1716,10 +2013,7 @@
       }
     }
 
-    return message.replace(
-      /^\[(INFO|ERROR|WARN|WARNING|DEBUG|TRACE|FATAL|CRITICAL)\]\s*/i,
-      ''
-    )
+    return message.replace(/^\[(INFO|ERROR|WARN|WARNING|DEBUG|TRACE|FATAL|CRITICAL)\]\s*/i, '')
   }
 
   async function copyFieldValue(value: string) {
@@ -1732,7 +2026,12 @@
   }
 
   function sanitizeFilenamePart(value: string) {
-    return value.replace(/[\\/:*?"<>|\s]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'logs'
+    return (
+      value
+        .replace(/[\\/:*?"<>|\s]+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '') || 'logs'
+    )
   }
 
   function formatDownloadTimestamp() {
@@ -1762,7 +2061,9 @@
   function buildTableCsvContent(rows: LogTableRow[]) {
     const header = ['时间', '命名空间', 'Pod', '容器', '内容']
     const lines = rows.map((row) =>
-      [row.time, row.ns, row.pod, row.container, row.msg].map((item) => escapeCsvCell(item ?? '')).join(',')
+      [row.time, row.ns, row.pod, row.container, row.msg]
+        .map((item) => escapeCsvCell(item ?? ''))
+        .join(',')
     )
     return [header.join(','), ...lines].join('\n')
   }
@@ -1833,7 +2134,7 @@
 
   // 只在集群变化时刷新整个上下文，避免重复请求
   watch(
-    currentCluster,
+    () => (props.externalOnly ? 'external' : currentCluster.value),
     async () => {
       queryDirty.value = false
       keyword.value = ''
@@ -1845,7 +2146,7 @@
 
   // 只在手动切换数据源时更新 service 上下文
   watch(selectedDatasourceId, (newVal, oldVal) => {
-    if (!datasourceOptions.value.length || newVal === oldVal) return
+    if (!filteredDatasourceOptions.value.length || newVal === oldVal) return
 
     if (oldVal !== undefined) {
       filters.value = []
@@ -1862,6 +2163,29 @@
     queryDirty.value = false
     keyword.value = ''
     syncQueryDraftFromDatasource()
+  })
+
+  watch(sourceFilter, () => {
+    errorMessage.value = ''
+    resolvedService.value = null
+    resolvedServiceNamespace.value = ''
+    resolvedEndpoint.value = null
+    labelKeys.value = []
+    labelValueCache.value = {}
+    logs.value = []
+    expandedRowKeys.value = []
+    queryDirty.value = false
+    keyword.value = ''
+    filters.value = []
+
+    if (filteredDatasourceOptions.value.length > 0) {
+      selectedDatasourceId.value =
+        filteredDatasourceOptions.value.find((item) => item.isDefault)?.id ??
+        filteredDatasourceOptions.value[0]?.id
+      syncQueryDraftFromDatasource()
+    } else {
+      selectedDatasourceId.value = undefined
+    }
   })
 </script>
 
@@ -1940,6 +2264,26 @@
   .logs-console__rule-select {
     width: 220px;
     max-width: 100%;
+  }
+
+  .logs-console__source-select {
+    width: 130px;
+  }
+
+  .logs-console__datasource-wrap {
+    position: relative;
+    display: inline-flex;
+  }
+
+  .logs-console__datasource-cluster-tag {
+    position: absolute;
+    top: -6px;
+    right: -9px;
+    z-index: 1;
+    font-size: 10px;
+    padding: 0 4px;
+    height: 16px;
+    line-height: 16px;
   }
 
   .logs-console__datasource-option {
@@ -2222,7 +2566,9 @@
     background: transparent;
     color: var(--el-text-color-secondary);
     cursor: pointer;
-    transition: background-color 0.2s ease, color 0.2s ease;
+    transition:
+      background-color 0.2s ease,
+      color 0.2s ease;
   }
 
   .logs-console__fields-toggle:hover {
@@ -2285,7 +2631,9 @@
     line-height: 1.5;
     text-align: left;
     cursor: pointer;
-    transition: background-color 0.2s ease, color 0.2s ease;
+    transition:
+      background-color 0.2s ease,
+      color 0.2s ease;
   }
 
   .logs-field-node__head:hover {
@@ -3022,7 +3370,10 @@
     color: var(--el-text-color-secondary);
     cursor: pointer;
     opacity: 0;
-    transition: opacity 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+    transition:
+      opacity 0.2s ease,
+      background-color 0.2s ease,
+      color 0.2s ease;
   }
 
   .logs-field-row:hover .logs-field-row__copy {

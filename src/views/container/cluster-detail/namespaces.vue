@@ -650,6 +650,19 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     margin-bottom: 12px;
   }
 
+  .quota-alert {
+    margin: 15px 0;
+    height: 45px;
+    padding: 10px 16px 10px 10px !important;
+    box-sizing: border-box;
+    background-color: #ecf5ff !important;
+    border: none !important;
+  }
+
+  html.dark .quota-alert {
+    background-color: color-mix(in srgb, #0958d9 14%, var(--el-bg-color)) !important;
+  }
+
   .quota-divider {
     height: 1px;
     background-color: var(--el-border-color-lighter);

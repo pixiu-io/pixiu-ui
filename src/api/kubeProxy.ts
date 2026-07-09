@@ -16,16 +16,12 @@ function resolveAccessToken(): string {
   return token
 }
 
-/** Pixiu JWT 使用 Authorization: Bearer；上游服务（如 ES）Basic 认证走该自定义头，由代理转发 */
-export const PIXIU_UPSTREAM_AUTHORIZATION_HEADER = 'X-Pixiu-Upstream-Authorization'
+/** 代理请求携带数据源 ID，由后端解析上游 Basic 认证 */
+export const PIXIU_DATASOURCE_ID_HEADER = 'X-Pixiu-Datasource-Id'
 
-export function buildUpstreamBasicAuthorizationHeader(
-  username: string,
-  password = ''
-): Record<string, string> {
-  const token = window.btoa(`${username}:${password}`)
+export function buildDatasourceProxyHeaders(datasourceId: number): Record<string, string> {
   return {
-    [PIXIU_UPSTREAM_AUTHORIZATION_HEADER]: `Basic ${token}`
+    [PIXIU_DATASOURCE_ID_HEADER]: String(datasourceId)
   }
 }
 

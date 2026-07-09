@@ -22,37 +22,12 @@
           <ElRow :gutter="16">
             <ElCol :span="12">
               <ElFormItem label="名称" prop="name">
-                <ElInput v-model="formData.name" maxlength="64" show-word-limit placeholder="请输入数据源名称" />
-              </ElFormItem>
-            </ElCol>
-
-            <ElCol :span="12">
-              <ElFormItem label="关联集群">
-                <ElSelect
-                  v-if="clusterOptionList.length || clusterListLoading"
-                  v-model="formData.cluster_name"
-                  placeholder="请选择集群（可选）"
-                  class="w-full"
-                  clearable
-                  filterable
-                >
-                  <ElOption
-                    v-for="item in clusterOptionList"
-                    :key="item.name"
-                    :label="item.aliasName || item.name"
-                    :value="item.name"
-                  />
-                </ElSelect>
-                <span v-else class="datasource-cluster-empty-hint">暂无可用集群</span>
-              </ElFormItem>
-            </ElCol>
-
-            <ElCol :span="12">
-              <ElFormItem label="类型" prop="type">
-                <ElSelect v-model="formData.type" class="w-full" @change="onTypeChange">
-                  <ElOption label="日志" :value="0" />
-                  <ElOption label="告警" :value="1" disabled />
-                </ElSelect>
+                <ElInput
+                  v-model="formData.name"
+                  maxlength="64"
+                  show-word-limit
+                  placeholder="请输入数据源名称"
+                />
               </ElFormItem>
             </ElCol>
 
@@ -92,8 +67,44 @@
             </ElCol>
 
             <ElCol :span="12">
+              <ElFormItem label="类型" prop="type">
+                <ElSelect v-model="formData.type" class="w-full" @change="onTypeChange">
+                  <ElOption label="日志" :value="0" />
+                  <ElOption label="告警" :value="1" />
+                </ElSelect>
+              </ElFormItem>
+            </ElCol>
+
+            <ElCol :span="12">
+              <ElFormItem v-if="!formData.external" label="关联集群" prop="cluster_name">
+                <ElSelect
+                  v-if="clusterOptionList.length || clusterListLoading"
+                  v-model="formData.cluster_name"
+                  placeholder="请选择集群"
+                  class="w-full"
+                  clearable
+                  filterable
+                >
+                  <ElOption
+                    v-for="item in clusterOptionList"
+                    :key="item.name"
+                    :label="item.aliasName || item.name"
+                    :value="item.name"
+                  />
+                </ElSelect>
+                <span v-else class="datasource-cluster-empty-hint">暂无可用集群</span>
+              </ElFormItem>
+            </ElCol>
+
+            <ElCol :span="12">
               <ElFormItem label="默认数据源">
                 <ElSwitch v-model="formData.is_default" />
+              </ElFormItem>
+            </ElCol>
+
+            <ElCol :span="12">
+              <ElFormItem label="外部数据源">
+                <ElSwitch v-model="formData.external" />
               </ElFormItem>
             </ElCol>
           </ElRow>
@@ -101,7 +112,11 @@
           <ElFormItem label="接入地址" prop="url">
             <ElInput
               v-model="formData.url"
-              placeholder="请输入接入地址，如: http://xx.example.com"
+              :placeholder="
+                formData.external
+                  ? '请输入接入地址，如: http://192.168.100.210:30442'
+                  : '请输入接入地址，如: http://xx.example.com'
+              "
             />
           </ElFormItem>
 
@@ -121,10 +136,7 @@
           <div class="datasource-form-section__title">高级配置</div>
 
           <ElCollapse v-model="advancedPanels" class="datasource-advanced-collapse">
-            <ElCollapseItem
-              name="auth"
-              class="datasource-advanced-collapse__item"
-            >
+            <ElCollapseItem name="auth" class="datasource-advanced-collapse__item">
               <template #title>
                 <div class="datasource-advanced-collapse__title">
                   <span>鉴权</span>
@@ -255,13 +267,13 @@
       value: 'prometheus',
       label: 'Prometheus',
       icon: 'simple-icons:prometheus',
-      color: '#E6522C',
-      disabled: true
+      color: '#E6522C'
     }
   ]
 
   const props = defineProps<{
     editId?: number
+    externalOnly?: boolean
   }>()
 
   const visible = defineModel<boolean>({ default: false })
@@ -270,6 +282,7 @@
   }>()
 
   const isEdit = computed(() => props.editId != null && props.editId > 0)
+  const externalOnly = computed(() => Boolean(props.externalOnly))
   const editLoading = ref(false)
   const submitting = ref(false)
   const formRef = ref<FormInstance>()
@@ -287,6 +300,7 @@
     url: '',
     description: '',
     is_default: false,
+    external: false,
     log: {
       userName: '',
       password: ''
@@ -298,16 +312,40 @@
     headers: [{ key: '', value: '' }]
   })
 
+  function validateCluster(_rule: unknown, value: string, callback: (error?: Error) => void) {
+    if (formData.external) {
+      callback()
+      return
+    }
+    if (!String(value || '').trim()) {
+      callback(new Error('请选择关联集群'))
+      return
+    }
+    callback()
+  }
+
+  function validateUrl(_rule: unknown, value: string, callback: (error?: Error) => void) {
+    const trimmed = String(value || '').trim()
+    if (!trimmed) {
+      callback(new Error('请输入接入地址'))
+      return
+    }
+    if (formData.external && !/^https?:\/\//i.test(trimmed)) {
+      callback(new Error('接入地址必须以 http:// 或 https:// 开头'))
+      return
+    }
+    callback()
+  }
+
   const rules: FormRules = {
     name: [{ required: true, message: '请输入数据源名称', trigger: 'blur' }],
     type: [{ required: true, message: '请选择类型', trigger: 'change' }],
     sub_type: [{ required: true, message: '请选择数据来源', trigger: 'change' }],
-    url: [{ required: true, message: '请输入接入地址', trigger: 'blur' }]
+    cluster_name: [{ validator: validateCluster, trigger: 'change' }],
+    url: [{ validator: validateUrl, trigger: 'blur' }]
   }
 
-  const currentSubTypeOptions = computed(() =>
-    formData.type === 0 ? logSubTypes : alertSubTypes
-  )
+  const currentSubTypeOptions = computed(() => (formData.type === 0 ? logSubTypes : alertSubTypes))
 
   const selectedSubType = computed(() =>
     currentSubTypeOptions.value.find((item) => item.value === formData.sub_type)
@@ -459,6 +497,16 @@
   }
 
   watch(
+    () => formData.external,
+    (val) => {
+      if (val) {
+        formData.cluster_name = ''
+        formRef.value?.clearValidate('cluster_name')
+      }
+    }
+  )
+
+  watch(
     visible,
     async (val) => {
       if (val) {
@@ -485,6 +533,7 @@
       url: '',
       description: '',
       is_default: false,
+      external: false,
       log: { userName: '', password: '' },
       alert: { userName: '', password: '' },
       headers: [{ key: '', value: '' }]
@@ -499,12 +548,13 @@
       const data = await fetchGetDatasource(id)
       Object.assign(formData, {
         name: data.name,
-        cluster_name: resolveClusterName(data.clusterName || ''),
+        cluster_name: formData.external ? '' : resolveClusterName(data.clusterName || ''),
         type: data.type,
         sub_type: data.subType,
         url: '',
         description: data.description || '',
         is_default: data.isDefault,
+        external: data.external,
         log: { userName: '', password: '' },
         alert: { userName: '', password: '' },
         headers: [{ key: '', value: '' }]
@@ -544,11 +594,12 @@
         const payload: UpdateDatasourcePayload = {
           id: props.editId,
           resourceVersion: editResourceVersion.value,
-          clusterName: formData.cluster_name || undefined,
+          clusterName: formData.external ? '' : formData.cluster_name || undefined,
           name: formData.name,
           type: formData.type,
           subType: formData.sub_type,
           url,
+          external: formData.external,
           config,
           isDefault: formData.is_default,
           description: formData.description || undefined
@@ -557,11 +608,12 @@
         ElMessage.success('修改成功')
       } else {
         const payload: CreateDatasourcePayload = {
-          clusterName: formData.cluster_name || '',
+          clusterName: formData.external ? '' : formData.cluster_name || '',
           name: formData.name,
           type: formData.type,
           subType: formData.sub_type,
           url,
+          external: formData.external,
           config,
           isDefault: formData.is_default,
           description: formData.description || ''
@@ -782,7 +834,7 @@
   .datasource-dialog {
     .el-dialog__header {
       padding-top: 16px;
-      padding-bottom: 8px;
+      padding-bottom: 4px;
       margin-bottom: 0;
     }
 
@@ -792,8 +844,8 @@
     }
 
     .el-dialog__body {
-      padding-top: 0;
-      padding-bottom: 16px;
+      padding-top: 10px !important;
+      padding-bottom: 16px !important;
     }
   }
 

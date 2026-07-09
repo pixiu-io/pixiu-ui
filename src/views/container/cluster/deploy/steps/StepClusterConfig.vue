@@ -23,14 +23,38 @@
       </div>
     </ElFormItem>
 
-    <ElFormItem label="自建 LoadBalance">
-      <ElSwitch
-        :model-value="form.selfLoadBalance"
-        :disabled="readOnly || !form.highAvailability"
-        size="small"
-        @update:model-value="emit('update:form', { ...form, selfLoadBalance: $event as boolean })"
-      />
-      <div class="form-tip form-tip--block">启用 haproxy + keepalived 自建负载均衡</div>
+    <ElFormItem label="自建 LoadBalance" class="lb-form-item">
+      <div class="lb-config-block">
+        <div class="lb-enable-row">
+          <ElSwitch
+            :model-value="form.selfLoadBalance"
+            :disabled="readOnly || !form.highAvailability"
+            size="small"
+            @update:model-value="onSelfLoadBalanceChange"
+          />
+          <span class="lb-enable-tip">启用 haproxy + keepalived 自建负载均衡</span>
+        </div>
+        <ElFormItem
+          v-if="form.selfLoadBalance"
+          prop="keepalivedVirtualRouterId"
+          class="runtime-dir-form-item"
+          label-width="0"
+        >
+          <ElInput
+            :model-value="form.keepalivedVirtualRouterId"
+            placeholder="请输入 virtual_router_id"
+            class="runtime-dir-input"
+            clearable
+            maxlength="3"
+            inputmode="numeric"
+            :disabled="readOnly"
+            @update:model-value="onKeepalivedVirtualRouterIdChange"
+          />
+          <div class="form-tip form-tip--block">
+            虚拟路由ID：0-255的任意值，首次使用推荐使用68。但是要保证同网段下唯一
+          </div>
+        </ElFormItem>
+      </div>
     </ElFormItem>
 
     <ElFormItem label="ApiServer 地址" prop="apiServerAddress">
@@ -90,7 +114,9 @@
           >
             启用
           </ElCheckbox>
-          <span class="nfs-enable-tip">（部署 NFS Server 并创建 StorageClass，需配置 storage 角色节点）</span>
+          <span class="nfs-enable-tip"
+            >（部署 NFS Server 并创建 StorageClass，需配置 storage 角色节点）</span
+          >
         </div>
         <div v-if="form.nfsEnabled" class="nfs-fields">
           <div class="nfs-field-row">
@@ -198,6 +224,62 @@
     cb()
   }
 
+  function normalizeKeepalivedVirtualRouterId(raw: string): string {
+    const digits = String(raw ?? '').replace(/\D/g, '')
+    if (!digits) return ''
+    return String(Math.min(255, Number(digits)))
+  }
+
+  function onKeepalivedVirtualRouterIdChange(value: string) {
+    emit('update:form', {
+      ...props.form,
+      keepalivedVirtualRouterId: normalizeKeepalivedVirtualRouterId(value)
+    })
+  }
+
+  function validateKeepalivedVirtualRouterId(
+    _r: unknown,
+    value: string,
+    cb: (err?: Error) => void
+  ) {
+    if (!props.form.selfLoadBalance) {
+      cb()
+      return
+    }
+    const v = (value ?? '').trim()
+    if (!v) {
+      cb(new Error('请输入 virtual_router_id'))
+      return
+    }
+    if (!/^\d+$/.test(v)) {
+      cb(new Error('请输入 0-255 之间的整数'))
+      return
+    }
+    const n = Number(v)
+    if (n < 0 || n > 255) {
+      cb(new Error('请输入 0-255 之间的整数'))
+      return
+    }
+    cb()
+  }
+
+  function onSelfLoadBalanceChange(enabled: boolean | string | number) {
+    if (readOnly.value) return
+    const selfLoadBalance = Boolean(enabled)
+    emit('update:form', {
+      ...props.form,
+      selfLoadBalance,
+      keepalivedVirtualRouterId: selfLoadBalance ? props.form.keepalivedVirtualRouterId : ''
+    })
+    nextTick(() => {
+      if (selfLoadBalance) {
+        formRef.value?.validateField('keepalivedVirtualRouterId')
+      } else {
+        formRef.value?.clearValidate('keepalivedVirtualRouterId')
+      }
+    })
+  }
+
   const rules: FormRules = {
     highAvailability: [
       {
@@ -237,7 +319,10 @@
     ],
     apiServerPort: [{ required: true, message: '请输入监听端口', trigger: 'change' }],
     kubeProxyMode: [{ required: true, message: '请选择 Kube-proxy 模式', trigger: 'change' }],
-    nfsStorageDataDir: [{ validator: validateNfsStorageDataDir, trigger: ['blur', 'change'] }]
+    nfsStorageDataDir: [{ validator: validateNfsStorageDataDir, trigger: ['blur', 'change'] }],
+    keepalivedVirtualRouterId: [
+      { validator: validateKeepalivedVirtualRouterId, trigger: ['blur', 'change'] }
+    ]
   }
 
   function onHighAvailabilityChange(enabled: boolean | string | number) {
@@ -247,6 +332,7 @@
       ...props.form,
       highAvailability,
       selfLoadBalance: highAvailability ? props.form.selfLoadBalance : false,
+      keepalivedVirtualRouterId: highAvailability ? props.form.keepalivedVirtualRouterId : '',
       apiServerPort: highAvailability ? 8443 : 6443
     })
   }
@@ -409,6 +495,61 @@
 
   .nfs-field-input :deep(.el-input__inner::placeholder),
   .nfs-field-input :deep(.el-input__wrapper input::placeholder) {
+    font-size: 12px !important;
+    opacity: 1;
+  }
+
+  .lb-form-item :deep(.el-form-item__content) {
+    align-items: flex-start;
+  }
+
+  .lb-config-block {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-height: 32px;
+  }
+
+  .lb-enable-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    min-height: 32px;
+    line-height: 32px;
+  }
+
+  .lb-enable-tip {
+    margin-left: 8px;
+    font-size: 12px;
+    line-height: 32px;
+    color: var(--el-text-color-placeholder);
+  }
+
+  .runtime-dir-form-item {
+    width: 100%;
+    margin-top: 10px;
+    margin-bottom: 0;
+  }
+
+  .runtime-dir-form-item :deep(.el-form-item__label) {
+    display: none;
+  }
+
+  .runtime-dir-form-item :deep(.el-form-item__content) {
+    margin-left: 0 !important;
+  }
+
+  .runtime-dir-input {
+    width: 280px;
+  }
+
+  .runtime-dir-input :deep(.el-input__inner),
+  .runtime-dir-input :deep(.el-input__wrapper) {
+    font-size: 12px;
+  }
+
+  .runtime-dir-input :deep(.el-input__inner::placeholder),
+  .runtime-dir-input :deep(.el-input__wrapper input::placeholder) {
     font-size: 12px !important;
     opacity: 1;
   }

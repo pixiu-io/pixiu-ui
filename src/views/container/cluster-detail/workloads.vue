@@ -115,7 +115,7 @@
           >
             <template #left>
               <div class="workloads-toolbar">
-                <ElButton v-ripple @click="goCreateSts">新建</ElButton>
+                <ElButton v-ripple @click="onStsCreateClick">新建</ElButton>
                 <div class="workloads-toolbar__filters">
                   <ElInput
                     v-model="stsSearchForm.name"
@@ -457,11 +457,17 @@
                 <ElRadioButton value="realtime">实时日志</ElRadioButton>
                 <ElRadioButton value="history">历史日志</ElRadioButton>
               </ElRadioGroup>
-              <div class="workloads-log-search">
-                <ElInput v-model="dsLogKeyword" placeholder="名称搜索关键字" clearable />
-                <ElButton type="primary" :loading="dsLogLoading" @click="fetchDsLogs"
-                  >查询</ElButton
-                >
+              <div class="workloads-log-actions-right">
+                <div class="workloads-log-auto-refresh">
+                  <span class="workloads-log-auto-refresh__label">自动刷新</span>
+                  <ElSwitch v-model="dsLogAutoRefresh" />
+                </div>
+                <div class="workloads-log-search">
+                  <ElInput v-model="dsLogKeyword" placeholder="名称搜索关键字" clearable />
+                  <ElButton type="primary" :loading="dsLogLoading" @click="fetchDsLogs()"
+                    >查询</ElButton
+                  >
+                </div>
               </div>
             </div>
           </div>
@@ -469,7 +475,7 @@
           <div class="workloads-log-content-label">日志内容</div>
           <K8sLogOutput
             :lines="dsLogLines"
-            :loading="dsLogLoading"
+            :loading="dsLogLoading || dsLogStreaming"
             :download-name="dsLogDownloadName"
             empty-text="暂无日志"
           />
@@ -576,7 +582,7 @@
         type="info"
         :closable="false"
         show-icon
-        class="quota-alert"
+        class="remote-login-alert"
         description="基于 WebShell 提供登录容器的功能。"
       />
       <ElForm label-width="auto" class="remote-login-form">
@@ -636,10 +642,11 @@
   import ArtButtonMore, {
     type ButtonMoreItem
   } from '@/components/core/forms/art-button-more/index.vue'
-  import { computed, h, ref, watch, inject } from 'vue'
+  import { computed, h, ref, watch, inject, onBeforeUnmount } from 'vue'
   import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
   import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { buildClusterRouteQuery } from '@/utils/navigation/cluster-query'
+  import { resolvePixiuWsOrigin } from '@/utils/pixiu-ws-origin'
   import { useRoute, useRouter } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
   import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
@@ -883,9 +890,17 @@
   const dsLogKeyword = ref('')
   /** 实时：当前容器日志；历史：上一实例容器日志（kubectl logs --previous） */
   const dsLogMode = ref<'history' | 'realtime'>('realtime')
+  const dsLogAutoRefresh = ref(false)
   const dsLogLoading = ref(false)
   const dsLogRefreshing = ref(false)
-  const dsLogLines = ref<string[]>([])
+  const dsLogStreaming = ref(false)
+  const dsLogAllLines = ref<string[]>([])
+  const dsLogLines = computed(() => {
+    const kw = dsLogKeyword.value.trim()
+    if (!kw) return dsLogAllLines.value
+    return dsLogAllLines.value.filter((line) => line.includes(kw))
+  })
+  let dsLogSocket: WebSocket | null = null
   const dsLogDownloadName = computed(
     () => `${dsLogPod.value || 'pod'}-${dsLogContainer.value || 'container'}.log`
   )
@@ -1925,14 +1940,97 @@
     dsLogContainer.value = dsLogContainerOptions.value[0] ?? ''
   }
 
-  async function fetchDsLogs() {
+  function buildDsLogWsUrl(): string {
+    const cluster = String(route.query.cluster ?? '')
+    const namespace = props.mirrorNamespace || globalNamespace.value
+    if (!cluster || !namespace || !dsLogPod.value || !dsLogContainer.value) return ''
+    const base = resolvePixiuWsOrigin()
+    return (
+      `${base}/pixiu/kubeproxy/clusters/${encodeURIComponent(cluster)}/namespaces/${encodeURIComponent(namespace)}/pods/${encodeURIComponent(dsLogPod.value)}/log` +
+      `?container=${encodeURIComponent(dsLogContainer.value)}&tailLines=${dsLogTailLines.value}`
+    )
+  }
+
+  function closeDsLogStream() {
+    if (dsLogSocket) {
+      dsLogSocket.onopen = null
+      dsLogSocket.onmessage = null
+      dsLogSocket.onerror = null
+      dsLogSocket.onclose = null
+      dsLogSocket.close()
+      dsLogSocket = null
+    }
+    dsLogStreaming.value = false
+  }
+
+  function appendDsLogStreamText(text: string) {
+    const parts = text.split('\n')
+    for (const part of parts) {
+      if (part !== '') dsLogAllLines.value.push(part)
+    }
+  }
+
+  function connectDsLogStream() {
+    closeDsLogStream()
     const cluster = String(route.query.cluster ?? '')
     const namespace = props.mirrorNamespace || globalNamespace.value
     if (!cluster || !namespace || !dsLogPod.value || !dsLogContainer.value) {
       ElMessage.warning('请先选择 Pod 和容器')
       return
     }
-    dsLogLoading.value = true
+    if (dsLogMode.value !== 'realtime') {
+      ElMessage.warning('自动刷新仅支持实时日志')
+      dsLogAutoRefresh.value = false
+      return
+    }
+
+    dsLogAllLines.value = []
+    dsLogStreaming.value = true
+    const url = buildDsLogWsUrl()
+    if (!url) {
+      dsLogStreaming.value = false
+      return
+    }
+
+    const token = localStorage.getItem('pixiu-access-token')
+    dsLogSocket = token ? new WebSocket(url, [token]) : new WebSocket(url)
+
+    dsLogSocket.onopen = () => {
+      dsLogStreaming.value = false
+    }
+
+    dsLogSocket.onmessage = (event) => {
+      const text =
+        typeof event.data === 'string'
+          ? event.data
+          : new TextDecoder().decode(event.data as ArrayBuffer)
+      appendDsLogStreamText(text)
+    }
+
+    dsLogSocket.onerror = () => {
+      dsLogStreaming.value = false
+      appendDsLogStreamText('[连接出错]')
+    }
+
+    dsLogSocket.onclose = () => {
+      dsLogStreaming.value = false
+    }
+  }
+
+  async function fetchDsLogs(options?: { silent?: boolean }) {
+    if (dsLogAutoRefresh.value && dsLogMode.value === 'realtime') {
+      connectDsLogStream()
+      return
+    }
+
+    const silent = options?.silent ?? false
+    const cluster = String(route.query.cluster ?? '')
+    const namespace = props.mirrorNamespace || globalNamespace.value
+    if (!cluster || !namespace || !dsLogPod.value || !dsLogContainer.value) {
+      if (!silent) ElMessage.warning('请先选择 Pod 和容器')
+      return
+    }
+    if (!silent) dsLogLoading.value = true
     try {
       const url = `/pixiu/proxy/${encodeURIComponent(cluster)}/api/v1/namespaces/${encodeURIComponent(namespace)}/pods/${encodeURIComponent(dsLogPod.value)}/log`
       const { data } = await kubeProxyAxios.get<string>(url, {
@@ -1947,38 +2045,90 @@
       const lines = String(data || '')
         .split('\n')
         .filter((line) => line.length > 0)
-        .filter((line) => !dsLogKeyword.value.trim() || line.includes(dsLogKeyword.value.trim()))
-      dsLogLines.value = lines
+      dsLogAllLines.value = lines
     } catch (e: unknown) {
-      dsLogLines.value = []
-      let errorMessage = '获取日志失败'
-      if (typeof e === 'object' && e !== null) {
-        const maybeAxios = e as {
-          message?: string
-          response?: { data?: unknown }
-        }
-        const responseData = maybeAxios.response?.data
-        if (typeof responseData === 'string') {
-          try {
-            const parsed = JSON.parse(responseData) as { message?: string }
-            errorMessage = parsed.message || responseData || maybeAxios.message || errorMessage
-          } catch {
-            errorMessage = responseData || maybeAxios.message || errorMessage
+      if (!silent) {
+        dsLogAllLines.value = []
+        let errorMessage = '获取日志失败'
+        if (typeof e === 'object' && e !== null) {
+          const maybeAxios = e as {
+            message?: string
+            response?: { data?: unknown }
           }
-        } else if (typeof responseData === 'object' && responseData !== null) {
-          const payload = responseData as { message?: string }
-          errorMessage = payload.message || maybeAxios.message || errorMessage
-        } else if (maybeAxios.message) {
-          errorMessage = maybeAxios.message
+          const responseData = maybeAxios.response?.data
+          if (typeof responseData === 'string') {
+            try {
+              const parsed = JSON.parse(responseData) as { message?: string }
+              errorMessage = parsed.message || responseData || maybeAxios.message || errorMessage
+            } catch {
+              errorMessage = responseData || maybeAxios.message || errorMessage
+            }
+          } else if (typeof responseData === 'object' && responseData !== null) {
+            const payload = responseData as { message?: string }
+            errorMessage = payload.message || maybeAxios.message || errorMessage
+          } else if (maybeAxios.message) {
+            errorMessage = maybeAxios.message
+          }
+        } else if (typeof e === 'string') {
+          errorMessage = e
         }
-      } else if (typeof e === 'string') {
-        errorMessage = e
+        ElMessage.error(errorMessage)
       }
-      ElMessage.error(errorMessage)
     } finally {
-      dsLogLoading.value = false
+      if (!silent) dsLogLoading.value = false
     }
   }
+
+  function stopDsLogAutoRefresh() {
+    closeDsLogStream()
+  }
+
+  function startDsLogAutoRefresh() {
+    if (!dsLogAutoRefresh.value || kind.value !== 'ds' || props.dsDataMode !== 'logs') return
+    connectDsLogStream()
+  }
+
+  watch(dsLogAutoRefresh, (enabled) => {
+    if (enabled) startDsLogAutoRefresh()
+    else stopDsLogAutoRefresh()
+  })
+
+  watch(dsLogMode, (mode) => {
+    if (mode === 'history' && dsLogAutoRefresh.value) {
+      dsLogAutoRefresh.value = false
+      closeDsLogStream()
+    }
+  })
+
+  watch(
+    () =>
+      [
+        dsLogPod.value,
+        dsLogContainer.value,
+        dsLogTailLines.value,
+        dsLogMode.value
+      ] as const,
+    () => {
+      if (dsLogAutoRefresh.value && dsLogMode.value === 'realtime') {
+        connectDsLogStream()
+      }
+    }
+  )
+
+  watch(
+    () => [kind.value, props.dsDataMode] as const,
+    ([tab, mode]) => {
+      if (tab !== 'ds' || mode !== 'logs') {
+        stopDsLogAutoRefresh()
+      } else if (dsLogAutoRefresh.value) {
+        startDsLogAutoRefresh()
+      }
+    }
+  )
+
+  onBeforeUnmount(() => {
+    stopDsLogAutoRefresh()
+  })
 
   // ── Job useTable ──
 
@@ -3568,6 +3718,39 @@
     })
   }
 
+  function goCreateService() {
+    const cluster = String(route.query.cluster ?? '')
+    if (!cluster) {
+      ElMessage.warning('缺少集群参数')
+      return
+    }
+    const namespace =
+      String(route.query.namespace ?? '') ||
+      props.mirrorNamespace ||
+      props.deployNamespace ||
+      globalNamespace.value ||
+      nsOptions.value[0] ||
+      ''
+    router.push({
+      path: '/container/service-create',
+      query: buildClusterRouteQuery(route, {
+        ...(namespace ? { namespace } : {}),
+        returnPath: route.path,
+        returnName: String(route.query.name ?? props.mirrorResourceName ?? ''),
+        returnNamespace: String(route.query.namespace ?? props.mirrorNamespace ?? props.deployNamespace ?? namespace),
+        tab: 'services'
+      })
+    })
+  }
+
+  function onStsCreateClick() {
+    if (props.stsDataMode === 'services') {
+      goCreateService()
+      return
+    }
+    goCreateSts()
+  }
+
   function goCreateDs() {
     const cluster = String(route.query.cluster ?? '')
     if (!cluster) {
@@ -4664,8 +4847,27 @@
     flex-wrap: wrap;
   }
 
-  .workloads-log-search {
+  .workloads-log-actions-right {
     margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .workloads-log-auto-refresh {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .workloads-log-auto-refresh__label {
+    font-size: 12px;
+    color: var(--el-text-color-primary);
+    white-space: nowrap;
+  }
+
+  .workloads-log-search {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -4685,6 +4887,30 @@
 
   .remote-login-select {
     width: 100%;
+  }
+
+  .remote-login-alert {
+    margin: 15px 0;
+    height: 45px;
+    padding: 10px 16px 10px 10px !important;
+    box-sizing: border-box;
+    background-color: #ecf5ff !important;
+    border: none !important;
+  }
+
+  html.dark .remote-login-alert {
+    background-color: color-mix(in srgb, #0958d9 14%, var(--el-bg-color)) !important;
+  }
+
+  .remote-login-alert :deep(.el-alert__icon) {
+    font-size: 20px;
+    color: #0958d9 !important;
+    margin-right: 4px !important;
+  }
+
+  .remote-login-alert :deep(.el-alert__description) {
+    font-size: 12px;
+    color: #0958d9 !important;
   }
 
   .remote-login-form-item :deep(.el-form-item__label) {

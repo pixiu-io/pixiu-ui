@@ -43,7 +43,6 @@ export interface CreatePlanParams {
       service_network: string
       api_server_address?: string
       api_server_port?: number
-      self_load_balance?: boolean
       kube_proxy_mode?: 'iptables' | 'ipvs'
     }
     runtime: {
@@ -59,6 +58,10 @@ export interface CreatePlanParams {
         enable: boolean
         storage_class_name?: string
         storage_data_dir?: string
+      }
+      haproxy?: {
+        enable: boolean
+        keepalived_virtual_router_id?: string
       }
     }
   }

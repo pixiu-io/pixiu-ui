@@ -322,6 +322,7 @@
   import { fetchK8sDeploymentList } from '@/api/kubernetes/deployment'
   import { fetchK8sStatefulSetList } from '@/api/kubernetes/statefulset'
   import ClusterResourceBreadcrumb from '../components/cluster-resource-breadcrumb.vue'
+  import { buildClusterRouteQuery } from '@/utils/navigation/cluster-query'
 
   defineOptions({ name: 'ServiceCreatePage' })
 
@@ -462,8 +463,30 @@
     }
   }
 
+  function resolveBackRoute() {
+    const returnPath = String(route.query.returnPath ?? '')
+    const returnName = String(route.query.returnName ?? '')
+    const returnNamespace = String(route.query.returnNamespace ?? '')
+
+    if (returnPath) {
+      return {
+        path: returnPath,
+        query: buildClusterRouteQuery(route, {
+          ...(returnNamespace ? { namespace: returnNamespace } : {}),
+          ...(returnName ? { name: returnName } : {}),
+          tab: 'services'
+        })
+      }
+    }
+
+    return {
+      path: '/container/services',
+      query: buildClusterRouteQuery(route, { tab: 'services' })
+    }
+  }
+
   function goBack() {
-    router.push({ path: '/container/services', query: { cluster: cluster.value } })
+    router.push(resolveBackRoute())
   }
 
   // ── 绑定工作负载 ──

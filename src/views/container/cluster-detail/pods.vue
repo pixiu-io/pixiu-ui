@@ -79,7 +79,7 @@
         type="info"
         :closable="false"
         show-icon
-        class="quota-alert"
+        class="remote-login-alert"
         description="基于 WebShell 提供登录容器的功能。"
       />
       <ElForm label-width="auto" class="remote-login-form">
@@ -1564,6 +1564,30 @@
   }
   .pod-log-table {
     width: 100%;
+  }
+
+  .remote-login-alert {
+    margin: 15px 0;
+    height: 45px;
+    padding: 10px 16px 10px 10px !important;
+    box-sizing: border-box;
+    background-color: #ecf5ff !important;
+    border: none !important;
+  }
+
+  html.dark .remote-login-alert {
+    background-color: color-mix(in srgb, #0958d9 14%, var(--el-bg-color)) !important;
+  }
+
+  .remote-login-alert :deep(.el-alert__icon) {
+    font-size: 20px;
+    color: #0958d9 !important;
+    margin-right: 4px !important;
+  }
+
+  .remote-login-alert :deep(.el-alert__description) {
+    font-size: 12px;
+    color: #0958d9 !important;
   }
 
   .remote-login-form-item :deep(.el-form-item__label) {

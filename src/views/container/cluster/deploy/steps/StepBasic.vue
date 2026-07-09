@@ -371,6 +371,7 @@
     serviceNetwork: string
     highAvailability: boolean
     selfLoadBalance: boolean
+    keepalivedVirtualRouterId: string
     apiServerAddress: string
     apiServerPort: number
     kubeProxyMode: 'iptables' | 'ipvs'

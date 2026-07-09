@@ -109,7 +109,14 @@
                 </div>
                 <div class="kv-item">
                   <span class="kv-label">自建 LoadBalance</span>
-                  <span class="kv-value">{{ (detail as any).config?.network?.self_load_balance ? '启用' : '关闭' }}</span>
+                  <span class="kv-value">{{ (detail as any).config?.component?.haproxy?.enable || (detail as any).config?.network?.self_load_balance ? '启用' : '关闭' }}</span>
+                </div>
+                <div
+                  v-if="(detail as any).config?.component?.haproxy?.enable || (detail as any).config?.network?.self_load_balance"
+                  class="kv-item"
+                >
+                  <span class="kv-label">Keepalived Virtual Router ID</span>
+                  <span class="kv-value">{{ (detail as any).config?.component?.haproxy?.keepalived_virtual_router_id || '-' }}</span>
                 </div>
                 <div class="kv-item">
                   <span class="kv-label">Kube-proxy 模式</span>

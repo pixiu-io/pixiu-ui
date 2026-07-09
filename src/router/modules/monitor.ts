@@ -11,13 +11,12 @@ export const monitorRoutes: AppRouteRecord = {
   },
   children: [
     {
-      path: 'datasource',
-      name: 'MonitorDatasource',
-      component: '/safeguard/datasource',
+      path: 'realtime-query',
+      name: 'MonitorRealtimeQuery',
+      component: '/safeguard/realtime-query/index',
       meta: {
-        title: 'menus.safeguard.datasource',
-        icon: 'ri:database-2-line',
-        keepAlive: true
+        title: 'menus.safeguard.realtimeQuery',
+        icon: 'ri:line-chart-line'
       }
     },
     {
@@ -26,8 +25,16 @@ export const monitorRoutes: AppRouteRecord = {
       component: '/safeguard/logs',
       meta: {
         title: 'menus.safeguard.logs',
-        icon: 'ri:file-text-line',
-        keepAlive: true
+        icon: 'ri:file-text-line'
+      }
+    },
+    {
+      path: 'datasource',
+      name: 'MonitorDatasource',
+      component: '/safeguard/datasource',
+      meta: {
+        title: 'menus.safeguard.datasource',
+        icon: 'ri:database-2-line'
       }
     }
   ]

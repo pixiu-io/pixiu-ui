@@ -87,6 +87,10 @@
             </ElTag>
           </div>
         </div>
+        <div class="kv-item" v-if="form.selfLoadBalance">
+          <div class="kv-label">Keepalived Virtual Router ID</div>
+          <div class="kv-value">{{ form.keepalivedVirtualRouterId || '-' }}</div>
+        </div>
         <div class="kv-item">
           <div class="kv-label">ApiServer 地址</div>
           <div class="kv-value">{{ form.apiServerAddress || '-' }}</div>

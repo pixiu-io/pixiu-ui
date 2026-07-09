@@ -244,7 +244,8 @@
       "agent": "Agent Management",
       "monitor": "Monitor & Alert",
       "datasource": "Datasource",
-      "logs": "Logs"
+      "logs": "Logs",
+      "realtimeQuery": "Real-time Query"
     },
     "plan": {
       "title": "Version Plan",

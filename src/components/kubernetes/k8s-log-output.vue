@@ -16,14 +16,22 @@
       </ElButton>
     </div>
 
-    <div v-if="loading" class="k8s-log-output__body k8s-log-output__body--empty">
+    <div
+      v-if="loading"
+      class="k8s-log-output__body k8s-log-output__body--empty"
+      :style="bodyStyle"
+    >
       <ElIcon class="is-loading"><Loading /></ElIcon>
       <span>加载日志…</span>
     </div>
-    <div v-else-if="!lines.length" class="k8s-log-output__body k8s-log-output__body--empty">
+    <div
+      v-else-if="!lines.length"
+      class="k8s-log-output__body k8s-log-output__body--empty"
+      :style="bodyStyle"
+    >
       {{ emptyText }}
     </div>
-    <div v-else ref="scrollRef" class="k8s-log-output__body">
+    <div v-else ref="scrollRef" class="k8s-log-output__body" :style="bodyStyle">
       <div v-for="(line, idx) in lines" :key="idx" class="k8s-log-output__line">
         <span class="k8s-log-output__ln">{{ idx + 1 }}</span>
         <span class="k8s-log-output__text">{{ line }}</span>
@@ -42,12 +50,15 @@
       loading?: boolean
       emptyText?: string
       downloadName?: string
+      /** 日志区域固定高度（不含工具栏） */
+      bodyHeight?: number
     }>(),
     {
       lines: () => [],
       loading: false,
       emptyText: '暂无日志',
-      downloadName: 'pod.log'
+      downloadName: 'pod.log',
+      bodyHeight: 480
     }
   )
 
@@ -57,6 +68,17 @@
   const isFullscreen = ref(false)
 
   const logText = computed(() => props.lines.join('\n'))
+  const bodyStyle = computed(() => ({
+    height: `${props.bodyHeight}px`,
+    maxHeight: `${props.bodyHeight}px`
+  }))
+
+  function scrollToBottom() {
+    nextTick(() => {
+      const el = scrollRef.value
+      if (el) el.scrollTop = el.scrollHeight
+    })
+  }
 
   async function copyLogs() {
     if (!props.lines.length) return
@@ -115,12 +137,11 @@
   })
 
   watch(
-    () => props.lines.length,
+    () => props.lines,
     () => {
-      nextTick(() => {
-        if (scrollRef.value) scrollRef.value.scrollTop = scrollRef.value.scrollHeight
-      })
-    }
+      scrollToBottom()
+    },
+    { deep: true }
   )
 </script>
 
@@ -128,7 +149,6 @@
   .k8s-log-output {
     display: flex;
     flex-direction: column;
-    min-height: 420px;
     border: 1px solid var(--el-border-color);
     border-radius: 4px;
     background: #2d3035;
@@ -139,9 +159,17 @@
     position: fixed;
     inset: 0;
     z-index: 3000;
-    min-height: 100vh;
+    height: 100vh;
+    max-height: 100vh;
     border-radius: 0;
     border: none;
+  }
+
+  .k8s-log-output--fullscreen .k8s-log-output__body {
+    height: auto !important;
+    max-height: none !important;
+    flex: 1;
+    min-height: 0;
   }
 
   .k8s-log-output__actions {
@@ -177,9 +205,9 @@
   }
 
   .k8s-log-output__body {
-    flex: 1;
-    min-height: 0;
-    overflow: auto;
+    flex-shrink: 0;
+    overflow-x: auto;
+    overflow-y: auto;
     padding: 8px 0;
     font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
     font-size: 12px;
