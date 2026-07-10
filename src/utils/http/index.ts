@@ -127,9 +127,10 @@ function handleUnauthorizedError(message?: string): never {
     redirectToUnauthorizedPage()
 
     unauthorizedTimer = setTimeout(resetUnauthorizedError, UNAUTHORIZED_DEBOUNCE_TIME)
-    throw error
   }
-
+  
+  // 标记这个错误已经被处理过，避免在 request 函数中再次显示
+  ;(error as any).handled = true
   throw error
 }
 
@@ -204,9 +205,13 @@ async function request<T = any>(config: ExtendedAxiosRequestConfig): Promise<T> 
 
     return res.data.result as T
   } catch (error) {
-    if (error instanceof HttpError && error.code !== ApiStatus.unauthorized) {
-      const showMsg = config.showErrorMessage !== false
-      showError(error, showMsg)
+    if (error instanceof HttpError) {
+      // 检查错误是否已被处理过（如401错误）
+      const alreadyHandled = (error as any).handled
+      if (!alreadyHandled) {
+        const showMsg = config.showErrorMessage !== false
+        showError(error, showMsg)
+      }
     }
     return Promise.reject(error)
   }

@@ -142,9 +142,9 @@
     }
   }
 
-  const LEFT_TO_RIGHT_TOTAL_MS = 1300
-  const LEFT_TO_RIGHT_MIN_POINT_DELAY = 24
-  const LEFT_TO_RIGHT_MAX_POINT_DELAY = 80
+  const LEFT_TO_RIGHT_TOTAL_MS = 300
+  const LEFT_TO_RIGHT_MIN_POINT_DELAY = 5
+  const LEFT_TO_RIGHT_MAX_POINT_DELAY = 20
 
   function getLeftToRightPointDelay(pointCount: number): number {
     if (pointCount <= 1) return 0
@@ -200,8 +200,8 @@
   const generateChartOptions = (isInitial = false, stepReveal = false): EChartsOption => {
     const options: EChartsOption = {
       animation: !stepReveal,
-      animationDuration: isInitial || stepReveal ? 0 : 1300,
-      animationDurationUpdate: isInitial || stepReveal ? 0 : 1300,
+      animationDuration: 150,
+      animationDurationUpdate: 150,
       grid: getGridWithLegend(props.showLegend && isMultipleData.value, props.legendPosition, {
         top: 15,
         right: 15,
@@ -420,7 +420,7 @@
     })
   }
 
-  // 图表渲染：静默刷新直接更新；非静默则从左到右逐点展开
+  // 图表渲染：保留从左到右逐点展开，但大幅加速
   const renderChart = () => {
     if (!hasRenderableData()) {
       clearAnimationTimers()
