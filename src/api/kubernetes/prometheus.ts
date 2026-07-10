@@ -80,6 +80,41 @@ export async function fetchPrometheusRangeQuery(
   return res.data
 }
 
+/** 获取 Prometheus 标签名列表 */
+export async function fetchPrometheusLabels(
+  datasourceUrl: string,
+  opts?: PrometheusQueryOptions & {
+    start?: number
+    end?: number
+    /** series selector，如 {__name__="up"} */
+    match?: string[]
+  }
+): Promise<{ status: 'success' | 'error'; data: string[]; error?: string; errorType?: string }> {
+  const searchParams = new URLSearchParams()
+  searchParams.set('url', trimTrailingSlash(datasourceUrl))
+  if (opts?.start !== undefined) searchParams.set('start', String(opts.start))
+  if (opts?.end !== undefined) searchParams.set('end', String(opts.end))
+  for (const selector of opts?.match ?? []) {
+    searchParams.append('match[]', selector)
+  }
+
+  const headers: Record<string, string> = { ...(opts?.headers ?? {}) }
+  if (opts?.proxyAuth) {
+    headers['X-Pixiu-Proxy-Authorization'] =
+      headers['X-Pixiu-Proxy-Authorization'] ?? opts.proxyAuth
+  }
+
+  const res = await pixiuAxios.get<{
+    status: 'success' | 'error'
+    data: string[]
+    error?: string
+    errorType?: string
+  }>(`/pixiu/external/api/v1/labels?${searchParams.toString()}`, {
+    headers
+  })
+  return res.data
+}
+
 /** 获取 Prometheus 指标名或标签值列表 */
 export async function fetchPrometheusLabelValues(
   datasourceUrl: string,
@@ -87,12 +122,17 @@ export async function fetchPrometheusLabelValues(
   opts?: PrometheusQueryOptions & {
     start?: number
     end?: number
+    /** series selector，如 {__name__="up",job="prometheus"} */
+    match?: string[]
   }
 ): Promise<{ status: 'success' | 'error'; data: string[]; error?: string; errorType?: string }> {
   const searchParams = new URLSearchParams()
   searchParams.set('url', trimTrailingSlash(datasourceUrl))
   if (opts?.start !== undefined) searchParams.set('start', String(opts.start))
   if (opts?.end !== undefined) searchParams.set('end', String(opts.end))
+  for (const selector of opts?.match ?? []) {
+    searchParams.append('match[]', selector)
+  }
 
   const headers: Record<string, string> = { ...(opts?.headers ?? {}) }
   if (opts?.proxyAuth) {

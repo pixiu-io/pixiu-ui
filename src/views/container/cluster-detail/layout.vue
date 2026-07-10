@@ -170,10 +170,9 @@
 
           <ElSubMenu index="group-monitor">
             <template #title>
-              <span>监控告警</span>
+              <span>事件管理</span>
             </template>
             <ElMenuItem index="events">事件</ElMenuItem>
-            <ElMenuItem index="alert">配置告警</ElMenuItem>
           </ElSubMenu>
         </ElMenu>
       </aside>
@@ -242,7 +241,6 @@
     'addon-components',
     'crds',
     'apiservices',
-    'alert',
     'events'
   ])
 

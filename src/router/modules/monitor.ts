@@ -13,7 +13,7 @@ export const monitorRoutes: AppRouteRecord = {
     {
       path: 'realtime-query',
       name: 'MonitorRealtimeQuery',
-      component: '/safeguard/realtime-query/index',
+      component: '/safeguard/realtime-query',
       meta: {
         title: 'menus.safeguard.realtimeQuery',
         icon: 'ri:line-chart-line'
@@ -35,6 +35,15 @@ export const monitorRoutes: AppRouteRecord = {
       meta: {
         title: 'menus.safeguard.datasource',
         icon: 'ri:database-2-line'
+      }
+    },
+    {
+      path: 'alert-config',
+      name: 'MonitorAlertConfig',
+      component: '/safeguard/alert-config',
+      meta: {
+        title: '配置告警',
+        icon: 'ri:alarm-line'
       }
     }
   ]

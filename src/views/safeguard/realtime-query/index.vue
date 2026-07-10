@@ -110,22 +110,33 @@
           <div class="rq-query-input-stack">
             <div class="rq-query-input">
               <ElAutocomplete
+                ref="promqlAutocompleteRef"
                 v-model="promql"
+                value-key="fullQuery"
                 placeholder="请输入 PromQL 查询语句，如 up、rate(http_requests_total[5m])"
                 :disabled="!selectedDatasource"
                 clearable
+                highlight-first-item
                 :input-style="promqlInputStyle"
                 :fetch-suggestions="queryMetricSuggestions"
                 :trigger-on-focus="false"
                 popper-class="rq-promql-suggestions"
                 @focus="prefetchMetricNames"
                 @select="onPromqlSuggestionSelect"
-                @keyup.enter="executeQuery"
+                @keydown="onPromqlKeydown"
+                @keydown.enter="onPromqlEnter"
               >
                 <template #default="{ item }">
                   <div class="rq-suggestion-item">
-                    <span class="rq-suggestion-kind" aria-hidden="true">
-                      <ArtSvgIcon icon="ri:line-chart-line" class="rq-suggestion-kind-icon" />
+                    <span
+                      class="rq-suggestion-kind"
+                      :class="`is-${item.kind}`"
+                      aria-hidden="true"
+                    >
+                      <ArtSvgIcon
+                        :icon="getSuggestionIcon(item.kind)"
+                        class="rq-suggestion-kind-icon"
+                      />
                     </span>
                     <span class="rq-suggestion-text">
                       <template v-for="(part, idx) in getSuggestionParts(item.value)" :key="idx">
@@ -354,10 +365,10 @@ import {
 } from '@/api/datasource'
 import {
   fetchPrometheusInstantQuery,
-  fetchPrometheusLabelValues,
   fetchPrometheusRangeQuery,
   type PrometheusInstantResult
 } from '@/api/kubernetes/prometheus'
+import { usePromqlAutocomplete } from './usePromqlAutocomplete'
 
 defineOptions({ name: 'MonitorRealtimeQuery' })
 const alertVisible = ref(true)
@@ -444,15 +455,13 @@ async function loadPrometheusDatasources() {
 }
 
 function onDsChange() {
-  metricNameOptions.value = []
-  metricNamesLoadedForDatasourceId.value = undefined
+  clearAutocompleteCache()
   queryResult.value = null
   queryError.value = ''
 }
 
 watch(sourceFilter, () => {
-  metricNameOptions.value = []
-  metricNamesLoadedForDatasourceId.value = undefined
+  clearAutocompleteCache()
   selectedDsId.value =
     filteredDsList.value.find((item) => item.isDefault)?.id ?? filteredDsList.value[0]?.id
   queryResult.value = null
@@ -511,90 +520,28 @@ const {
 const activeQueryTab = ref<'promql' | 'favorite' | 'history' | 'template'>('promql')
 const promql = ref('')
 const autocompleteEnabled = ref(true)
-const metricNameOptions = ref<string[]>([])
-const metricNamesLoading = ref(false)
-const metricNamesLoadedForDatasourceId = ref<number>()
 const querying = ref(false)
 const queryResult = ref<PrometheusInstantResult | null>(null)
 const queryError = ref('')
 const queryDuration = ref(0)
 
-async function prefetchMetricNames() {
-  const ds = selectedDatasource.value
-  if (!ds || !autocompleteEnabled.value) return
-  if (metricNamesLoading.value) return
-  if (metricNamesLoadedForDatasourceId.value === ds.id && metricNameOptions.value.length > 0) return
-
-  metricNamesLoading.value = true
-  try {
-    const dsUrl = resolveDatasourceUrl(ds)
-    const { end, start } = resolveTimeRange()
-    const res = await fetchPrometheusLabelValues(dsUrl, '__name__', {
-      headers: getExternalProxyHeaders(ds),
-      start,
-      end
-    })
-    metricNameOptions.value = res.status === 'success' ? (res.data ?? []) : []
-    metricNamesLoadedForDatasourceId.value = ds.id
-  } catch {
-    metricNameOptions.value = []
-  } finally {
-    metricNamesLoading.value = false
-  }
-}
-
-function extractAutocompleteToken(query: string): string {
-  const trimmed = query.slice(0)
-  const match = trimmed.match(/([a-zA-Z_:][a-zA-Z0-9_:]*)$/)
-  return match?.[1] ?? ''
-}
-
-function queryMetricSuggestions(
-  queryString: string,
-  cb: (items: Array<{ value: string }>) => void
-) {
-  if (!autocompleteEnabled.value) {
-    cb([])
-    return
-  }
-  const token = extractAutocompleteToken(queryString)
-  if (!token) {
-    cb([])
-    return
-  }
-  const keyword = token.toLowerCase()
-  const items = metricNameOptions.value
-    .filter((item) => item.toLowerCase().includes(keyword))
-    .slice(0, 50)
-    .map((item) => ({ value: item }))
-  cb(items)
-}
-
-function getSuggestionParts(value: string): Array<{ text: string; highlight: boolean }> {
-  const token = extractAutocompleteToken(promql.value)
-  if (!token) return [{ text: value, highlight: false }]
-
-  const lowerValue = value.toLowerCase()
-  const lowerToken = token.toLowerCase()
-  const start = lowerValue.indexOf(lowerToken)
-  if (start < 0) return [{ text: value, highlight: false }]
-
-  const end = start + token.length
-  const parts: Array<{ text: string; highlight: boolean }> = []
-  if (start > 0) parts.push({ text: value.slice(0, start), highlight: false })
-  parts.push({ text: value.slice(start, end), highlight: true })
-  if (end < value.length) parts.push({ text: value.slice(end), highlight: false })
-  return parts
-}
-
-function onPromqlSuggestionSelect(item: { value: string }) {
-  const token = extractAutocompleteToken(promql.value)
-  if (!token) {
-    promql.value = item.value
-    return
-  }
-  promql.value = promql.value.slice(0, promql.value.length - token.length) + item.value
-}
+const {
+  promqlAutocompleteRef,
+  clearAutocompleteCache,
+  prefetchMetricNames,
+  queryMetricSuggestions,
+  getSuggestionParts,
+  getSuggestionIcon,
+  onPromqlSuggestionSelect,
+  onPromqlKeydown,
+  hasActiveSuggestions
+} = usePromqlAutocomplete({
+  promql,
+  autocompleteEnabled,
+  selectedDatasource,
+  resolveTimeRange,
+  getExternalProxyHeaders
+})
 
 watch(activeQueryTab, (tab) => {
   showHistory.value = tab === 'history'
@@ -604,6 +551,11 @@ function handleGlobalHistoryClick() {
   if (activeQueryTab.value !== 'history') return
   activeQueryTab.value = 'promql'
   closeHistory()
+}
+
+function onPromqlEnter() {
+  if (hasActiveSuggestions()) return
+  void executeQuery()
 }
 
 async function executeQuery() {
@@ -2015,6 +1967,19 @@ onMounted(() => {
   flex: none;
   color: var(--el-color-primary);
   opacity: 0.95;
+}
+
+.rq-suggestion-kind.is-label,
+.rq-suggestion-kind.is-operator {
+  color: var(--el-color-primary);
+}
+
+.rq-suggestion-kind.is-value {
+  color: #f59e0b;
+}
+
+.rq-suggestion-kind.is-metric {
+  color: var(--el-color-primary);
 }
 
 .rq-suggestion-kind-icon {
