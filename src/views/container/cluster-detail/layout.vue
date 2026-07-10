@@ -121,6 +121,7 @@
 
     <ClusterCloudShell ref="cloudShellRef" />
     <ClusterYamlCreateDialog v-model:visible="yamlCreateVisible" :cluster="ctx.name" />
+    <ClusterAIFloat :cluster-name="ctx.name" :cluster-alias-name="ctx.aliasName" />
 
     <div class="cluster-detail-body">
       <aside class="cluster-detail-sider">
@@ -192,7 +193,7 @@
 
 <script setup lang="ts">
   import { ElMessage, type InputInstance } from 'element-plus'
-  import { ArrowLeft, Refresh, Search } from '@element-plus/icons-vue'
+  import { ArrowLeft, Search } from '@element-plus/icons-vue'
   import { computed, nextTick, provide, ref, watch } from 'vue'
   import { useRoute, useRouter, type RouteLocationNormalizedLoaded } from 'vue-router'
   import { fetchClusterByName, fetchClusterList } from '@/api/container'
@@ -201,6 +202,7 @@
   import type { PermissionListItem } from '@/api/system-manage'
   import ClusterYamlCreateDialog from './modules/cluster-yaml-create-dialog.vue'
   import ClusterCloudShell from '@/views/container/cluster/modules/cluster-cloud-shell.vue'
+  import ClusterAIFloat from './components/cluster-ai-float.vue'
   import { useUserStore } from '@/store/modules/user'
   import {
     clusterDetailActiveMenuKey,
@@ -328,11 +330,6 @@
     }
   }
 
-  function refreshNamespaceOptions() {
-    const cluster = String(route.query.cluster ?? '')
-    if (cluster) void loadNamespaceOptions(cluster)
-  }
-
   function isSystemNamespace(ns: string): boolean {
     return ns === 'default' || ns.startsWith('kube-')
   }
@@ -348,14 +345,14 @@
         let page = 1
         const acc: ClusterItem[] = []
         let total = 0
-        do {
+        for (;;) {
           const res = await fetchClusterList({ page, limit })
           total = res.total
           acc.push(...res.items)
           if (acc.length >= total || res.items.length === 0) break
           page++
           if (page > 40) break
-        } while (true)
+        }
         clusterListItems.value = acc
         clusterListLoaded.value = true
       } catch {
@@ -401,12 +398,6 @@
     }
     void loadClusterListForSelect()
     void nextTick(() => clusterSearchInputRef.value?.focus())
-  }
-
-  function refreshClusterList() {
-    clusterListLoaded.value = false
-    clusterListPromise = null
-    void loadClusterListForSelect(true)
   }
 
   function onClusterSelectChange(name: string | number | boolean | undefined) {

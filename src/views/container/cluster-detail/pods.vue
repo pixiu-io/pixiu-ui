@@ -113,7 +113,9 @@
       />
       <div class="event-toolbar">
         <ElButton type="primary" @click="loadEventList">查询</ElButton>
-        <ElButton v-ripple :disabled="!eventSelection.length" @click="batchDeleteEvents">批量删除</ElButton>
+        <ElButton v-ripple :disabled="!eventSelection.length" @click="batchDeleteEvents"
+          >批量删除</ElButton
+        >
       </div>
       <ElTable
         v-loading="eventLoading"
@@ -156,6 +158,86 @@
 
     <PodRemoteWebshell ref="podRemoteWebshellRef" />
 
+    <ElDialog
+      v-model="aiAnalysisVisible"
+      title="AI分析"
+      width="720px"
+      destroy-on-close
+      class="pod-ai-analysis-dialog"
+      @close="closeAIAnalysis"
+    >
+      <div class="pod-ai-analysis">
+        <div v-if="aiAnalysisPod" class="pod-ai-analysis__meta">
+          <div class="pod-ai-analysis__meta-main">
+            <span class="pod-ai-analysis__name">{{ aiAnalysisPod.metadata?.name }}</span>
+            <ElTag size="small" :type="podStatusTagType(formatPodDisplayStatus(aiAnalysisPod))">
+              {{ formatPodDisplayStatus(aiAnalysisPod) }}
+            </ElTag>
+            <ElTag v-if="aiConversationId" size="small" type="info">
+              会话 #{{ aiConversationId }}
+            </ElTag>
+          </div>
+          <div class="pod-ai-analysis__meta-side">
+            <span v-if="aiAnalysisLoading" class="pod-ai-analysis__streaming"> 正在分析中... </span>
+          </div>
+        </div>
+        <div v-if="aiAnalysisSteps.length" class="pod-ai-analysis__section">
+          <div class="pod-ai-analysis__section-title">分析进度</div>
+          <div class="pod-ai-analysis__steps">
+            <div v-for="item in aiAnalysisSteps" :key="item.id" class="pod-ai-analysis__step">
+              <div class="pod-ai-analysis__step-head">
+                <span class="pod-ai-analysis__step-type">{{ item.label }}</span>
+                <span class="pod-ai-analysis__step-time">{{ item.time }}</span>
+              </div>
+              <div class="pod-ai-analysis__step-message">{{ item.message }}</div>
+              <pre v-if="item.detail" class="pod-ai-analysis__step-detail">{{ item.detail }}</pre>
+            </div>
+          </div>
+        </div>
+        <div v-if="aiAnalysisError" class="pod-ai-analysis__error">{{ aiAnalysisError }}</div>
+        <div v-else class="pod-ai-analysis__section pod-ai-analysis__section--grow">
+          <div class="pod-ai-analysis__section-title">对话</div>
+          <div ref="aiConversationBodyRef" class="pod-ai-analysis__conversation">
+            <div
+              v-for="item in aiAnalysisMessages"
+              :key="item.id"
+              class="pod-ai-analysis__message"
+              :class="`pod-ai-analysis__message--${item.role}`"
+            >
+              <div class="pod-ai-analysis__message-role">
+                {{ item.role === 'user' ? '我' : 'AI' }}
+              </div>
+              <pre class="pod-ai-analysis__message-content">{{
+                item.text ||
+                (item.role === 'assistant' && aiAnalysisLoading ? 'AI 正在准备分析内容…' : '')
+              }}</pre>
+            </div>
+            <div v-if="aiAnalysisLoading" class="pod-ai-analysis__typing">AI 正在持续输出...</div>
+          </div>
+          <div class="pod-ai-analysis__composer">
+            <ElInput
+              v-model="aiFollowupInput"
+              type="textarea"
+              :rows="3"
+              resize="none"
+              placeholder="继续追问这个 Pod 的问题，例如：为什么会一直拉取失败？"
+              @keydown.enter.exact.prevent="sendAIFollowup"
+            />
+            <div class="pod-ai-analysis__composer-actions">
+              <ElButton
+                type="primary"
+                :loading="aiAnalysisLoading"
+                :disabled="!aiFollowupInput.trim()"
+                @click="sendAIFollowup"
+              >
+                发送
+              </ElButton>
+            </div>
+          </div>
+        </div>
+      </div>
+    </ElDialog>
+
     <!-- 日志抽屉 -->
     <ElDrawer
       v-model="logDrawerVisible"
@@ -168,24 +250,54 @@
     >
       <template #header>
         <div class="pod-log-drawer-header">
-          <span class="pod-log-title">Pod 日志 - <span class="pod-log-pod-name">{{ logPod?.metadata?.name }}</span></span>
+          <span class="pod-log-title"
+            >Pod 日志 - <span class="pod-log-pod-name">{{ logPod?.metadata?.name }}</span></span
+          >
           <div class="pod-log-toolbar">
-            <ElSelect v-model="logContainer" size="small" style="width:160px" placeholder="选择容器" @change="reconnectLogWs">
+            <ElSelect
+              v-model="logContainer"
+              size="small"
+              style="width: 160px"
+              placeholder="选择容器"
+              @change="reconnectLogWs"
+            >
               <ElOption v-for="c in logContainers" :key="c" :value="c" :label="c" />
             </ElSelect>
-            <ElSelect v-model="logTailLines" size="small" style="width:90px" @change="reconnectLogWs">
+            <ElSelect
+              v-model="logTailLines"
+              size="small"
+              style="width: 90px"
+              @change="reconnectLogWs"
+            >
               <ElOption :value="100" label="100行" />
               <ElOption :value="200" label="200行" />
               <ElOption :value="500" label="500行" />
               <ElOption :value="1000" label="1000行" />
             </ElSelect>
-            <button type="button" class="pod-log-icon-btn" title="刷新" @click.stop="reconnectLogWs">
+            <button
+              type="button"
+              class="pod-log-icon-btn"
+              title="刷新"
+              @click.stop="reconnectLogWs"
+            >
               <ElIcon :size="18"><Refresh /></ElIcon>
             </button>
-            <button type="button" class="pod-log-icon-btn" :title="logDrawerFullscreen ? '退出全屏' : '全屏'" @click.stop="logDrawerFullscreen = !logDrawerFullscreen">
-              <ElIcon :size="18"><ScaleToOriginal v-if="logDrawerFullscreen" /><FullScreen v-else /></ElIcon>
+            <button
+              type="button"
+              class="pod-log-icon-btn"
+              :title="logDrawerFullscreen ? '退出全屏' : '全屏'"
+              @click.stop="logDrawerFullscreen = !logDrawerFullscreen"
+            >
+              <ElIcon :size="18"
+                ><ScaleToOriginal v-if="logDrawerFullscreen" /><FullScreen v-else
+              /></ElIcon>
             </button>
-            <button type="button" class="pod-log-icon-btn" title="关闭" @click.stop="logDrawerVisible = false">
+            <button
+              type="button"
+              class="pod-log-icon-btn"
+              title="关闭"
+              @click.stop="logDrawerVisible = false"
+            >
               <ElIcon :size="18"><Close /></ElIcon>
             </button>
           </div>
@@ -195,7 +307,9 @@
         <ElTable :data="logRows" v-loading="logConnecting" class="pod-log-table">
           <ElTableColumn prop="line" label="日志内容" />
           <template #empty>
-            <div style="color:var(--el-text-color-secondary);font-size:13px;padding:16px 0">暂无日志</div>
+            <div style="color: var(--el-text-color-secondary); font-size: 13px; padding: 16px 0"
+              >暂无日志</div
+            >
           </template>
         </ElTable>
       </div>
@@ -204,12 +318,40 @@
 </template>
 
 <script setup lang="ts">
-  import { ElAlert, ElButton, ElDialog, ElDrawer, ElIcon, ElInput, ElForm, ElFormItem, ElLink, ElMessage, ElMessageBox, ElOption, ElPagination, ElRadio, ElRadioGroup, ElSelect, ElTable, ElTableColumn, ElTag, ElTooltip } from 'element-plus'
-  import ArtButtonMore, { type ButtonMoreItem } from '@/components/core/forms/art-button-more/index.vue'
-  import { Close, CopyDocument, FullScreen, Loading, Refresh, ScaleToOriginal } from '@element-plus/icons-vue'
-  import { h, nextTick, ref, computed, watch, inject } from 'vue'
-import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
-import ClusterTableEmpty from './components/cluster-table-empty.vue'
+  import {
+    ElAlert,
+    ElButton,
+    ElDialog,
+    ElDrawer,
+    ElIcon,
+    ElInput,
+    ElForm,
+    ElFormItem,
+    ElLink,
+    ElMessage,
+    ElMessageBox,
+    ElOption,
+    ElPagination,
+    ElSelect,
+    ElTable,
+    ElTableColumn,
+    ElTag,
+    ElTooltip
+  } from 'element-plus'
+  import ArtButtonMore, {
+    type ButtonMoreItem
+  } from '@/components/core/forms/art-button-more/index.vue'
+  import {
+    Close,
+    CopyDocument,
+    FullScreen,
+    Loading,
+    Refresh,
+    ScaleToOriginal
+  } from '@element-plus/icons-vue'
+  import { h, ref, computed, watch, inject, nextTick } from 'vue'
+  import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
+  import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute, useRouter } from 'vue-router'
   import { buildClusterRouteQuery } from '@/utils/navigation/cluster-query'
   import { useTable } from '@/hooks/core/useTable'
@@ -217,15 +359,15 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useWatchAfterTableInit } from '@/hooks/core/useWatchAfterTableInit'
   import { useClusterDetailActiveMenuKey } from '@/hooks/core/useClusterDetailNamespaceRefresh'
   import { deleteK8sEvent, fetchKubeRawEventList } from '@/api/kubernetes/events'
-  import {
-    deleteK8sPod,
-    fetchK8sPod,
-    fetchK8sPodList,
-    type K8sPod
-  } from '@/api/kubernetes/pod'
+  import { deleteK8sPod, fetchK8sPod, fetchK8sPodList, type K8sPod } from '@/api/kubernetes/pod'
   import { PixiuApiError } from '@/api/container'
+  import { respondAIStream, type AIStreamEvent } from '@/api/ai'
   import { formatNodeCreationTime } from '@/utils/kubernetes/nodeDisplay'
-  import { formatPodDisplayStatus, isPodCompleted, podStatusTagType } from '@/utils/kubernetes/podDisplay'
+  import {
+    formatPodDisplayStatus,
+    isPodCompleted,
+    podStatusTagType
+  } from '@/utils/kubernetes/podDisplay'
   import { K8S_EVENT_MESSAGE_CELL_CLASS } from '@/utils/kubernetes/eventDisplay'
   import { clusterDetailNamespaceKey } from './context'
   import PodRemoteWebshell from './components/pod-remote-webshell.vue'
@@ -267,9 +409,160 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
 
   const yamlVisible = ref(false)
   const podRemoteWebshellRef = ref<InstanceType<typeof PodRemoteWebshell> | null>(null)
+  const aiAnalysisVisible = ref(false)
+  const aiAnalysisLoading = ref(false)
+  const aiAnalysisText = ref('')
+  const aiAnalysisError = ref('')
+  const aiAnalysisPod = ref<K8sPod | null>(null)
+  const aiConversationId = ref(0)
+  const aiConversationBodyRef = ref<HTMLElement | null>(null)
+  const aiFollowupInput = ref('')
+  const aiAnalysisMessages = ref<Array<{ id: number; role: 'user' | 'assistant'; text: string }>>(
+    []
+  )
+  const aiAnalysisSteps = ref<
+    Array<{ id: number; label: string; message: string; time: string; detail?: string }>
+  >([])
+  let aiAnalysisStepId = 0
+  let aiAnalysisMessageId = 0
+  let aiAnalysisAbortController: AbortController | null = null
+  let aiStreamingAssistantMessageId: number | null = null
 
   function formatRestartCount(row: K8sPod): number {
     return (row.status?.containerStatuses ?? []).reduce((sum, c) => sum + (c.restartCount ?? 0), 0)
+  }
+
+  function isPodAbnormal(row: K8sPod): boolean {
+    return podStatusTagType(formatPodDisplayStatus(row)) !== 'success'
+  }
+
+  function buildPodAIAnalysisPrompt(row: K8sPod): string {
+    const cluster = String(route.query.cluster ?? '')
+    const name = row.metadata?.name ?? ''
+    const namespace = row.metadata?.namespace ?? ''
+    const displayStatus = formatPodDisplayStatus(row)
+    const phase = row.status?.phase ?? '-'
+    const nodeName = row.spec?.nodeName ?? '-'
+    const podIP = row.status?.podIP ?? '-'
+    const hostIP = row.status?.hostIP ?? '-'
+    const containerStatuses = row.status?.containerStatuses ?? []
+    const containerSummary =
+      containerStatuses.length > 0
+        ? containerStatuses
+            .map((item) => {
+              const waitingReason = item.state?.waiting?.reason
+              const terminatedReason = item.state?.terminated?.reason
+              const terminatedCode = item.state?.terminated?.exitCode
+              const stateText = waitingReason
+                ? `waiting:${waitingReason}`
+                : terminatedReason
+                  ? `terminated:${terminatedReason}${terminatedCode !== undefined ? `(exitCode=${terminatedCode})` : ''}`
+                  : item.state?.running
+                    ? 'running'
+                    : 'unknown'
+              return `${item.name || '-'} ready=${item.ready ? 'true' : 'false'} restart=${item.restartCount ?? 0} state=${stateText}`
+            })
+            .join('\n')
+        : '无容器状态信息'
+
+    return [
+      '请帮我排查这个 Kubernetes Pod 的异常，并输出结论、证据、可能原因和修复建议。',
+      `集群: ${cluster || '-'}`,
+      `命名空间: ${namespace || '-'}`,
+      `Pod: ${name || '-'}`,
+      `展示状态: ${displayStatus}`,
+      `Phase: ${phase}`,
+      `所在节点: ${nodeName}`,
+      `节点IP: ${hostIP}`,
+      `Pod IP: ${podIP}`,
+      `容器状态摘要:\n${containerSummary}`,
+      '请优先结合当前 Pod、自身事件、所属工作负载以及必要日志进行分析。'
+    ].join('\n')
+  }
+
+  function formatAIAnalysisTime(date = new Date()): string {
+    const pad = (value: number) => String(value).padStart(2, '0')
+    return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+  }
+
+  function pushAIAnalysisStep(label: string, message: string, detail?: string) {
+    aiAnalysisSteps.value.push({
+      id: ++aiAnalysisStepId,
+      label,
+      message,
+      time: formatAIAnalysisTime(),
+      detail
+    })
+  }
+
+  function resetAIAnalysisState() {
+    aiAnalysisText.value = ''
+    aiAnalysisError.value = ''
+    aiFollowupInput.value = ''
+    aiAnalysisMessages.value = []
+    aiAnalysisSteps.value = []
+    aiAnalysisStepId = 0
+    aiAnalysisMessageId = 0
+    aiStreamingAssistantMessageId = null
+  }
+
+  function scrollAIConversationToBottom() {
+    void nextTick(() => {
+      const el = aiConversationBodyRef.value
+      if (!el) return
+      el.scrollTop = el.scrollHeight
+    })
+  }
+
+  function appendAIMessage(role: 'user' | 'assistant', text = ''): number {
+    const id = ++aiAnalysisMessageId
+    aiAnalysisMessages.value.push({ id, role, text })
+    scrollAIConversationToBottom()
+    return id
+  }
+
+  function ensureStreamingAssistantMessage() {
+    if (aiStreamingAssistantMessageId !== null) return aiStreamingAssistantMessageId
+    aiStreamingAssistantMessageId = appendAIMessage('assistant', '')
+    return aiStreamingAssistantMessageId
+  }
+
+  function updateAssistantMessage(delta: string) {
+    const id = ensureStreamingAssistantMessage()
+    const target = aiAnalysisMessages.value.find((item) => item.id === id)
+    if (!target) return
+    target.text += delta
+    aiAnalysisText.value = target.text
+    scrollAIConversationToBottom()
+  }
+
+  function handleAIStreamEvent(event: AIStreamEvent) {
+    switch (event.type) {
+      case 'status':
+        pushAIAnalysisStep('状态', event.message || '状态已更新')
+        break
+      case 'delta':
+        updateAssistantMessage(event.delta || '')
+        break
+      case 'tool_start':
+        pushAIAnalysisStep('排查中', event.message || 'AI 正在执行工具排查', event.tool_args)
+        break
+      case 'tool_result':
+        pushAIAnalysisStep('工具结果', event.message || '工具执行完成', event.tool_output)
+        break
+      case 'complete':
+        if (!aiAnalysisText.value.trim() && event.text) {
+          updateAssistantMessage(event.text)
+        }
+        pushAIAnalysisStep('完成', event.message || 'AI 分析完成')
+        aiStreamingAssistantMessageId = null
+        break
+      case 'error':
+        aiAnalysisError.value = event.message || 'AI 分析失败'
+        pushAIAnalysisStep('失败', aiAnalysisError.value)
+        aiStreamingAssistantMessageId = null
+        break
+    }
   }
 
   function parseCpuMilli(val: string): number {
@@ -339,7 +632,12 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
         if (!cluster) {
           return {
             code: 200,
-            data: { records: [] as (K8sPod & { rowKey?: string })[], total: 0, current: 1, size: params.size }
+            data: {
+              records: [] as (K8sPod & { rowKey?: string })[],
+              total: 0,
+              current: 1,
+              size: params.size
+            }
           }
         }
         // 拉取全部 pod（不带 fieldSelector），本地模糊搜索
@@ -391,7 +689,8 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
                       {
                         type: 'primary',
                         underline: 'never',
-                        style: 'font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block',
+                        style:
+                          'font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block',
                         onClick: () => {
                           const ns = row.metadata?.namespace ?? ''
                           const name = row.metadata?.name ?? ''
@@ -409,7 +708,8 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
                 'span',
                 {
                   class: 'icon-action',
-                  style: 'flex-shrink:0;margin-left:10px;cursor:pointer;color:var(--el-text-color-secondary);display:inline-flex;align-items:center',
+                  style:
+                    'flex-shrink:0;margin-left:10px;cursor:pointer;color:var(--el-text-color-secondary);display:inline-flex;align-items:center',
                   title: '复制',
                   onClick: (e: MouseEvent) => {
                     e.stopPropagation()
@@ -450,7 +750,8 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
                 ? h(
                     'span',
                     {
-                      style: 'display:inline-flex;align-items:center;color:var(--el-color-primary);animation:spin-rotate 1s linear infinite'
+                      style:
+                        'display:inline-flex;align-items:center;color:var(--el-color-primary);animation:spin-rotate 1s linear infinite'
                     },
                     [h(Loading, { style: 'width:13px;height:13px' })]
                   )
@@ -470,7 +771,11 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
                     const name = row.metadata?.name ?? ''
                     router.push({
                       path: '/container/pod-detail',
-                      query: buildClusterRouteQuery(route, { namespace: ns, pod: name, tab: 'events' })
+                      query: buildClusterRouteQuery(route, {
+                        namespace: ns,
+                        pod: name,
+                        tab: 'events'
+                      })
                     })
                   }
                 },
@@ -494,7 +799,8 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
                 'span',
                 {
                   class: 'icon-action',
-                  style: 'cursor:pointer;color:var(--el-text-color-secondary);display:inline-flex;align-items:center;flex-shrink:0',
+                  style:
+                    'cursor:pointer;color:var(--el-text-color-secondary);display:inline-flex;align-items:center;flex-shrink:0',
                   title: '复制',
                   onClick: (e: MouseEvent) => {
                     e.stopPropagation()
@@ -529,7 +835,8 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
                     'span',
                     {
                       class: 'icon-action',
-                      style: 'cursor:pointer;color:var(--el-text-color-secondary);display:inline-flex;align-items:center;flex-shrink:0',
+                      style:
+                        'cursor:pointer;color:var(--el-text-color-secondary);display:inline-flex;align-items:center;flex-shrink:0',
                       title: '复制',
                       onClick: (e: MouseEvent) => {
                         e.stopPropagation()
@@ -556,17 +863,35 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
           minWidth: 170,
           formatter: (row: K8sPod) => {
             const containers = row.spec?.containers ?? []
-            let cpuReqM = 0, cpuLimM = 0, memReqB = 0, memLimB = 0
-            let hasCpuReq = false, hasCpuLim = false, hasMemReq = false, hasMemLim = false
+            let cpuReqM = 0,
+              cpuLimM = 0,
+              memReqB = 0,
+              memLimB = 0
+            let hasCpuReq = false,
+              hasCpuLim = false,
+              hasMemReq = false,
+              hasMemLim = false
             for (const c of containers as any[]) {
               const cr = c.resources?.requests?.cpu
               const cl = c.resources?.limits?.cpu
               const mr = c.resources?.requests?.memory
               const ml = c.resources?.limits?.memory
-              if (cr) { cpuReqM += parseCpuMilli(cr); hasCpuReq = true }
-              if (cl) { cpuLimM += parseCpuMilli(cl); hasCpuLim = true }
-              if (mr) { memReqB += parseMemBytes(mr); hasMemReq = true }
-              if (ml) { memLimB += parseMemBytes(ml); hasMemLim = true }
+              if (cr) {
+                cpuReqM += parseCpuMilli(cr)
+                hasCpuReq = true
+              }
+              if (cl) {
+                cpuLimM += parseCpuMilli(cl)
+                hasCpuLim = true
+              }
+              if (mr) {
+                memReqB += parseMemBytes(mr)
+                hasMemReq = true
+              }
+              if (ml) {
+                memLimB += parseMemBytes(ml)
+                hasMemLim = true
+              }
             }
             const cpuReq = hasCpuReq ? formatCpuMilli(cpuReqM) : '无限制'
             const cpuLim = hasCpuLim ? formatCpuMilli(cpuLimM) : '无限制'
@@ -583,24 +908,64 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
           prop: 'restartCount',
           label: '重启次数',
           width: 100,
-          formatter: (row: K8sPod) => h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, String(formatRestartCount(row)))
+          formatter: (row: K8sPod) =>
+            h(
+              'span',
+              { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+              String(formatRestartCount(row))
+            )
         },
         {
           prop: 'metadata.creationTimestamp',
           label: '创建时间',
           width: 170,
           formatter: (row: K8sPod) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, formatNodeCreationTime(row.metadata?.creationTimestamp))
+            h(
+              'span',
+              { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+              formatNodeCreationTime(row.metadata?.creationTimestamp)
+            )
         },
         {
           prop: 'operation',
           label: '操作',
-          width: 118,
+          width: 170,
           fixed: 'right',
           formatter: (row: K8sPod) =>
             h('div', { style: 'display:flex;align-items:center;gap:6px;flex-wrap:nowrap' }, [
-              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px;line-height:1', disabled: row.status?.phase !== 'Running', onClick: () => openRemoteLoginDialog(row) }, () => '登录'),
-              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px;line-height:1', onClick: () => openPodLogs(row) }, () => '日志'),
+              h(
+                ElLink,
+                {
+                  type: 'primary',
+                  underline: 'never',
+                  style: 'font-size:12px;line-height:1',
+                  disabled: row.status?.phase !== 'Running',
+                  onClick: () => openRemoteLoginDialog(row)
+                },
+                () => '登录'
+              ),
+              h(
+                ElLink,
+                {
+                  type: 'primary',
+                  underline: 'never',
+                  style: 'font-size:12px;line-height:1',
+                  onClick: () => openPodLogs(row)
+                },
+                () => '日志'
+              ),
+              isPodAbnormal(row)
+                ? h(
+                    ElLink,
+                    {
+                      type: 'primary',
+                      underline: 'never',
+                      style: 'font-size:12px;line-height:1',
+                      onClick: () => openAIAnalysis(row)
+                    },
+                    () => 'AI分析'
+                  )
+                : null,
               h(ArtButtonMore, {
                 list: [
                   { key: 'yaml', label: '查看YAML', icon: 'ri:file-code-line' },
@@ -739,6 +1104,66 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     }
   }
 
+  async function openAIAnalysis(row: K8sPod) {
+    aiAnalysisPod.value = row
+    aiConversationId.value = 0
+    aiAnalysisVisible.value = true
+    resetAIAnalysisState()
+    await runAIAnalysis(buildPodAIAnalysisPrompt(row))
+  }
+
+  async function sendAIFollowup() {
+    if (!aiAnalysisPod.value) return
+    const question = aiFollowupInput.value.trim()
+    if (!question || aiAnalysisLoading.value) return
+    appendAIMessage('user', question)
+    aiFollowupInput.value = ''
+    await runAIAnalysis(question)
+  }
+
+  async function runAIAnalysis(input: string) {
+    aiAnalysisAbortController?.abort()
+    const controller = new AbortController()
+    aiAnalysisAbortController = controller
+    aiAnalysisLoading.value = true
+    aiAnalysisError.value = ''
+    aiAnalysisText.value = ''
+    pushAIAnalysisStep('开始', '已提交 AI 分析请求')
+    try {
+      const result = await respondAIStream(
+        {
+          conversation_id: aiConversationId.value || undefined,
+          input
+        },
+        {
+          signal: controller.signal,
+          onEvent: handleAIStreamEvent
+        }
+      )
+      aiConversationId.value = result?.conversation_id || 0
+      if (!aiAnalysisText.value.trim()) {
+        const text = result?.text?.trim() || 'AI 未返回分析内容'
+        updateAssistantMessage(text)
+      }
+      aiAnalysisError.value = ''
+    } catch (e: unknown) {
+      if (controller.signal.aborted) return
+      aiAnalysisError.value = e instanceof Error ? e.message : 'AI 分析失败'
+      pushAIAnalysisStep('失败', aiAnalysisError.value)
+    } finally {
+      aiStreamingAssistantMessageId = null
+      if (aiAnalysisAbortController === controller) {
+        aiAnalysisAbortController = null
+      }
+      aiAnalysisLoading.value = false
+    }
+  }
+
+  function closeAIAnalysis() {
+    aiAnalysisAbortController?.abort()
+    aiAnalysisAbortController = null
+  }
+
   function resetRemoteLogin() {
     remoteLogin.value = {
       pod: '',
@@ -810,15 +1235,6 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
 
   function onEventSelectionChange(rows: K8sEventRow[]) {
     eventSelection.value = rows
-  }
-
-  async function openEvents(row: K8sPod) {
-    eventPod.value = row
-    eventVisible.value = true
-    eventPage.value = 1
-    eventRows.value = []
-    eventTotal.value = 0
-    await loadEventList()
   }
 
   async function loadEventList() {
@@ -910,14 +1326,22 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     logRows.value = []
     logConnecting.value = true
     const url = buildLogWsUrl()
-    if (!url) { logConnecting.value = false; return }
+    if (!url) {
+      logConnecting.value = false
+      return
+    }
     const token = localStorage.getItem('pixiu-access-token')
     logSocket = token ? new WebSocket(url, [token]) : new WebSocket(url)
 
-    logSocket.onopen = () => { logConnecting.value = false }
+    logSocket.onopen = () => {
+      logConnecting.value = false
+    }
 
     logSocket.onmessage = (event) => {
-      const text = typeof event.data === 'string' ? event.data : new TextDecoder().decode(event.data as ArrayBuffer)
+      const text =
+        typeof event.data === 'string'
+          ? event.data
+          : new TextDecoder().decode(event.data as ArrayBuffer)
       const parts = text.split('\n')
       for (const p of parts) {
         if (p !== '') logRows.value.push({ line: p })
@@ -962,8 +1386,12 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
 
 <style>
   @keyframes spin-rotate {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   .pods-page .icon-action {
@@ -1120,7 +1548,9 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     color: var(--el-text-color-secondary);
     cursor: pointer;
     border-radius: 4px;
-    transition: color 0.15s, background-color 0.15s;
+    transition:
+      color 0.15s,
+      background-color 0.15s;
   }
   .pod-log-icon-btn:hover {
     color: var(--el-color-primary);
@@ -1162,6 +1592,187 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
 
   .remote-login-form-item :deep(.el-form-item__label) {
     font-size: 13px;
+  }
+
+  .pod-ai-analysis {
+    display: flex;
+    height: 560px;
+    min-height: 560px;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .pod-ai-analysis__meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-shrink: 0;
+  }
+
+  .pod-ai-analysis__meta-main,
+  .pod-ai-analysis__meta-side {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .pod-ai-analysis__section + .pod-ai-analysis__section {
+    margin-top: 12px;
+  }
+
+  .pod-ai-analysis__section--grow {
+    display: flex;
+    min-height: 0;
+    flex: 1;
+    flex-direction: column;
+  }
+
+  .pod-ai-analysis__section-title {
+    margin-bottom: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--el-text-color-primary);
+  }
+
+  .pod-ai-analysis__name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--el-text-color-primary);
+  }
+
+  .pod-ai-analysis__steps {
+    display: flex;
+    max-height: 160px;
+    flex-direction: column;
+    gap: 8px;
+    overflow: auto;
+  }
+
+  .pod-ai-analysis__step {
+    padding: 10px 12px;
+    border: 1px solid var(--el-border-color-lighter);
+    border-radius: 8px;
+    background: var(--el-bg-color);
+  }
+
+  .pod-ai-analysis__step-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .pod-ai-analysis__step-type {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--el-color-primary);
+  }
+
+  .pod-ai-analysis__step-time {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+  }
+
+  .pod-ai-analysis__step-message {
+    margin-top: 4px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--el-text-color-primary);
+  }
+
+  .pod-ai-analysis__step-detail {
+    margin: 8px 0 0;
+    padding: 8px 10px;
+    overflow: auto;
+    border-radius: 6px;
+    background: var(--el-fill-color-light);
+    font-size: 12px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .pod-ai-analysis__content,
+  .pod-ai-analysis__error {
+    margin: 0;
+    padding: 12px;
+    border-radius: 8px;
+    background: var(--el-fill-color-light);
+    font-size: 13px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .pod-ai-analysis__error {
+    color: var(--el-color-danger);
+  }
+
+  .pod-ai-analysis__conversation {
+    min-height: 0;
+    flex: 1;
+    overflow: auto;
+    padding: 4px;
+    border-radius: 8px;
+    background: var(--el-fill-color-light);
+  }
+
+  .pod-ai-analysis__message + .pod-ai-analysis__message {
+    margin-top: 10px;
+  }
+
+  .pod-ai-analysis__message-role {
+    margin-bottom: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--el-text-color-secondary);
+  }
+
+  .pod-ai-analysis__message-content {
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .pod-ai-analysis__message--assistant .pod-ai-analysis__message-content {
+    background: var(--el-bg-color);
+    border: 1px solid var(--el-border-color-lighter);
+  }
+
+  .pod-ai-analysis__message--user .pod-ai-analysis__message-content {
+    background: var(--el-color-primary-light-9);
+    border: 1px solid var(--el-color-primary-light-7);
+  }
+
+  .pod-ai-analysis__typing {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--el-color-primary);
+  }
+
+  .pod-ai-analysis__composer {
+    display: flex;
+    margin-top: 12px;
+    flex-shrink: 0;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .pod-ai-analysis__composer-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .pod-ai-analysis__streaming {
+    font-size: 12px;
+    color: var(--el-color-primary);
   }
 </style>
 

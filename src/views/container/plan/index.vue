@@ -643,7 +643,11 @@
       await fetchDeletePlan(row.id)
       ElMessage.success('删除成功')
       refreshData()
-    } catch {}
+    } catch (e: any) {
+      if (e !== 'cancel' && e) {
+        ElMessage.error(e?.message || '删除失败')
+      }
+    }
   }
 
   async function destroyPlan(planId: number, planName: string) {
@@ -653,7 +657,9 @@
       await fetchDestroyPlan(planId, restart)
       ElMessage.success('销毁任务已提交')
       refreshData()
-    } catch {}
+    } catch (e: any) {
+      ElMessage.error(e?.message || '销毁失败')
+    }
   }
 
   function openTaskDrawer(row: PlanItemFormatted) {

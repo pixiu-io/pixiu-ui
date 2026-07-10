@@ -234,6 +234,7 @@
       "sysMgr": "系统管理",
       "tenant": "租户",
       "api": "API",
+      "aiAccount": "AI 配置",
       "userCenter": "个人中心",
       "menu": "菜单管理"
     },

@@ -232,6 +232,7 @@
       "role": "Role",
       "tenant": "Tenant",
       "api": "API",
+      "aiAccount": "AI Config",
       "userCenter": "User Center",
       "menu": "Menu Manage"
     },
