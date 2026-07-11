@@ -98,17 +98,6 @@ export const systemMgrRoutes: AppRouteRecord = {
         keepAlive: true,
         roles: ['R_SUPER']
       }
-    },
-    {
-      path: 'ai-account',
-      name: 'AiAccount',
-      component: '/system/ai-account',
-      meta: {
-        title: 'menus.system.aiAccount',
-        icon: 'ri:robot-2-line',
-        keepAlive: true,
-        roles: ['R_SUPER', 'R_ADMIN']
-      }
     }
   ]
 }

@@ -4,94 +4,146 @@
       v-if="!panelVisible"
       type="button"
       class="cluster-ai-float__trigger"
-      title="AI 助手"
+      title="AI 智能助手"
       @click="openPanel"
     >
-      <ElIcon :size="22"><ChatDotRound /></ElIcon>
+      <ArtSvgIcon icon="ri:robot-2-line" class="cluster-ai-float__trigger-icon" />
       <span v-if="messages.length" class="cluster-ai-float__badge">{{ messages.length }}</span>
     </button>
 
     <div v-else class="cluster-ai-float__panel">
       <div class="cluster-ai-float__header">
-        <div class="cluster-ai-float__title-wrap">
-          <div class="cluster-ai-float__title">AI 助手</div>
-          <div class="cluster-ai-float__subtitle">{{ clusterAliasName || clusterName || '-' }}</div>
+        <div class="cluster-ai-float__title">AI 智能助手</div>
+        <div class="cluster-ai-float__header-actions">
+          <button
+            type="button"
+            class="cluster-ai-float__icon-btn"
+            title="新建对话"
+            @click="startNewConversation"
+          >
+            <ElIcon :size="16"><Plus /></ElIcon>
+          </button>
+          <button type="button" class="cluster-ai-float__icon-btn" title="最小化" @click="minimizePanel">
+            <ElIcon :size="16"><Minus /></ElIcon>
+          </button>
+          <button type="button" class="cluster-ai-float__icon-btn" title="关闭" @click="minimizePanel">
+            <ElIcon :size="16"><Close /></ElIcon>
+          </button>
         </div>
-        <button type="button" class="cluster-ai-float__close" title="最小化" @click="minimizePanel">
-          <ElIcon :size="16"><Minus /></ElIcon>
-        </button>
       </div>
 
       <div ref="messageBodyRef" class="cluster-ai-float__messages">
-        <div v-if="messages.length === 0" class="cluster-ai-float__empty">
-          直接提问当前集群的问题，发送时会自动拼接当前集群名称。
-        </div>
-
-        <div
-          v-for="item in messages"
-          :key="item.id"
-          class="cluster-ai-float__message"
-          :class="`cluster-ai-float__message--${item.role}`"
-        >
-          <div class="cluster-ai-float__message-role">
-            {{ item.role === 'user' ? '我' : 'AI' }}
-          </div>
-
-          <div
-            v-if="item.role === 'assistant' && item.traceItems.length"
-            class="cluster-ai-float__trace"
-          >
-            <button
-              type="button"
-              class="cluster-ai-float__trace-toggle"
-              @click="toggleTrace(item.id)"
-            >
-              <ElIcon :size="14">
-                <component :is="item.traceExpanded ? ArrowDown : ArrowRight" />
-              </ElIcon>
-              <span>工具链调用</span>
-              <span class="cluster-ai-float__trace-count">{{ item.traceItems.length }}</span>
-            </button>
-
-            <div v-if="item.traceExpanded" class="cluster-ai-float__trace-list">
-              <div
-                v-for="trace in item.traceItems"
-                :key="trace.id"
-                class="cluster-ai-float__trace-item"
-              >
-                <div class="cluster-ai-float__trace-head">
-                  <span class="cluster-ai-float__trace-label">{{ trace.label }}</span>
-                  <span class="cluster-ai-float__trace-time">{{ trace.time }}</span>
-                </div>
-                <div class="cluster-ai-float__trace-message">{{ trace.message }}</div>
-                <pre v-if="trace.detail" class="cluster-ai-float__trace-detail">{{
-                  trace.detail
-                }}</pre>
-              </div>
+        <div v-if="messages.length === 0" class="cluster-ai-float__welcome">
+          <div class="cluster-ai-float__hero">
+            <div class="cluster-ai-float__hero-avatar">
+              <ArtSvgIcon icon="ri:robot-2-line" />
+            </div>
+            <div class="cluster-ai-float__hero-text">
+              <div class="cluster-ai-float__hero-greeting">您好，欢迎使用</div>
+              <div class="cluster-ai-float__hero-title">Pixiu 智能助手</div>
             </div>
           </div>
 
-          <pre v-if="item.text.trim()" class="cluster-ai-float__message-text">{{ item.text }}</pre>
+          <div class="cluster-ai-float__intro-card">
+            <div class="cluster-ai-float__intro-icon">🔍</div>
+            <div class="cluster-ai-float__intro-title">围绕指定资源进行智能答疑与排查</div>
+            <div class="cluster-ai-float__intro-desc">
+              已自动关联集群
+              <span class="cluster-ai-float__intro-cluster">
+                {{ clusterAliasName || clusterName || '-' }}
+              </span>
+              。你可以直接提问 Pod 异常、资源状态、事件日志等问题。
+            </div>
+          </div>
         </div>
 
-        <div v-if="loading" class="cluster-ai-float__typing">AI 正在回复...</div>
+        <template v-else>
+          <div
+            v-for="item in messages"
+            :key="item.id"
+            class="cluster-ai-float__message"
+            :class="`cluster-ai-float__message--${item.role}`"
+          >
+            <div class="cluster-ai-float__message-role">
+              {{ item.role === 'user' ? '我' : 'AI 智能助手' }}
+            </div>
+
+            <div
+              v-if="item.role === 'assistant' && item.traceItems.length"
+              class="cluster-ai-float__trace"
+            >
+              <button
+                type="button"
+                class="cluster-ai-float__trace-toggle"
+                @click="toggleTrace(item.id)"
+              >
+                <ElIcon :size="14">
+                  <component :is="item.traceExpanded ? ArrowDown : ArrowRight" />
+                </ElIcon>
+                <span>工具链调用</span>
+                <span class="cluster-ai-float__trace-count">{{ item.traceItems.length }}</span>
+              </button>
+
+              <div v-if="item.traceExpanded" class="cluster-ai-float__trace-list">
+                <div
+                  v-for="trace in item.traceItems"
+                  :key="trace.id"
+                  class="cluster-ai-float__trace-item"
+                >
+                  <div class="cluster-ai-float__trace-head">
+                    <span class="cluster-ai-float__trace-label">{{ trace.label }}</span>
+                    <span class="cluster-ai-float__trace-time">{{ trace.time }}</span>
+                  </div>
+                  <div class="cluster-ai-float__trace-message">{{ trace.message }}</div>
+                  <pre v-if="trace.detail" class="cluster-ai-float__trace-detail">{{
+                    trace.detail
+                  }}</pre>
+                </div>
+              </div>
+            </div>
+
+            <pre v-if="item.text.trim()" class="cluster-ai-float__message-text">{{ item.text }}</pre>
+          </div>
+
+          <div v-if="loading" class="cluster-ai-float__typing">AI 正在回复...</div>
+        </template>
       </div>
 
       <div v-if="errorText" class="cluster-ai-float__error">{{ errorText }}</div>
 
       <div class="cluster-ai-float__composer">
-        <ElInput
-          v-model="inputText"
-          type="textarea"
-          :rows="3"
-          resize="none"
-          placeholder="请输入要咨询的问题"
-          @keydown.enter.exact.prevent="sendMessage"
-        />
-        <div class="cluster-ai-float__actions">
-          <ElButton type="primary" :loading="loading" :disabled="!canSend" @click="sendMessage">
-            发送
-          </ElButton>
+        <div class="cluster-ai-float__input-wrap">
+          <ElInput
+            v-model="inputText"
+            type="textarea"
+            :rows="3"
+            resize="none"
+            placeholder="请输入要咨询的问题"
+            @keydown.enter.exact.prevent="sendMessage"
+          />
+          <button
+            type="button"
+            class="cluster-ai-float__send-btn"
+            title="发送"
+            :disabled="!canSend"
+            @click="sendMessage"
+          >
+            <ElIcon :size="18"><Promotion /></ElIcon>
+          </button>
+        </div>
+
+        <div class="cluster-ai-float__footer-bar">
+          <div class="cluster-ai-float__mode-group">
+            <span class="cluster-ai-float__mode is-active">
+              <ArtSvgIcon icon="ri:sparkling-2-line" class="cluster-ai-float__mode-icon" />
+              Agent
+            </span>
+            <span class="cluster-ai-float__mode is-disabled" title="即将支持">Chat</span>
+          </div>
+        </div>
+
+        <div class="cluster-ai-float__disclaimer">
+          内容由 AI 生成，仅供参考，您据此所作判断及操作均由您自行承担责任。
         </div>
       </div>
     </div>
@@ -99,10 +151,18 @@
 </template>
 
 <script setup lang="ts">
-  import { ElButton, ElIcon, ElInput } from 'element-plus'
-  import { ArrowDown, ArrowRight, ChatDotRound, Minus } from '@element-plus/icons-vue'
+  import { ElIcon, ElInput } from 'element-plus'
+  import {
+    ArrowDown,
+    ArrowRight,
+    Close,
+    Minus,
+    Plus,
+    Promotion
+  } from '@element-plus/icons-vue'
   import { computed, nextTick, ref, watch } from 'vue'
   import { respondAIStream, type AIStreamEvent } from '@/api/ai'
+  import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
 
   interface TraceItem {
     id: number
@@ -154,6 +214,10 @@
 
   function minimizePanel() {
     panelVisible.value = false
+  }
+
+  function startNewConversation() {
+    resetConversation()
   }
 
   function resetConversation() {
@@ -393,6 +457,14 @@
 
 <style scoped>
   .cluster-ai-float {
+    --ai-accent: var(--el-color-primary);
+    --ai-accent-soft: var(--el-color-primary-light-9);
+    --ai-accent-border: var(--el-color-primary-light-7);
+    --ai-panel-bg: var(--el-bg-color);
+    --ai-surface-bg: var(--el-fill-color-blank);
+    --ai-muted-bg: var(--el-fill-color-light);
+    --ai-shadow: 0 18px 48px rgb(15 23 42 / 16%);
+
     position: fixed;
     right: 20px;
     bottom: 20px;
@@ -408,10 +480,14 @@
     justify-content: center;
     border: none;
     border-radius: 999px;
-    background: var(--el-color-primary);
+    background: linear-gradient(135deg, var(--el-color-primary) 0%, #6c5ce7 100%);
     color: #fff;
     cursor: pointer;
-    box-shadow: 0 12px 30px rgb(0 0 0 / 18%);
+    box-shadow: 0 12px 30px rgb(79 140 255 / 28%);
+  }
+
+  .cluster-ai-float__trigger-icon {
+    font-size: 24px;
   }
 
   .cluster-ai-float__badge {
@@ -422,8 +498,8 @@
     height: 18px;
     padding: 0 5px;
     border-radius: 999px;
-    background: #fff;
-    color: var(--el-color-primary);
+    background: var(--el-bg-color);
+    color: var(--ai-accent);
     font-size: 11px;
     font-weight: 700;
     line-height: 18px;
@@ -433,38 +509,38 @@
 
   .cluster-ai-float__panel {
     display: flex;
-    width: min(380px, calc(100vw - 32px));
-    height: min(620px, calc(100vh - 110px));
+    width: min(460px, calc(100vw - 32px));
+    height: min(680px, calc(100vh - 80px));
     flex-direction: column;
     overflow: hidden;
     border: 1px solid var(--el-border-color-lighter);
-    border-radius: 8px;
-    background: var(--el-bg-color);
-    box-shadow: 0 14px 40px rgb(0 0 0 / 16%);
+    border-radius: 12px;
+    background: var(--ai-panel-bg);
+    box-shadow: var(--ai-shadow);
   }
 
   .cluster-ai-float__header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 14px 14px 12px;
+    padding: 14px 16px;
     border-bottom: 1px solid var(--el-border-color-lighter);
+    background: var(--ai-panel-bg);
   }
 
   .cluster-ai-float__title {
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
     color: var(--el-text-color-primary);
   }
 
-  .cluster-ai-float__subtitle {
-    margin-top: 4px;
-    font-size: 12px;
-    color: var(--el-text-color-secondary);
-    word-break: break-word;
+  .cluster-ai-float__header-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
   }
 
-  .cluster-ai-float__close {
+  .cluster-ai-float__icon-btn {
     display: inline-flex;
     width: 28px;
     height: 28px;
@@ -477,18 +553,89 @@
     cursor: pointer;
   }
 
+  .cluster-ai-float__icon-btn:hover {
+    background: var(--el-fill-color-light);
+    color: var(--el-text-color-primary);
+  }
+
   .cluster-ai-float__messages {
     min-height: 0;
     flex: 1;
     overflow: auto;
-    padding: 14px;
-    background: var(--el-fill-color-light);
+    padding: 18px 16px;
+    background: linear-gradient(180deg, var(--ai-muted-bg) 0%, var(--ai-panel-bg) 100%);
   }
 
-  .cluster-ai-float__empty {
-    font-size: 13px;
+  .cluster-ai-float__welcome {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .cluster-ai-float__hero {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .cluster-ai-float__hero-avatar {
+    display: inline-flex;
+    width: 56px;
+    height: 56px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 16px;
+    background: var(--ai-accent-soft);
+    color: var(--ai-accent);
+    font-size: 30px;
+    flex: none;
+  }
+
+  .cluster-ai-float__hero-greeting {
+    font-size: 14px;
+    color: var(--el-text-color-regular);
+  }
+
+  .cluster-ai-float__hero-title {
+    margin-top: 4px;
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.2;
+    background: linear-gradient(90deg, var(--el-color-primary) 0%, #6c5ce7 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+
+  .cluster-ai-float__intro-card {
+    padding: 16px 18px;
+    border: 1px solid var(--ai-accent-border);
+    border-radius: 12px;
+    background: var(--ai-accent-soft);
+  }
+
+  .cluster-ai-float__intro-icon {
+    font-size: 22px;
+    line-height: 1;
+  }
+
+  .cluster-ai-float__intro-title {
+    margin-top: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--el-text-color-primary);
+  }
+
+  .cluster-ai-float__intro-desc {
+    margin-top: 8px;
+    font-size: 12px;
     line-height: 1.7;
     color: var(--el-text-color-secondary);
+  }
+
+  .cluster-ai-float__intro-cluster {
+    color: var(--ai-accent);
+    font-weight: 600;
   }
 
   .cluster-ai-float__message + .cluster-ai-float__message {
@@ -505,7 +652,7 @@
   .cluster-ai-float__message-text {
     margin: 8px 0 0;
     padding: 10px 12px;
-    border-radius: 8px;
+    border-radius: 10px;
     font-size: 13px;
     line-height: 1.7;
     white-space: pre-wrap;
@@ -513,14 +660,16 @@
   }
 
   .cluster-ai-float__message--assistant .cluster-ai-float__message-text {
-    background: var(--el-bg-color);
+    background: var(--ai-surface-bg);
     border: 1px solid var(--el-border-color-lighter);
+    color: var(--el-text-color-primary);
   }
 
   .cluster-ai-float__message--user .cluster-ai-float__message-text {
     margin-top: 0;
-    background: var(--el-color-primary-light-9);
-    border: 1px solid var(--el-color-primary-light-7);
+    background: var(--ai-accent-soft);
+    border: 1px solid var(--ai-accent-border);
+    color: var(--el-text-color-primary);
   }
 
   .cluster-ai-float__trace {
@@ -560,7 +709,7 @@
     padding: 8px 10px;
     border: 1px solid var(--el-border-color-lighter);
     border-radius: 8px;
-    background: var(--el-bg-color);
+    background: var(--ai-surface-bg);
   }
 
   .cluster-ai-float__trace-head {
@@ -573,7 +722,7 @@
   .cluster-ai-float__trace-label {
     font-size: 12px;
     font-weight: 600;
-    color: var(--el-color-primary);
+    color: var(--ai-accent);
   }
 
   .cluster-ai-float__trace-time {
@@ -593,6 +742,7 @@
     padding: 8px 10px;
     border-radius: 6px;
     background: var(--el-fill-color-light);
+    color: var(--el-text-color-regular);
     font-size: 12px;
     line-height: 1.6;
     white-space: pre-wrap;
@@ -602,11 +752,11 @@
   .cluster-ai-float__typing {
     margin-top: 10px;
     font-size: 12px;
-    color: var(--el-color-primary);
+    color: var(--ai-accent);
   }
 
   .cluster-ai-float__error {
-    padding: 10px 14px 0;
+    padding: 10px 16px 0;
     font-size: 12px;
     color: var(--el-color-danger);
   }
@@ -615,13 +765,117 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
-    padding: 14px;
+    padding: 14px 16px 12px;
     border-top: 1px solid var(--el-border-color-lighter);
-    background: var(--el-bg-color);
+    background: var(--ai-panel-bg);
   }
 
-  .cluster-ai-float__actions {
+  .cluster-ai-float__input-wrap {
+    position: relative;
+  }
+
+  .cluster-ai-float__input-wrap :deep(.el-textarea__inner) {
+    min-height: 92px !important;
+    padding: 12px 52px 12px 14px;
+    border-radius: 12px;
+    font-size: 13px;
+    line-height: 1.6;
+    background: var(--ai-muted-bg);
+    color: var(--el-text-color-primary);
+    box-shadow: none;
+  }
+
+  .cluster-ai-float__input-wrap :deep(.el-textarea__inner::placeholder) {
+    color: var(--el-text-color-placeholder);
+  }
+
+  .cluster-ai-float__send-btn {
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    display: inline-flex;
+    width: 34px;
+    height: 34px;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--el-color-primary) 0%, #6c5ce7 100%);
+    color: #fff;
+    cursor: pointer;
+  }
+
+  .cluster-ai-float__send-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .cluster-ai-float__footer-bar {
     display: flex;
-    justify-content: flex-end;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .cluster-ai-float__mode-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .cluster-ai-float__mode {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 28px;
+    padding: 0 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    line-height: 28px;
+  }
+
+  .cluster-ai-float__mode.is-active {
+    background: var(--ai-accent-soft);
+    color: var(--ai-accent);
+    font-weight: 600;
+  }
+
+  .cluster-ai-float__mode.is-disabled {
+    background: var(--el-fill-color);
+    color: var(--el-text-color-placeholder);
+    cursor: not-allowed;
+  }
+
+  .cluster-ai-float__mode-icon {
+    font-size: 14px;
+  }
+
+  .cluster-ai-float__disclaimer {
+    font-size: 11px;
+    line-height: 1.6;
+    color: var(--el-text-color-placeholder);
+    text-align: center;
+  }
+
+  :global(html.dark) .cluster-ai-float {
+    --ai-accent-soft: rgb(64 158 255 / 14%);
+    --ai-accent-border: rgb(64 158 255 / 24%);
+    --ai-shadow: 0 18px 48px rgb(0 0 0 / 42%);
+  }
+
+  :global(html.dark) .cluster-ai-float__hero-title {
+    background: linear-gradient(90deg, #79bbff 0%, #b197fc 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+
+  :global(html.dark) .cluster-ai-float__intro-card {
+    background: rgb(64 158 255 / 10%);
+    border-color: rgb(64 158 255 / 22%);
+  }
+
+  :global(html.dark) .cluster-ai-float__message--user .cluster-ai-float__message-text {
+    background: rgb(64 158 255 / 12%);
+    border-color: rgb(64 158 255 / 22%);
   }
 </style>

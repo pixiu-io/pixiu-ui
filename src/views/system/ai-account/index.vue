@@ -9,7 +9,7 @@
         justify-content: space-between;
       "
     >
-      <ElButton @click="showDialog('add')" v-ripple>新增 AI 配置</ElButton>
+      <ElButton @click="showDialog('add')" v-ripple>添加</ElButton>
       <div style="display: flex; align-items: center; gap: 8px">
         <ElInput
           v-model="searchForm.provider"

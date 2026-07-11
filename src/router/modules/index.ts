@@ -3,6 +3,7 @@ import { dashboardRoutes } from './dashboard'
 import { systemRoutes, systemMgrRoutes } from './system'
 import { safeguardRoutes } from './safeguard'
 import { monitorRoutes } from './monitor'
+import { aiRoutes } from './ai'
 import { appstoreRoutes } from './appstore'
 import { helpRoutes } from './help'
 import { containerRoutes } from './container'
@@ -14,6 +15,7 @@ export const routeModules: AppRouteRecord[] = [
   dashboardRoutes,
   containerRoutes,
   monitorRoutes,
+  aiRoutes,
   safeguardRoutes,
   appstoreRoutes,
   systemRoutes,

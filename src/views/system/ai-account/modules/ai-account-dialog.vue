@@ -1,7 +1,7 @@
 <template>
   <ElDialog
     v-model="dialogVisible"
-    :title="dialogType === 'add' ? '新增 AI 配置' : '编辑 AI 配置'"
+    :title="dialogType === 'add' ? '新增Provider' : '编辑 AI 配置'"
     width="560px"
     align-center
   >
