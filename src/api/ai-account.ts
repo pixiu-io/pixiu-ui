@@ -53,7 +53,9 @@ export async function fetchGetAIAccountList(
   if (params.provider) query.provider = params.provider
   if (params.enabled !== undefined) query.enabled = params.enabled
 
-  const res = await pixiuAxios.get('/pixiu/ai-accounts', { params: query })
+  const providerBaseURL = '/pixiu/assistant/providers'
+
+  const res = await pixiuAxios.get(providerBaseURL, { params: query })
   const { code, result, message } = res.data
   if (code !== 200) {
     throw new Error(message || '获取 AI 配置列表失败')
@@ -78,7 +80,7 @@ export async function fetchCreateAIAccount(params: {
   description?: string
   enabled: boolean
 }): Promise<void> {
-  const res = await pixiuAxios.post('/pixiu/ai-accounts', {
+  const res = await pixiuAxios.post('/pixiu/assistant/providers', {
     provider: params.provider,
     api_key: params.apiKey,
     base_url: params.baseUrl || '',
@@ -100,7 +102,7 @@ export async function fetchUpdateAIAccount(params: {
   description?: string
   enabled: boolean
 }): Promise<void> {
-  const res = await pixiuAxios.put(`/pixiu/ai-accounts/${params.id}`, {
+  const res = await pixiuAxios.put(`/pixiu/assistant/providers/${params.id}`, {
     provider: params.provider,
     api_key: params.apiKey,
     base_url: params.baseUrl || '',
@@ -114,7 +116,7 @@ export async function fetchUpdateAIAccount(params: {
 }
 
 export async function fetchDeleteAIAccount(id: number): Promise<void> {
-  const res = await pixiuAxios.delete(`/pixiu/ai-accounts/${id}`)
+  const res = await pixiuAxios.delete(`/pixiu/assistant/providers/${id}`)
   const { code, message } = res.data
   if (code !== 200) throw new Error(message || '删除 AI 配置失败')
 }

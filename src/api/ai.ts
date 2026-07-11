@@ -39,7 +39,7 @@ export async function respondAIStream(
   options: AIRespondStreamOptions = {}
 ): Promise<AIRespondResponse | null> {
   const token = localStorage.getItem('pixiu-access-token') || ''
-  const response = await fetch('/pixiu/ai/respond/stream', {
+  const response = await fetch('/pixiu/assistant/respond/stream', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
