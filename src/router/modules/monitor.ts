@@ -29,21 +29,21 @@ export const monitorRoutes: AppRouteRecord = {
       }
     },
     {
-      path: 'datasource',
-      name: 'MonitorDatasource',
-      component: '/safeguard/datasource',
-      meta: {
-        title: 'menus.safeguard.datasource',
-        icon: 'ri:database-2-line'
-      }
-    },
-    {
       path: 'alert-config',
       name: 'MonitorAlertConfig',
       component: '/safeguard/alert-config',
       meta: {
         title: '配置告警',
         icon: 'ri:alarm-line'
+      }
+    },
+    {
+      path: 'datasource',
+      name: 'MonitorDatasource',
+      component: '/safeguard/datasource',
+      meta: {
+        title: 'menus.safeguard.datasource',
+        icon: 'ri:database-2-line'
       }
     }
   ]
