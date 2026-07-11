@@ -1,19 +1,32 @@
 <template>
-  <div class="cluster-ai-float">
+  <div
+    ref="rootRef"
+    class="cluster-ai-float"
+    :class="{ 'is-dragging': dragging }"
+    :style="containerStyle"
+  >
     <button
       v-if="!panelVisible"
       type="button"
       class="cluster-ai-float__trigger"
-      title="AI 智能助手"
-      @click="openPanel"
+      title="Pixiu 智能助手"
+      @pointerdown="onTriggerPointerDown"
+      @click="onTriggerClick"
     >
-      <ArtSvgIcon icon="ri:robot-2-line" class="cluster-ai-float__trigger-icon" />
+      <span class="cluster-ai-float__trigger-inner">
+        <ArtSvgIcon icon="ri:robot-2-line" class="cluster-ai-float__trigger-icon" />
+      </span>
       <span v-if="messages.length" class="cluster-ai-float__badge">{{ messages.length }}</span>
     </button>
 
     <div v-else class="cluster-ai-float__panel">
-      <div class="cluster-ai-float__header">
-        <div class="cluster-ai-float__title">AI 智能助手</div>
+      <div class="cluster-ai-float__header" @pointerdown="onHeaderPointerDown">
+        <div class="cluster-ai-float__header-brand">
+          <span class="cluster-ai-float__header-avatar">
+            <ArtSvgIcon icon="ri:robot-2-line" />
+          </span>
+          <div class="cluster-ai-float__title">Pixiu 智能助手</div>
+        </div>
         <div class="cluster-ai-float__header-actions">
           <button
             type="button"
@@ -65,7 +78,7 @@
             :class="`cluster-ai-float__message--${item.role}`"
           >
             <div class="cluster-ai-float__message-role">
-              {{ item.role === 'user' ? '我' : 'AI 智能助手' }}
+              {{ item.role === 'user' ? '我' : 'Pixiu 智能助手' }}
             </div>
 
             <div
@@ -105,7 +118,7 @@
             <pre v-if="item.text.trim()" class="cluster-ai-float__message-text">{{ item.text }}</pre>
           </div>
 
-          <div v-if="loading" class="cluster-ai-float__typing">AI 正在回复...</div>
+          <div v-if="loading" class="cluster-ai-float__typing">Pixiu 正在回复...</div>
         </template>
       </div>
 
@@ -160,7 +173,7 @@
     Plus,
     Promotion
   } from '@element-plus/icons-vue'
-  import { computed, nextTick, ref, watch } from 'vue'
+  import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
   import { respondAIStream, type AIStreamEvent } from '@/api/ai'
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
 
@@ -192,6 +205,136 @@
   const conversationId = ref(0)
   const messages = ref<MessageItem[]>([])
   const messageBodyRef = ref<HTMLElement | null>(null)
+  const rootRef = ref<HTMLElement | null>(null)
+
+  const VIEWPORT_MARGIN = 12
+  const DRAG_THRESHOLD = 4
+  const LEGACY_POSITION_STORAGE_KEY = 'pixiu-ai-float-position'
+
+  const position = ref<{ x: number; y: number } | null>(null)
+  const dragging = ref(false)
+  let dragMoved = false
+  let dragStartX = 0
+  let dragStartY = 0
+  let dragOriginX = 0
+  let dragOriginY = 0
+  let activePointerId: number | null = null
+
+  const containerStyle = computed(() => {
+    if (!position.value) return undefined
+    return {
+      left: `${position.value.x}px`,
+      top: `${position.value.y}px`,
+      right: 'auto',
+      bottom: 'auto'
+    }
+  })
+
+  function getWidgetSize() {
+    const el = rootRef.value
+    if (!el) {
+      return panelVisible.value
+        ? { width: 420, height: 640 }
+        : { width: 52, height: 52 }
+    }
+    const rect = el.getBoundingClientRect()
+    return { width: rect.width, height: rect.height }
+  }
+
+  function clampPosition(x: number, y: number) {
+    const { width, height } = getWidgetSize()
+    const maxX = Math.max(VIEWPORT_MARGIN, window.innerWidth - width - VIEWPORT_MARGIN)
+    const maxY = Math.max(VIEWPORT_MARGIN, window.innerHeight - height - VIEWPORT_MARGIN)
+    return {
+      x: Math.min(Math.max(x, VIEWPORT_MARGIN), maxX),
+      y: Math.min(Math.max(y, VIEWPORT_MARGIN), maxY)
+    }
+  }
+
+  function ensurePositionFromRect() {
+    const el = rootRef.value
+    if (!el || position.value) return
+    const rect = el.getBoundingClientRect()
+    position.value = clampPosition(rect.left, rect.top)
+  }
+
+  function beginDragTracking(clientX: number, clientY: number, pointerId: number) {
+    dragging.value = false
+    dragMoved = false
+    dragStartX = clientX
+    dragStartY = clientY
+    activePointerId = pointerId
+    window.addEventListener('pointermove', onPointerMove)
+    window.addEventListener('pointerup', onPointerUp)
+    window.addEventListener('pointercancel', onPointerUp)
+  }
+
+  function onPointerMove(event: PointerEvent) {
+    if (activePointerId !== event.pointerId) return
+
+    const dx = event.clientX - dragStartX
+    const dy = event.clientY - dragStartY
+
+    if (!dragging.value) {
+      if (Math.abs(dx) <= DRAG_THRESHOLD && Math.abs(dy) <= DRAG_THRESHOLD) return
+      ensurePositionFromRect()
+      if (!position.value) return
+      dragging.value = true
+      dragMoved = true
+      dragOriginX = position.value.x
+      dragOriginY = position.value.y
+      document.body.style.userSelect = 'none'
+    }
+
+    position.value = clampPosition(dragOriginX + dx, dragOriginY + dy)
+  }
+
+  function stopDrag() {
+    activePointerId = null
+    dragging.value = false
+    document.body.style.userSelect = ''
+    window.removeEventListener('pointermove', onPointerMove)
+    window.removeEventListener('pointerup', onPointerUp)
+    window.removeEventListener('pointercancel', onPointerUp)
+  }
+
+  function onPointerUp(event: PointerEvent) {
+    if (activePointerId !== event.pointerId) return
+    stopDrag()
+  }
+
+  function onTriggerPointerDown(event: PointerEvent) {
+    if (event.button !== 0 || panelVisible.value) return
+    beginDragTracking(event.clientX, event.clientY, event.pointerId)
+  }
+
+  function onHeaderPointerDown(event: PointerEvent) {
+    if (event.button !== 0 || !panelVisible.value) return
+    const target = event.target as HTMLElement
+    if (target.closest('.cluster-ai-float__icon-btn')) return
+    beginDragTracking(event.clientX, event.clientY, event.pointerId)
+  }
+
+  function onTriggerClick() {
+    if (dragMoved) return
+    openPanel()
+  }
+
+  function fitPositionToViewport() {
+    if (!position.value) return
+    position.value = clampPosition(position.value.x, position.value.y)
+  }
+
+  onMounted(() => {
+    localStorage.removeItem(LEGACY_POSITION_STORAGE_KEY)
+    void nextTick(() => fitPositionToViewport())
+    window.addEventListener('resize', fitPositionToViewport)
+  })
+
+  onBeforeUnmount(() => {
+    stopDrag()
+    window.removeEventListener('resize', fitPositionToViewport)
+  })
 
   let messageId = 0
   let traceId = 0
@@ -209,11 +352,15 @@
 
   function openPanel() {
     panelVisible.value = true
+    if (position.value) {
+      void nextTick(() => fitPositionToViewport())
+    }
     scrollToBottom()
   }
 
   function minimizePanel() {
     panelVisible.value = false
+    position.value = null
   }
 
   function startNewConversation() {
@@ -457,64 +604,95 @@
 
 <style scoped>
   .cluster-ai-float {
-    --ai-accent: var(--el-color-primary);
-    --ai-accent-soft: var(--el-color-primary-light-9);
-    --ai-accent-border: var(--el-color-primary-light-7);
-    --ai-panel-bg: var(--el-bg-color);
-    --ai-surface-bg: var(--el-fill-color-blank);
-    --ai-muted-bg: var(--el-fill-color-light);
-    --ai-shadow: 0 18px 48px rgb(15 23 42 / 16%);
+    --ai-brand: #1677ff;
+    --ai-brand-hover: #4096ff;
+    --ai-brand-active: #0958d9;
+    --ai-brand-soft: #e6f4ff;
+    --ai-brand-border: #91caff;
+    --ai-brand-shadow: rgb(22 119 255 / 18%);
+    --ai-panel-bg: #fff;
+    --ai-surface-bg: #fafafa;
+    --ai-muted-bg: #f5f7fa;
+    --ai-shadow: 0 8px 24px rgb(0 0 0 / 12%);
 
     position: fixed;
     right: 20px;
-    bottom: 20px;
+    bottom: 60px;
     z-index: 30;
+  }
+
+  .cluster-ai-float.is-dragging {
+    z-index: 40;
+  }
+
+  .cluster-ai-float.is-dragging .cluster-ai-float__trigger-inner,
+  .cluster-ai-float.is-dragging .cluster-ai-float__header {
+    cursor: grabbing;
   }
 
   .cluster-ai-float__trigger {
     position: relative;
     display: inline-flex;
-    width: 56px;
-    height: 56px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: grab;
+    touch-action: none;
+  }
+
+  .cluster-ai-float__trigger-inner {
+    display: inline-flex;
+    width: 52px;
+    height: 52px;
     align-items: center;
     justify-content: center;
-    border: none;
-    border-radius: 999px;
-    background: linear-gradient(135deg, var(--el-color-primary) 0%, #6c5ce7 100%);
-    color: #fff;
-    cursor: pointer;
-    box-shadow: 0 12px 30px rgb(79 140 255 / 28%);
+    border: 1px solid rgb(22 119 255 / 12%);
+    border-radius: 50%;
+    background: #fff;
+    color: var(--ai-brand);
+    box-shadow: 0 6px 20px var(--ai-brand-shadow);
+    transition:
+      transform 0.2s ease,
+      box-shadow 0.2s ease,
+      border-color 0.2s ease;
+  }
+
+  .cluster-ai-float__trigger:hover .cluster-ai-float__trigger-inner {
+    border-color: var(--ai-brand-border);
+    box-shadow: 0 8px 24px rgb(22 119 255 / 24%);
+    transform: translateY(-2px);
   }
 
   .cluster-ai-float__trigger-icon {
-    font-size: 24px;
+    font-size: 26px;
   }
 
   .cluster-ai-float__badge {
     position: absolute;
-    top: -4px;
-    right: -4px;
+    top: -2px;
+    right: -2px;
     min-width: 18px;
     height: 18px;
     padding: 0 5px;
+    border: 1px solid #fff;
     border-radius: 999px;
-    background: var(--el-bg-color);
-    color: var(--ai-accent);
+    background: var(--ai-brand);
+    color: #fff;
     font-size: 11px;
-    font-weight: 700;
-    line-height: 18px;
+    font-weight: 600;
+    line-height: 16px;
     text-align: center;
-    box-shadow: 0 6px 16px rgb(0 0 0 / 12%);
+    box-shadow: 0 2px 8px rgb(22 119 255 / 28%);
   }
 
   .cluster-ai-float__panel {
     display: flex;
-    width: min(460px, calc(100vw - 32px));
-    height: min(680px, calc(100vh - 80px));
+    width: min(420px, calc(100vw - 32px));
+    height: min(640px, calc(100vh - 80px));
     flex-direction: column;
     overflow: hidden;
-    border: 1px solid var(--el-border-color-lighter);
-    border-radius: 12px;
+    border: 1px solid #e8e8e8;
+    border-radius: 8px;
     background: var(--ai-panel-bg);
     box-shadow: var(--ai-shadow);
   }
@@ -523,21 +701,45 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 14px 16px;
-    border-bottom: 1px solid var(--el-border-color-lighter);
-    background: var(--ai-panel-bg);
+    padding: 12px 14px;
+    border-bottom: none;
+    background: linear-gradient(90deg, var(--ai-brand) 0%, var(--ai-brand-hover) 100%);
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+  }
+
+  .cluster-ai-float__header-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .cluster-ai-float__header-avatar {
+    display: inline-flex;
+    width: 28px;
+    height: 28px;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: rgb(255 255 255 / 18%);
+    color: #fff;
+    font-size: 16px;
   }
 
   .cluster-ai-float__title {
     font-size: 15px;
     font-weight: 600;
-    color: var(--el-text-color-primary);
+    color: #fff;
+    letter-spacing: 0.2px;
   }
 
   .cluster-ai-float__header-actions {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 2px;
   }
 
   .cluster-ai-float__icon-btn {
@@ -547,94 +749,98 @@
     align-items: center;
     justify-content: center;
     border: none;
-    border-radius: 6px;
+    border-radius: 4px;
     background: transparent;
-    color: var(--el-text-color-secondary);
+    color: rgb(255 255 255 / 88%);
     cursor: pointer;
+    transition:
+      background 0.2s ease,
+      color 0.2s ease;
   }
 
   .cluster-ai-float__icon-btn:hover {
-    background: var(--el-fill-color-light);
-    color: var(--el-text-color-primary);
+    background: rgb(255 255 255 / 16%);
+    color: #fff;
   }
 
   .cluster-ai-float__messages {
     min-height: 0;
     flex: 1;
     overflow: auto;
-    padding: 18px 16px;
-    background: linear-gradient(180deg, var(--ai-muted-bg) 0%, var(--ai-panel-bg) 100%);
+    padding: 16px;
+    background: var(--ai-muted-bg);
   }
 
   .cluster-ai-float__welcome {
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: 14px;
   }
 
   .cluster-ai-float__hero {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 12px;
+    padding: 14px 16px;
+    border: 1px solid #f0f0f0;
+    border-radius: 8px;
+    background: #fff;
   }
 
   .cluster-ai-float__hero-avatar {
     display: inline-flex;
-    width: 56px;
-    height: 56px;
+    width: 48px;
+    height: 48px;
     align-items: center;
     justify-content: center;
-    border-radius: 16px;
-    background: var(--ai-accent-soft);
-    color: var(--ai-accent);
-    font-size: 30px;
+    border-radius: 50%;
+    background: var(--ai-brand-soft);
+    color: var(--ai-brand);
+    font-size: 26px;
     flex: none;
   }
 
   .cluster-ai-float__hero-greeting {
-    font-size: 14px;
-    color: var(--el-text-color-regular);
+    font-size: 13px;
+    color: #8c8c8c;
   }
 
   .cluster-ai-float__hero-title {
     margin-top: 4px;
-    font-size: 24px;
-    font-weight: 700;
-    line-height: 1.2;
-    background: linear-gradient(90deg, var(--el-color-primary) 0%, #6c5ce7 100%);
-    background-clip: text;
-    -webkit-background-clip: text;
-    color: transparent;
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: #262626;
   }
 
   .cluster-ai-float__intro-card {
-    padding: 16px 18px;
-    border: 1px solid var(--ai-accent-border);
-    border-radius: 12px;
-    background: var(--ai-accent-soft);
+    padding: 14px 16px;
+    border: 1px solid var(--ai-brand-border);
+    border-radius: 8px;
+    background: var(--ai-brand-soft);
   }
 
   .cluster-ai-float__intro-icon {
-    font-size: 22px;
+    font-size: 18px;
     line-height: 1;
   }
 
   .cluster-ai-float__intro-title {
-    margin-top: 10px;
+    margin-top: 8px;
     font-size: 14px;
     font-weight: 600;
-    color: var(--el-text-color-primary);
+    color: #262626;
   }
 
   .cluster-ai-float__intro-desc {
-    margin-top: 8px;
+    margin-top: 6px;
     font-size: 12px;
     line-height: 1.7;
-    color: var(--el-text-color-secondary);
+    color: #595959;
   }
 
   .cluster-ai-float__intro-cluster {
-    color: var(--ai-accent);
+    color: var(--ai-brand);
     font-weight: 600;
   }
 
@@ -645,14 +851,14 @@
   .cluster-ai-float__message-role {
     margin-bottom: 4px;
     font-size: 12px;
-    font-weight: 600;
-    color: var(--el-text-color-secondary);
+    font-weight: 500;
+    color: #8c8c8c;
   }
 
   .cluster-ai-float__message-text {
-    margin: 8px 0 0;
+    margin: 0;
     padding: 10px 12px;
-    border-radius: 10px;
+    border-radius: 8px;
     font-size: 13px;
     line-height: 1.7;
     white-space: pre-wrap;
@@ -660,16 +866,15 @@
   }
 
   .cluster-ai-float__message--assistant .cluster-ai-float__message-text {
-    background: var(--ai-surface-bg);
-    border: 1px solid var(--el-border-color-lighter);
-    color: var(--el-text-color-primary);
+    background: #fff;
+    border: 1px solid #f0f0f0;
+    color: #262626;
   }
 
   .cluster-ai-float__message--user .cluster-ai-float__message-text {
-    margin-top: 0;
-    background: var(--ai-accent-soft);
-    border: 1px solid var(--ai-accent-border);
-    color: var(--el-text-color-primary);
+    background: var(--ai-brand-soft);
+    border: 1px solid var(--ai-brand-border);
+    color: #262626;
   }
 
   .cluster-ai-float__trace {
@@ -683,17 +888,21 @@
     padding: 0;
     border: none;
     background: transparent;
-    color: var(--el-text-color-secondary);
+    color: #8c8c8c;
     font-size: 12px;
     cursor: pointer;
+  }
+
+  .cluster-ai-float__trace-toggle:hover {
+    color: var(--ai-brand);
   }
 
   .cluster-ai-float__trace-count {
     min-width: 18px;
     padding: 0 6px;
-    border-radius: 999px;
-    background: var(--el-fill-color);
-    color: var(--el-text-color-regular);
+    border-radius: 10px;
+    background: #f0f0f0;
+    color: #595959;
     line-height: 18px;
     text-align: center;
   }
@@ -707,9 +916,9 @@
 
   .cluster-ai-float__trace-item {
     padding: 8px 10px;
-    border: 1px solid var(--el-border-color-lighter);
-    border-radius: 8px;
-    background: var(--ai-surface-bg);
+    border: 1px solid #f0f0f0;
+    border-radius: 6px;
+    background: #fff;
   }
 
   .cluster-ai-float__trace-head {
@@ -722,27 +931,27 @@
   .cluster-ai-float__trace-label {
     font-size: 12px;
     font-weight: 600;
-    color: var(--ai-accent);
+    color: var(--ai-brand);
   }
 
   .cluster-ai-float__trace-time {
     font-size: 12px;
-    color: var(--el-text-color-secondary);
+    color: #8c8c8c;
   }
 
   .cluster-ai-float__trace-message {
     margin-top: 4px;
     font-size: 12px;
     line-height: 1.6;
-    color: var(--el-text-color-primary);
+    color: #262626;
   }
 
   .cluster-ai-float__trace-detail {
     margin: 6px 0 0;
     padding: 8px 10px;
-    border-radius: 6px;
-    background: var(--el-fill-color-light);
-    color: var(--el-text-color-regular);
+    border-radius: 4px;
+    background: #fafafa;
+    color: #595959;
     font-size: 12px;
     line-height: 1.6;
     white-space: pre-wrap;
@@ -752,22 +961,22 @@
   .cluster-ai-float__typing {
     margin-top: 10px;
     font-size: 12px;
-    color: var(--ai-accent);
+    color: var(--ai-brand);
   }
 
   .cluster-ai-float__error {
     padding: 10px 16px 0;
     font-size: 12px;
-    color: var(--el-color-danger);
+    color: #ff4d4f;
   }
 
   .cluster-ai-float__composer {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    padding: 14px 16px 12px;
-    border-top: 1px solid var(--el-border-color-lighter);
-    background: var(--ai-panel-bg);
+    gap: 8px;
+    padding: 12px 14px 10px;
+    border-top: 1px solid #f0f0f0;
+    background: #fff;
   }
 
   .cluster-ai-float__input-wrap {
@@ -775,34 +984,48 @@
   }
 
   .cluster-ai-float__input-wrap :deep(.el-textarea__inner) {
-    min-height: 92px !important;
-    padding: 12px 52px 12px 14px;
-    border-radius: 12px;
+    min-height: 88px !important;
+    padding: 10px 48px 10px 12px;
+    border: 1px solid #d9d9d9;
+    border-radius: 6px;
     font-size: 13px;
     line-height: 1.6;
-    background: var(--ai-muted-bg);
-    color: var(--el-text-color-primary);
+    background: #fff;
+    color: #262626;
     box-shadow: none;
+    transition: border-color 0.2s ease;
+  }
+
+  .cluster-ai-float__input-wrap :deep(.el-textarea__inner:focus) {
+    border-color: var(--ai-brand);
+    box-shadow: 0 0 0 2px rgb(22 119 255 / 10%);
   }
 
   .cluster-ai-float__input-wrap :deep(.el-textarea__inner::placeholder) {
-    color: var(--el-text-color-placeholder);
+    color: #bfbfbf;
   }
 
   .cluster-ai-float__send-btn {
     position: absolute;
-    right: 10px;
-    bottom: 10px;
+    right: 8px;
+    bottom: 8px;
     display: inline-flex;
-    width: 34px;
-    height: 34px;
+    width: 32px;
+    height: 32px;
     align-items: center;
     justify-content: center;
     border: none;
-    border-radius: 999px;
-    background: linear-gradient(135deg, var(--el-color-primary) 0%, #6c5ce7 100%);
+    border-radius: 6px;
+    background: var(--ai-brand);
     color: #fff;
     cursor: pointer;
+    transition:
+      background 0.2s ease,
+      opacity 0.2s ease;
+  }
+
+  .cluster-ai-float__send-btn:hover:not(:disabled) {
+    background: var(--ai-brand-hover);
   }
 
   .cluster-ai-float__send-btn:disabled {
@@ -819,29 +1042,33 @@
   .cluster-ai-float__mode-group {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
+    padding: 2px;
+    border-radius: 6px;
+    background: #f5f5f5;
   }
 
   .cluster-ai-float__mode {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    height: 28px;
-    padding: 0 12px;
-    border-radius: 999px;
+    height: 26px;
+    padding: 0 10px;
+    border-radius: 4px;
     font-size: 12px;
-    line-height: 28px;
+    line-height: 26px;
   }
 
   .cluster-ai-float__mode.is-active {
-    background: var(--ai-accent-soft);
-    color: var(--ai-accent);
+    background: #fff;
+    color: var(--ai-brand);
     font-weight: 600;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 6%);
   }
 
   .cluster-ai-float__mode.is-disabled {
-    background: var(--el-fill-color);
-    color: var(--el-text-color-placeholder);
+    background: transparent;
+    color: #bfbfbf;
     cursor: not-allowed;
   }
 
@@ -852,30 +1079,82 @@
   .cluster-ai-float__disclaimer {
     font-size: 11px;
     line-height: 1.6;
-    color: var(--el-text-color-placeholder);
+    color: #bfbfbf;
     text-align: center;
   }
 
   :global(html.dark) .cluster-ai-float {
-    --ai-accent-soft: rgb(64 158 255 / 14%);
-    --ai-accent-border: rgb(64 158 255 / 24%);
-    --ai-shadow: 0 18px 48px rgb(0 0 0 / 42%);
+    --ai-brand: #4096ff;
+    --ai-brand-hover: #69b1ff;
+    --ai-brand-active: #1677ff;
+    --ai-brand-soft: rgb(22 119 255 / 12%);
+    --ai-brand-border: rgb(22 119 255 / 28%);
+    --ai-brand-shadow: rgb(0 0 0 / 32%);
+    --ai-panel-bg: var(--el-bg-color);
+    --ai-surface-bg: var(--el-fill-color-blank);
+    --ai-muted-bg: var(--el-fill-color-light);
+    --ai-shadow: 0 8px 24px rgb(0 0 0 / 36%);
+  }
+
+  :global(html.dark) .cluster-ai-float__trigger-inner {
+    border-color: rgb(64 150 255 / 24%);
+    background: var(--el-bg-color);
+    color: var(--ai-brand);
+  }
+
+  :global(html.dark) .cluster-ai-float__panel {
+    border-color: var(--el-border-color);
+  }
+
+  :global(html.dark) .cluster-ai-float__hero {
+    border-color: var(--el-border-color-lighter);
+    background: var(--el-bg-color);
   }
 
   :global(html.dark) .cluster-ai-float__hero-title {
-    background: linear-gradient(90deg, #79bbff 0%, #b197fc 100%);
-    background-clip: text;
-    -webkit-background-clip: text;
-    color: transparent;
+    color: var(--el-text-color-primary);
   }
 
-  :global(html.dark) .cluster-ai-float__intro-card {
-    background: rgb(64 158 255 / 10%);
-    border-color: rgb(64 158 255 / 22%);
+  :global(html.dark) .cluster-ai-float__hero-greeting,
+  :global(html.dark) .cluster-ai-float__intro-desc,
+  :global(html.dark) .cluster-ai-float__message-role,
+  :global(html.dark) .cluster-ai-float__trace-toggle,
+  :global(html.dark) .cluster-ai-float__trace-time {
+    color: var(--el-text-color-secondary);
   }
 
-  :global(html.dark) .cluster-ai-float__message--user .cluster-ai-float__message-text {
-    background: rgb(64 158 255 / 12%);
-    border-color: rgb(64 158 255 / 22%);
+  :global(html.dark) .cluster-ai-float__intro-title,
+  :global(html.dark) .cluster-ai-float__message-text,
+  :global(html.dark) .cluster-ai-float__trace-message {
+    color: var(--el-text-color-primary);
+  }
+
+  :global(html.dark) .cluster-ai-float__message--assistant .cluster-ai-float__message-text,
+  :global(html.dark) .cluster-ai-float__trace-item {
+    background: var(--el-bg-color);
+    border-color: var(--el-border-color-lighter);
+  }
+
+  :global(html.dark) .cluster-ai-float__composer {
+    border-top-color: var(--el-border-color-lighter);
+    background: var(--el-bg-color);
+  }
+
+  :global(html.dark) .cluster-ai-float__input-wrap :deep(.el-textarea__inner) {
+    border-color: var(--el-border-color);
+    background: var(--el-fill-color-blank);
+    color: var(--el-text-color-primary);
+  }
+
+  :global(html.dark) .cluster-ai-float__mode-group {
+    background: var(--el-fill-color);
+  }
+
+  :global(html.dark) .cluster-ai-float__mode.is-active {
+    background: var(--el-bg-color);
+  }
+
+  :global(html.dark) .cluster-ai-float__disclaimer {
+    color: var(--el-text-color-placeholder);
   }
 </style>
