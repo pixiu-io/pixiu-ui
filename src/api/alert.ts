@@ -4,7 +4,7 @@ export type AlertRuleType = 1 | 2 | 3
 export type AlertSeverity = 1 | 2 | 3 | 4
 export type AlertScopeType = 1 | 2 | 3 | 4
 export type AlertEventStatus = 1 | 2 | 3 | 4
-export type AlertChannelType = 1 | 2 | 3 | 4
+export type AlertChannelType = 1 | 2 | 3 | 4 | 5
 export type AlertNotificationStatus = 0 | 1 | 2
 
 export const AlertRuleTypeMap: Record<AlertRuleType, string> = {
@@ -44,7 +44,8 @@ export const AlertChannelTypeMap: Record<AlertChannelType, string> = {
   1: '邮件',
   2: '钉钉',
   3: '企业微信',
-  4: 'Webhook'
+  4: 'Webhook',
+  5: '飞书'
 }
 
 export const AlertNotificationStatusMap: Record<

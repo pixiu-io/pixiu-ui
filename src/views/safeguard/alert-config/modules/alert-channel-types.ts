@@ -1,4 +1,5 @@
 import type { AlertChannelType } from '@/api/alert'
+import feishuIcon from '@/assets/images/svg/feishu.svg'
 import wecomIcon from '@/assets/images/svg/wecom.svg'
 
 export interface AlertChannelTypeOption {
@@ -13,8 +14,9 @@ export interface AlertChannelTypeOption {
 export const alertChannelTypeOptions: AlertChannelTypeOption[] = [
   { value: 1, label: '邮件', icon: 'mdi:email-outline', color: '#409EFF', disabled: true },
   { value: 2, label: '钉钉', icon: 'ant-design:dingtalk-outlined', color: '#0089FF' },
-  { value: 3, label: '企业微信', image: wecomIcon, color: '#0082EF', disabled: true },
-  { value: 4, label: 'Webhook', icon: 'mdi:webhook', color: '#6366F1', disabled: true }
+  { value: 3, label: '企业微信', image: wecomIcon, color: '#0082EF' },
+  { value: 4, label: 'Webhook', icon: 'mdi:webhook', color: '#6366F1', disabled: true },
+  { value: 5, label: '飞书', image: feishuIcon, color: '#3370FF' }
 ]
 
 export function getAlertChannelTypeOption(type: AlertChannelType) {

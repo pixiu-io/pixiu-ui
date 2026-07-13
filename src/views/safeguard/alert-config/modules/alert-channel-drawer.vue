@@ -71,16 +71,31 @@
 
         <template v-if="formData.channelType === 2">
           <ElFormItem label="Webhook" prop="dingTalkWebhook">
-            <ElInput v-model="dingTalkConfig.webhookUrl" placeholder="钉钉机器人 Webhook URL" />
+            <ElInput v-model="formData.dingTalkWebhook" placeholder="钉钉机器人 Webhook URL" />
           </ElFormItem>
           <ElFormItem label="加签密钥" prop="dingTalkSecret">
-            <ElInput v-model="dingTalkConfig.secret" placeholder="请输入加签密钥" />
+            <ElInput v-model="formData.dingTalkSecret" placeholder="请输入加签密钥" />
+          </ElFormItem>
+        </template>
+
+        <template v-else-if="formData.channelType === 3">
+          <ElFormItem label="Webhook" prop="weComWebhook">
+            <ElInput v-model="formData.weComWebhook" placeholder="企业微信机器人 Webhook URL" />
+          </ElFormItem>
+        </template>
+
+        <template v-else-if="formData.channelType === 5">
+          <ElFormItem label="Webhook" prop="feishuWebhook">
+            <ElInput v-model="formData.feishuWebhook" placeholder="飞书机器人 Webhook URL" />
+          </ElFormItem>
+          <ElFormItem label="加签密钥" prop="feishuSecret">
+            <ElInput v-model="formData.feishuSecret" placeholder="请输入加签密钥" />
           </ElFormItem>
         </template>
 
         <template v-else-if="formData.channelType === 4">
           <ElFormItem label="回调地址" prop="webhookUrl">
-            <ElInput v-model="webhookConfig.url" placeholder="https://example.com/hook" />
+            <ElInput v-model="formData.webhookUrl" placeholder="https://example.com/hook" />
           </ElFormItem>
           <ElFormItem label="请求头">
             <ElInput
@@ -154,15 +169,23 @@
   const formRef = ref<FormInstance>()
   const resourceVersion = ref(0)
 
-  const formData = ref({
-    name: '',
-    description: '',
-    channelType: 2 as AlertChannelType,
-    enabled: true
-  })
+  function createDefaultFormData() {
+    return {
+      name: '',
+      description: '',
+      channelType: 2 as AlertChannelType,
+      enabled: true,
+      dingTalkWebhook: '',
+      dingTalkSecret: '',
+      weComWebhook: '',
+      webhookUrl: '',
+      feishuWebhook: '',
+      feishuSecret: ''
+    }
+  }
 
-  const dingTalkConfig = ref({ webhookUrl: '', secret: '' })
-  const webhookConfig = ref({ url: '' })
+  const formData = ref(createDefaultFormData())
+
   const webhookHeadersText = ref('{}')
   const rawConfigText = ref('{}')
 
@@ -170,22 +193,39 @@
     channelTypeOptions.find((item) => item.value === formData.value.channelType)
   )
 
-  const rules: FormRules = {
-    name: [{ required: true, message: '请输入渠道名称', trigger: 'blur' }],
-    channelType: [{ required: true, message: '请选择渠道类型', trigger: 'change' }],
-    dingTalkWebhook: [{ required: true, message: '请输入 Webhook URL', trigger: 'blur' }],
-    dingTalkSecret: [{ required: true, message: '请输入加签密钥', trigger: 'blur' }]
-  }
+  const rules = computed<FormRules>(() => {
+    const base: FormRules = {
+      name: [{ required: true, message: '请输入渠道名称', trigger: 'blur' }],
+      channelType: [{ required: true, message: '请选择渠道类型', trigger: 'change' }]
+    }
+    if (formData.value.channelType === 2) {
+      base.dingTalkWebhook = [{ required: true, message: '请输入 Webhook URL', trigger: 'blur' }]
+      base.dingTalkSecret = [{ required: true, message: '请输入加签密钥', trigger: 'blur' }]
+    } else if (formData.value.channelType === 3) {
+      base.weComWebhook = [{ required: true, message: '请输入 Webhook URL', trigger: 'blur' }]
+    } else if (formData.value.channelType === 4) {
+      base.webhookUrl = [{ required: true, message: '请输入回调地址', trigger: 'blur' }]
+    } else if (formData.value.channelType === 5) {
+      base.feishuWebhook = [{ required: true, message: '请输入 Webhook URL', trigger: 'blur' }]
+      base.feishuSecret = [{ required: true, message: '请输入加签密钥', trigger: 'blur' }]
+    }
+    return base
+  })
 
   function closeDrawer() {
     visible.value = false
   }
 
   function onChannelTypeChange() {
-    dingTalkConfig.value = { webhookUrl: '', secret: '' }
-    webhookConfig.value = { url: '' }
+    formData.value.dingTalkWebhook = ''
+    formData.value.dingTalkSecret = ''
+    formData.value.weComWebhook = ''
+    formData.value.webhookUrl = ''
+    formData.value.feishuWebhook = ''
+    formData.value.feishuSecret = ''
     webhookHeadersText.value = '{}'
     rawConfigText.value = '{}'
+    formRef.value?.clearValidate()
   }
 
   function parseConfig(channelType: AlertChannelType, config: string) {
@@ -194,13 +234,16 @@
     try {
       const parsed = JSON.parse(config)
       if (channelType === 2) {
-        dingTalkConfig.value = {
-          webhookUrl: parsed.webhook_url ?? '',
-          secret: parsed.secret ?? ''
-        }
+        formData.value.dingTalkWebhook = parsed.webhook_url ?? ''
+        formData.value.dingTalkSecret = parsed.secret ?? ''
+      } else if (channelType === 3) {
+        formData.value.weComWebhook = parsed.webhook_url ?? ''
       } else if (channelType === 4) {
-        webhookConfig.value = { url: parsed.url ?? '' }
+        formData.value.webhookUrl = parsed.url ?? ''
         webhookHeadersText.value = JSON.stringify(parsed.headers ?? {}, null, 2)
+      } else if (channelType === 5) {
+        formData.value.feishuWebhook = parsed.webhook_url ?? ''
+        formData.value.feishuSecret = parsed.secret ?? ''
       } else {
         rawConfigText.value = JSON.stringify(parsed, null, 2)
       }
@@ -212,8 +255,19 @@
   function buildConfigPayload(): string {
     if (formData.value.channelType === 2) {
       return JSON.stringify({
-        webhook_url: dingTalkConfig.value.webhookUrl,
-        secret: dingTalkConfig.value.secret
+        webhook_url: formData.value.dingTalkWebhook,
+        secret: formData.value.dingTalkSecret
+      })
+    }
+    if (formData.value.channelType === 3) {
+      return JSON.stringify({
+        webhook_url: formData.value.weComWebhook
+      })
+    }
+    if (formData.value.channelType === 5) {
+      return JSON.stringify({
+        webhook_url: formData.value.feishuWebhook,
+        secret: formData.value.feishuSecret
       })
     }
     if (formData.value.channelType === 4) {
@@ -224,7 +278,7 @@
         throw new Error('请求头必须是合法 JSON')
       }
       return JSON.stringify({
-        url: webhookConfig.value.url,
+        url: formData.value.webhookUrl,
         headers
       })
     }
@@ -245,7 +299,13 @@
         name: detail.name,
         description: detail.description,
         channelType: detail.channelType,
-        enabled: detail.enabled
+        enabled: detail.enabled,
+        dingTalkWebhook: '',
+        dingTalkSecret: '',
+        weComWebhook: '',
+        webhookUrl: '',
+        feishuWebhook: '',
+        feishuSecret: ''
       }
       parseConfig(detail.channelType, detail.config)
     } catch (error) {
@@ -264,7 +324,7 @@
         await loadDetail()
       } else {
         resourceVersion.value = 0
-        formData.value = { name: '', description: '', channelType: 2, enabled: true }
+        formData.value = createDefaultFormData()
         onChannelTypeChange()
       }
       formRef.value?.clearValidate()
