@@ -345,14 +345,11 @@
         {
           prop: 'enabled',
           label: '状态',
-          width: 72,
-          align: 'center',
+          width: 100,
           formatter: (row: AlertRuleItem) =>
-            h(ElSwitch, {
-              modelValue: row.enabled,
-              size: 'small',
-              onChange: (value) => toggleRuleEnabled(row, Boolean(value))
-            })
+            h(ElTag, { size: 'small', type: row.enabled ? 'success' : 'info' }, () =>
+              row.enabled ? '启用' : '停用'
+            )
         },
         {
           prop: 'ruleType',
@@ -383,6 +380,18 @@
           width: 96,
           formatter: (row: AlertRuleItem) =>
             h('span', { style: { fontSize: '12px' } }, `${row.evalInterval}s`)
+        },
+        {
+          prop: 'enabledSwitch',
+          label: '启用',
+          width: 72,
+          align: 'center',
+          formatter: (row: AlertRuleItem) =>
+            h(ElSwitch, {
+              modelValue: row.enabled,
+              size: 'small',
+              onChange: (value) => toggleRuleEnabled(row, Boolean(value))
+            })
         },
         {
           prop: 'gmtCreate',

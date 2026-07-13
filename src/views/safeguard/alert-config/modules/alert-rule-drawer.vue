@@ -71,6 +71,7 @@
             filterable
             collapse-tags
             collapse-tags-tooltip
+            :max-collapse-tags="5"
             class="w-full"
             placeholder="选择已配置的通知渠道"
           >
@@ -81,7 +82,7 @@
           <ElInput v-model="formData.notifyTemplate" type="textarea" :rows="3" placeholder="可选" />
         </ElFormItem>
         <ElFormItem label="描述">
-          <ElInput v-model="formData.description" type="textarea" :rows="2" placeholder="可选" />
+          <ElInput v-model="formData.description" type="textarea" :rows="4" placeholder="可选" />
         </ElFormItem>
         <ElFormItem label="启用">
           <ElSwitch v-model="formData.enabled" />
@@ -101,7 +102,8 @@
 <script setup lang="ts">
   import { Close } from '@element-plus/icons-vue'
   import { computed, ref, watch } from 'vue'
-  import { ElIcon, ElMessage, type FormInstance, type FormRules } from 'element-plus'
+  import {
+    ElIcon, ElMessage, type FormInstance, type FormRules } from 'element-plus'
   import {
     AlertRuleTypeMap,
     AlertScopeTypeMap,
