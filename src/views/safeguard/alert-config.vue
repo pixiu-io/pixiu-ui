@@ -226,6 +226,7 @@
 
 <script setup lang="ts">
   import { computed, h, ref } from 'vue'
+  import { useRoute, useRouter } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
   import {
     ElAlert,
@@ -268,6 +269,7 @@
   import { PixiuApiError } from '@/api/container'
   import AlertRuleDrawer from './alert-config/modules/alert-rule-drawer.vue'
   import AlertChannelDrawer from './alert-config/modules/alert-channel-drawer.vue'
+  import AlertChannelTypeIcon from './alert-config/modules/alert-channel-type-icon.vue'
   import AlertSilenceDrawer from './alert-config/modules/alert-silence-drawer.vue'
   import AlertEventStatusDialog from './alert-config/modules/alert-event-status-dialog.vue'
 
@@ -275,7 +277,16 @@
 
   type AlertTab = 'rules' | 'channels' | 'silences' | 'events' | 'notifications'
 
-  const activeTab = ref<AlertTab>('rules')
+  const route = useRoute()
+  const router = useRouter()
+
+  const validTabs: AlertTab[] = ['rules', 'channels', 'silences', 'events', 'notifications']
+  const tabFromQuery = route.query.tab as string | undefined
+  const initialTab: AlertTab = validTabs.includes(tabFromQuery as AlertTab)
+    ? (tabFromQuery as AlertTab)
+    : 'rules'
+
+  const activeTab = ref<AlertTab>(initialTab)
   const descriptionAlertVisible = ref(true)
   const tablePaginationOptions = { align: 'right' as const, hideOnEmpty: false }
 
@@ -458,8 +469,12 @@
         {
           prop: 'name',
           label: '名称',
-          minWidth: 160,
-          formatter: (row: AlertChannelItem) => h('span', { style: { fontSize: '12px' } }, row.name)
+          minWidth: 180,
+          formatter: (row: AlertChannelItem) =>
+            h('div', { class: 'alert-channel-name-cell' }, [
+              h(AlertChannelTypeIcon, { channelType: row.channelType, size: 20 }),
+              h('span', { class: 'alert-channel-name-cell__text' }, row.name)
+            ])
         },
         {
           prop: 'enabled',
@@ -830,6 +845,7 @@
 
   function handleTabChange(name: string | number) {
     activeTab.value = name as AlertTab
+    router.replace({ query: { ...route.query, tab: name } })
   }
 
   function handleCreate() {
@@ -901,6 +917,30 @@
   .alert-config-page :deep(.alert-tabs .el-tabs__header) {
     margin: 0 0 4px;
     flex-shrink: 0;
+  }
+
+  .alert-config-page :deep(.alert-tabs .el-tabs__nav-wrap::after) {
+    height: 1px;
+    background-color: var(--el-border-color-lighter);
+  }
+
+  .alert-config-page :deep(.alert-tabs .el-tabs__item) {
+    height: 40px;
+    line-height: 40px;
+    padding: 0 18px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--el-text-color-regular);
+  }
+
+  .alert-config-page :deep(.alert-tabs .el-tabs__item.is-active) {
+    color: var(--el-color-primary);
+    font-weight: 600;
+  }
+
+  .alert-config-page :deep(.alert-tabs .el-tabs__active-bar) {
+    height: 2px;
+    border-radius: 2px 2px 0 0;
   }
 
   .alert-config-page :deep(.alert-tabs .el-tabs__content) {
@@ -981,5 +1021,19 @@
 
   .quota-alert {
     flex-shrink: 0;
+  }
+
+  .alert-config-page :deep(.alert-channel-name-cell) {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .alert-config-page :deep(.alert-channel-name-cell__text) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 </style>

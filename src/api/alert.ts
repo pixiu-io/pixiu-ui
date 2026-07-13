@@ -404,6 +404,10 @@ export async function fetchDeleteAlertChannel(id: number): Promise<void> {
   await request(pixiuAxios.delete(`/pixiu/alerts/channels/${id}`), '删除通知渠道失败')
 }
 
+export async function fetchPingAlertChannel(payload: Record<string, unknown>): Promise<void> {
+  await request(pixiuAxios.post('/pixiu/alerts/channels/ping', payload), '连通性测试失败')
+}
+
 // ---------- Silences ----------
 
 export async function fetchGetAlertSilenceList(params: AlertListParams = {}): Promise<AlertListResult<AlertSilenceItem>> {

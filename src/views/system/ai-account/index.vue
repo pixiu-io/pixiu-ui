@@ -109,6 +109,15 @@
           formatter: (row) => h('span', { style: { fontSize: '12px' } }, row.provider || '-')
         },
         {
+          prop: 'enabled',
+          label: '状态',
+          width: 100,
+          formatter: (row) =>
+            h(ElTag, { size: 'small', type: row.enabled ? 'success' : 'info' }, () =>
+              row.enabled ? '启用' : '停用'
+            )
+        },
+        {
           prop: 'model',
           label: '模型',
           minWidth: 160,
@@ -123,13 +132,15 @@
           formatter: (row) => h('span', { style: { fontSize: '12px' } }, row.baseUrl || '-')
         },
         {
-          prop: 'enabled',
-          label: '状态',
+          prop: 'toggleEnabled',
+          label: '启用',
           width: 100,
           formatter: (row) =>
-            h(ElTag, { size: 'small', type: row.enabled ? 'success' : 'info' }, () =>
-              row.enabled ? '启用' : '停用'
-            )
+            h(ElSwitch, {
+              modelValue: row.enabled,
+              size: 'small',
+              onChange: (value) => toggleEnabled(row, Boolean(value))
+            })
         },
         {
           prop: 'description',
@@ -139,24 +150,19 @@
           formatter: (row) => h('span', { style: { fontSize: '12px' } }, row.description || '-')
         },
         {
-          prop: 'updateTime',
-          label: '更新时间',
+          prop: 'createTime',
+          label: '创建时间',
           width: 170,
           showOverflowTooltip: true,
-          formatter: (row) => h('span', { style: { fontSize: '12px' } }, row.updateTime || '')
+          formatter: (row) => h('span', { style: { fontSize: '12px' } }, row.createTime || '')
         },
         {
           prop: 'operation',
           label: '操作',
-          width: 180,
+          width: 140,
           fixed: 'right',
           formatter: (row) =>
             h('div', { style: 'display:flex;align-items:center;gap:10px;flex-wrap:nowrap' }, [
-              h(ElSwitch, {
-                modelValue: row.enabled,
-                size: 'small',
-                onChange: (value) => toggleEnabled(row, Boolean(value))
-              }),
               h(
                 ElLink,
                 {

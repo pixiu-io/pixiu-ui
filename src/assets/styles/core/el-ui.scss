@@ -564,6 +564,50 @@ textarea::placeholder,
   margin: -3px 0 0 2px;
 }
 
+.el-table th.el-table__cell > .cell {
+  font-size: 13px;
+}
+
+// 全局开关统一小尺寸
+.el-switch:not(.el-switch--large):not(.el-switch--small) {
+  height: 24px;
+  line-height: 16px;
+  font-size: 12px;
+
+  .el-switch__label {
+    height: 16px;
+    font-size: 12px;
+
+    * {
+      font-size: 12px;
+    }
+  }
+
+  .el-switch__core {
+    min-width: 30px !important;
+    height: 16px;
+    border-radius: 8px;
+
+    .el-switch__inner {
+      height: 12px;
+      padding: 0 2px 0 14px;
+    }
+
+    .el-switch__action {
+      width: 12px;
+      height: 12px;
+    }
+  }
+
+  &.is-checked .el-switch__core .el-switch__action {
+    left: calc(100% - 13px);
+  }
+
+  &.is-checked .el-switch__core .el-switch__inner {
+    padding: 0 14px 0 2px;
+  }
+}
+
 // 去除 el-dropdown 鼠标放上去出现的边框
 .el-tooltip__trigger:focus-visible {
   outline: unset;

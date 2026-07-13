@@ -189,13 +189,11 @@
               )
             }
             return h('div', { class: 'datasource-name-cell' }, [
-              h('div', { class: 'datasource-name-cell__logo' }, [
-                h(ArtSvgIcon, {
-                  icon: iconMeta.icon,
-                  class: 'datasource-name-cell__logo-icon',
-                  style: { color: iconMeta.color }
-                })
-              ]),
+              h(ArtSvgIcon, {
+                icon: iconMeta.icon,
+                class: 'datasource-name-cell__logo-icon',
+                style: { color: iconMeta.color }
+              }),
               h('div', { class: 'datasource-name-cell__info' }, [
                 h('div', { class: 'datasource-name-cell__title' }, titleChildren),
                 h('div', { class: 'datasource-name-cell__meta' }, [
@@ -356,26 +354,18 @@
   .datasource-page :deep(.datasource-name-cell) {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     min-width: 0;
-    padding: 4px 0;
-  }
-
-  .datasource-page :deep(.datasource-name-cell__logo) {
-    display: flex;
-    flex-shrink: 0;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    border-radius: 6px;
-    background: var(--el-fill-color-light);
   }
 
   .datasource-page :deep(.datasource-name-cell__logo-icon) {
-    width: 22px;
-    height: 22px;
-    font-size: 22px;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 25px;
+    height: 25px;
+    font-size: 25px;
   }
 
   .datasource-page :deep(.datasource-name-cell__info) {

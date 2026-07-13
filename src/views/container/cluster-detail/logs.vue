@@ -1598,17 +1598,6 @@
       return getExternalProxyHeaders()
     }
 
-    const datasource = selectedDatasource.value
-    const username =
-      datasource?.config.log?.userName?.trim() ||
-      datasource?.config.alert?.userName?.trim() ||
-      ''
-    const password =
-      datasource?.config.log?.password ?? datasource?.config.alert?.password ?? ''
-    if (!username && !password) {
-      return {}
-    }
-
     const datasourceId = selectedDatasourceId.value
     if (!datasourceId) {
       return {}

@@ -2,7 +2,7 @@
   <div
     ref="rootRef"
     class="cluster-ai-float"
-    :class="{ 'is-dragging': dragging }"
+    :class="{ 'is-dragging': dragging, 'is-maximized': isMaximized }"
     :style="containerStyle"
   >
     <button
@@ -19,7 +19,15 @@
       <span v-if="messages.length" class="cluster-ai-float__badge">{{ messages.length }}</span>
     </button>
 
-    <div v-else class="cluster-ai-float__panel">
+    <div
+      v-else
+      class="cluster-ai-float__panel"
+      :class="{ 'is-maximized': isMaximized, 'is-resizing': resizing }"
+      :style="panelStyle"
+      @pointermove="onPanelPointerMove"
+      @pointerleave="onPanelPointerLeave"
+      @pointerdown="onEdgePointerDown"
+    >
       <div class="cluster-ai-float__header" @pointerdown="onHeaderPointerDown">
         <div class="cluster-ai-float__header-brand">
           <span class="cluster-ai-float__header-avatar">
@@ -36,10 +44,30 @@
           >
             <ElIcon :size="16"><Plus /></ElIcon>
           </button>
-          <button type="button" class="cluster-ai-float__icon-btn" title="最小化" @click="minimizePanel">
+          <button
+            type="button"
+            class="cluster-ai-float__icon-btn"
+            :title="isMaximized ? '还原' : '最大化'"
+            @click="toggleMaximize"
+          >
+            <ElIcon :size="16" :class="{ 'is-rotated': isMaximized }">
+              <FullScreen />
+            </ElIcon>
+          </button>
+          <button
+            type="button"
+            class="cluster-ai-float__icon-btn"
+            title="最小化"
+            @click="minimizePanel"
+          >
             <ElIcon :size="16"><Minus /></ElIcon>
           </button>
-          <button type="button" class="cluster-ai-float__icon-btn" title="关闭" @click="minimizePanel">
+          <button
+            type="button"
+            class="cluster-ai-float__icon-btn"
+            title="关闭"
+            @click="minimizePanel"
+          >
             <ElIcon :size="16"><Close /></ElIcon>
           </button>
         </div>
@@ -67,6 +95,17 @@
               </span>
               。你可以直接提问 Pod 异常、资源状态、事件日志等问题。
             </div>
+          </div>
+
+          <div v-if="providerChecked && !hasProvider" class="cluster-ai-float__provider-hint">
+            <ElIcon :size="16"><WarningFilled /></ElIcon>
+            <span>
+              未接入 AI Provider，点击
+              <router-link to="/ai/ai-account" class="cluster-ai-float__provider-link"
+                >添加</router-link
+              >
+              AI供应商后才能使用
+            </span>
           </div>
         </div>
 
@@ -115,7 +154,9 @@
               </div>
             </div>
 
-            <pre v-if="item.text.trim()" class="cluster-ai-float__message-text">{{ item.text }}</pre>
+            <pre v-if="item.text.trim()" class="cluster-ai-float__message-text">{{
+              item.text
+            }}</pre>
           </div>
 
           <div v-if="loading" class="cluster-ai-float__typing">Pixiu 正在回复...</div>
@@ -159,6 +200,7 @@
           内容由 AI 生成，仅供参考，您据此所作判断及操作均由您自行承担责任。
         </div>
       </div>
+
     </div>
   </div>
 </template>
@@ -169,12 +211,15 @@
     ArrowDown,
     ArrowRight,
     Close,
+    FullScreen,
     Minus,
     Plus,
-    Promotion
+    Promotion,
+    WarningFilled
   } from '@element-plus/icons-vue'
   import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
   import { respondAIStream, type AIStreamEvent } from '@/api/ai'
+  import { fetchGetAIAccountList } from '@/api/ai-account'
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
 
   interface TraceItem {
@@ -206,8 +251,13 @@
   const messages = ref<MessageItem[]>([])
   const messageBodyRef = ref<HTMLElement | null>(null)
   const rootRef = ref<HTMLElement | null>(null)
+  const providerChecked = ref(false)
+  const hasProvider = ref(false)
+  const isMaximized = ref(false)
+  const panelSize = ref<{ width: number; height: number } | null>(null)
 
   const VIEWPORT_MARGIN = 12
+  const TOP_OFFSET = 64
   const DRAG_THRESHOLD = 4
   const LEGACY_POSITION_STORAGE_KEY = 'pixiu-ai-float-position'
 
@@ -221,6 +271,7 @@
   let activePointerId: number | null = null
 
   const containerStyle = computed(() => {
+    if (isMaximized.value) return undefined
     if (!position.value) return undefined
     return {
       left: `${position.value.x}px`,
@@ -230,12 +281,26 @@
     }
   })
 
+  const panelStyle = computed(() => {
+    const base: Record<string, string> = {}
+    if (panelSize.value && !isMaximized.value) {
+      base.width = `${panelSize.value.width}px`
+      base.height = `${panelSize.value.height}px`
+    }
+    if (hoveredEdge.value) {
+      base.cursor = resizeCursorMap[hoveredEdge.value]
+    }
+    return Object.keys(base).length ? base : undefined
+  })
+
   function getWidgetSize() {
+    if (isMaximized.value) {
+      return { width: window.innerWidth, height: window.innerHeight }
+    }
     const el = rootRef.value
     if (!el) {
-      return panelVisible.value
-        ? { width: 420, height: 640 }
-        : { width: 52, height: 52 }
+      if (panelSize.value) return panelSize.value
+      return panelVisible.value ? { width: 420, height: 540 } : { width: 52, height: 52 }
     }
     const rect = el.getBoundingClientRect()
     return { width: rect.width, height: rect.height }
@@ -244,10 +309,10 @@
   function clampPosition(x: number, y: number) {
     const { width, height } = getWidgetSize()
     const maxX = Math.max(VIEWPORT_MARGIN, window.innerWidth - width - VIEWPORT_MARGIN)
-    const maxY = Math.max(VIEWPORT_MARGIN, window.innerHeight - height - VIEWPORT_MARGIN)
+    const maxY = Math.max(TOP_OFFSET, window.innerHeight - height - VIEWPORT_MARGIN)
     return {
       x: Math.min(Math.max(x, VIEWPORT_MARGIN), maxX),
-      y: Math.min(Math.max(y, VIEWPORT_MARGIN), maxY)
+      y: Math.min(Math.max(y, TOP_OFFSET), maxY)
     }
   }
 
@@ -308,10 +373,141 @@
     beginDragTracking(event.clientX, event.clientY, event.pointerId)
   }
 
+  // --- edge resize ---
+  const RESIZE_EDGE = 8
+  type ResizeEdge = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw'
+  const resizing = ref(false)
+  const hoveredEdge = ref<ResizeEdge | null>(null)
+  const MIN_PANEL_WIDTH = 320
+  const MIN_PANEL_HEIGHT = 380
+  let resizeEdge: ResizeEdge | null = null
+  let resizeStartWidth = 0
+  let resizeStartHeight = 0
+  let resizeStartX = 0
+  let resizeStartY = 0
+  let resizeStartLeft = 0
+  let resizeStartTop = 0
+
+  const resizeCursorMap: Record<ResizeEdge, string> = {
+    n: 'ns-resize',
+    s: 'ns-resize',
+    e: 'ew-resize',
+    w: 'ew-resize',
+    ne: 'nesw-resize',
+    sw: 'nesw-resize',
+    nw: 'nwse-resize',
+    se: 'nwse-resize'
+  }
+
+  function getPanelRect() {
+    const el = rootRef.value?.querySelector('.cluster-ai-float__panel') as HTMLElement | null
+    if (!el) return null
+    return el.getBoundingClientRect()
+  }
+
+  function detectEdge(clientX: number, clientY: number): ResizeEdge | null {
+    const rect = getPanelRect()
+    if (!rect) return null
+    const onTop = clientY - rect.top <= RESIZE_EDGE
+    const onBottom = rect.bottom - clientY <= RESIZE_EDGE
+    const onLeft = clientX - rect.left <= RESIZE_EDGE
+    const onRight = rect.right - clientX <= RESIZE_EDGE
+
+    if (onTop && onLeft) return 'nw'
+    if (onTop && onRight) return 'ne'
+    if (onBottom && onLeft) return 'sw'
+    if (onBottom && onRight) return 'se'
+    if (onTop) return 'n'
+    if (onBottom) return 's'
+    if (onLeft) return 'w'
+    if (onRight) return 'e'
+    return null
+  }
+
+  function onPanelPointerMove(event: PointerEvent) {
+    if (resizing.value || isMaximized.value) return
+    hoveredEdge.value = detectEdge(event.clientX, event.clientY)
+  }
+
+  function onPanelPointerLeave() {
+    if (!resizing.value) {
+      hoveredEdge.value = null
+    }
+  }
+
+  function onEdgePointerDown(event: PointerEvent) {
+    if (event.button !== 0 || !hoveredEdge.value || isMaximized.value) return
+    event.preventDefault()
+    event.stopPropagation()
+
+    const rect = getPanelRect()
+    if (!rect) return
+
+    resizeEdge = hoveredEdge.value
+    resizeStartWidth = rect.width
+    resizeStartHeight = rect.height
+    resizeStartX = event.clientX
+    resizeStartY = event.clientY
+    resizeStartLeft = rect.left
+    resizeStartTop = rect.top
+    position.value = { x: rect.left, y: rect.top }
+    resizing.value = true
+    document.body.style.userSelect = 'none'
+
+    const panel = rootRef.value?.querySelector('.cluster-ai-float__panel') as HTMLElement | null
+    if (panel) {
+      panel.setPointerCapture(event.pointerId)
+      panel.addEventListener('pointermove', onResizePointerMove)
+      panel.addEventListener('pointerup', onResizePointerUp)
+      panel.addEventListener('pointercancel', onResizePointerUp)
+    }
+  }
+
+  function onResizePointerMove(event: PointerEvent) {
+    if (!resizing.value || !resizeEdge) return
+    const dx = event.clientX - resizeStartX
+    const dy = event.clientY - resizeStartY
+
+    let newWidth = resizeStartWidth
+    let newHeight = resizeStartHeight
+
+    if (resizeEdge.includes('e')) newWidth = resizeStartWidth + dx
+    if (resizeEdge.includes('w')) newWidth = resizeStartWidth - dx
+    if (resizeEdge.includes('s')) newHeight = resizeStartHeight + dy
+    if (resizeEdge.includes('n')) newHeight = resizeStartHeight - dy
+
+    newWidth = Math.max(MIN_PANEL_WIDTH, Math.min(newWidth, window.innerWidth - 32))
+    newHeight = Math.max(MIN_PANEL_HEIGHT, Math.min(newHeight, window.innerHeight - 40))
+
+    panelSize.value = { width: newWidth, height: newHeight }
+
+    if (resizeEdge.includes('w')) {
+      position.value = { x: resizeStartLeft + (resizeStartWidth - newWidth), y: resizeStartTop }
+    }
+    if (resizeEdge.includes('n')) {
+      position.value = {
+        x: resizeEdge.includes('w') ? resizeStartLeft + (resizeStartWidth - newWidth) : resizeStartLeft,
+        y: resizeStartTop + (resizeStartHeight - newHeight)
+      }
+    }
+  }
+
+  function onResizePointerUp() {
+    resizing.value = false
+    resizeEdge = null
+    hoveredEdge.value = null
+    document.body.style.userSelect = ''
+    const panel = rootRef.value?.querySelector('.cluster-ai-float__panel') as HTMLElement | null
+    panel?.removeEventListener('pointermove', onResizePointerMove)
+    panel?.removeEventListener('pointerup', onResizePointerUp)
+    panel?.removeEventListener('pointercancel', onResizePointerUp)
+  }
+
   function onHeaderPointerDown(event: PointerEvent) {
-    if (event.button !== 0 || !panelVisible.value) return
+    if (event.button !== 0 || !panelVisible.value || isMaximized.value) return
     const target = event.target as HTMLElement
     if (target.closest('.cluster-ai-float__icon-btn')) return
+    if (hoveredEdge.value) return
     beginDragTracking(event.clientX, event.clientY, event.pointerId)
   }
 
@@ -325,15 +521,24 @@
     position.value = clampPosition(position.value.x, position.value.y)
   }
 
+  function handleKeydown(event: KeyboardEvent) {
+    if (event.key === 'Escape' && isMaximized.value) {
+      toggleMaximize()
+    }
+  }
+
   onMounted(() => {
     localStorage.removeItem(LEGACY_POSITION_STORAGE_KEY)
     void nextTick(() => fitPositionToViewport())
     window.addEventListener('resize', fitPositionToViewport)
+    window.addEventListener('keydown', handleKeydown)
   })
 
   onBeforeUnmount(() => {
     stopDrag()
+    onResizePointerUp()
     window.removeEventListener('resize', fitPositionToViewport)
+    window.removeEventListener('keydown', handleKeydown)
   })
 
   let messageId = 0
@@ -341,7 +546,9 @@
   let streamingAssistantId: number | null = null
   let abortController: AbortController | null = null
 
-  const canSend = computed(() => !!props.clusterName && !!inputText.value.trim() && !loading.value)
+  const canSend = computed(
+    () => !!props.clusterName && !!inputText.value.trim() && !loading.value && hasProvider.value
+  )
 
   watch(
     () => props.clusterName,
@@ -356,6 +563,18 @@
       void nextTick(() => fitPositionToViewport())
     }
     scrollToBottom()
+    checkProvider()
+  }
+
+  async function checkProvider() {
+    try {
+      const { total } = await fetchGetAIAccountList({ enabled: true, current: 1, size: 1 })
+      hasProvider.value = total > 0
+    } catch {
+      hasProvider.value = false
+    } finally {
+      providerChecked.value = true
+    }
   }
 
   function minimizePanel() {
@@ -365,6 +584,16 @@
 
   function startNewConversation() {
     resetConversation()
+  }
+
+  function toggleMaximize() {
+    isMaximized.value = !isMaximized.value
+    if (isMaximized.value) {
+      position.value = null
+    } else {
+      panelSize.value = null
+    }
+    void nextTick(() => fitPositionToViewport())
   }
 
   function resetConversation() {
@@ -621,6 +850,14 @@
     z-index: 30;
   }
 
+  .cluster-ai-float.is-maximized {
+    top: 0;
+    left: 0;
+    right: auto;
+    bottom: auto;
+    z-index: 1000;
+  }
+
   .cluster-ai-float.is-dragging {
     z-index: 40;
   }
@@ -688,13 +925,25 @@
   .cluster-ai-float__panel {
     display: flex;
     width: min(420px, calc(100vw - 32px));
-    height: min(640px, calc(100vh - 80px));
+    height: min(540px, calc(100vh - 100px));
     flex-direction: column;
     overflow: hidden;
     border: 1px solid #e8e8e8;
     border-radius: 8px;
     background: var(--ai-panel-bg);
     box-shadow: var(--ai-shadow);
+  }
+
+  .cluster-ai-float__panel.is-maximized {
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+    border: none;
+  }
+
+  .cluster-ai-float__panel.is-resizing {
+    transition: none;
+    user-select: none;
   }
 
   .cluster-ai-float__header {
@@ -763,25 +1012,29 @@
     color: #fff;
   }
 
+  .cluster-ai-float__icon-btn .is-rotated {
+    transform: rotate(180deg);
+  }
+
   .cluster-ai-float__messages {
     min-height: 0;
     flex: 1;
     overflow: auto;
-    padding: 16px;
+    padding: 12px 14px;
     background: var(--ai-muted-bg);
   }
 
   .cluster-ai-float__welcome {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 10px;
   }
 
   .cluster-ai-float__hero {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 14px 16px;
+    gap: 10px;
+    padding: 10px 14px;
     border: 1px solid #f0f0f0;
     border-radius: 8px;
     background: #fff;
@@ -789,45 +1042,45 @@
 
   .cluster-ai-float__hero-avatar {
     display: inline-flex;
-    width: 48px;
-    height: 48px;
+    width: 40px;
+    height: 40px;
     align-items: center;
     justify-content: center;
     border-radius: 50%;
     background: var(--ai-brand-soft);
     color: var(--ai-brand);
-    font-size: 26px;
+    font-size: 22px;
     flex: none;
   }
 
   .cluster-ai-float__hero-greeting {
-    font-size: 13px;
+    font-size: 12px;
     color: #8c8c8c;
   }
 
   .cluster-ai-float__hero-title {
-    margin-top: 4px;
-    font-size: 20px;
+    margin-top: 2px;
+    font-size: 18px;
     font-weight: 600;
     line-height: 1.3;
     color: #262626;
   }
 
   .cluster-ai-float__intro-card {
-    padding: 14px 16px;
+    padding: 10px 14px;
     border: 1px solid var(--ai-brand-border);
     border-radius: 8px;
     background: var(--ai-brand-soft);
   }
 
   .cluster-ai-float__intro-icon {
-    font-size: 18px;
+    font-size: 16px;
     line-height: 1;
   }
 
   .cluster-ai-float__intro-title {
-    margin-top: 8px;
-    font-size: 14px;
+    margin-top: 6px;
+    font-size: 13px;
     font-weight: 600;
     color: #262626;
   }
@@ -842,6 +1095,37 @@
   .cluster-ai-float__intro-cluster {
     color: var(--ai-brand);
     font-weight: 600;
+  }
+
+  .cluster-ai-float__provider-hint {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin-top: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: var(--el-color-warning-light-9);
+    border: 1px solid var(--el-color-warning-light-7);
+    font-size: 11px;
+    line-height: 1.6;
+    color: var(--el-color-warning-dark-2);
+  }
+
+  .cluster-ai-float__provider-hint .el-icon {
+    flex-shrink: 0;
+    margin-top: 1px;
+    color: var(--el-color-warning);
+  }
+
+  .cluster-ai-float__provider-link {
+    color: var(--el-color-primary);
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .cluster-ai-float__provider-link:hover {
+    text-decoration: underline;
   }
 
   .cluster-ai-float__message + .cluster-ai-float__message {

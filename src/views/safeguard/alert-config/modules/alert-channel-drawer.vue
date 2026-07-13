@@ -30,7 +30,14 @@
             @change="onChannelTypeChange"
           >
             <template v-if="selectedChannelType" #prefix>
+              <img
+                v-if="selectedChannelType.image"
+                :src="selectedChannelType.image"
+                alt=""
+                class="alert-channel-type-option__logo alert-channel-type-option__logo--prefix alert-channel-type-option__logo--image"
+              />
               <ArtSvgIcon
+                v-else
                 :icon="selectedChannelType.icon"
                 class="alert-channel-type-option__logo alert-channel-type-option__logo--prefix"
                 :style="{ color: selectedChannelType.color }"
@@ -41,9 +48,17 @@
               :key="item.value"
               :label="item.label"
               :value="item.value"
+              :disabled="item.disabled"
             >
               <div class="alert-channel-type-option">
+                <img
+                  v-if="item.image"
+                  :src="item.image"
+                  alt=""
+                  class="alert-channel-type-option__logo alert-channel-type-option__logo--image"
+                />
                 <ArtSvgIcon
+                  v-else
                   :icon="item.icon"
                   class="alert-channel-type-option__logo"
                   :style="{ color: item.color }"
@@ -58,8 +73,8 @@
           <ElFormItem label="Webhook" prop="dingTalkWebhook">
             <ElInput v-model="dingTalkConfig.webhookUrl" placeholder="钉钉机器人 Webhook URL" />
           </ElFormItem>
-          <ElFormItem label="加签密钥">
-            <ElInput v-model="dingTalkConfig.secret" placeholder="可选" />
+          <ElFormItem label="加签密钥" prop="dingTalkSecret">
+            <ElInput v-model="dingTalkConfig.secret" placeholder="请输入加签密钥" />
           </ElFormItem>
         </template>
 
@@ -99,8 +114,11 @@
 
     <template #footer>
       <div class="alert-drawer-footer">
-        <ElButton @click="closeDrawer">取消</ElButton>
-        <ElButton type="primary" :loading="submitting" @click="handleSubmit">确定</ElButton>
+        <ElButton :loading="testing" @click="handleTest">测试</ElButton>
+        <div class="alert-drawer-footer__right">
+          <ElButton @click="closeDrawer">取消</ElButton>
+          <ElButton type="primary" :loading="submitting" @click="handleSubmit">确定</ElButton>
+        </div>
       </div>
     </template>
   </ElDrawer>
@@ -111,26 +129,17 @@
   import { computed, ref, watch } from 'vue'
   import { ElIcon, ElMessage, type FormInstance, type FormRules } from 'element-plus'
   import {
-    AlertChannelTypeMap,
     fetchCreateAlertChannel,
     fetchGetAlertChannel,
     fetchUpdateAlertChannel,
+    fetchPingAlertChannel,
     type AlertChannelType
   } from '@/api/alert'
   import { PixiuApiError } from '@/api/container'
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
+  import { alertChannelTypeOptions } from './alert-channel-types'
 
-  const channelTypeOptions: {
-    value: AlertChannelType
-    label: string
-    icon: string
-    color: string
-  }[] = [
-    { value: 1, label: AlertChannelTypeMap[1], icon: 'ri:mail-line', color: '#409EFF' },
-    { value: 2, label: AlertChannelTypeMap[2], icon: 'tabler:brand-dingtalk', color: '#0089FF' },
-    { value: 3, label: AlertChannelTypeMap[3], icon: 'simple-icons:wechat', color: '#07C160' },
-    { value: 4, label: AlertChannelTypeMap[4], icon: 'ri:links-line', color: '#606266' }
-  ]
+  const channelTypeOptions = alertChannelTypeOptions
 
   defineOptions({ name: 'AlertChannelDrawer' })
 
@@ -141,6 +150,7 @@
   const isEdit = computed(() => props.editId != null && props.editId > 0)
   const editLoading = ref(false)
   const submitting = ref(false)
+  const testing = ref(false)
   const formRef = ref<FormInstance>()
   const resourceVersion = ref(0)
 
@@ -162,7 +172,9 @@
 
   const rules: FormRules = {
     name: [{ required: true, message: '请输入渠道名称', trigger: 'blur' }],
-    channelType: [{ required: true, message: '请选择渠道类型', trigger: 'change' }]
+    channelType: [{ required: true, message: '请选择渠道类型', trigger: 'change' }],
+    dingTalkWebhook: [{ required: true, message: '请输入 Webhook URL', trigger: 'blur' }],
+    dingTalkSecret: [{ required: true, message: '请输入加签密钥', trigger: 'blur' }]
   }
 
   function closeDrawer() {
@@ -297,6 +309,24 @@
       submitting.value = false
     }
   }
+
+  async function handleTest() {
+    testing.value = true
+    try {
+      const config = buildConfigPayload()
+      await fetchPingAlertChannel({
+        channel_type: formData.value.channelType,
+        config
+      })
+      ElMessage.success('连通正常')
+    } catch (error) {
+      if (!(error instanceof PixiuApiError) || !error.notified) {
+        ElMessage.error(error instanceof Error ? error.message : '连通性测试失败')
+      }
+    } finally {
+      testing.value = false
+    }
+  }
 </script>
 
 <style scoped lang="scss">
@@ -314,7 +344,12 @@
 
   .alert-drawer-footer {
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .alert-drawer-footer__right {
+    display: flex;
     gap: 8px;
   }
 
@@ -352,6 +387,11 @@
     font-size: 16px;
   }
 
+  .alert-channel-type-option__logo--image {
+    display: block;
+    object-fit: contain;
+  }
+
   .alert-channel-type-option__logo :deep(svg) {
     color: inherit;
   }
@@ -363,5 +403,26 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     font-size: 12px;
+  }
+</style>
+
+<style lang="less">
+  .alert-channel-type-popper.el-select__popper:not(.el-tree-select__popper) {
+    .el-select-dropdown__list {
+      padding: 5px !important;
+
+      .el-select-dropdown__item {
+        height: 34px !important;
+        line-height: 1 !important;
+        padding: 0 12px !important;
+        display: flex !important;
+        align-items: center !important;
+        box-sizing: border-box;
+
+        &.is-selected {
+          margin-bottom: 0 !important;
+        }
+      }
+    }
   }
 </style>

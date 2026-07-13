@@ -10,7 +10,23 @@
         <ElInput v-model="formData.provider" placeholder="例如 OpenAI / Azure OpenAI" />
       </ElFormItem>
       <ElFormItem label="API Key" prop="apiKey">
-        <ElInput v-model="formData.apiKey" type="textarea" :rows="3" placeholder="请输入 API Key" />
+        <div class="api-key-field">
+          <ElInput
+            v-model="formData.apiKey"
+            :type="apiKeyVisible ? 'text' : 'password'"
+            placeholder="请输入 API Key"
+          />
+          <button
+            type="button"
+            class="api-key-eye"
+            :title="apiKeyVisible ? '隐藏' : '显示'"
+            @click="apiKeyVisible = !apiKeyVisible"
+          >
+            <ElIcon :size="14">
+              <component :is="apiKeyVisible ? View : Hide" />
+            </ElIcon>
+          </button>
+        </div>
       </ElFormItem>
       <ElFormItem label="Base URL" prop="baseUrl">
         <ElInput v-model="formData.baseUrl" placeholder="例如 https://api.openai.com" />
@@ -41,6 +57,7 @@
 
 <script setup lang="ts">
   import type { FormInstance, FormRules } from 'element-plus'
+  import { Hide, View } from '@element-plus/icons-vue'
 
   interface Props {
     visible: boolean
@@ -73,6 +90,7 @@
 
   const dialogType = computed(() => props.type)
   const formRef = ref<FormInstance>()
+  const apiKeyVisible = ref(false)
 
   const formData = reactive({
     provider: '',
@@ -108,6 +126,7 @@
     ([visible]) => {
       if (visible) {
         initFormData()
+        apiKeyVisible.value = false
         nextTick(() => {
           formRef.value?.clearValidate()
         })
@@ -147,5 +166,32 @@
   :deep(.el-input__inner),
   :deep(.el-textarea__inner) {
     font-size: 12px;
+  }
+
+  .api-key-field {
+    position: relative;
+    width: 100%;
+  }
+
+  .api-key-field .api-key-eye {
+    position: absolute;
+    right: 6px;
+    top: 6px;
+    display: inline-flex;
+    width: 22px;
+    height: 22px;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: #8c8c8c;
+    cursor: pointer;
+    z-index: 2;
+  }
+
+  .api-key-field .api-key-eye:hover {
+    background: #f0f0f0;
+    color: #262626;
   }
 </style>
