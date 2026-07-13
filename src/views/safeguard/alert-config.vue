@@ -156,6 +156,7 @@
             :pagination-options="tablePaginationOptions"
             @pagination:size-change="handleRuleSizeChange"
             @pagination:current-change="handleRuleCurrentChange"
+            @selection-change="handleRuleSelectionChange"
           />
         </ElTabPane>
 
@@ -319,6 +320,8 @@
   const ruleDrawerVisible = ref(false)
   const ruleEditId = ref<number | undefined>()
 
+  const selectedRules = ref<AlertRuleItem[]>([])
+
   const {
     columns: ruleColumns,
     columnChecks: ruleColumnChecks,
@@ -336,6 +339,7 @@
       apiFn: fetchGetAlertRuleList,
       apiParams: { current: 1, size: 10, ...ruleSearch.value },
       columnsFactory: () => [
+        { type: 'selection', width: 30 },
         {
           prop: 'name',
           label: '名称',
@@ -419,6 +423,10 @@
   function handleRuleSearch() {
     replaceRuleSearchParams({ ...ruleSearch.value })
     getRuleData()
+  }
+
+  function handleRuleSelectionChange(rows: AlertRuleItem[]) {
+    selectedRules.value = rows
   }
 
   function resetRuleSearch() {
