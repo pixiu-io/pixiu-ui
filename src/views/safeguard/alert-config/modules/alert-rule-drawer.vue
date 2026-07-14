@@ -69,30 +69,38 @@
               告警条件
             </div>
             <div class="alert-conditions">
-              <div v-for="(item, index) in conditions" :key="item.key" class="alert-condition-row">
-                <ElSelect v-model="item.severity" class="alert-condition-row__severity">
-                  <ElOption
-                    v-for="(meta, value) in AlertSeverityMap"
-                    :key="value"
-                    :label="meta.label"
-                    :value="Number(value)"
-                    :disabled="isSeverityUsed(Number(value) as AlertSeverity, index)"
+              <div v-for="(item, index) in conditions" :key="item.key" class="alert-condition-block">
+                <div class="alert-condition-row">
+                  <ElSelect v-model="item.severity" class="alert-condition-row__severity">
+                    <ElOption
+                      v-for="(meta, value) in AlertSeverityMap"
+                      :key="value"
+                      :label="meta.label"
+                      :value="Number(value)"
+                      :disabled="isSeverityUsed(Number(value) as AlertSeverity, index)"
+                    />
+                  </ElSelect>
+                  <ElInput
+                    v-model="item.condition"
+                    class="alert-condition-row__expr"
+                    :class="{ 'is-error': conditionErrors[item.key] }"
+                    placeholder="请输入有效的告警条件，例如: >80"
+                    @blur="validateConditionAt(index)"
+                    @input="clearConditionError(item.key)"
                   />
-                </ElSelect>
-                <ElInput
-                  v-model="item.condition"
-                  class="alert-condition-row__expr"
-                  placeholder="请输入有效的告警条件，例如: > 80"
-                />
-                <ElButton
-                  v-if="conditions.length > 1"
-                  link
-                  class="alert-condition-row__remove"
-                  title="移除"
-                  @click="removeCondition(index)"
-                >
-                  <ElIcon><Delete /></ElIcon>
-                </ElButton>
+                  <ElButton
+                    v-if="conditions.length > 1"
+                    link
+                    class="alert-condition-row__remove"
+                    title="移除"
+                    @click="removeCondition(index)"
+                  >
+                    <ElIcon><Delete /></ElIcon>
+                  </ElButton>
+                </div>
+                <div v-if="conditionErrors[item.key]" class="alert-condition-error">
+                  {{ conditionErrors[item.key] }}
+                </div>
               </div>
               <ElButton
                 v-if="canAddCondition"
@@ -134,9 +142,6 @@
               multiple
               filterable
               clearable
-              collapse-tags
-              collapse-tags-tooltip
-              :max-collapse-tags="5"
               class="alert-effective-time__days"
               placeholder="如果为空则表示全天候"
             >
@@ -229,6 +234,10 @@
   const severityOptions = [1, 2, 3] as const
 
   const conditions = ref<AlertConditionItem[]>([createCondition()])
+  /** 运算符后紧跟数字，中间前后均不允许空格，例如: >80 / <=10 / !=0 */
+  const CONDITION_EXPR_PATTERN = /^(>=|<=|!=|<>|==|>|<|=)-?\d+(\.\d+)?$/
+  const CONDITION_EXPR_HINT = '告警条件格式错误，例如: >80（运算符与数字之间不能有空格）'
+  const conditionErrors = ref<Record<number, string>>({})
 
   function createCondition(severity: AlertSeverity = 1, condition = ''): AlertConditionItem {
     return {
@@ -236,6 +245,45 @@
       severity,
       condition
     }
+  }
+
+  function getConditionError(condition: string): string {
+    if (!condition) return '请输入告警条件'
+    if (!CONDITION_EXPR_PATTERN.test(condition)) return CONDITION_EXPR_HINT
+    return ''
+  }
+
+  function clearConditionError(key: number) {
+    if (!conditionErrors.value[key]) return
+    const next = { ...conditionErrors.value }
+    delete next[key]
+    conditionErrors.value = next
+  }
+
+  function validateConditionAt(index: number): boolean {
+    const item = conditions.value[index]
+    if (!item) return true
+    const error = getConditionError(item.condition)
+    if (error) {
+      conditionErrors.value = { ...conditionErrors.value, [item.key]: error }
+      return false
+    }
+    clearConditionError(item.key)
+    return true
+  }
+
+  function validateAllConditions(): boolean {
+    let valid = true
+    const nextErrors: Record<number, string> = {}
+    for (const item of conditions.value) {
+      const error = getConditionError(item.condition)
+      if (error) {
+        nextErrors[item.key] = error
+        valid = false
+      }
+    }
+    conditionErrors.value = nextErrors
+    return valid
   }
 
   function isSeverityUsed(severity: AlertSeverity, currentIndex: number) {
@@ -260,7 +308,8 @@
 
   function removeCondition(index: number) {
     if (conditions.value.length <= 1) return
-    conditions.value.splice(index, 1)
+    const [removed] = conditions.value.splice(index, 1)
+    if (removed) clearConditionError(removed.key)
   }
 
   function dedupeTriggersBySeverity(triggers: AlertConditionItem[]): AlertConditionItem[] {
@@ -315,7 +364,7 @@
               migratedTriggers.push(createCondition(severity, raw))
             } else {
               if (!migratedPromQl) migratedPromQl = raw
-              migratedTriggers.push(createCondition(severity, '> 0'))
+              migratedTriggers.push(createCondition(severity, '>0'))
             }
           }
           if (migratedPromQl || migratedTriggers.length > 0) {
@@ -342,21 +391,19 @@
     if (!promQl) {
       throw new Error('请输入 PromQL')
     }
-    const triggers = conditions.value
-      .map((item) => ({
-        severity: item.severity,
-        condition: item.condition.trim()
-      }))
-      .filter((item) => item.condition)
+    if (!validateAllConditions()) {
+      throw new Error(CONDITION_EXPR_HINT)
+    }
+    const triggers = conditions.value.map((item) => ({
+      severity: item.severity,
+      condition: item.condition
+    }))
     const severitySet = new Set<AlertSeverity>()
     for (const item of triggers) {
       if (severitySet.has(item.severity)) {
         throw new Error('P0 / P1 / P2 不能重复选择')
       }
       severitySet.add(item.severity)
-    }
-    if (triggers.length === 0) {
-      throw new Error('请至少配置一条告警条件')
     }
     return {
       ruleConfig: JSON.stringify({
@@ -459,6 +506,7 @@
       enableDays.value = parseEnableDays(detail.enableDaysOfWeek)
       const parsed = parseRuleConfig(detail.ruleConfig)
       conditions.value = parsed.triggers
+      conditionErrors.value = {}
       formData.value = {
         name: detail.name,
         description: detail.description,
@@ -492,6 +540,7 @@
         selectedChannelIds.value = []
         enableDays.value = []
         conditions.value = [createCondition()]
+        conditionErrors.value = {}
         formData.value = createDefaultFormData()
       }
       formRef.value?.clearValidate()
@@ -626,6 +675,13 @@
     width: 100%;
   }
 
+  .alert-condition-block {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+  }
+
   .alert-condition-row {
     display: flex;
     align-items: center;
@@ -641,6 +697,17 @@
   .alert-condition-row__expr {
     flex: 1;
     min-width: 0;
+  }
+
+  .alert-condition-row__expr.is-error :deep(.el-input__wrapper) {
+    box-shadow: 0 0 0 1px var(--el-color-danger) inset;
+  }
+
+  .alert-condition-error {
+    margin-left: 96px;
+    font-size: 12px;
+    line-height: 1.2;
+    color: var(--el-color-danger);
   }
 
   .alert-condition-row__remove {
@@ -681,14 +748,16 @@
   }
 
   .alert-effective-time__days {
-    flex: 1;
+    flex: 1 1 auto;
     min-width: 0;
+    width: 100%;
   }
 
   .alert-effective-time__clock {
-    --el-date-editor-width: 40px;
-    width: var(--el-date-editor-width);
+    --el-date-editor-width: 150px;
+    width: var(--el-date-editor-width) !important;
     flex: 0 0 var(--el-date-editor-width);
+    max-width: var(--el-date-editor-width);
   }
 
   .alert-effective-time__clock :deep(.el-input__wrapper) {
