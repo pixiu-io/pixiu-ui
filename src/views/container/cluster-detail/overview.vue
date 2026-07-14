@@ -437,6 +437,8 @@
     type ClusterOverviewK8sStats
   } from '@/api/kubernetes/cluster-overview-stats'
   import { useClusterNodesUsageMetrics } from '@/hooks/kubernetes/useClusterNodesUsageMetrics'
+  import { getDefaultMetricsGranularity } from '@/utils/metrics/granularity'
+  import { METRICS_TIME_PRESETS } from '@/utils/metrics/time-range'
   import MetricChartPanel from '@/components/container/metric-chart-panel.vue'
   import ArtRingChart from '@/components/core/charts/art-ring-chart/index.vue'
   import { clusterDetailContextKey, clusterDetailRefreshKey } from './context'
@@ -772,6 +774,14 @@
 
   const clusterName = computed(() => ctx.value.name)
 
+  /** 与文案「近 24 小时」对齐，并用粒度降采样，避免首屏渲染过多点卡死菜单 */
+  const usageTimeRange = computed(
+    () =>
+      METRICS_TIME_PRESETS.find((p) => p.key === '24h')?.getRange() ??
+      METRICS_TIME_PRESETS[4]!.getRange()
+  )
+  const usageGranularity = computed(() => getDefaultMetricsGranularity())
+
   const {
     loading: usageOverviewLoading,
     chartReady: usageChartReady,
@@ -784,35 +794,18 @@
     startRefresh: startUsageOverviewRefresh,
     stopRefresh: stopUsageOverviewRefresh,
     resetCharts: resetUsageOverviewCharts
-  } = useClusterNodesUsageMetrics(clusterName)
+  } = useClusterNodesUsageMetrics(clusterName, usageTimeRange, usageGranularity)
 
   const usageOverviewInitialLoading = computed(
     () => usageOverviewLoading.value && !usageChartReady.value
   )
 
-  const usageChartSilentUpdate = ref(false)
-  let usageChartAnimateTimer: ReturnType<typeof setTimeout> | null = null
-
-  function scheduleUsageChartSilentUpdate() {
-    if (usageChartAnimateTimer) clearTimeout(usageChartAnimateTimer)
-    usageChartAnimateTimer = setTimeout(() => {
-      usageChartSilentUpdate.value = true
-      usageChartAnimateTimer = null
-    }, 1500)
-  }
-
-  watch(usageChartReady, (ready: any) => {
-    if (ready && !usageChartSilentUpdate.value) scheduleUsageChartSilentUpdate()
-  })
+  /** 概览页 4 图并行：一律静默渲染，避免逐点动画占满主线程导致侧栏无法点击 */
+  const usageChartSilentUpdate = ref(true)
 
   function stopOverviewBackgroundLoads() {
     stopUsageOverviewRefresh()
     resetUsageOverviewCharts()
-    usageChartSilentUpdate.value = false
-    if (usageChartAnimateTimer) {
-      clearTimeout(usageChartAnimateTimer)
-      usageChartAnimateTimer = null
-    }
   }
 
   /** 仅在概览路由且 KeepAlive 激活时拉取各 Tab 数据，避免切到节点管理等页仍发统计请求 */
