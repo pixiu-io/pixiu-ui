@@ -217,10 +217,11 @@
 
   // 生成图表配置
   const generateChartOptions = (isInitial = false, stepReveal = false): EChartsOption => {
+    const enableAnimation = !stepReveal && !props.silentUpdate
     const options: EChartsOption = {
-      animation: !stepReveal,
-      animationDuration: 150,
-      animationDurationUpdate: 150,
+      animation: enableAnimation,
+      animationDuration: enableAnimation ? 150 : 0,
+      animationDurationUpdate: enableAnimation ? 150 : 0,
       grid: getGridWithLegend(props.showLegend && isMultipleData.value, props.legendPosition, {
         top: 15,
         right: 15,
@@ -479,7 +480,7 @@
     forceReplayAnimation()
   }
 
-  watch([() => props.data, () => props.xAxisData, () => props.colors], renderChart, { deep: true })
+  watch([() => props.data, () => props.xAxisData, () => props.colors], renderChart)
 
   watch(
     () => props.silentUpdate,

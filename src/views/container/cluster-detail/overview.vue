@@ -96,6 +96,7 @@
               :x-axis-data="cpuUtilLabels"
               :is-empty="!cpuUtilPercent.length"
               :silent-update="usageChartSilentUpdate"
+              :show-area-color="false"
               height="160px"
               plain
             />
@@ -105,6 +106,7 @@
               :x-axis-data="memUtilLabels"
               :is-empty="!memUtilPercent.length"
               :silent-update="usageChartSilentUpdate"
+              :show-area-color="false"
               height="160px"
               plain
             />
@@ -114,6 +116,7 @@
               :x-axis-data="cpuUtilLabels"
               :is-empty="!cpuUsageCores.length"
               :silent-update="usageChartSilentUpdate"
+              :show-area-color="false"
               height="160px"
               plain
             />
@@ -123,6 +126,7 @@
               :x-axis-data="memUtilLabels"
               :is-empty="!memUsageGib.length"
               :silent-update="usageChartSilentUpdate"
+              :show-area-color="false"
               height="160px"
               plain
             />
@@ -437,7 +441,7 @@
     type ClusterOverviewK8sStats
   } from '@/api/kubernetes/cluster-overview-stats'
   import { useClusterNodesUsageMetrics } from '@/hooks/kubernetes/useClusterNodesUsageMetrics'
-  import { getDefaultMetricsGranularity } from '@/utils/metrics/granularity'
+  import { getDefaultMetricsGranularity, METRICS_GRANULARITY_OPTIONS } from '@/utils/metrics/granularity'
   import { METRICS_TIME_PRESETS } from '@/utils/metrics/time-range'
   import MetricChartPanel from '@/components/container/metric-chart-panel.vue'
   import ArtRingChart from '@/components/core/charts/art-ring-chart/index.vue'
@@ -774,13 +778,16 @@
 
   const clusterName = computed(() => ctx.value.name)
 
-  /** 与文案「近 24 小时」对齐，并用粒度降采样，避免首屏渲染过多点卡死菜单 */
+  /** 与文案「近 24 小时」对齐；生产多节点场景用 5 分钟粒度降采样，减轻主线程压力 */
   const usageTimeRange = computed(
     () =>
       METRICS_TIME_PRESETS.find((p) => p.key === '24h')?.getRange() ??
       METRICS_TIME_PRESETS[4]!.getRange()
   )
-  const usageGranularity = computed(() => getDefaultMetricsGranularity())
+  const usageGranularity = computed(
+    () =>
+      METRICS_GRANULARITY_OPTIONS.find((o) => o.key === '5m') ?? getDefaultMetricsGranularity()
+  )
 
   const {
     loading: usageOverviewLoading,
@@ -803,7 +810,38 @@
   /** 概览页 4 图并行：一律静默渲染，避免逐点动画占满主线程导致侧栏无法点击 */
   const usageChartSilentUpdate = ref(true)
 
+  let usageLoadIdleId: number | null = null
+  let usageLoadTimeoutId: ReturnType<typeof setTimeout> | null = null
+
+  function cancelDeferredUsageLoad() {
+    if (usageLoadIdleId != null && typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
+      window.cancelIdleCallback(usageLoadIdleId)
+      usageLoadIdleId = null
+    }
+    if (usageLoadTimeoutId != null) {
+      clearTimeout(usageLoadTimeoutId)
+      usageLoadTimeoutId = null
+    }
+  }
+
+  /** 首屏先保证菜单可点，指标放到空闲后再拉（生产大集群 JSON 解析很重） */
+  function startUsageOverviewRefreshDeferred() {
+    cancelDeferredUsageLoad()
+    const start = () => {
+      usageLoadIdleId = null
+      usageLoadTimeoutId = null
+      if (!isOverviewRoute.value || innerTab.value !== 'main') return
+      startUsageOverviewRefresh()
+    }
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      usageLoadIdleId = window.requestIdleCallback(start, { timeout: 1200 })
+    } else {
+      usageLoadTimeoutId = setTimeout(start, 200)
+    }
+  }
+
   function stopOverviewBackgroundLoads() {
+    cancelDeferredUsageLoad()
     stopUsageOverviewRefresh()
     resetUsageOverviewCharts()
   }
@@ -821,7 +859,7 @@
     const tab = innerTab.value
     if (tab === 'main') {
       void loadClusterResourceOverview()
-      startUsageOverviewRefresh()
+      startUsageOverviewRefreshDeferred()
     } else {
       stopOverviewBackgroundLoads()
     }

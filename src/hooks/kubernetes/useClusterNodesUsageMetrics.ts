@@ -1,10 +1,11 @@
 import { type ComputedRef, type Ref, computed, ref, unref } from 'vue'
 import {
-  aggregateDashboardMetricPoints,
+  aggregateDashboardMetricPointsAsync,
   bytesToGib,
   fetchNodesUsageMetrics,
   parseNodeCpuMillicores,
-  parseNodeMemoryBytes
+  parseNodeMemoryBytes,
+  yieldToMain
 } from '@/api/kubernetes/metrics'
 import { fetchKubeListAll } from '@/api/kubernetes/list'
 import type { K8sNode } from '@/api/kubernetes/node'
@@ -16,7 +17,7 @@ export type ClusterMetricChartItem = { title: string; data: number[] }
 const CPU_METRIC_TITLES = ['CPU 总配置（核）', 'CPU 利用率（%）', 'CPU 使用量（核）'] as const
 const MEMORY_METRIC_TITLES = ['内存总量（GB）', '内存使用率（%）', '内存使用量（GB）'] as const
 /** 概览小图渲染上限，防止单次 setOption 处理超长序列 */
-const MAX_CHART_POINTS = 180
+const MAX_CHART_POINTS = 96
 
 function createMetricCharts(titles: readonly string[]): ClusterMetricChartItem[] {
   return titles.map((title) => ({ title, data: [] }))
@@ -60,6 +61,10 @@ export function useClusterNodesUsageMetrics(
   function resetCharts() {
     loadGeneration += 1
     clearChartData()
+  }
+
+  function isLoadActive(generation: number) {
+    return generation === loadGeneration
   }
 
   function applyCpuChartData(
@@ -148,7 +153,10 @@ export function useClusterNodesUsageMetrics(
         `/pixiu/proxy/${encodeURIComponent(name)}/api/v1/nodes`,
         { silence403: true }
       )
-      if (generation !== loadGeneration) return
+      if (!isLoadActive(generation)) return
+
+      await yieldToMain()
+      if (!isLoadActive(generation)) return
 
       const nodes = nodesResult.items ?? []
       const nodeNames = nodes
@@ -156,7 +164,7 @@ export function useClusterNodesUsageMetrics(
         .filter((nodeName): nodeName is string => Boolean(nodeName))
 
       if (!nodeNames.length) {
-        if (generation === loadGeneration) clearChartData()
+        if (isLoadActive(generation)) clearChartData()
         return
       }
 
@@ -174,37 +182,52 @@ export function useClusterNodesUsageMetrics(
         0
       )
 
-      const [cpuRes, memRes] = await Promise.all([
-        fetchNodesUsageMetrics(name, nodeNames, 'cpu', 'usage'),
-        fetchNodesUsageMetrics(name, nodeNames, 'memory', 'usage')
-      ])
-      if (generation !== loadGeneration) return
+      // 串行拉 CPU / 内存，降低大响应 JSON 解析高峰，中间让出主线程
+      const cpuRes = await fetchNodesUsageMetrics(name, nodeNames, 'cpu', 'usage')
+      if (!isLoadActive(generation)) return
+      await yieldToMain()
+      if (!isLoadActive(generation)) return
 
-      const cpuAgg = aggregateDashboardMetricPoints(cpuRes.items, {
-        timeRange: metricsTimeRange.value
-      })
-      const memAgg = aggregateDashboardMetricPoints(memRes.items, {
-        timeRange: metricsTimeRange.value
-      })
-
-      if (!cpuAgg.labels.length && !memAgg.labels.length) {
-        if (generation === loadGeneration) clearChartData()
-        return
-      }
+      const cpuAgg = await aggregateDashboardMetricPointsAsync(
+        cpuRes.items,
+        { timeRange: metricsTimeRange.value },
+        () => isLoadActive(generation)
+      )
+      if (!isLoadActive(generation)) return
 
       if (cpuAgg.labels.length) {
         const sampled = applyGranularity(cpuAgg.labels, cpuAgg.timestamps, cpuAgg.values)
         applyCpuChartData(sampled.labels, totalCores, totalMillic, sampled.values)
+        await yieldToMain()
+        if (!isLoadActive(generation)) return
       }
+
+      const memRes = await fetchNodesUsageMetrics(name, nodeNames, 'memory', 'usage')
+      if (!isLoadActive(generation)) return
+      await yieldToMain()
+      if (!isLoadActive(generation)) return
+
+      const memAgg = await aggregateDashboardMetricPointsAsync(
+        memRes.items,
+        { timeRange: metricsTimeRange.value },
+        () => isLoadActive(generation)
+      )
+      if (!isLoadActive(generation)) return
+
       if (memAgg.labels.length) {
         const sampled = applyGranularity(memAgg.labels, memAgg.timestamps, memAgg.values)
         applyMemoryChartData(sampled.labels, totalMemoryBytes, sampled.values)
       }
+
+      if (!cpuAgg.labels.length && !memAgg.labels.length) {
+        if (isLoadActive(generation)) clearChartData()
+        return
+      }
       chartReady.value = true
     } catch {
-      if (generation === loadGeneration) clearChartData()
+      if (isLoadActive(generation)) clearChartData()
     } finally {
-      if (!silent && generation === loadGeneration) loading.value = false
+      if (!silent && isLoadActive(generation)) loading.value = false
     }
   }
 
