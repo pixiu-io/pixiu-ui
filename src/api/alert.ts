@@ -1,26 +1,24 @@
 import { pixiuAxios } from '@/api/container'
 
-export type AlertRuleType = 1 | 2 | 3
-export type AlertSeverity = 1 | 2 | 3 | 4
+export type AlertRuleType = 1 | 2
+export type AlertSeverity = 1 | 2 | 3
 export type AlertScopeType = 1 | 2 | 3 | 4
 export type AlertEventStatus = 1 | 2 | 3 | 4
 export type AlertChannelType = 1 | 2 | 3 | 4 | 5
 export type AlertNotificationStatus = 0 | 1 | 2
 
 export const AlertRuleTypeMap: Record<AlertRuleType, string> = {
-  1: '阈值',
-  2: '状态',
-  3: '事件'
+  1: 'Metric',
+  2: 'Log'
 }
 
 export const AlertSeverityMap: Record<
   AlertSeverity,
   { label: string; type: 'info' | 'warning' | 'danger' | 'success' }
 > = {
-  1: { label: '信息', type: 'info' },
-  2: { label: '警告', type: 'warning' },
-  3: { label: '严重', type: 'danger' },
-  4: { label: '紧急', type: 'danger' }
+  1: { label: 'P0', type: 'danger' },
+  2: { label: 'P1', type: 'warning' },
+  3: { label: 'P2', type: 'info' }
 }
 
 export const AlertScopeTypeMap: Record<AlertScopeType, string> = {
@@ -77,8 +75,6 @@ export interface AlertRuleItem {
   name: string
   description: string
   ruleType: AlertRuleType
-  metricName: string
-  conditionExpr: string
   duration: number
   evalInterval: number
   severity: AlertSeverity
@@ -86,6 +82,11 @@ export interface AlertRuleItem {
   scopeValue: string
   notifyChannels: string
   notifyTemplate: string
+  ruleConfig: string
+  enableDaysOfWeek: string
+  enableStime: string
+  enableEtime: string
+  datasourceId: number
   enabled: boolean
   createdBy: string
   extension: string
@@ -220,8 +221,6 @@ function toAlertRule(item: BackendMeta & Record<string, unknown>): AlertRuleItem
     name: (item.name as string) ?? '',
     description: (item.description as string) ?? '',
     ruleType: (item.rule_type as AlertRuleType) ?? 1,
-    metricName: (item.metric_name as string) ?? '',
-    conditionExpr: (item.condition_expr as string) ?? '',
     duration: (item.duration as number) ?? 0,
     evalInterval: (item.eval_interval as number) ?? 15,
     severity: (item.severity as AlertSeverity) ?? 2,
@@ -229,6 +228,11 @@ function toAlertRule(item: BackendMeta & Record<string, unknown>): AlertRuleItem
     scopeValue: (item.scope_value as string) ?? '',
     notifyChannels: (item.notify_channels as string) ?? '',
     notifyTemplate: (item.notify_template as string) ?? '',
+    ruleConfig: (item.rule_config as string) ?? '',
+    enableDaysOfWeek: (item.enable_days_of_week as string) ?? '',
+    enableStime: (item.enable_stime as string) || '00:00',
+    enableEtime: (item.enable_etime as string) || '00:00',
+    datasourceId: (item.datasource_id as number) ?? 0,
     enabled: Boolean(item.enabled),
     createdBy: (item.created_by as string) ?? '',
     extension: (item.extension as string) ?? '',

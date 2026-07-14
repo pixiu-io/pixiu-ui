@@ -119,7 +119,7 @@
         </template>
 
         <ElFormItem label="描述">
-          <ElInput v-model="formData.description" type="textarea" :rows="2" placeholder="可选" />
+          <ElInput v-model="formData.description" type="textarea" :rows="3" placeholder="可选" />
         </ElFormItem>
         <ElFormItem label="启用">
           <ElSwitch v-model="formData.enabled" />

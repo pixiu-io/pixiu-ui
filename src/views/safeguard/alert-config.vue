@@ -32,7 +32,7 @@
           <ElSelect
             v-model="ruleSearch.severity"
             clearable
-            placeholder="严重级别"
+            placeholder="告警级别"
             class="alert-toolbar__filter"
             @change="handleRuleSearch"
           >
@@ -156,6 +156,7 @@
             :pagination-options="tablePaginationOptions"
             @pagination:size-change="handleRuleSizeChange"
             @pagination:current-change="handleRuleCurrentChange"
+            @selection-change="handleRuleSelectionChange"
           />
         </ElTabPane>
 
@@ -319,6 +320,8 @@
   const ruleDrawerVisible = ref(false)
   const ruleEditId = ref<number | undefined>()
 
+  const selectedRules = ref<AlertRuleItem[]>([])
+
   const {
     columns: ruleColumns,
     columnChecks: ruleColumnChecks,
@@ -336,23 +339,21 @@
       apiFn: fetchGetAlertRuleList,
       apiParams: { current: 1, size: 10, ...ruleSearch.value },
       columnsFactory: () => [
+        { type: 'selection', width: 30 },
         {
           prop: 'name',
-          label: '名称',
+          label: '规则名称',
           minWidth: 180,
           formatter: (row: AlertRuleItem) => h('span', { style: { fontSize: '12px' } }, row.name)
         },
         {
           prop: 'enabled',
           label: '状态',
-          width: 72,
-          align: 'center',
+          width: 100,
           formatter: (row: AlertRuleItem) =>
-            h(ElSwitch, {
-              modelValue: row.enabled,
-              size: 'small',
-              onChange: (value) => toggleRuleEnabled(row, Boolean(value))
-            })
+            h(ElTag, { size: 'small', type: row.enabled ? 'success' : 'info' }, () =>
+              row.enabled ? '启用' : '停用'
+            )
         },
         {
           prop: 'ruleType',
@@ -362,27 +363,23 @@
             h('span', { style: { fontSize: '12px' } }, AlertRuleTypeMap[row.ruleType] || '-')
         },
         {
-          prop: 'severity',
-          label: '级别',
-          width: 88,
-          formatter: (row: AlertRuleItem) => {
-            const meta = AlertSeverityMap[row.severity]
-            return h(ElTag, { size: 'small', type: meta?.type || 'info' }, () => meta?.label || '-')
-          }
-        },
-        {
-          prop: 'scopeType',
-          label: '范围',
-          width: 88,
-          formatter: (row: AlertRuleItem) =>
-            h('span', { style: { fontSize: '12px' } }, AlertScopeTypeMap[row.scopeType] || '-')
-        },
-        {
           prop: 'evalInterval',
           label: '评估间隔',
           width: 96,
           formatter: (row: AlertRuleItem) =>
             h('span', { style: { fontSize: '12px' } }, `${row.evalInterval}s`)
+        },
+        {
+          prop: 'enabledSwitch',
+          label: '启用',
+          width: 72,
+          align: 'center',
+          formatter: (row: AlertRuleItem) =>
+            h(ElSwitch, {
+              modelValue: row.enabled,
+              size: 'small',
+              onChange: (value) => toggleRuleEnabled(row, Boolean(value))
+            })
         },
         {
           prop: 'gmtCreate',
@@ -410,6 +407,10 @@
   function handleRuleSearch() {
     replaceRuleSearchParams({ ...ruleSearch.value })
     getRuleData()
+  }
+
+  function handleRuleSelectionChange(rows: AlertRuleItem[]) {
+    selectedRules.value = rows
   }
 
   function resetRuleSearch() {
