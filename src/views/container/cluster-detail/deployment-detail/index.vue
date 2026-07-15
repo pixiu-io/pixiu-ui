@@ -19,6 +19,7 @@
           <span class="dd-cluster-value">{{ clusterDisplayName }}</span>
         </div>
         <div class="dd-hd-actions">
+          <ElButton v-ripple @click="openYamlEditor">编辑YAML</ElButton>
           <ElButton v-if="supportsScale" v-ripple @click="scaleVisible = true">扩缩容</ElButton>
           <ArtButtonMore
             :list="[

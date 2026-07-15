@@ -192,78 +192,18 @@ export function aggregateDashboardMetricPoints(
   const byTime = new Map<number, number>()
   for (const item of items ?? []) {
     for (const p of item.metricPoints ?? []) {
-      const t = Date.parse(p.timestamp)
+      const t = new Date(p.timestamp).getTime()
       if (!Number.isFinite(t)) continue
       if (t < startMs || t > endMs) continue
       byTime.set(t, (byTime.get(t) ?? 0) + Number(p.value))
     }
   }
-  return finalizeAggregatedMetricMap(byTime)
-}
-
-function finalizeAggregatedMetricMap(byTime: Map<number, number>): {
-  labels: string[]
-  values: number[]
-  timestamps: number[]
-} {
   const sorted = [...byTime.entries()].sort((a, b) => a[0] - b[0])
   return {
     timestamps: sorted.map(([t]) => t),
     labels: sorted.map(([t]) => formatMetricTimeLabel(new Date(t))),
     values: sorted.map(([, v]) => v)
   }
-}
-
-/** 让出主线程，避免大 JSON 解析/聚合时卡住菜单点击 */
-export function yieldToMain(): Promise<void> {
-  return new Promise((resolve) => {
-    if (typeof requestAnimationFrame === 'function') {
-      requestAnimationFrame(() => setTimeout(resolve, 0))
-    } else {
-      setTimeout(resolve, 0)
-    }
-  })
-}
-
-/**
- * 异步分片聚合（生产多节点 + 长留存时避免一次长时间阻塞主线程）
- * @param shouldContinue 返回 false 时提前结束（例如页面已离开）
- */
-export async function aggregateDashboardMetricPointsAsync(
-  items: Array<{ metricPoints?: DashboardMetricPoint[] }> | undefined,
-  options?: AggregateMetricOptions,
-  shouldContinue?: () => boolean
-): Promise<{ labels: string[]; values: number[]; timestamps: number[] }> {
-  const list = items ?? []
-  if (!list.length) {
-    return { labels: [], values: [], timestamps: [] }
-  }
-
-  const startMs = options?.timeRange?.start ? options.timeRange.start.getTime() : Number.NEGATIVE_INFINITY
-  const endMs = options?.timeRange?.end ? options.timeRange.end.getTime() : Number.POSITIVE_INFINITY
-  const byTime = new Map<number, number>()
-  /** 每处理若干 node 的序列就让出一次主线程 */
-  const yieldEvery = Math.max(1, Math.min(8, Math.ceil(list.length / 20)))
-
-  for (let i = 0; i < list.length; i++) {
-    if (shouldContinue && !shouldContinue()) {
-      return { labels: [], values: [], timestamps: [] }
-    }
-    for (const p of list[i]?.metricPoints ?? []) {
-      const t = Date.parse(p.timestamp)
-      if (!Number.isFinite(t)) continue
-      if (t < startMs || t > endMs) continue
-      byTime.set(t, (byTime.get(t) ?? 0) + Number(p.value))
-    }
-    if ((i + 1) % yieldEvery === 0 && i < list.length - 1) {
-      await yieldToMain()
-    }
-  }
-
-  if (shouldContinue && !shouldContinue()) {
-    return { labels: [], values: [], timestamps: [] }
-  }
-  return finalizeAggregatedMetricMap(byTime)
 }
 
 function formatMetricTimeLabel(d: Date): string {

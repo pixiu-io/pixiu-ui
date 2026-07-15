@@ -62,6 +62,17 @@ export function usePromqlAutocomplete(options: UsePromqlAutocompleteOptions) {
     await prefetchAutocompleteData()
   }
 
+  function buildPrometheusRequestOptions(datasource: DatasourceItem) {
+    if (!datasource.external) {
+      return {
+        clusterName: datasource.clusterName || undefined
+      }
+    }
+    return {
+      headers: getExternalProxyHeaders(datasource)
+    }
+  }
+
   async function prefetchMetricNameOptions(ds: DatasourceItem) {
     if (metricNamesLoading.value) return
     if (metricNamesLoadedForDatasourceId.value === ds.id && metricNameOptions.value.length > 0) return
@@ -69,9 +80,13 @@ export function usePromqlAutocomplete(options: UsePromqlAutocompleteOptions) {
     metricNamesLoading.value = true
     try {
       const dsUrl = resolveDatasourceUrl(ds)
+      if (!dsUrl) {
+        metricNameOptions.value = []
+        return
+      }
       const { end, start } = resolveTimeRange()
       const res = await fetchPrometheusLabelValues(dsUrl, '__name__', {
-        headers: getExternalProxyHeaders(ds),
+        ...buildPrometheusRequestOptions(ds),
         start,
         end
       })
@@ -130,9 +145,10 @@ export function usePromqlAutocomplete(options: UsePromqlAutocompleteOptions) {
 
     try {
       const dsUrl = resolveDatasourceUrl(ds)
+      if (!dsUrl) return []
       const { end, start } = resolveTimeRange()
       const res = await fetchPrometheusLabels(dsUrl, {
-        headers: getExternalProxyHeaders(ds),
+        ...buildPrometheusRequestOptions(ds),
         start,
         end,
         match: [buildMatchSelector(metricName, completedLabels)]
@@ -163,9 +179,10 @@ export function usePromqlAutocomplete(options: UsePromqlAutocompleteOptions) {
 
     try {
       const dsUrl = resolveDatasourceUrl(ds)
+      if (!dsUrl) return []
       const { end, start } = resolveTimeRange()
       const res = await fetchPrometheusLabelValues(dsUrl, labelName, {
-        headers: getExternalProxyHeaders(ds),
+        ...buildPrometheusRequestOptions(ds),
         start,
         end,
         match: [buildMatchSelector(metricName, contextLabels)]

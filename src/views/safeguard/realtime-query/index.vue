@@ -498,6 +498,18 @@ function getExternalProxyHeaders(datasource: DatasourceItem | null): Record<stri
   return headers
 }
 
+/** 内部数据源走集群代理，外部走 /pixiu/external */
+function buildPrometheusRequestOptions(datasource: DatasourceItem) {
+  if (!datasource.external) {
+    return {
+      clusterName: datasource.clusterName || undefined
+    }
+  }
+  return {
+    headers: getExternalProxyHeaders(datasource)
+  }
+}
+
 // ---- 时间范围 ----
 const timeRangeMinutes = ref(60)
 
@@ -567,7 +579,17 @@ async function executeQuery() {
   querying.value = true
 
   const dsUrl = resolveDatasourceUrl(ds)
-  const proxyHeaders = getExternalProxyHeaders(ds)
+  if (!dsUrl) {
+    queryError.value = '当前数据源未配置接入地址'
+    querying.value = false
+    return
+  }
+  if (!ds.external && !ds.clusterName) {
+    queryError.value = '内部数据源缺少关联集群'
+    querying.value = false
+    return
+  }
+  const requestOpts = buildPrometheusRequestOptions(ds)
   const t0 = performance.now()
 
   try {
@@ -577,13 +599,14 @@ async function executeQuery() {
         ? await (() => {
             const { start, end } = resolveTimeRange()
             const step = resolveGraphStep(start, end)
-            return fetchPrometheusRangeQuery(dsUrl, query, start, end, step, {
-              headers: proxyHeaders
-            })
+            return fetchPrometheusRangeQuery(dsUrl, query, start, end, step, requestOpts)
           })()
-        : await fetchPrometheusInstantQuery(dsUrl, query, Math.floor(Date.now() / 1000), {
-            headers: proxyHeaders
-          })
+        : await fetchPrometheusInstantQuery(
+            dsUrl,
+            query,
+            Math.floor(Date.now() / 1000),
+            requestOpts
+          )
 
     queryDuration.value = Math.round(performance.now() - t0)
 

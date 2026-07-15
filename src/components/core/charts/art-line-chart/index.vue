@@ -145,35 +145,16 @@
   const LEFT_TO_RIGHT_TOTAL_MS = 300
   const LEFT_TO_RIGHT_MIN_POINT_DELAY = 5
   const LEFT_TO_RIGHT_MAX_POINT_DELAY = 20
-  /** 逐点 setOption 上限：超出则抽样帧，避免大数据量卡死主线程 */
-  const LEFT_TO_RIGHT_MAX_FRAMES = 24
-  /** 超过该点数直接静默渲染，不再做逐点动画 */
-  const LEFT_TO_RIGHT_SKIP_ANIMATION_POINTS = 80
 
-  function getLeftToRightPointDelay(frameCount: number): number {
-    if (frameCount <= 1) return 0
+  function getLeftToRightPointDelay(pointCount: number): number {
+    if (pointCount <= 1) return 0
     return Math.min(
       LEFT_TO_RIGHT_MAX_POINT_DELAY,
       Math.max(
         LEFT_TO_RIGHT_MIN_POINT_DELAY,
-        Math.floor(LEFT_TO_RIGHT_TOTAL_MS / (frameCount - 1))
+        Math.floor(LEFT_TO_RIGHT_TOTAL_MS / (pointCount - 1))
       )
     )
-  }
-
-  /** 将点数映射为有限帧数的 revealCount 列表（含最终 pointCount） */
-  function buildRevealCounts(pointCount: number): number[] {
-    if (pointCount <= 1) return [pointCount]
-    const maxFrames = Math.min(LEFT_TO_RIGHT_MAX_FRAMES, pointCount)
-    if (maxFrames >= pointCount) {
-      return Array.from({ length: pointCount - 1 }, (_, i) => i + 2)
-    }
-    const counts: number[] = []
-    for (let frame = 1; frame < maxFrames; frame++) {
-      counts.push(Math.max(2, Math.round((frame / (maxFrames - 1)) * (pointCount - 1)) + 1))
-    }
-    counts[counts.length - 1] = pointCount
-    return [...new Set(counts)]
   }
 
   /** 从左到右逐点展示：未展示位置为 null，折线只连左侧已展示点 */
@@ -217,11 +198,10 @@
 
   // 生成图表配置
   const generateChartOptions = (isInitial = false, stepReveal = false): EChartsOption => {
-    const enableAnimation = !stepReveal && !props.silentUpdate
     const options: EChartsOption = {
-      animation: enableAnimation,
-      animationDuration: enableAnimation ? 150 : 0,
-      animationDurationUpdate: enableAnimation ? 150 : 0,
+      animation: !stepReveal,
+      animationDuration: 150,
+      animationDurationUpdate: 150,
       grid: getGridWithLegend(props.showLegend && isMultipleData.value, props.legendPosition, {
         top: 15,
         right: 15,
@@ -299,16 +279,7 @@
       return
     }
 
-    // 点数过多时不做逐点动画，避免上千次 setOption 卡住菜单交互
-    if (pointCount > LEFT_TO_RIGHT_SKIP_ANIMATION_POINTS) {
-      animatedData.value = realData as any
-      updateChartOptions(generateChartOptions(false))
-      isAnimating.value = false
-      return
-    }
-
-    const revealCounts = buildRevealCounts(pointCount)
-    const pointDelay = getLeftToRightPointDelay(revealCounts.length + 1)
+    const pointDelay = getLeftToRightPointDelay(pointCount)
 
     animatedData.value = buildLeftToRightData(realData, 1) as any
     updateChartOptions(generateChartOptions(true, true))
@@ -318,17 +289,17 @@
       return
     }
 
-    revealCounts.forEach((revealCount, index) => {
+    for (let revealCount = 2; revealCount <= pointCount; revealCount++) {
       const timer = window.setTimeout(
         () => {
           animatedData.value = buildLeftToRightData(realData, revealCount) as any
           updateChartOptions(generateChartOptions(false, true))
           if (revealCount === pointCount) isAnimating.value = false
         },
-        (index + 1) * pointDelay
+        (revealCount - 1) * pointDelay
       )
       animationTimers.value.push(timer)
-    })
+    }
   }
 
   /** 多条折线同步从左到右逐点生成 */
@@ -339,15 +310,7 @@
       return
     }
 
-    if (maxLen > LEFT_TO_RIGHT_SKIP_ANIMATION_POINTS) {
-      animatedData.value = copyRealData()
-      updateChartOptions(generateChartOptions(false))
-      isAnimating.value = false
-      return
-    }
-
-    const revealCounts = buildRevealCounts(maxLen)
-    const pointDelay = getLeftToRightPointDelay(revealCounts.length + 1)
+    const pointDelay = getLeftToRightPointDelay(maxLen)
 
     animatedData.value = multiData.map((item) => ({
       ...item,
@@ -362,7 +325,7 @@
       return
     }
 
-    revealCounts.forEach((revealCount, index) => {
+    for (let revealCount = 2; revealCount <= maxLen; revealCount++) {
       const timer = window.setTimeout(
         () => {
           animatedData.value = multiData.map((item) => ({
@@ -376,10 +339,10 @@
             isAnimating.value = false
           }
         },
-        (index + 1) * pointDelay
+        (revealCount - 1) * pointDelay
       )
       animationTimers.value.push(timer)
-    })
+    }
   }
 
   // 初始化动画：折线从左向右逐点展开
@@ -480,7 +443,7 @@
     forceReplayAnimation()
   }
 
-  watch([() => props.data, () => props.xAxisData, () => props.colors], renderChart)
+  watch([() => props.data, () => props.xAxisData, () => props.colors], renderChart, { deep: true })
 
   watch(
     () => props.silentUpdate,

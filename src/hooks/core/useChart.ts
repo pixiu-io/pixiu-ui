@@ -441,7 +441,7 @@ export function useChart(options: UseChartOptions = {}) {
       setupThemeWatcher()
     }
     if (chart && !isDestroyed) {
-      chart.setOption(options, { lazyUpdate: true, notMerge: false })
+      chart.setOption(options)
       pendingOptions = null
     }
   }
@@ -540,7 +540,7 @@ export function useChart(options: UseChartOptions = {}) {
         initChart(options)
         return
       }
-      chart.setOption(options, { lazyUpdate: true, notMerge: false })
+      chart.setOption(options)
     } catch (error) {
       console.error('图表更新失败:', error)
     }

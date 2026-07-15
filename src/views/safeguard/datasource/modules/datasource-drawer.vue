@@ -76,7 +76,12 @@
             </ElCol>
 
             <ElCol :span="12">
-              <ElFormItem v-if="!formData.external" label="关联集群" prop="cluster_name">
+              <ElFormItem
+                v-if="!formData.external"
+                label="关联集群"
+                prop="cluster_name"
+                :required="true"
+              >
                 <ElSelect
                   v-if="clusterOptionList.length || clusterListLoading"
                   v-model="formData.cluster_name"

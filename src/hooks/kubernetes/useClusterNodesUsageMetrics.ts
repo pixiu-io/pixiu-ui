@@ -1,11 +1,10 @@
 import { type ComputedRef, type Ref, computed, ref, unref } from 'vue'
 import {
-  aggregateDashboardMetricPointsAsync,
+  aggregateDashboardMetricPoints,
   bytesToGib,
   fetchNodesUsageMetrics,
   parseNodeCpuMillicores,
-  parseNodeMemoryBytes,
-  yieldToMain
+  parseNodeMemoryBytes
 } from '@/api/kubernetes/metrics'
 import { fetchKubeListAll } from '@/api/kubernetes/list'
 import type { K8sNode } from '@/api/kubernetes/node'
@@ -16,8 +15,6 @@ export type ClusterMetricChartItem = { title: string; data: number[] }
 
 const CPU_METRIC_TITLES = ['CPU 总配置（核）', 'CPU 利用率（%）', 'CPU 使用量（核）'] as const
 const MEMORY_METRIC_TITLES = ['内存总量（GB）', '内存使用率（%）', '内存使用量（GB）'] as const
-/** 概览小图渲染上限，防止单次 setOption 处理超长序列 */
-const MAX_CHART_POINTS = 96
 
 function createMetricCharts(titles: readonly string[]): ClusterMetricChartItem[] {
   return titles.map((title) => ({ title, data: [] }))
@@ -48,23 +45,13 @@ export function useClusterNodesUsageMetrics(
   const memUsageGib = computed(() => memoryMetrics.value[2]?.data ?? [])
 
   let refreshTimer: ReturnType<typeof setInterval> | null = null
-  let loadGeneration = 0
 
-  function clearChartData() {
+  function resetCharts() {
     chartReady.value = false
     cpuTimeLabels.value = []
     memoryTimeLabels.value = []
     for (const item of cpuMetrics.value) item.data = []
     for (const item of memoryMetrics.value) item.data = []
-  }
-
-  function resetCharts() {
-    loadGeneration += 1
-    clearChartData()
-  }
-
-  function isLoadActive(generation: number) {
-    return generation === loadGeneration
   }
 
   function applyCpuChartData(
@@ -95,47 +82,30 @@ export function useClusterNodesUsageMetrics(
     memoryMetrics.value[2].data = usageBytesSeries.map((v) => bytesToGib(v))
   }
 
-  function downsampleEvenly(
-    labels: string[],
-    values: number[],
-    maxPoints: number
-  ): { labels: string[]; values: number[] } {
-    if (labels.length <= maxPoints || maxPoints < 3) return { labels, values }
-    const resultLabels: string[] = []
-    const resultValues: number[] = []
-    const last = labels.length - 1
-    for (let i = 0; i < maxPoints; i++) {
-      const index = i === maxPoints - 1 ? last : Math.round((i / (maxPoints - 1)) * last)
-      resultLabels.push(labels[index]!)
-      resultValues.push(values[index]!)
-    }
-    return { labels: resultLabels, values: resultValues }
-  }
-
   function applyGranularity(
     labels: string[],
     timestamps: number[],
     values: number[]
   ): { labels: string[]; values: number[] } {
     const stepMs = metricsGranularity.value?.stepMs ?? 0
-    let nextLabels = labels
-    let nextValues = values
-    if (stepMs > 0 && timestamps.length > 2 && labels.length === timestamps.length) {
-      const pickIndexes: number[] = [0]
-      let lastTs = timestamps[0]
-      for (let i = 1; i < timestamps.length - 1; i++) {
-        const ts = timestamps[i]
-        if (ts - lastTs >= stepMs) {
-          pickIndexes.push(i)
-          lastTs = ts
-        }
-      }
-      const lastIndex = timestamps.length - 1
-      if (pickIndexes[pickIndexes.length - 1] !== lastIndex) pickIndexes.push(lastIndex)
-      nextLabels = pickIndexes.map((i) => labels[i]!)
-      nextValues = pickIndexes.map((i) => values[i]!)
+    if (stepMs <= 0 || timestamps.length <= 2 || labels.length !== timestamps.length) {
+      return { labels, values }
     }
-    return downsampleEvenly(nextLabels, nextValues, MAX_CHART_POINTS)
+    const pickIndexes: number[] = [0]
+    let lastTs = timestamps[0]
+    for (let i = 1; i < timestamps.length - 1; i++) {
+      const ts = timestamps[i]
+      if (ts - lastTs >= stepMs) {
+        pickIndexes.push(i)
+        lastTs = ts
+      }
+    }
+    const lastIndex = timestamps.length - 1
+    if (pickIndexes[pickIndexes.length - 1] !== lastIndex) pickIndexes.push(lastIndex)
+    return {
+      labels: pickIndexes.map((i) => labels[i]),
+      values: pickIndexes.map((i) => values[i])
+    }
   }
 
   async function load(silent = false) {
@@ -145,7 +115,6 @@ export function useClusterNodesUsageMetrics(
       return
     }
 
-    const generation = ++loadGeneration
     if (!silent) loading.value = true
     try {
       const nodesResult = await fetchKubeListAll<K8sNode>(
@@ -153,18 +122,13 @@ export function useClusterNodesUsageMetrics(
         `/pixiu/proxy/${encodeURIComponent(name)}/api/v1/nodes`,
         { silence403: true }
       )
-      if (!isLoadActive(generation)) return
-
-      await yieldToMain()
-      if (!isLoadActive(generation)) return
-
       const nodes = nodesResult.items ?? []
       const nodeNames = nodes
         .map((n) => n.metadata?.name)
         .filter((nodeName): nodeName is string => Boolean(nodeName))
 
       if (!nodeNames.length) {
-        if (isLoadActive(generation)) clearChartData()
+        if (!silent) resetCharts()
         return
       }
 
@@ -182,57 +146,39 @@ export function useClusterNodesUsageMetrics(
         0
       )
 
-      // 串行拉 CPU / 内存，降低大响应 JSON 解析高峰，中间让出主线程
-      const cpuRes = await fetchNodesUsageMetrics(name, nodeNames, 'cpu', 'usage')
-      if (!isLoadActive(generation)) return
-      await yieldToMain()
-      if (!isLoadActive(generation)) return
+      const [cpuRes, memRes] = await Promise.all([
+        fetchNodesUsageMetrics(name, nodeNames, 'cpu', 'usage'),
+        fetchNodesUsageMetrics(name, nodeNames, 'memory', 'usage')
+      ])
+      const cpuAgg = aggregateDashboardMetricPoints(cpuRes.items, {
+        timeRange: metricsTimeRange.value
+      })
+      const memAgg = aggregateDashboardMetricPoints(memRes.items, {
+        timeRange: metricsTimeRange.value
+      })
 
-      const cpuAgg = await aggregateDashboardMetricPointsAsync(
-        cpuRes.items,
-        { timeRange: metricsTimeRange.value },
-        () => isLoadActive(generation)
-      )
-      if (!isLoadActive(generation)) return
+      if (!cpuAgg.labels.length && !memAgg.labels.length) {
+        if (!silent) resetCharts()
+        return
+      }
 
       if (cpuAgg.labels.length) {
         const sampled = applyGranularity(cpuAgg.labels, cpuAgg.timestamps, cpuAgg.values)
         applyCpuChartData(sampled.labels, totalCores, totalMillic, sampled.values)
-        await yieldToMain()
-        if (!isLoadActive(generation)) return
       }
-
-      const memRes = await fetchNodesUsageMetrics(name, nodeNames, 'memory', 'usage')
-      if (!isLoadActive(generation)) return
-      await yieldToMain()
-      if (!isLoadActive(generation)) return
-
-      const memAgg = await aggregateDashboardMetricPointsAsync(
-        memRes.items,
-        { timeRange: metricsTimeRange.value },
-        () => isLoadActive(generation)
-      )
-      if (!isLoadActive(generation)) return
-
       if (memAgg.labels.length) {
         const sampled = applyGranularity(memAgg.labels, memAgg.timestamps, memAgg.values)
         applyMemoryChartData(sampled.labels, totalMemoryBytes, sampled.values)
       }
-
-      if (!cpuAgg.labels.length && !memAgg.labels.length) {
-        if (isLoadActive(generation)) clearChartData()
-        return
-      }
       chartReady.value = true
     } catch {
-      if (isLoadActive(generation)) clearChartData()
+      if (!silent) resetCharts()
     } finally {
-      if (!silent && isLoadActive(generation)) loading.value = false
+      if (!silent) loading.value = false
     }
   }
 
   function stopRefresh() {
-    loadGeneration += 1
     if (refreshTimer) {
       clearInterval(refreshTimer)
       refreshTimer = null

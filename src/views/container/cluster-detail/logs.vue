@@ -808,8 +808,10 @@
   const sourceFilter = ref<'internal' | 'external'>('external')
 
   const sourceOptions = computed(() => {
-    const hasInternal = allDatasourceItems.value.some((item) => !item.external)
-    const hasExternal = allDatasourceItems.value.some((item) => item.external)
+    // 集群详情仅展示本页可用数据源的内/外选项，避免「来源=外部」却无任何可选数据源
+    const pool = props.externalOnly ? allDatasourceItems.value : datasourceOptions.value
+    const hasInternal = pool.some((item) => !item.external)
+    const hasExternal = pool.some((item) => item.external)
     const options: { label: string; value: 'internal' | 'external' }[] = []
     if (hasInternal) options.push({ label: '内部数据源', value: 'internal' })
     if (hasExternal) options.push({ label: '外部数据源', value: 'external' })
@@ -850,19 +852,26 @@
 
   const currentCluster = computed(() => ctxRef.value.name)
   const isExternalMode = computed(() => props.externalOnly)
-  /** 与原先集群详情日志一致：经集群内 Service 代理，而非 datasource 直连代理 */
-  const usesClusterServiceProxy = computed(
-    () => !isExternalMode.value || sourceFilter.value === 'internal'
-  )
-  const effectiveCluster = computed(() => {
-    if (isExternalMode.value && usesClusterServiceProxy.value) {
-      return selectedDatasource.value?.clusterName || ''
-    }
-    return currentCluster.value
-  })
   const selectedDatasource = computed(
     () => filteredDatasourceOptions.value.find((item) => item.id === selectedDatasourceId.value) ?? null
   )
+  /**
+   * 与指标实时查询一致：按数据源自身 external 标志决定请求路径。
+   * - 内部：/pixiu/proxy/{cluster}/.../services/.../proxy
+   * - 外部：/pixiu/external?...
+   */
+  const usesClusterServiceProxy = computed(() => {
+    const ds = selectedDatasource.value
+    if (ds) return !ds.external
+    if (isExternalMode.value) return sourceFilter.value === 'internal'
+    return true
+  })
+  const effectiveCluster = computed(() => {
+    if (usesClusterServiceProxy.value) {
+      return selectedDatasource.value?.clusterName || currentCluster.value
+    }
+    return currentCluster.value
+  })
   const isLokiDatasource = computed(() => selectedDatasource.value?.subType === 'loki')
   const isEsDatasource = computed(() => selectedDatasource.value?.subType === 'es')
   const filteredFieldKeys = computed(() => {
@@ -1383,6 +1392,11 @@
       if (isLokiDatasource.value) {
         await loadLabelKeys()
       }
+      return
+    }
+
+    if (!effectiveCluster.value) {
+      errorMessage.value = '内部数据源缺少关联集群'
       return
     }
 
