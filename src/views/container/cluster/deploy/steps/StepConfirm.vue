@@ -177,6 +177,7 @@
 </template>
 
 <script setup lang="ts">
+  import { ElMessage } from 'element-plus'
   import type { DeployClusterForm } from './StepBasic.vue'
 
   defineOptions({ name: 'StepConfirm' })
@@ -191,6 +192,11 @@
   const readOnly = computed(() => props.readOnly)
 
   async function validate(): Promise<boolean> {
+    const masterCount = props.form.nodes.filter((n) => n.role.includes('master')).length
+    if (masterCount > 1 && !props.form.highAvailability) {
+      ElMessage.error('master 节点已超过 1 台, 必须开启高可用')
+      return false
+    }
     return true
   }
 
