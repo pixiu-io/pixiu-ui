@@ -69,38 +69,44 @@
               告警条件
             </div>
             <div class="alert-conditions">
-              <div v-for="(item, index) in conditions" :key="item.key" class="alert-condition-row">
-                <ElSelect v-model="item.severity" class="alert-condition-row__severity">
-                  <ElOption
-                    v-for="(meta, value) in AlertSeverityMap"
-                    :key="value"
-                    :label="meta.label"
-                    :value="Number(value)"
-                    :disabled="isSeverityUsed(Number(value) as AlertSeverity, index)"
+              <div v-for="(item, index) in conditions" :key="item.key" class="alert-condition-block">
+                <div class="alert-condition-row">
+                  <ElSelect v-model="item.severity" class="alert-condition-row__severity">
+                    <ElOption
+                      v-for="(meta, value) in AlertSeverityMap"
+                      :key="value"
+                      :label="meta.label"
+                      :value="Number(value)"
+                      :disabled="isSeverityUsed(Number(value) as AlertSeverity, index)"
+                    />
+                  </ElSelect>
+                  <ElInput
+                    v-model="item.condition"
+                    class="alert-condition-row__expr"
+                    :class="{ 'is-error': Boolean(item.error) }"
+                    placeholder="请输入有效的告警条件，例如: > 80"
+                    @blur="validateConditionItem(item)"
+                    @input="validateConditionItem(item, true)"
                   />
-                </ElSelect>
-                <ElInput
-                  v-model="item.condition"
-                  class="alert-condition-row__expr"
-                  placeholder="请输入有效的告警条件，例如: > 80"
-                />
-                <ElButton
-                  type="primary"
-                  link
-                  class="alert-condition-row__preview"
-                  @click="openMetricPreview(item)"
-                >
-                  数据预览
-                </ElButton>
-                <ElButton
-                  v-if="conditions.length > 1"
-                  link
-                  class="alert-condition-row__remove"
-                  title="移除"
-                  @click="removeCondition(index)"
-                >
-                  <ElIcon><Delete /></ElIcon>
-                </ElButton>
+                  <ElButton
+                    type="primary"
+                    link
+                    class="alert-condition-row__preview"
+                    @click="openMetricPreview(item)"
+                  >
+                    数据预览
+                  </ElButton>
+                  <ElButton
+                    v-if="conditions.length > 1"
+                    link
+                    class="alert-condition-row__remove"
+                    title="移除"
+                    @click="removeCondition(index)"
+                  >
+                    <ElIcon><Delete /></ElIcon>
+                  </ElButton>
+                </div>
+                <div v-if="item.error" class="alert-condition-block__error">{{ item.error }}</div>
               </div>
               <ElButton
                 v-if="canAddCondition"
@@ -242,9 +248,38 @@
     key: number
     severity: AlertSeverity
     condition: string
+    error: string
   }
 
   const severityOptions = [1, 2, 3] as const
+
+  /** 与后端 matchThreshold / splitThresholdExpr 保持一致（长运算符优先） */
+  const THRESHOLD_OPERATORS = ['>=', '<=', '!=', '<>', '==', '>', '<', '='] as const
+
+  function isValidThresholdCondition(expr: string): boolean {
+    const trimmed = expr.trim()
+    if (!trimmed) return false
+    for (const op of THRESHOLD_OPERATORS) {
+      if (!trimmed.startsWith(op)) continue
+      const expected = trimmed.slice(op.length).trim()
+      if (!expected) return false
+      return Number.isFinite(Number(expected))
+    }
+    return false
+  }
+
+  function getConditionError(expr: string, soft = false): string {
+    const trimmed = expr.trim()
+    if (!trimmed) return soft ? '' : '请填写告警条件'
+    if (!isValidThresholdCondition(trimmed)) {
+      return '告警条件格式无效，请使用 > >= < <= = == != <> 后接数值'
+    }
+    return ''
+  }
+
+  function validateConditionItem(item: AlertConditionItem, soft = false) {
+    item.error = getConditionError(item.condition, soft)
+  }
 
   const conditions = ref<AlertConditionItem[]>([createCondition()])
 
@@ -252,7 +287,8 @@
     return {
       key: conditionKeySeed++,
       severity,
-      condition
+      condition,
+      error: ''
     }
   }
 
@@ -287,7 +323,13 @@
       return
     }
     if (!item.condition.trim()) {
+      validateConditionItem(item)
       ElMessage.warning('请先填写告警条件')
+      return
+    }
+    if (!isValidThresholdCondition(item.condition)) {
+      validateConditionItem(item)
+      ElMessage.warning('告警条件格式无效，请使用 > >= < <= = == != <> 后接数值')
       return
     }
     if (!selectedDatasource.value) {
@@ -377,6 +419,9 @@
     if (!promQl) {
       throw new Error('请输入 PromQL')
     }
+    for (const item of conditions.value) {
+      validateConditionItem(item)
+    }
     const triggers = conditions.value
       .map((item) => ({
         severity: item.severity,
@@ -389,6 +434,11 @@
         throw new Error('P0 / P1 / P2 不能重复选择')
       }
       severitySet.add(item.severity)
+      if (!isValidThresholdCondition(item.condition)) {
+        throw new Error(
+          `告警条件「${item.condition}」格式无效，需为运算符 + 数值（支持 > >= < <= = == != <>）`
+        )
+      }
     }
     if (triggers.length === 0) {
       throw new Error('请至少配置一条告警条件')
@@ -686,6 +736,20 @@
     width: 100%;
   }
 
+  .alert-condition-block {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+  }
+
+  .alert-condition-block__error {
+    padding-left: 96px;
+    color: var(--el-color-danger);
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
   .alert-condition-row {
     display: flex;
     align-items: center;
@@ -701,6 +765,12 @@
   .alert-condition-row__expr {
     flex: 1;
     min-width: 0;
+
+    &.is-error {
+      :deep(.el-input__wrapper) {
+        box-shadow: 0 0 0 1px var(--el-color-danger) inset;
+      }
+    }
   }
 
   .alert-condition-row__preview {

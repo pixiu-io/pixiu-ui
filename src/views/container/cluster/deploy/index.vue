@@ -522,16 +522,6 @@
           }
         }
       }
-    } else {
-      // 修改部署：提交前校验信息确认（含多 master 必须开启高可用）
-      const confirmRef = getStepRef(3)
-      if (confirmRef) {
-        const valid = await confirmRef.validate()
-        if (!valid) {
-          activeTabName.value = '3'
-          return
-        }
-      }
     }
 
     submitting.value = true
