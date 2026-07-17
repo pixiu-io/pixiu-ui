@@ -10,7 +10,7 @@
   >
     <template #header>
       <div class="alert-drawer-header">
-        <span class="alert-drawer-title">{{ isEdit ? '编辑告警规则' : '添加告警规则' }}</span>
+        <span class="alert-drawer-title">{{ drawerTitle }}</span>
         <ElButton text circle class="alert-drawer-icon-btn" title="关闭" @click="closeDrawer">
           <ElIcon :size="16"><Close /></ElIcon>
         </ElButton>
@@ -124,6 +124,14 @@
           <ElInputNumber v-model="formData.evalInterval" :min="15" :step="1" class="w-full" />
           <span class="alert-form-hint">秒，默认 15</span>
         </ElFormItem>
+        <ElFormItem label="警报间隔时间">
+          <ElInputNumber v-model="formData.notifyRepeatStep" :min="0" :step="1" class="w-full" />
+          <span class="alert-form-hint">分钟，默认 5；填 0 表示不重复发送</span>
+        </ElFormItem>
+        <ElFormItem label="最大通知次数">
+          <ElInputNumber v-model="formData.notifyMaxNumber" :min="0" :step="1" class="w-full" />
+          <span class="alert-form-hint">默认 0 表示不限制次数</span>
+        </ElFormItem>
         <ElFormItem label="通知渠道" prop="notifyChannels">
           <ElSelect
             v-model="selectedChannelIds"
@@ -139,7 +147,12 @@
           </ElSelect>
         </ElFormItem>
         <ElFormItem label="通知模板">
-          <ElInput v-model="formData.notifyTemplate" type="textarea" :rows="3" placeholder="可选" />
+          <ElInput
+            v-model="formData.notifyTemplate"
+            type="textarea"
+            :rows="3"
+            placeholder="可选，支持 Go text/template 与 $label/${label}，例如：时间={{.FireTime}} 实例=$instance 当前值={{.TriggerValue}}"
+          />
         </ElFormItem>
         <ElFormItem label="生效时间" class="alert-effective-time-item">
           <div class="alert-effective-time">
@@ -227,12 +240,19 @@
 
   defineOptions({ name: 'AlertRuleDrawer' })
 
-  const props = defineProps<{ editId?: number }>()
+  const props = defineProps<{ editId?: number; cloneId?: number }>()
   const visible = defineModel<boolean>({ default: false })
   const emit = defineEmits<{ success: [] }>()
 
   const isEdit = computed(() => props.editId != null && props.editId > 0)
+  const isClone = computed(() => !isEdit.value && props.cloneId != null && props.cloneId > 0)
+  const drawerTitle = computed(() => {
+    if (isEdit.value) return '编辑告警规则'
+    if (isClone.value) return '克隆告警规则'
+    return '添加告警规则'
+  })
   const editLoading = ref(false)
+  const loadingDetail = ref(false)
   const submitting = ref(false)
   const formRef = ref<FormInstance>()
   const resourceVersion = ref(0)
@@ -485,6 +505,8 @@
       ruleType: 1 as AlertRuleType,
       promQl: '',
       evalInterval: 15,
+      notifyRepeatStep: 5,
+      notifyMaxNumber: 0,
       notifyTemplate: '',
       enableStime: '00:00',
       enableEtime: '00:00',
@@ -545,6 +567,7 @@
   async function loadDetail() {
     if (!isEdit.value || !props.editId) return
     editLoading.value = true
+    loadingDetail.value = true
     try {
       const detail = await fetchGetAlertRule(props.editId)
       resourceVersion.value = detail.resourceVersion
@@ -564,6 +587,8 @@
         ruleType: detail.ruleType,
         promQl: parsed.promQl,
         evalInterval: detail.evalInterval,
+        notifyRepeatStep: detail.notifyRepeatStep ?? 5,
+        notifyMaxNumber: detail.notifyMaxNumber ?? 0,
         notifyTemplate: detail.notifyTemplate,
         enableStime: detail.enableStime || '00:00',
         enableEtime: detail.enableEtime || '00:00',
@@ -575,6 +600,46 @@
       closeDrawer()
     } finally {
       editLoading.value = false
+      loadingDetail.value = false
+    }
+  }
+
+  async function loadCloneDetail() {
+    if (!isClone.value || !props.cloneId) return
+    editLoading.value = true
+    loadingDetail.value = true
+    try {
+      const detail = await fetchGetAlertRule(props.cloneId)
+      resourceVersion.value = 0
+      selectedChannelIds.value = parseChannelIds(detail.notifyChannels)
+      enableDays.value = parseEnableDays(detail.enableDaysOfWeek)
+      const parsed = parseRuleConfig(detail.ruleConfig)
+      conditions.value = parsed.triggers
+
+      const dsType = detail.ruleType === 1 ? 1 : 0
+      const { items } = await fetchDatasourceList({ page: 1, limit: 200, type: dsType })
+      datasourceOptions.value = items ?? []
+
+      formData.value = {
+        name: `${detail.name}-副本`,
+        description: detail.description,
+        ruleType: detail.ruleType,
+        promQl: parsed.promQl,
+        evalInterval: detail.evalInterval,
+        notifyRepeatStep: detail.notifyRepeatStep ?? 5,
+        notifyMaxNumber: detail.notifyMaxNumber ?? 0,
+        notifyTemplate: detail.notifyTemplate,
+        enableStime: detail.enableStime || '00:00',
+        enableEtime: detail.enableEtime || '00:00',
+        datasourceId: detail.datasourceId || undefined,
+        enabled: detail.enabled
+      }
+    } catch (error) {
+      ElMessage.error(error instanceof Error ? error.message : '加载规则详情失败')
+      closeDrawer()
+    } finally {
+      editLoading.value = false
+      loadingDetail.value = false
     }
   }
 
@@ -586,6 +651,8 @@
       await loadDatasourceOptions()
       if (isEdit.value) {
         await loadDetail()
+      } else if (isClone.value) {
+        await loadCloneDetail()
       } else {
         resourceVersion.value = 0
         selectedChannelIds.value = []
@@ -600,7 +667,7 @@
   watch(
     () => formData.value.ruleType,
     () => {
-      if (!isEdit.value) {
+      if (!isEdit.value && !loadingDetail.value) {
         formData.value.datasourceId = undefined
       }
       loadDatasourceOptions()
@@ -628,6 +695,8 @@
           rule_type: formData.value.ruleType,
           duration: 0,
           eval_interval: formData.value.evalInterval,
+          notify_repeat_step: formData.value.notifyRepeatStep,
+          notify_max_number: formData.value.notifyMaxNumber,
           severity,
           scope_type: 1,
           notify_channels: notifyChannels,
@@ -647,6 +716,8 @@
           rule_type: formData.value.ruleType,
           duration: 0,
           eval_interval: formData.value.evalInterval,
+          notify_repeat_step: formData.value.notifyRepeatStep,
+          notify_max_number: formData.value.notifyMaxNumber,
           severity,
           scope_type: 1,
           notify_channels: notifyChannels,
@@ -658,7 +729,7 @@
           datasource_id: formData.value.datasourceId || 0,
           enabled: formData.value.enabled
         })
-        ElMessage.success('创建成功')
+        ElMessage.success(isClone.value ? '克隆成功' : '创建成功')
       }
       emit('success')
       closeDrawer()

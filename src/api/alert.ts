@@ -77,6 +77,8 @@ export interface AlertRuleItem {
   ruleType: AlertRuleType
   duration: number
   evalInterval: number
+  notifyRepeatStep: number
+  notifyMaxNumber: number
   severity: AlertSeverity
   scopeType: AlertScopeType
   scopeValue: string
@@ -223,6 +225,8 @@ function toAlertRule(item: BackendMeta & Record<string, unknown>): AlertRuleItem
     ruleType: (item.rule_type as AlertRuleType) ?? 1,
     duration: (item.duration as number) ?? 0,
     evalInterval: (item.eval_interval as number) ?? 15,
+    notifyRepeatStep: (item.notify_repeat_step as number) ?? 5,
+    notifyMaxNumber: (item.notify_max_number as number) ?? 0,
     severity: (item.severity as AlertSeverity) ?? 2,
     scopeType: (item.scope_type as AlertScopeType) ?? 1,
     scopeValue: (item.scope_value as string) ?? '',

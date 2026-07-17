@@ -64,7 +64,7 @@
           <ElInput
             v-model="silenceSearch.nameSelector"
             clearable
-            placeholder="静默规则名称"
+            placeholder="告警静默名称"
             class="alert-toolbar__search"
             @keyup.enter="handleSilenceSearch"
             @clear="resetSilenceSearch"
@@ -160,21 +160,7 @@
           />
         </ElTabPane>
 
-        <ElTabPane label="通知渠道" name="channels">
-          <ArtTable
-            row-key="id"
-            :show-table-header="false"
-            :loading="channelLoading"
-            :data="channelData"
-            :columns="channelColumns"
-            :pagination="channelPagination"
-            :pagination-options="tablePaginationOptions"
-            @pagination:size-change="handleChannelSizeChange"
-            @pagination:current-change="handleChannelCurrentChange"
-          />
-        </ElTabPane>
-
-        <ElTabPane label="静默规则" name="silences">
+        <ElTabPane label="告警静默" name="silences">
           <ArtTable
             row-key="id"
             :show-table-header="false"
@@ -185,6 +171,7 @@
             :pagination-options="tablePaginationOptions"
             @pagination:size-change="handleSilenceSizeChange"
             @pagination:current-change="handleSilenceCurrentChange"
+            @selection-change="handleSilenceSelectionChange"
           />
         </ElTabPane>
 
@@ -202,7 +189,7 @@
           />
         </ElTabPane>
 
-        <ElTabPane label="通知记录" name="notifications">
+        <ElTabPane label="告警历史" name="notifications">
           <ArtTable
             row-key="id"
             :show-table-header="false"
@@ -215,12 +202,36 @@
             @pagination:current-change="handleNotificationCurrentChange"
           />
         </ElTabPane>
+
+        <ElTabPane label="通知渠道" name="channels">
+          <ArtTable
+            row-key="id"
+            :show-table-header="false"
+            :loading="channelLoading"
+            :data="channelData"
+            :columns="channelColumns"
+            :pagination="channelPagination"
+            :pagination-options="tablePaginationOptions"
+            @pagination:size-change="handleChannelSizeChange"
+            @pagination:current-change="handleChannelCurrentChange"
+          />
+        </ElTabPane>
       </ElTabs>
     </ElCard>
 
-    <AlertRuleDrawer v-model="ruleDrawerVisible" :edit-id="ruleEditId" @success="refreshRuleData" />
+    <AlertRuleDrawer
+      v-model="ruleDrawerVisible"
+      :edit-id="ruleEditId"
+      :clone-id="ruleCloneId"
+      @success="refreshRuleData"
+    />
     <AlertChannelDrawer v-model="channelDrawerVisible" :edit-id="channelEditId" @success="refreshChannelData" />
-    <AlertSilenceDrawer v-model="silenceDrawerVisible" :edit-id="silenceEditId" @success="refreshSilenceData" />
+    <AlertSilenceDrawer
+      v-model="silenceDrawerVisible"
+      :edit-id="silenceEditId"
+      :preset-rule-id="silencePresetRuleId"
+      @success="refreshSilenceData"
+    />
     <AlertEventStatusDialog v-model="eventStatusVisible" :event-data="currentEvent" @success="refreshEventData" />
   </div>
 </template>
@@ -261,6 +272,7 @@
     fetchGetAlertRuleList,
     fetchGetAlertSilenceList,
     fetchUpdateAlertRule,
+    fetchUpdateAlertSilence,
     type AlertChannelItem,
     type AlertEventItem,
     type AlertNotificationItem,
@@ -281,7 +293,7 @@
   const route = useRoute()
   const router = useRouter()
 
-  const validTabs: AlertTab[] = ['rules', 'channels', 'silences', 'events', 'notifications']
+  const validTabs: AlertTab[] = ['rules', 'silences', 'events', 'notifications', 'channels']
   const tabFromQuery = route.query.tab as string | undefined
   const initialTab: AlertTab = validTabs.includes(tabFromQuery as AlertTab)
     ? (tabFromQuery as AlertTab)
@@ -299,9 +311,9 @@
   const tabDescriptions: Record<AlertTab, string> = {
     rules: '管理告警规则，配置触发条件、评估间隔和通知渠道。规则更新后约 9 秒内自动生效。',
     channels: '管理通知渠道配置，支持邮件、钉钉、企业微信和 Webhook。',
-    silences: '配置静默规则，在指定时间段内抑制匹配的告警通知。',
+    silences: '配置告警静默，在指定时间段内抑制匹配的告警通知。',
     events: '查看引擎产生的告警事件，可手动更新事件状态（确认/解决等）。',
-    notifications: '查看告警通知发送记录，包含发送状态与失败原因。'
+    notifications: '查看告警历史通知记录，包含发送状态与失败原因。'
   }
 
   const tabDescription = computed(() => tabDescriptions[activeTab.value])
@@ -309,7 +321,7 @@
   const activeTabHasCreate = computed(() => ['rules', 'channels', 'silences'].includes(activeTab.value))
 
   const createButtonText = computed(() => {
-    if (activeTab.value === 'rules') return '添加规则'
+    if (activeTab.value === 'rules') return '新增告警规则'
     if (activeTab.value === 'channels') return '添加渠道'
     if (activeTab.value === 'silences') return '添加静默'
     return '添加'
@@ -319,6 +331,7 @@
   const ruleSearch = ref({ nameSelector: undefined as string | undefined, severity: undefined as number | undefined })
   const ruleDrawerVisible = ref(false)
   const ruleEditId = ref<number | undefined>()
+  const ruleCloneId = ref<number | undefined>()
 
   const selectedRules = ref<AlertRuleItem[]>([])
 
@@ -336,6 +349,7 @@
     refreshData: refreshRuleData
   } = useTable({
     core: {
+      immediate: initialTab === 'rules',
       apiFn: fetchGetAlertRuleList,
       apiParams: { current: 1, size: 10, ...ruleSearch.value },
       columnsFactory: () => [
@@ -352,7 +366,7 @@
           width: 100,
           formatter: (row: AlertRuleItem) =>
             h(ElTag, { size: 'small', type: row.enabled ? 'success' : 'info' }, () =>
-              row.enabled ? '启用' : '停用'
+              row.enabled ? '正常' : '关闭'
             )
         },
         {
@@ -370,9 +384,15 @@
             h('span', { style: { fontSize: '12px' } }, `${row.evalInterval}s`)
         },
         {
+          prop: 'gmtCreate',
+          label: '创建时间',
+          minWidth: 180,
+          formatter: (row: AlertRuleItem) => renderDateTime(row.gmtCreate)
+        },
+        {
           prop: 'enabledSwitch',
           label: '启用',
-          width: 72,
+          width: 120,
           align: 'center',
           formatter: (row: AlertRuleItem) =>
             h(ElSwitch, {
@@ -382,23 +402,18 @@
             })
         },
         {
-          prop: 'gmtCreate',
-          label: '创建时间',
-          minWidth: 180,
-          formatter: (row: AlertRuleItem) => renderDateTime(row.gmtCreate)
-        },
-        {
-          prop: 'gmtModified',
-          label: '更新时间',
-          minWidth: 180,
-          formatter: (row: AlertRuleItem) => renderDateTime(row.gmtModified)
+          prop: 'createdBy',
+          label: '最后更新人',
+          minWidth: 120,
+          formatter: (row: AlertRuleItem) =>
+            h('span', { style: { fontSize: '12px' } }, row.createdBy || '-')
         },
         {
           prop: 'operation',
           label: '操作',
-          width: 120,
+          width: 160,
           fixed: 'right',
-          formatter: (row: AlertRuleItem) => renderCrudLinks(row, editRule, deleteRule)
+          formatter: (row: AlertRuleItem) => renderRuleOperationLinks(row)
         }
       ]
     }
@@ -434,8 +449,21 @@
   }
 
   function editRule(row: AlertRuleItem) {
+    ruleCloneId.value = undefined
     ruleEditId.value = row.id
     ruleDrawerVisible.value = true
+  }
+
+  function cloneRule(row: AlertRuleItem) {
+    ruleEditId.value = undefined
+    ruleCloneId.value = row.id
+    ruleDrawerVisible.value = true
+  }
+
+  function silenceFromRule(row: AlertRuleItem) {
+    silenceEditId.value = undefined
+    silencePresetRuleId.value = row.id
+    silenceDrawerVisible.value = true
   }
 
   async function deleteRule(row: AlertRuleItem) {
@@ -464,6 +492,7 @@
     refreshData: refreshChannelData
   } = useTable({
     core: {
+      immediate: initialTab === 'channels',
       apiFn: fetchGetAlertChannelList,
       apiParams: { current: 1, size: 10, ...channelSearch.value },
       columnsFactory: () => [
@@ -547,6 +576,8 @@
   const silenceSearch = ref({ nameSelector: undefined as string | undefined })
   const silenceDrawerVisible = ref(false)
   const silenceEditId = ref<number | undefined>()
+  const silencePresetRuleId = ref<number | undefined>()
+  const selectedSilences = ref<AlertSilenceItem[]>([])
 
   const {
     columns: silenceColumns,
@@ -562,9 +593,11 @@
     refreshData: refreshSilenceData
   } = useTable({
     core: {
+      immediate: initialTab === 'silences',
       apiFn: fetchGetAlertSilenceList,
       apiParams: { current: 1, size: 10, ...silenceSearch.value },
       columnsFactory: () => [
+        { type: 'selection', width: 30 },
         {
           prop: 'name',
           label: '名称',
@@ -572,13 +605,19 @@
           formatter: (row: AlertSilenceItem) => h('span', { style: { fontSize: '12px' } }, row.name)
         },
         {
-          prop: 'enabled',
+          prop: 'silenceStatus',
           label: '状态',
-          width: 88,
-          formatter: (row: AlertSilenceItem) =>
-            h(ElTag, { size: 'small', type: row.enabled ? 'success' : 'info' }, () =>
-              row.enabled ? '启用' : '停用'
-            )
+          width: 96,
+          formatter: (row: AlertSilenceItem) => {
+            const meta = resolveSilenceStatus(row)
+            return h(ElTag, { size: 'small', type: meta.type }, () => meta.label)
+          }
+        },
+        {
+          prop: 'matchLabels',
+          label: '静默规则',
+          minWidth: 220,
+          formatter: (row: AlertSilenceItem) => renderSilenceMatchLabels(row.matchLabels)
         },
         {
           prop: 'startsAt',
@@ -593,23 +632,23 @@
           formatter: (row: AlertSilenceItem) => renderDateTime(row.endsAt)
         },
         {
-          prop: 'gmtCreate',
-          label: '创建时间',
-          minWidth: 180,
-          formatter: (row: AlertSilenceItem) => renderDateTime(row.gmtCreate)
+          prop: 'enabledSwitch',
+          label: '启用',
+          width: 120,
+          align: 'center',
+          formatter: (row: AlertSilenceItem) =>
+            h(ElSwitch, {
+              modelValue: row.enabled,
+              size: 'small',
+              onChange: (value) => toggleSilenceEnabled(row, Boolean(value))
+            })
         },
         {
-          prop: 'gmtModified',
-          label: '更新时间',
-          minWidth: 180,
-          formatter: (row: AlertSilenceItem) => renderDateTime(row.gmtModified)
-        },
-        {
-          prop: 'comment',
-          label: '备注',
-          minWidth: 160,
-          showOverflowTooltip: true,
-          formatter: (row: AlertSilenceItem) => h('span', { style: { fontSize: '12px' } }, row.comment || '-')
+          prop: 'createdBy',
+          label: '最后更新人',
+          minWidth: 120,
+          formatter: (row: AlertSilenceItem) =>
+            h('span', { style: { fontSize: '12px' } }, row.createdBy || '-')
         },
         {
           prop: 'operation',
@@ -627,6 +666,58 @@
     getSilenceData()
   }
 
+  function resolveSilenceStatus(row: AlertSilenceItem): {
+    label: string
+    type: 'success' | 'warning' | 'info' | 'danger'
+  } {
+    if (!row.enabled) {
+      return { label: '已关闭', type: 'info' }
+    }
+    const now = Date.now()
+    const startsAt = new Date(row.startsAt).getTime()
+    const endsAt = new Date(row.endsAt).getTime()
+    if (Number.isFinite(startsAt) && now < startsAt) {
+      return { label: '未开始', type: 'warning' }
+    }
+    if (Number.isFinite(endsAt) && now > endsAt) {
+      return { label: '已失效', type: 'danger' }
+    }
+    return { label: '生效中', type: 'success' }
+  }
+
+  function renderSilenceMatchLabels(raw?: string) {
+    if (!raw?.trim()) {
+      return h('span', { style: { fontSize: '12px' } }, '-')
+    }
+    try {
+      const parsed = JSON.parse(raw) as Record<string, unknown>
+      const entries = Object.entries(parsed).filter(([key]) => key.trim())
+      if (!entries.length) {
+        return h('span', { style: { fontSize: '12px' } }, '-')
+      }
+      return h(
+        'div',
+        {
+          style: {
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '4px',
+            alignItems: 'center'
+          }
+        },
+        entries.map(([key, value]) =>
+          h(ElTag, { size: 'small', type: 'info' }, () => `${key}=${value == null ? '' : String(value)}`)
+        )
+      )
+    } catch {
+      return h('span', { style: { fontSize: '12px' } }, raw)
+    }
+  }
+
+  function handleSilenceSelectionChange(rows: AlertSilenceItem[]) {
+    selectedSilences.value = rows
+  }
+
   function resetSilenceSearch() {
     silenceSearch.value.nameSelector = undefined
     resetSilenceSearchParams()
@@ -634,12 +725,26 @@
   }
 
   function editSilence(row: AlertSilenceItem) {
+    silencePresetRuleId.value = undefined
     silenceEditId.value = row.id
     silenceDrawerVisible.value = true
   }
 
+  async function toggleSilenceEnabled(row: AlertSilenceItem, enabled: boolean) {
+    try {
+      await fetchUpdateAlertSilence(row.id, { resource_version: row.resourceVersion, enabled })
+      ElMessage.success(enabled ? '已启用' : '已停用')
+      refreshSilenceData()
+    } catch (error) {
+      if (!(error instanceof PixiuApiError) || !error.notified) {
+        ElMessage.error(error instanceof Error ? error.message : '更新失败')
+      }
+      refreshSilenceData()
+    }
+  }
+
   async function deleteSilence(row: AlertSilenceItem) {
-    await confirmDelete(`确定删除静默规则「${row.name}」吗？`, () => fetchDeleteAlertSilence(row.id), refreshSilenceData)
+    await confirmDelete(`确定删除告警静默「${row.name}」吗？`, () => fetchDeleteAlertSilence(row.id), refreshSilenceData)
   }
 
   // ---------- Events ----------
@@ -661,6 +766,7 @@
     refreshData: refreshEventData
   } = useTable({
     core: {
+      immediate: initialTab === 'events',
       apiFn: (params) =>
         fetchGetAlertEventList({
           current: params.current,
@@ -770,6 +876,7 @@
     refreshData: refreshNotificationData
   } = useTable({
     core: {
+      immediate: initialTab === 'notifications',
       apiFn: (params) =>
         fetchGetAlertNotificationList({
           current: params.current,
@@ -844,22 +951,76 @@
 
   // ---------- Shared ----------
 
+  function loadTabData(tab: AlertTab) {
+    if (tab === 'rules') {
+      getRuleData()
+      return
+    }
+    if (tab === 'channels') {
+      getChannelData()
+      return
+    }
+    if (tab === 'silences') {
+      getSilenceData()
+      return
+    }
+    if (tab === 'events') {
+      getEventData()
+      return
+    }
+    getNotificationData()
+  }
+
   function handleTabChange(name: string | number) {
-    activeTab.value = name as AlertTab
-    router.replace({ query: { ...route.query, tab: name } })
+    const tab = name as AlertTab
+    activeTab.value = tab
+    router.replace({ query: { ...route.query, tab } })
+    loadTabData(tab)
   }
 
   function handleCreate() {
     if (activeTab.value === 'rules') {
       ruleEditId.value = undefined
+      ruleCloneId.value = undefined
       ruleDrawerVisible.value = true
     } else if (activeTab.value === 'channels') {
       channelEditId.value = undefined
       channelDrawerVisible.value = true
     } else if (activeTab.value === 'silences') {
       silenceEditId.value = undefined
+      silencePresetRuleId.value = undefined
       silenceDrawerVisible.value = true
     }
+  }
+
+  function renderRuleOperationLinks(row: AlertRuleItem) {
+    return h('div', { style: 'display:flex;align-items:center;gap:8px;flex-wrap:nowrap' }, [
+      h(
+        ElLink,
+        { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => editRule(row) },
+        () => '编辑'
+      ),
+      h(
+        ElLink,
+        { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => cloneRule(row) },
+        () => '克隆'
+      ),
+      h(
+        ElLink,
+        {
+          type: 'primary',
+          underline: 'never',
+          style: 'font-size:12px',
+          onClick: () => silenceFromRule(row)
+        },
+        () => '静默'
+      ),
+      h(
+        ElLink,
+        { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => deleteRule(row) },
+        () => '删除'
+      )
+    ])
   }
 
   function renderCrudLinks<T extends { name: string }>(
