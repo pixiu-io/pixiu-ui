@@ -24,7 +24,12 @@
         </ElFormItem>
         <ElFormItem label="规则类型" prop="ruleType">
           <ElSelect v-model="formData.ruleType" class="w-full">
-            <ElOption v-for="(label, value) in AlertRuleTypeMap" :key="value" :label="label" :value="Number(value)" />
+            <ElOption
+              v-for="(label, value) in AlertRuleTypeMap"
+              :key="value"
+              :label="label"
+              :value="Number(value)"
+            />
           </ElSelect>
         </ElFormItem>
         <ElFormItem label="数据源" prop="datasourceId">
@@ -69,7 +74,11 @@
               告警条件
             </div>
             <div class="alert-conditions">
-              <div v-for="(item, index) in conditions" :key="item.key" class="alert-condition-block">
+              <div
+                v-for="(item, index) in conditions"
+                :key="item.key"
+                class="alert-condition-block"
+              >
                 <div class="alert-condition-row">
                   <ElSelect v-model="item.severity" class="alert-condition-row__severity">
                     <ElOption
@@ -143,7 +152,12 @@
             class="w-full"
             placeholder="选择已配置的通知渠道"
           >
-            <ElOption v-for="item in channelOptions" :key="item.id" :label="item.name" :value="item.id" />
+            <ElOption
+              v-for="item in channelOptions"
+              :key="item.id"
+              :label="item.name"
+              :value="item.id"
+            />
           </ElSelect>
         </ElFormItem>
         <ElFormItem label="通知模板">
@@ -151,7 +165,7 @@
             v-model="formData.notifyTemplate"
             type="textarea"
             :rows="3"
-            placeholder="可选，支持 Go text/template 与 $label/${label}，例如：时间={{.FireTime}} 实例=$instance 当前值={{.TriggerValue}}"
+            placeholder="请输入通知模板，例如：触发时间={{.TriggerTime}} 告警级别={{.Severity}} 当前值={{.Value}}"
           />
         </ElFormItem>
         <ElFormItem label="生效时间" class="alert-effective-time-item">
@@ -220,8 +234,7 @@
 <script setup lang="ts">
   import { Close, Delete } from '@element-plus/icons-vue'
   import { computed, ref, watch } from 'vue'
-  import {
-    ElIcon, ElMessage, type FormInstance, type FormRules } from 'element-plus'
+  import { ElIcon, ElMessage, type FormInstance, type FormRules } from 'element-plus'
   import {
     AlertRuleTypeMap,
     AlertSeverityMap,
@@ -313,7 +326,9 @@
   }
 
   function isSeverityUsed(severity: AlertSeverity, currentIndex: number) {
-    return conditions.value.some((item, index) => index !== currentIndex && item.severity === severity)
+    return conditions.value.some(
+      (item, index) => index !== currentIndex && item.severity === severity
+    )
   }
 
   function nextAvailableSeverity(): AlertSeverity | null {
@@ -371,7 +386,10 @@
     return result.length > 0 ? result : [createCondition()]
   }
 
-  function parseRuleConfig(ruleConfig?: string): { promQl: string; triggers: AlertConditionItem[] } {
+  function parseRuleConfig(ruleConfig?: string): {
+    promQl: string
+    triggers: AlertConditionItem[]
+  } {
     if (ruleConfig) {
       try {
         const parsed = JSON.parse(ruleConfig) as {
@@ -384,7 +402,9 @@
         const triggers = (parsed.triggers || [])
           .map((item) =>
             createCondition(
-              ([1, 2, 3].includes(Number(item.severity)) ? Number(item.severity) : 1) as AlertSeverity,
+              ([1, 2, 3].includes(Number(item.severity))
+                ? Number(item.severity)
+                : 1) as AlertSeverity,
               String(item.condition || '').trim()
             )
           )
@@ -405,9 +425,9 @@
           for (const item of queries) {
             const raw = String(item.prom_ql || '').trim()
             if (!raw) continue
-            const severity = ([1, 2, 3].includes(Number(item.severity))
-              ? Number(item.severity)
-              : 1) as AlertSeverity
+            const severity = (
+              [1, 2, 3].includes(Number(item.severity)) ? Number(item.severity) : 1
+            ) as AlertSeverity
             if (/^(>=|<=|!=|<>|==|>|<|=)\s*/.test(raw)) {
               migratedTriggers.push(createCondition(severity, raw))
             } else {
@@ -533,13 +553,18 @@
     ruleType: [{ required: true, message: '请选择规则类型', trigger: 'change' }],
     datasourceId: [{ required: true, message: '请选择数据源', trigger: 'change' }],
     promQl: [{ required: true, message: '请输入 PromQL', trigger: 'blur' }],
-    notifyChannels: [{ validator: (_rule, _value, callback) => {
-      if (selectedChannelIds.value.length === 0) {
-        callback(new Error('请选择通知渠道'))
-      } else {
-        callback()
+    notifyChannels: [
+      {
+        validator: (_rule, _value, callback) => {
+          if (selectedChannelIds.value.length === 0) {
+            callback(new Error('请选择通知渠道'))
+          } else {
+            callback()
+          }
+        },
+        trigger: 'change'
       }
-    }, trigger: 'change' }]
+    ]
   }
 
   async function loadChannelOptions() {
