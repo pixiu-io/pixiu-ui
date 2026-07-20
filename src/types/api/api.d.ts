@@ -173,27 +173,44 @@ declare namespace Api {
     type APISearchParams = Partial<
       Pick<APIListItem, 'method' | 'path' | 'group' | 'subGroup'> & Api.Common.CommonSearchParams
     >
+    /** AI 供应商列表 */
+    type AIProviderList = Api.Common.PaginatedResponse<AIProviderListItem>
+
+    interface AIProviderListItem {
+      id: number
+      resourceVersion: number
+      name: string
+      baseUrl: string
+      protocol: string
+      description: string
+      maxTokens: number
+      builtin: boolean
+      createTime: string
+      updateTime: string
+    }
+
+    type AIProviderSearchParams = Partial<
+      Pick<AIProviderListItem, 'name'> & Api.Common.CommonSearchParams
+    >
+
     /** AI 账号列表 */
     type AIAccountList = Api.Common.PaginatedResponse<AIAccountListItem>
 
     interface AIAccountListItem {
       id: number
       resourceVersion: number
-      provider: string
+      userId: number
+      providerId: number
+      name: string
       apiKey: string
-      baseUrl: string
       model: string
-      description: string
-      enabled: boolean
+      provider?: AIProviderListItem
       createTime: string
       updateTime: string
     }
 
     type AIAccountSearchParams = Partial<
-      Pick<AIAccountListItem, 'provider'> &
-        Api.Common.CommonSearchParams & {
-          enabled?: boolean
-        }
+      Pick<AIAccountListItem, 'name' | 'providerId'> & Api.Common.CommonSearchParams
     >
   }
 }

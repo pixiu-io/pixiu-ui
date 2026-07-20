@@ -33,7 +33,27 @@
           <span class="cluster-ai-float__header-avatar">
             <ArtSvgIcon icon="ri:robot-2-line" />
           </span>
-          <div class="cluster-ai-float__title">Pixiu 智能助手</div>
+          <div class="cluster-ai-float__header-copy">
+            <div class="cluster-ai-float__title">Pixiu 智能助手</div>
+            <ElDropdown v-if="currentAccountLabel" trigger="click" @command="handleAccountChange">
+              <button class="cluster-ai-float__account" type="button" :title="currentAccountLabel">
+                <span>{{ currentAccountLabel }}</span>
+                <ElIcon :size="10"><ArrowDown /></ElIcon>
+              </button>
+              <template #dropdown>
+                <ElDropdownMenu>
+                  <ElDropdownItem
+                    v-for="account in availableAccounts"
+                    :key="account.id"
+                    :command="account.id"
+                    :disabled="account.id === selectedAccountId"
+                  >
+                    {{ account.name }}（{{ account.model }}）
+                  </ElDropdownItem>
+                </ElDropdownMenu>
+              </template>
+            </ElDropdown>
+          </div>
         </div>
         <div class="cluster-ai-float__header-actions">
           <button
@@ -100,11 +120,11 @@
           <div v-if="providerChecked && !hasProvider" class="cluster-ai-float__provider-hint">
             <ElIcon :size="16"><WarningFilled /></ElIcon>
             <span>
-              未接入 AI Provider，点击
+              未配置可用的 AI 账号，点击
               <router-link to="/ai/ai-account" class="cluster-ai-float__provider-link"
                 >添加</router-link
               >
-              AI供应商后才能使用
+              AI 账号后才能使用
             </span>
           </div>
         </div>
@@ -200,7 +220,6 @@
           内容由 AI 生成，仅供参考，您据此所作判断及操作均由您自行承担责任。
         </div>
       </div>
-
     </div>
   </div>
 </template>
@@ -219,7 +238,11 @@
   } from '@element-plus/icons-vue'
   import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
   import { respondAIStream, type AIStreamEvent } from '@/api/ai'
-  import { fetchGetAIAccountList } from '@/api/ai-account'
+  import {
+    AI_ACCOUNT_STORAGE_KEY,
+    fetchGetAIAccount,
+    fetchGetAIAccountList
+  } from '@/api/ai-account'
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
 
   interface TraceItem {
@@ -253,6 +276,9 @@
   const rootRef = ref<HTMLElement | null>(null)
   const providerChecked = ref(false)
   const hasProvider = ref(false)
+  const selectedAccountId = ref(0)
+  const selectedAccount = ref<Api.SystemManage.AIAccountListItem>()
+  const availableAccounts = ref<Api.SystemManage.AIAccountListItem[]>([])
   const isMaximized = ref(false)
   const panelSize = ref<{ width: number; height: number } | null>(null)
 
@@ -486,7 +512,9 @@
     }
     if (resizeEdge.includes('n')) {
       position.value = {
-        x: resizeEdge.includes('w') ? resizeStartLeft + (resizeStartWidth - newWidth) : resizeStartLeft,
+        x: resizeEdge.includes('w')
+          ? resizeStartLeft + (resizeStartWidth - newWidth)
+          : resizeStartLeft,
         y: resizeStartTop + (resizeStartHeight - newHeight)
       }
     }
@@ -547,8 +575,19 @@
   let abortController: AbortController | null = null
 
   const canSend = computed(
-    () => !!props.clusterName && !!inputText.value.trim() && !loading.value && hasProvider.value
+    () =>
+      !!props.clusterName &&
+      !!inputText.value.trim() &&
+      !loading.value &&
+      hasProvider.value &&
+      selectedAccountId.value > 0
   )
+
+  const currentAccountLabel = computed(() => {
+    const account = selectedAccount.value
+    if (!account) return ''
+    return account.name
+  })
 
   watch(
     () => props.clusterName,
@@ -568,13 +607,35 @@
 
   async function checkProvider() {
     try {
-      const { total } = await fetchGetAIAccountList({ enabled: true, current: 1, size: 1 })
-      hasProvider.value = total > 0
+      const { records, total } = await fetchGetAIAccountList({ current: 1, size: 1000 })
+      availableAccounts.value = records
+      const storedId = Number(localStorage.getItem(AI_ACCOUNT_STORAGE_KEY) || 0)
+      const selected = records.find((item) => item.id === storedId) || records[0]
+      selectedAccountId.value = selected?.id || 0
+      hasProvider.value = total > 0 && selectedAccountId.value > 0
+      selectedAccount.value = selectedAccountId.value
+        ? await fetchGetAIAccount(selectedAccountId.value)
+        : undefined
+      if (selectedAccountId.value) {
+        localStorage.setItem(AI_ACCOUNT_STORAGE_KEY, String(selectedAccountId.value))
+      }
     } catch {
       hasProvider.value = false
+      selectedAccountId.value = 0
+      selectedAccount.value = undefined
+      availableAccounts.value = []
     } finally {
       providerChecked.value = true
     }
+  }
+
+  async function handleAccountChange(command: string | number) {
+    const accountId = Number(command)
+    if (!accountId || accountId === selectedAccountId.value) return
+    selectedAccountId.value = accountId
+    selectedAccount.value = await fetchGetAIAccount(accountId)
+    localStorage.setItem(AI_ACCOUNT_STORAGE_KEY, String(accountId))
+    resetConversation()
   }
 
   function minimizePanel() {
@@ -797,6 +858,7 @@
       const result = await respondAIStream(
         {
           conversation_id: conversationId.value || undefined,
+          account_id: selectedAccountId.value,
           input: buildClusterScopedInput(question)
         },
         {
@@ -983,6 +1045,36 @@
     font-weight: 600;
     color: #fff;
     letter-spacing: 0.2px;
+  }
+
+  .cluster-ai-float__header-copy {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+  }
+
+  .cluster-ai-float__account {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    min-width: 0;
+    max-width: 210px;
+    overflow: hidden;
+    margin-top: 1px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: rgb(255 255 255 / 76%);
+    font-size: 10px;
+    line-height: 14px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .cluster-ai-float__account span {
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .cluster-ai-float__header-actions {

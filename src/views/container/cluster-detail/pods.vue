@@ -362,6 +362,7 @@
   import { deleteK8sPod, fetchK8sPod, fetchK8sPodList, type K8sPod } from '@/api/kubernetes/pod'
   import { PixiuApiError } from '@/api/container'
   import { respondAIStream, type AIStreamEvent } from '@/api/ai'
+  import { AI_ACCOUNT_STORAGE_KEY, fetchGetAIAccountList } from '@/api/ai-account'
   import { formatNodeCreationTime } from '@/utils/kubernetes/nodeDisplay'
   import {
     formatPodDisplayStatus,
@@ -1130,9 +1131,14 @@
     aiAnalysisText.value = ''
     pushAIAnalysisStep('开始', '已提交 AI 分析请求')
     try {
+      const { records } = await fetchGetAIAccountList({ current: 1, size: 1000 })
+      const storedId = Number(localStorage.getItem(AI_ACCOUNT_STORAGE_KEY) || 0)
+      const accountId = records.find((item) => item.id === storedId)?.id || records[0]?.id
+      if (!accountId) throw new Error('请先在 AI 配置中创建可用账号')
       const result = await respondAIStream(
         {
           conversation_id: aiConversationId.value || undefined,
+          account_id: accountId,
           input
         },
         {
