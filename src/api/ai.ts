@@ -1,7 +1,6 @@
 export interface AIRespondRequest {
   conversation_id?: number
-  provider?: string
-  model?: string
+  account_id: number
   input: string
 }
 
