@@ -17,6 +17,9 @@
       :class="{ 'alert-toolbar-outer--no-alert': !descriptionAlertVisible }"
     >
       <ElButton v-if="activeTabHasCreate" v-ripple @click="handleCreate">{{ createButtonText }}</ElButton>
+      <ElButton v-else-if="activeTab === 'notifications'" v-ripple :disabled="!selectedNotifications.length" @click="handleSilenceNotification">
+        静默告警
+      </ElButton>
       <div v-else />
 
       <div class="alert-toolbar__right">
@@ -90,25 +93,18 @@
             <ElOption v-for="(meta, value) in AlertEventStatusMap" :key="value" :label="meta.label" :value="Number(value)" />
           </ElSelect>
         </template>
-
         <template v-else-if="activeTab === 'notifications'">
           <ElInput
-            v-model="notificationSearch.ruleId"
+            v-model="notificationSearch.nameSelector"
             clearable
-            placeholder="规则 ID"
-            class="alert-toolbar__search--short"
-            @keyup.enter="handleNotificationSearch"
-            @clear="resetNotificationSearch"
-          />
-          <ElInput
-            v-model="notificationSearch.eventId"
-            clearable
-            placeholder="事件 ID"
-            class="alert-toolbar__search--short"
+            placeholder="规则名称"
+            class="alert-toolbar__search"
             @keyup.enter="handleNotificationSearch"
             @clear="resetNotificationSearch"
           />
         </template>
+
+
 
         <ArtTableHeader
           v-if="activeTab === 'rules'"
@@ -200,6 +196,7 @@
             :pagination-options="tablePaginationOptions"
             @pagination:size-change="handleNotificationSizeChange"
             @pagination:current-change="handleNotificationCurrentChange"
+            @selection-change="handleNotificationSelectionChange"
           />
         </ElTabPane>
 
@@ -857,10 +854,9 @@
   }
 
   // ---------- Notifications ----------
-  const notificationSearch = ref({
-    ruleId: undefined as string | undefined,
-    eventId: undefined as string | undefined
-  })
+  const notificationSearch = ref({ nameSelector: undefined as string | undefined })
+
+  const selectedNotifications = ref<AlertNotificationItem[]>([])
 
   const {
     columns: notificationColumns,
@@ -881,30 +877,11 @@
         fetchGetAlertNotificationList({
           current: params.current,
           size: params.size,
-          ruleId: params.ruleId ? Number(params.ruleId) : undefined,
-          eventId: params.eventId ? Number(params.eventId) : undefined
+          nameSelector: params.nameSelector
         }),
       apiParams: { current: 1, size: 10, ...notificationSearch.value },
       columnsFactory: () => [
-        {
-          prop: 'ruleId',
-          label: '规则 ID',
-          width: 88,
-          formatter: (row: AlertNotificationItem) => h('span', { style: { fontSize: '12px' } }, String(row.ruleId))
-        },
-        {
-          prop: 'eventId',
-          label: '事件 ID',
-          width: 88,
-          formatter: (row: AlertNotificationItem) => h('span', { style: { fontSize: '12px' } }, String(row.eventId))
-        },
-        {
-          prop: 'channel',
-          label: '渠道',
-          width: 100,
-          formatter: (row: AlertNotificationItem) =>
-            h('span', { style: { fontSize: '12px' } }, AlertChannelTypeMap[row.channel] || '-')
-        },
+        { type: 'selection', width: 30 },
         {
           prop: 'title',
           label: '标题',
@@ -913,25 +890,31 @@
           formatter: (row: AlertNotificationItem) => h('span', { style: { fontSize: '12px' } }, row.title || '-')
         },
         {
-          prop: 'status',
-          label: '状态',
-          width: 96,
+          prop: 'labels',
+          label: '标签',
+          minWidth: 220,
+          formatter: (row: AlertNotificationItem) => renderNotificationLabels(row.labels)
+        },
+        {
+          prop: 'severity',
+          label: '级别',
+          width: 88,
           formatter: (row: AlertNotificationItem) => {
-            const meta = AlertNotificationStatusMap[row.status]
+            const meta = AlertSeverityMap[row.severity]
             return h(ElTag, { size: 'small', type: meta?.type || 'info' }, () => meta?.label || '-')
           }
         },
         {
-          prop: 'errorMsg',
-          label: '错误信息',
-          minWidth: 180,
-          showOverflowTooltip: true,
-          formatter: (row: AlertNotificationItem) => h('span', { style: { fontSize: '12px' } }, row.errorMsg || '-')
+          prop: 'channelName',
+          label: '通知渠道',
+          width: 120,
+          formatter: (row: AlertNotificationItem) =>
+            h('span', { style: { fontSize: '12px' } }, row.channelName || '-')
         },
         {
           prop: 'gmtCreate',
-          label: '发送时间',
-          minWidth: 180,
+          label: '告警时间',
+          minWidth: 120,
           formatter: (row: AlertNotificationItem) => renderDateTime(row.gmtCreate)
         }
       ]
@@ -943,8 +926,50 @@
     getNotificationData()
   }
 
+
+  function handleNotificationSelectionChange(rows: AlertNotificationItem[]) {
+    selectedNotifications.value = rows
+  }
+
+  function handleSilenceNotification() {
+    const ruleId = selectedNotifications.value[0]?.ruleId
+    if (!ruleId) return
+    silencePresetRuleId.value = ruleId
+    silenceEditId.value = undefined
+    silenceDrawerVisible.value = true
+  }
+
+  function renderNotificationLabels(raw?: string) {
+    if (!raw?.trim()) {
+      return h('span', { style: { fontSize: '11px' } }, '-')
+    }
+    try {
+      const parsed = JSON.parse(raw) as Record<string, unknown>
+      const entries = Object.entries(parsed).filter(([key]) => key.trim())
+      if (!entries.length) {
+        return h('span', { style: { fontSize: '11px' } }, '-')
+      }
+      return h(
+        'div',
+        {
+          style: {
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '4px',
+            alignItems: 'center'
+          }
+        },
+        entries.map(([key, value]) =>
+          h(ElTag, { size: 'small', type: 'info' }, () => `${key}=${value == null ? '' : String(value)}`)
+        )
+      )
+    } catch {
+      return h('span', { style: { fontSize: '11px' } }, raw)
+    }
+  }
+
   function resetNotificationSearch() {
-    notificationSearch.value = { ruleId: undefined, eventId: undefined }
+    notificationSearch.value.nameSelector = undefined
     resetNotificationSearchParams()
     handleNotificationSearch()
   }

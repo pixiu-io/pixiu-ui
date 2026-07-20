@@ -164,6 +164,9 @@ export interface AlertNotificationItem {
   extension: string
   gmtCreate: string
   gmtModified: string
+  severity: AlertSeverity
+  labels: string
+  channelName: string
 }
 
 export interface AlertListParams {
@@ -319,7 +322,10 @@ function toAlertNotification(item: BackendMeta & Record<string, unknown>): Alert
     errorMsg: (item.error_msg as string) ?? '',
     extension: (item.extension as string) ?? '',
     gmtCreate: formatDateTime(item.gmt_create as string),
-    gmtModified: formatDateTime(item.gmt_modified as string)
+    gmtModified: formatDateTime(item.gmt_modified as string),
+    severity: (item.severity as AlertSeverity) ?? 2,
+    labels: (item.labels as string) ?? '',
+    channelName: (item.channel_name as string) ?? ''
   }
 }
 
@@ -514,7 +520,8 @@ export async function fetchGetAlertNotificationList(
         page,
         limit,
         rule_id: params.ruleId,
-        event_id: params.eventId
+        event_id: params.eventId,
+        nameSelector: params.nameSelector
       }
     }),
     '获取通知记录列表失败'
