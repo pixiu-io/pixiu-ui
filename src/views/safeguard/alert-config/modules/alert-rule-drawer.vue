@@ -918,16 +918,18 @@
     min-width: 0;
   }
 
-  .alert-effective-time__clock {
-    --el-date-editor-width: 40px;
-    width: var(--el-date-editor-width);
-    flex: 0 0 var(--el-date-editor-width);
+  /* ElTimePicker 根是 Tooltip；class 落在外层时 scoped 选不中内部 .el-date-editor */
+  .alert-effective-time :deep(.el-date-editor.el-input) {
+    --el-date-editor-width: 110px;
+    width: 120px !important;
+    max-width: 120px;
+    flex: 0 0 120px;
   }
 
-  .alert-effective-time__clock :deep(.el-input__wrapper) {
+  .alert-effective-time :deep(.el-date-editor .el-input__wrapper) {
     width: 100%;
-    padding-left: 4px;
-    padding-right: 4px;
+    padding-left: 8px;
+    padding-right: 8px;
   }
 
   .alert-drawer-footer {
