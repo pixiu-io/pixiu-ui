@@ -644,7 +644,6 @@
   } from '@/api/datasource'
   import { PixiuApiError, fetchClusterList } from '@/api/container'
   import { buildDatasourceProxyHeaders, kubeProxyAxios } from '@/api/kubeProxy'
-  import { fetchK8sService, fetchK8sServiceList, type K8sService } from '@/api/kubernetes/service'
   import { clusterDetailContextKey, clusterNameSeed, type ClusterDetailContext } from './context'
 
   const router = useRouter()
@@ -837,8 +836,6 @@
   const queryDraft = ref('')
   const queryDirty = ref(false)
 
-  const resolvedService = ref<K8sService | null>(null)
-  const resolvedServiceNamespace = ref('')
   const resolvedEndpoint = ref<ParsedDatasourceEndpoint | null>(null)
 
   const labelKeys = ref<string[]>([])
@@ -1187,8 +1184,8 @@
     }
 
     const endpoint = resolvedEndpoint.value
-    const service = resolvedService.value?.metadata?.name
-    const namespace = resolvedServiceNamespace.value
+    const service = endpoint.serviceName
+    const namespace = endpoint.namespace
     const clusterName = effectiveCluster.value
     if (!endpoint || !service || !namespace || !clusterName) return ''
     const requestPath = path.startsWith('/') ? path : `/${path}`
@@ -1230,8 +1227,6 @@
       } else {
         selectedDatasourceId.value = undefined
         errorMessage.value = ''
-        resolvedService.value = null
-        resolvedServiceNamespace.value = ''
         resolvedEndpoint.value = null
         labelKeys.value = []
         labelValueCache.value = {}
@@ -1256,45 +1251,6 @@
     } catch {
       // 集群列表加载失败时静默处理
     }
-  }
-
-  async function resolveServiceByEndpoint(
-    endpoint: ParsedDatasourceEndpoint,
-    skipErrorNotification = false
-  ): Promise<{
-    service: K8sService
-    namespace: string
-  }> {
-    if (endpoint.namespace) {
-      return {
-        service: await fetchK8sService(
-          effectiveCluster.value,
-          endpoint.namespace,
-          endpoint.serviceName,
-          skipErrorNotification
-        ),
-        namespace: endpoint.namespace
-      }
-    }
-
-    const { items } = await fetchK8sServiceList(effectiveCluster.value, {
-      page: 1,
-      limit: 999999,
-      skipErrorNotification
-    })
-    const matchedItems = items.filter((item) => item.metadata?.name === endpoint.serviceName)
-    if (matchedItems.length > 1) {
-      const names = matchedItems
-        .map((item) => `${item.metadata?.name}.${item.metadata?.namespace ?? 'default'}`)
-        .join(', ')
-      throw new Error(`发现多个同名 Service，请在 URL 中带上命名空间。候选: ${names}`)
-    }
-    const matched = matchedItems[0]
-    const namespace = matched?.metadata?.namespace ?? ''
-    if (!matched || !namespace) {
-      throw new Error(`未找到 Service ${endpoint.host}`)
-    }
-    return { service: matched, namespace }
   }
 
   async function loadLabelKeys() {
@@ -1365,8 +1321,6 @@
 
     if (resetState) {
       errorMessage.value = ''
-      resolvedService.value = null
-      resolvedServiceNamespace.value = ''
       resolvedEndpoint.value = null
       labelKeys.value = []
       labelValueCache.value = {}
@@ -1401,16 +1355,13 @@
     }
 
     const endpoint = parseDatasourceEndpoint(rawUrl)
-    if (!endpoint?.serviceName) {
+    if (!endpoint?.serviceName || !endpoint.namespace) {
       errorMessage.value = '数据源 URL 不是合法的集群内 HTTP 地址'
       return
     }
 
     resolving.value = true
     try {
-      const { service, namespace } = await resolveServiceByEndpoint(endpoint, skipErrorNotification)
-      resolvedService.value = service
-      resolvedServiceNamespace.value = namespace
       resolvedEndpoint.value = endpoint
       if (isLokiDatasource.value) {
         await loadLabelKeys()
@@ -1436,9 +1387,9 @@
       await resolveServiceContext(skipErrorNotification, { resetState: false })
       return Boolean(selectedDatasource.value)
     }
-    if (resolvedService.value?.metadata?.name && resolvedEndpoint.value?.serviceName) return true
+    if (resolvedEndpoint.value?.serviceName && resolvedEndpoint.value.namespace) return true
     await resolveServiceContext(skipErrorNotification, { resetState: false })
-    return Boolean(resolvedService.value?.metadata?.name && resolvedEndpoint.value?.serviceName)
+    return Boolean(resolvedEndpoint.value?.serviceName && resolvedEndpoint.value.namespace)
   }
 
   async function refreshContext(skipErrorNotification = false, resolveService = false) {
@@ -1448,8 +1399,6 @@
       await resolveServiceContext(skipErrorNotification)
     } else {
       errorMessage.value = ''
-      resolvedService.value = null
-      resolvedServiceNamespace.value = ''
       resolvedEndpoint.value = null
       labelKeys.value = []
       labelValueCache.value = {}
@@ -1610,6 +1559,17 @@
   function getEsRequestHeaders(): Record<string, string> {
     if (!usesClusterServiceProxy.value) {
       return getExternalProxyHeaders()
+    }
+
+    const datasource = selectedDatasource.value
+    const username =
+      datasource?.config.log?.userName?.trim() ||
+      datasource?.config.alert?.userName?.trim() ||
+      ''
+    const password =
+      datasource?.config.log?.password ?? datasource?.config.alert?.password ?? ''
+    if (!username && !password) {
+      return {}
     }
 
     const datasourceId = selectedDatasourceId.value
@@ -2159,14 +2119,12 @@
   )
 
   // 只在手动切换数据源时更新 service 上下文
-  watch(selectedDatasourceId, (newVal, oldVal) => {
+  watch(selectedDatasourceId, async (newVal, oldVal) => {
     if (!filteredDatasourceOptions.value.length || newVal === oldVal) return
 
     if (oldVal !== undefined) {
       filters.value = []
       errorMessage.value = ''
-      resolvedService.value = null
-      resolvedServiceNamespace.value = ''
       resolvedEndpoint.value = null
       labelKeys.value = []
       labelValueCache.value = {}
@@ -2177,12 +2135,13 @@
     queryDirty.value = false
     keyword.value = ''
     syncQueryDraftFromDatasource()
+    if (isLokiDatasource.value) {
+      await resolveServiceContext(true)
+    }
   })
 
   watch(sourceFilter, () => {
     errorMessage.value = ''
-    resolvedService.value = null
-    resolvedServiceNamespace.value = ''
     resolvedEndpoint.value = null
     labelKeys.value = []
     labelValueCache.value = {}

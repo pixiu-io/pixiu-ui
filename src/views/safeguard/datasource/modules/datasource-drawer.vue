@@ -101,6 +101,76 @@
               </ElFormItem>
             </ElCol>
 
+            <template v-if="isInternalLogDatasource">
+              <ElCol :span="12">
+                <ElFormItem label="命名空间" prop="service_namespace">
+                  <ElSelect
+                    v-model="formData.service_namespace"
+                    class="w-full"
+                    filterable
+                    :loading="serviceListLoading"
+                    placeholder="请选择命名空间"
+                    @change="onServiceNamespaceChange"
+                  >
+                    <ElOption
+                      v-for="namespace in namespaceOptions"
+                      :key="namespace"
+                      :label="namespace"
+                      :value="namespace"
+                    />
+                  </ElSelect>
+                </ElFormItem>
+              </ElCol>
+
+              <ElCol :span="12">
+                <ElFormItem label="Service" prop="service_name">
+                  <ElSelect
+                    v-model="formData.service_name"
+                    class="w-full"
+                    filterable
+                    :loading="serviceListLoading"
+                    :disabled="!formData.service_namespace"
+                    placeholder="请选择 Service"
+                    @change="onServiceChange"
+                  >
+                    <ElOption
+                      v-for="service in serviceOptions"
+                      :key="service.metadata?.uid || service.metadata?.name"
+                      :label="service.metadata?.name"
+                      :value="service.metadata?.name"
+                    />
+                  </ElSelect>
+                </ElFormItem>
+              </ElCol>
+
+              <ElCol :span="12">
+                <ElFormItem label="Service 端口" prop="service_port">
+                  <ElSelect
+                    v-model="formData.service_port"
+                    class="w-full"
+                    :disabled="!formData.service_name"
+                    placeholder="请选择 Service 端口"
+                  >
+                    <ElOption
+                      v-for="port in servicePortOptions"
+                      :key="`${port.name || 'port'}-${port.port}`"
+                      :label="port.name ? `${port.name} (${port.port})` : String(port.port)"
+                      :value="port.port"
+                    />
+                  </ElSelect>
+                </ElFormItem>
+              </ElCol>
+
+              <ElCol :span="12">
+                <ElFormItem label="访问协议">
+                  <ElSelect v-model="formData.service_protocol" class="w-full">
+                    <ElOption label="HTTP" value="http" />
+                    <ElOption label="HTTPS" value="https" />
+                  </ElSelect>
+                </ElFormItem>
+              </ElCol>
+            </template>
+
             <ElCol :span="12">
               <ElFormItem label="默认数据源">
                 <ElSwitch v-model="formData.is_default" />
@@ -117,6 +187,7 @@
           <ElFormItem label="接入地址" prop="url">
             <ElInput
               v-model="formData.url"
+              :readonly="isInternalLogDatasource"
               :placeholder="
                 formData.external
                   ? '请输入接入地址，如: http://192.168.100.210:30442'
@@ -223,7 +294,6 @@
 
     <template #footer>
       <div class="datasource-dialog__footer">
-        <ElButton @click="handleTest">测试</ElButton>
         <div class="datasource-dialog__footer-actions">
           <ElButton @click="closeDialog">取消</ElButton>
           <ElButton type="primary" :loading="submitting" @click="handleSubmit">
@@ -239,6 +309,12 @@
   import { Plus } from '@element-plus/icons-vue'
   import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
   import { computed, reactive, ref, watch } from 'vue'
+  import { kubeProxyAxios } from '@/api/kubeProxy'
+  import {
+    fetchK8sServiceList,
+    type K8sService,
+    type K8sServicePort
+  } from '@/api/kubernetes/service'
   import {
     fetchCreateDatasource,
     fetchGetDatasource,
@@ -287,7 +363,6 @@
   }>()
 
   const isEdit = computed(() => props.editId != null && props.editId > 0)
-  const externalOnly = computed(() => Boolean(props.externalOnly))
   const editLoading = ref(false)
   const submitting = ref(false)
   const formRef = ref<FormInstance>()
@@ -295,6 +370,8 @@
   const editResourceVersion = ref(0)
   const clusterList = ref<ClusterItem[]>([])
   const clusterListLoading = ref(false)
+  const serviceListLoading = ref(false)
+  const clusterServices = ref<K8sService[]>([])
   let clusterLoadPromise: Promise<void> | null = null
 
   const formData = reactive({
@@ -303,6 +380,10 @@
     type: 0 as DatasourceType,
     sub_type: 'loki' as DatasourceSubType,
     url: '',
+    service_namespace: '',
+    service_name: '',
+    service_port: undefined as number | undefined,
+    service_protocol: 'http' as 'http' | 'https',
     description: '',
     is_default: false,
     external: false,
@@ -347,10 +428,28 @@
     type: [{ required: true, message: '请选择类型', trigger: 'change' }],
     sub_type: [{ required: true, message: '请选择数据来源', trigger: 'change' }],
     cluster_name: [{ validator: validateCluster, trigger: 'change' }],
+    service_namespace: [{ required: true, message: '请选择命名空间', trigger: 'change' }],
+    service_name: [{ required: true, message: '请选择 Service', trigger: 'change' }],
+    service_port: [{ required: true, message: '请选择 Service 端口', trigger: 'change' }],
     url: [{ validator: validateUrl, trigger: 'blur' }]
   }
 
   const currentSubTypeOptions = computed(() => (formData.type === 0 ? logSubTypes : alertSubTypes))
+  const isInternalLogDatasource = computed(() => formData.type === 0 && !formData.external)
+  const namespaceOptions = computed(() =>
+    [
+      ...new Set(clusterServices.value.map((item) => item.metadata?.namespace).filter(Boolean))
+    ].sort()
+  )
+  const serviceOptions = computed(() =>
+    clusterServices.value.filter((item) => item.metadata?.namespace === formData.service_namespace)
+  )
+  const selectedService = computed(() =>
+    serviceOptions.value.find((item) => item.metadata?.name === formData.service_name)
+  )
+  const servicePortOptions = computed<K8sServicePort[]>(() =>
+    (selectedService.value?.spec?.ports ?? []).filter((item) => Number(item.port) > 0)
+  )
 
   const selectedSubType = computed(() =>
     currentSubTypeOptions.value.find((item) => item.value === formData.sub_type)
@@ -397,6 +496,52 @@
 
   function onTypeChange() {
     formData.sub_type = currentSubTypeOptions.value[0]?.value ?? 'loki'
+    syncInternalDatasourceUrl()
+  }
+
+  function clearServiceSelection(clearNamespace = true) {
+    if (clearNamespace) formData.service_namespace = ''
+    formData.service_name = ''
+    formData.service_port = undefined
+    if (isInternalLogDatasource.value) formData.url = ''
+  }
+
+  function onServiceNamespaceChange() {
+    clearServiceSelection(false)
+  }
+
+  function onServiceChange() {
+    formData.service_port =
+      servicePortOptions.value.length === 1 ? servicePortOptions.value[0]?.port : undefined
+    syncInternalDatasourceUrl()
+  }
+
+  function syncInternalDatasourceUrl() {
+    if (!isInternalLogDatasource.value) return
+    const { service_name: service, service_namespace: namespace, service_port: port } = formData
+    formData.url =
+      service && namespace && port
+        ? `${formData.service_protocol}://${service}.${namespace}:${port}`
+        : ''
+  }
+
+  async function loadServices() {
+    clearServiceSelection()
+    clusterServices.value = []
+    if (!isInternalLogDatasource.value || !formData.cluster_name) return
+    serviceListLoading.value = true
+    try {
+      const { items } = await fetchK8sServiceList(formData.cluster_name, {
+        page: 1,
+        limit: 999999,
+        skipErrorNotification: true
+      })
+      clusterServices.value = items
+    } catch (error) {
+      ElMessage.error(error instanceof Error ? error.message : '获取 Service 列表失败')
+    } finally {
+      serviceListLoading.value = false
+    }
   }
 
   function addHeader() {
@@ -485,8 +630,7 @@
           acc.push(...(res.items ?? []))
           if (acc.length >= total || res.items.length === 0) break
           page++
-          if (page > 40) break
-        } while (true)
+        } while (page <= 40)
         clusterList.value = acc
         if (formData.cluster_name) {
           formData.cluster_name = resolveClusterName(formData.cluster_name)
@@ -506,10 +650,22 @@
     (val) => {
       if (val) {
         formData.cluster_name = ''
+        clearServiceSelection()
         formRef.value?.clearValidate('cluster_name')
+      } else if (formData.cluster_name) {
+        void loadServices()
       }
     }
   )
+
+  watch(
+    () => formData.cluster_name,
+    () => {
+      if (!editLoading.value) void loadServices()
+    }
+  )
+  watch(() => formData.service_port, syncInternalDatasourceUrl)
+  watch(() => formData.service_protocol, syncInternalDatasourceUrl)
 
   watch(
     visible,
@@ -536,6 +692,10 @@
       type: 0,
       sub_type: 'loki',
       url: '',
+      service_namespace: '',
+      service_name: '',
+      service_port: undefined,
+      service_protocol: 'http',
       description: '',
       is_default: false,
       external: false,
@@ -553,7 +713,7 @@
       const data = await fetchGetDatasource(id)
       Object.assign(formData, {
         name: data.name,
-        cluster_name: formData.external ? '' : resolveClusterName(data.clusterName || ''),
+        cluster_name: data.external ? '' : resolveClusterName(data.clusterName || ''),
         type: data.type,
         sub_type: data.subType,
         url: '',
@@ -565,6 +725,24 @@
         headers: [{ key: '', value: '' }]
       })
       fillFormFromConfig(data.config)
+      if (data.type === 0 && !data.external) {
+        const savedUrl = formData.url
+        try {
+          const parsed = new URL(savedUrl)
+          const hostParts = parsed.hostname.split('.')
+          formData.service_name = hostParts[0] || ''
+          formData.service_namespace = hostParts[1] || 'default'
+          formData.service_port = Number(parsed.port) || (parsed.protocol === 'https:' ? 443 : 80)
+          formData.service_protocol = parsed.protocol === 'https:' ? 'https' : 'http'
+          await loadServices()
+          formData.service_name = hostParts[0] || ''
+          formData.service_namespace = hostParts[1] || 'default'
+          formData.service_port = Number(parsed.port) || (parsed.protocol === 'https:' ? 443 : 80)
+          syncInternalDatasourceUrl()
+        } catch {
+          formData.url = savedUrl
+        }
+      }
       syncAdvancedPanelsFromForm()
       editResourceVersion.value = data.resourceVersion
     } catch (error) {
@@ -581,8 +759,52 @@
     visible.value = false
   }
 
-  function handleTest() {
-    ElMessage.info('功能开发中')
+  function buildServiceProxyUrl(): string {
+    return (
+      `/pixiu/proxy/${encodeURIComponent(formData.cluster_name)}` +
+      `/api/v1/namespaces/${encodeURIComponent(formData.service_namespace)}` +
+      `/services/${encodeURIComponent(formData.service_name)}:${formData.service_port}/proxy` +
+      (formData.sub_type === 'loki' ? '/loki/api/v1/labels' : '/_cluster/health')
+    )
+  }
+
+  function datasourceTestPath(): string {
+    if (formData.sub_type === 'loki') return '/loki/api/v1/labels'
+    if (formData.sub_type === 'es') return '/_cluster/health'
+    return '/-/ready'
+  }
+
+  function buildExternalTestHeaders(): Record<string, string> {
+    const headers = Object.fromEntries(
+      formData.headers
+        .map((item) => [item.key.trim(), item.value.trim()] as const)
+        .filter(([key]) => Boolean(key))
+    )
+    const auth = formData.type === 0 ? formData.log : formData.alert
+    const username = auth.userName.trim()
+    const password = auth.password
+    if (username || password) {
+      headers['X-Pixiu-Proxy-Authorization'] = `Basic ${btoa(`${username}:${password}`)}`
+    }
+    return headers
+  }
+
+  async function testDatasource(): Promise<boolean> {
+    try {
+      if (formData.external) {
+        const url = `/pixiu/external${datasourceTestPath()}?url=${encodeURIComponent(formData.url.trim())}`
+        await kubeProxyAxios.get(url, {
+          headers: buildExternalTestHeaders(),
+          skipErrorNotification: true
+        })
+      } else {
+        await kubeProxyAxios.get(buildServiceProxyUrl(), { skipErrorNotification: true })
+      }
+      return true
+    } catch (error) {
+      ElMessage.error(error instanceof Error ? error.message : '连接测试失败')
+      return false
+    }
   }
 
   async function handleSubmit() {
@@ -592,6 +814,11 @@
 
     submitting.value = true
     try {
+      if (isInternalLogDatasource.value || formData.external) {
+        const tested = await testDatasource()
+        if (!tested) return
+      }
+
       const url = formData.url.trim()
       const config = buildConfig()
 
@@ -814,7 +1041,7 @@
   .datasource-dialog__footer {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: 12px;
   }
 
