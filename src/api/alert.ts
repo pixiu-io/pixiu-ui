@@ -381,6 +381,48 @@ export async function fetchDeleteAlertRule(id: number): Promise<void> {
   await request(pixiuAxios.delete(`/pixiu/alerts/rules/${id}`), '删除告警规则失败')
 }
 
+export async function fetchExportAlertRules(ids: number[]): Promise<Blob> {
+  const res = await pixiuAxios.post(
+    '/pixiu/alerts/rules/export',
+    { ids },
+    { responseType: 'blob', skipErrorNotification: true }
+  )
+  const data = res.data
+  if (!(data instanceof Blob)) {
+    throw new Error('导出告警规则失败')
+  }
+  const text = await data.text()
+  try {
+    const parsed = JSON.parse(text) as { code?: number; message?: string; apiVersion?: string }
+    if (typeof parsed.code === 'number' && parsed.apiVersion === undefined) {
+      throw new Error(parsed.message || '导出告警规则失败')
+    }
+  } catch (err) {
+    if (err instanceof SyntaxError) {
+      // non-json blob, keep original
+      return data
+    }
+    throw err
+  }
+  return new Blob([text], { type: 'application/json;charset=utf-8' })
+}
+
+export interface ImportAlertRulesResult {
+  created: number
+  failed: number
+  errors?: string[]
+}
+
+export async function fetchImportAlertRules(file: File): Promise<ImportAlertRulesResult> {
+  const form = new FormData()
+  form.append('file', file)
+  const result = await request<ImportAlertRulesResult>(
+    pixiuAxios.post('/pixiu/alerts/rules/import', form),
+    '导入告警规则失败'
+  )
+  return result ?? { created: 0, failed: 0 }
+}
+
 // ---------- Channels ----------
 
 export async function fetchGetAlertChannelList(params: AlertListParams = {}): Promise<AlertListResult<AlertChannelItem>> {

@@ -18,6 +18,24 @@
     >
       <div v-if="activeTabHasCreate || activeTab === 'notifications'" style="display:flex;align-items:center;gap:8px">
         <ElButton v-if="activeTabHasCreate" v-ripple @click="handleCreate">{{ createButtonText }}</ElButton>
+        <template v-if="activeTab === 'rules'">
+          <ElButton
+            v-ripple
+            :disabled="!selectedRules.length"
+            :loading="ruleExporting"
+            @click="handleExportRules"
+          >
+            下载
+          </ElButton>
+          <ElButton v-ripple :loading="ruleImporting" @click="triggerImportRules">上传</ElButton>
+          <input
+            ref="ruleImportInputRef"
+            type="file"
+            accept=".json,application/json"
+            style="display: none"
+            @change="handleImportRulesChange"
+          />
+        </template>
         <template v-if="activeTab === 'notifications'">
           <ElButton v-ripple :disabled="!selectedNotifications.length" @click="handleSilenceNotification">
             静默告警
@@ -271,11 +289,13 @@
     fetchDeleteAlertNotification,
     fetchDeleteAlertRule,
     fetchDeleteAlertSilence,
+    fetchExportAlertRules,
     fetchGetAlertChannelList,
     fetchGetAlertEventList,
     fetchGetAlertNotificationList,
     fetchGetAlertRuleList,
     fetchGetAlertSilenceList,
+    fetchImportAlertRules,
     fetchUpdateAlertRule,
     fetchUpdateAlertSilence,
     type AlertChannelItem,
@@ -371,6 +391,9 @@
   const ruleCloneId = ref<number | undefined>()
 
   const selectedRules = ref<AlertRuleItem[]>([])
+  const ruleExporting = ref(false)
+  const ruleImporting = ref(false)
+  const ruleImportInputRef = ref<HTMLInputElement | null>(null)
 
   const {
     columns: ruleColumns,
@@ -470,6 +493,56 @@
 
   function handleRuleSelectionChange(rows: AlertRuleItem[]) {
     selectedRules.value = rows
+  }
+
+  async function handleExportRules() {
+    if (!selectedRules.value.length) {
+      ElMessage.warning('请先选择要下载的告警规则')
+      return
+    }
+    ruleExporting.value = true
+    try {
+      const blob = await fetchExportAlertRules(selectedRules.value.map((item) => item.id))
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `alert-rules-${Date.now()}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+      ElMessage.success(`已下载 ${selectedRules.value.length} 条告警规则`)
+    } catch (error) {
+      ElMessage.error(error instanceof Error ? error.message : '下载失败')
+    } finally {
+      ruleExporting.value = false
+    }
+  }
+
+  function triggerImportRules() {
+    ruleImportInputRef.value?.click()
+  }
+
+  async function handleImportRulesChange(event: Event) {
+    const input = event.target as HTMLInputElement
+    const file = input.files?.[0]
+    input.value = ''
+    if (!file) return
+
+    ruleImporting.value = true
+    try {
+      const result = await fetchImportAlertRules(file)
+      if (result.failed > 0) {
+        ElMessage.warning(`导入完成：成功 ${result.created} 条，失败 ${result.failed} 条`)
+      } else {
+        ElMessage.success(`成功导入 ${result.created} 条告警规则`)
+      }
+      refreshRuleData()
+    } catch (error) {
+      if (!(error instanceof PixiuApiError) || !error.notified) {
+        ElMessage.error(error instanceof Error ? error.message : '上传失败')
+      }
+    } finally {
+      ruleImporting.value = false
+    }
   }
 
   function resetRuleSearch() {
