@@ -65,7 +65,7 @@
         <ArtIconButton
           v-if="shouldShowFullscreen"
           :icon="isFullscreen ? 'ri:fullscreen-exit-line' : 'ri:fullscreen-fill'"
-          :class="[!isFullscreen ? 'full-screen-btn' : 'exit-full-screen-btn', 'ml-3']"
+          :class="[!isFullscreen ? 'full-screen-btn' : 'exit-full-screen-btn']"
           class="max-md:!hidden"
           @click="toggleFullScreen"
         />

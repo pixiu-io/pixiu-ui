@@ -16,10 +16,17 @@
       class="alert-toolbar-outer"
       :class="{ 'alert-toolbar-outer--no-alert': !descriptionAlertVisible }"
     >
-      <ElButton v-if="activeTabHasCreate" v-ripple @click="handleCreate">{{ createButtonText }}</ElButton>
-      <ElButton v-else-if="activeTab === 'notifications'" v-ripple :disabled="!selectedNotifications.length" @click="handleSilenceNotification">
-        静默告警
-      </ElButton>
+      <div v-if="activeTabHasCreate || activeTab === 'notifications'" style="display:flex;align-items:center;gap:8px">
+        <ElButton v-if="activeTabHasCreate" v-ripple @click="handleCreate">{{ createButtonText }}</ElButton>
+        <template v-if="activeTab === 'notifications'">
+          <ElButton v-ripple :disabled="!selectedNotifications.length" @click="handleSilenceNotification">
+            静默告警
+          </ElButton>
+          <ElButton v-ripple :disabled="!selectedNotifications.length" @click="handleDeleteNotifications">
+            删除
+          </ElButton>
+        </template>
+      </div>
       <div v-else />
 
       <div class="alert-toolbar__right">
@@ -261,6 +268,7 @@
     AlertSeverityMap,
     formatAlertDateTime,
     fetchDeleteAlertChannel,
+    fetchDeleteAlertNotification,
     fetchDeleteAlertRule,
     fetchDeleteAlertSilence,
     fetchGetAlertChannelList,
@@ -316,6 +324,38 @@
   const tabDescription = computed(() => tabDescriptions[activeTab.value])
 
   const activeTabHasCreate = computed(() => ['rules', 'channels', 'silences'].includes(activeTab.value))
+
+  const channelIdToNameMap = ref<Record<number, string>>({})
+
+  async function loadChannelNameMap() {
+    const { records } = await fetchGetAlertChannelList({ page: 1, limit: 500 })
+    const map: Record<number, string> = {}
+    for (const ch of records) {
+      map[ch.id] = ch.name
+    }
+    channelIdToNameMap.value = map
+  }
+
+  function formatNotifyChannels(notifyChannels?: string) {
+    if (!notifyChannels) return '-'
+    const ids = notifyChannels.split(',').map(Number).filter(Boolean)
+    if (ids.length === 0) return '-'
+    const names = ids.map((id) => channelIdToNameMap.value[id] || String(id))
+    return names.join('，')
+  }
+
+  function renderNotifyChannelTags(notifyChannels?: string) {
+    if (!notifyChannels) return h('span', { style: { fontSize: '12px' } }, '-')
+    const ids = notifyChannels.split(',').map(Number).filter(Boolean)
+    if (ids.length === 0) return h('span', { style: { fontSize: '12px' } }, '-')
+    const tags = ids.map((id) => {
+      const name = channelIdToNameMap.value[id] || String(id)
+      return h(ElTag, { size: 'small', style: { margin: '1px 2px', fontSize: '11px' } }, () => name)
+    })
+    return h('div', { style: 'display:flex;flex-wrap:wrap;align-items:center;gap:2px' }, tags)
+  }
+
+  loadChannelNameMap()
 
   const createButtonText = computed(() => {
     if (activeTab.value === 'rules') return '新增告警规则'
@@ -385,6 +425,13 @@
           label: '创建时间',
           minWidth: 180,
           formatter: (row: AlertRuleItem) => renderDateTime(row.gmtCreate)
+        },
+        {
+          prop: 'notifyChannels',
+          label: '通知渠道',
+          minWidth: 140,
+          visible: false,
+          formatter: (row: AlertRuleItem) => renderNotifyChannelTags(row.notifyChannels)
         },
         {
           prop: 'enabledSwitch',
@@ -461,6 +508,20 @@
     silenceEditId.value = undefined
     silencePresetRuleId.value = row.id
     silenceDrawerVisible.value = true
+  }
+
+  function silenceFromNotification(row: AlertNotificationItem) {
+    silenceEditId.value = undefined
+    silencePresetRuleId.value = row.ruleId
+    silenceDrawerVisible.value = true
+  }
+
+  async function deleteNotification(row: AlertNotificationItem) {
+    await confirmDelete(
+      `确定删除告警历史「${row.title || `通知 #${row.id}`}」吗？`,
+      () => fetchDeleteAlertNotification(row.id),
+      refreshNotificationData
+    )
   }
 
   async function deleteRule(row: AlertRuleItem) {
@@ -598,7 +659,7 @@
         {
           prop: 'name',
           label: '名称',
-          minWidth: 160,
+          minWidth: 180,
           formatter: (row: AlertSilenceItem) => h('span', { style: { fontSize: '12px' } }, row.name)
         },
         {
@@ -677,20 +738,20 @@
       return { label: '未开始', type: 'warning' }
     }
     if (Number.isFinite(endsAt) && now > endsAt) {
-      return { label: '已失效', type: 'danger' }
+      return { label: '已失效', type: 'info' }
     }
     return { label: '生效中', type: 'success' }
   }
 
   function renderSilenceMatchLabels(raw?: string) {
     if (!raw?.trim()) {
-      return h('span', { style: { fontSize: '12px' } }, '-')
+      return h('span', { style: { fontSize: '11px' } }, '-')
     }
     try {
       const parsed = JSON.parse(raw) as Record<string, unknown>
       const entries = Object.entries(parsed).filter(([key]) => key.trim())
       if (!entries.length) {
-        return h('span', { style: { fontSize: '12px' } }, '-')
+        return h('span', { style: { fontSize: '11px' } }, '-')
       }
       return h(
         'div',
@@ -698,16 +759,16 @@
           style: {
             display: 'flex',
             flexWrap: 'wrap',
-            gap: '4px',
+            gap: '2px',
             alignItems: 'center'
           }
         },
         entries.map(([key, value]) =>
-          h(ElTag, { size: 'small', type: 'info' }, () => `${key}=${value == null ? '' : String(value)}`)
+          h(ElTag, { size: 'small', style: { margin: '1px 2px', fontSize: '11px' } }, () => `${key}=${value == null ? '' : String(value)}`)
         )
       )
     } catch {
-      return h('span', { style: { fontSize: '12px' } }, raw)
+      return h('span', { style: { fontSize: '11px' } }, raw)
     }
   }
 
@@ -776,7 +837,7 @@
         {
           prop: 'ruleName',
           label: '规则',
-          minWidth: 140,
+          minWidth: 120,
           formatter: (row: AlertEventItem) => h('span', { style: { fontSize: '12px' } }, row.ruleName || '-')
         },
         {
@@ -798,23 +859,23 @@
           }
         },
         {
-          prop: 'triggerValue',
-          label: '触发值',
-          minWidth: 120,
-          formatter: (row: AlertEventItem) => h('span', { style: { fontSize: '12px' } }, row.triggerValue || '-')
-        },
-        {
-          prop: 'resourceName',
-          label: '资源',
-          minWidth: 160,
+          prop: 'notifyCurNumber',
+          label: '触发次数',
+          width: 88,
           formatter: (row: AlertEventItem) =>
-            h('span', { style: { fontSize: '12px' } }, row.resourceName ? `${row.resourceNamespace}/${row.resourceName}` : '-')
+            h('span', { style: { fontSize: '12px' } }, String(row.notifyCurNumber ?? 0))
         },
         {
           prop: 'gmtCreate',
           label: '触发时间',
           minWidth: 180,
           formatter: (row: AlertEventItem) => renderDateTime(row.gmtCreate)
+        },
+        {
+          prop: 'lastSentAt',
+          label: '最后发送',
+          minWidth: 120,
+          formatter: (row: AlertEventItem) => renderDateTime(row.lastSentAt)
         },
         {
           prop: 'operation',
@@ -885,15 +946,9 @@
         {
           prop: 'title',
           label: '标题',
-          minWidth: 180,
+          minWidth: 120,
           showOverflowTooltip: true,
           formatter: (row: AlertNotificationItem) => h('span', { style: { fontSize: '12px' } }, row.title || '-')
-        },
-        {
-          prop: 'labels',
-          label: '标签',
-          minWidth: 220,
-          formatter: (row: AlertNotificationItem) => renderNotificationLabels(row.labels)
         },
         {
           prop: 'severity',
@@ -905,17 +960,32 @@
           }
         },
         {
+          prop: 'labels',
+          label: '标签',
+          minWidth: 220,
+          formatter: (row: AlertNotificationItem) => renderNotificationLabels(row.labels)
+        },
+        {
           prop: 'channelName',
           label: '通知渠道',
           width: 120,
           formatter: (row: AlertNotificationItem) =>
-            h('span', { style: { fontSize: '12px' } }, row.channelName || '-')
+            row.channelName
+              ? h(ElTag, { size: 'small', style: { fontSize: '11px' } }, () => row.channelName)
+              : h('span', { style: { fontSize: '11px' } }, '-')
         },
         {
           prop: 'gmtCreate',
           label: '告警时间',
-          minWidth: 120,
+          minWidth: 100,
           formatter: (row: AlertNotificationItem) => renderDateTime(row.gmtCreate)
+        },
+        {
+          prop: 'operation',
+          label: '操作',
+          width: 120,
+          fixed: 'right',
+          formatter: (row: AlertNotificationItem) => renderNotificationOperationLinks(row)
         }
       ]
     }
@@ -925,7 +995,6 @@
     replaceNotificationSearchParams({ ...notificationSearch.value })
     getNotificationData()
   }
-
 
   function handleNotificationSelectionChange(rows: AlertNotificationItem[]) {
     selectedNotifications.value = rows
@@ -937,6 +1006,20 @@
     silencePresetRuleId.value = ruleId
     silenceEditId.value = undefined
     silenceDrawerVisible.value = true
+  }
+
+  async function handleDeleteNotifications() {
+    const ids = selectedNotifications.value.map((n) => n.id)
+    if (!ids.length) return
+    await confirmDelete(
+      `确定删除选中的 ${ids.length} 条告警历史记录吗？`,
+      async () => {
+        for (const id of ids) {
+          await fetchDeleteAlertNotification(id)
+        }
+      },
+      refreshNotificationData
+    )
   }
 
   function renderNotificationLabels(raw?: string) {
@@ -955,12 +1038,12 @@
           style: {
             display: 'flex',
             flexWrap: 'wrap',
-            gap: '4px',
+            gap: '2px',
             alignItems: 'center'
           }
         },
         entries.map(([key, value]) =>
-          h(ElTag, { size: 'small', type: 'info' }, () => `${key}=${value == null ? '' : String(value)}`)
+          h(ElTag, { size: 'small', style: { margin: '1px 2px', fontSize: '11px' } }, () => `${key}=${value == null ? '' : String(value)}`)
         )
       )
     } catch {
@@ -1043,6 +1126,31 @@
       h(
         ElLink,
         { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => deleteRule(row) },
+        () => '删除'
+      )
+    ])
+  }
+
+  function renderNotificationOperationLinks(row: AlertNotificationItem) {
+    return h('div', { style: 'display:flex;align-items:center;gap:8px;flex-wrap:nowrap' }, [
+      h(
+        ElLink,
+        {
+          type: 'primary',
+          underline: 'never',
+          style: 'font-size:12px',
+          onClick: () => silenceFromNotification(row)
+        },
+        () => '静默'
+      ),
+      h(
+        ElLink,
+        {
+          type: 'primary',
+          underline: 'never',
+          style: 'font-size:12px',
+          onClick: () => deleteNotification(row)
+        },
         () => '删除'
       )
     ])

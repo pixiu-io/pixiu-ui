@@ -27,9 +27,18 @@
             alt="avatar"
           />
           <div class="w-[calc(100%-60px)] h-full">
-            <span class="block text-sm font-medium text-g-800 truncate">{{
-              userInfo.userName
-            }}</span>
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-medium text-g-800 truncate">{{
+                userInfo.userName
+              }}</span>
+              <!-- 版本号 tag -->
+              <span 
+                class="px-[5px] py-0 h-[18px] leading-[17px] text-[11px] text-g-600 bg-g-200 rounded-[4px] shrink-0 cursor-pointer hover:bg-g-300"
+                @click="handleVersionClick"
+              >
+                {{ AppConfig.systemInfo.version }}
+              </span>
+            </div>
             <span class="block mt-0.5 text-xs text-g-500 truncate">{{ userInfo.email }}</span>
           </div>
         </div>
@@ -68,6 +77,7 @@
   import { WEB_LINKS } from '@/utils/constants'
   import { mittBus } from '@/utils/sys'
   import { fetchLogout } from '@/api/auth'
+  import AppConfig from '@/config'
   import defaultAvatar from '@imgs/user/default-avatar.svg'
 
   defineOptions({ name: 'ArtUserMenu' })
@@ -139,6 +149,13 @@
     setTimeout(() => {
       userMenuPopover.value.hide()
     }, 100)
+  }
+
+  /**
+   * 点击版本号跳转到 GitHub
+   */
+  const handleVersionClick = (): void => {
+    window.open('https://github.com/caoyingjunz', '_blank', 'noopener,noreferrer')
   }
 </script>
 

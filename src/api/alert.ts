@@ -30,9 +30,9 @@ export const AlertScopeTypeMap: Record<AlertScopeType, string> = {
 
 export const AlertEventStatusMap: Record<
   AlertEventStatus,
-  { label: string; type: 'danger' | 'success' | 'warning' | 'info' }
+  { label: string; type: 'danger' | 'success' | 'warning' | 'info' | 'primary' }
 > = {
-  1: { label: '触发中', type: 'danger' },
+  1: { label: '进行中', type: 'primary' },
   2: { label: '已恢复', type: 'success' },
   3: { label: '已确认', type: 'warning' },
   4: { label: '已解决', type: 'info' }
@@ -142,6 +142,8 @@ export interface AlertEventItem {
   tenantId: number
   recoverValue: string
   recoverTime?: string
+  lastSentAt: string
+  notifyCurNumber: number
   labels: string
   annotations: string
   extension: string
@@ -299,6 +301,8 @@ function toAlertEvent(item: BackendMeta & Record<string, unknown>): AlertEventIt
     tenantId: (item.tenant_id as number) ?? 0,
     recoverValue: (item.recover_value as string) ?? '',
     recoverTime: item.recover_time ? formatDateTime(item.recover_time as string) : undefined,
+    lastSentAt: formatDateTime(item.last_sent_at as string) ?? '',
+    notifyCurNumber: (item.notify_cur_number as number) ?? 0,
     labels: (item.labels as string) ?? '',
     annotations: (item.annotations as string) ?? '',
     extension: (item.extension as string) ?? '',
@@ -530,4 +534,8 @@ export async function fetchGetAlertNotificationList(
     ...unwrapList(result ?? {}, page, limit),
     records: (result?.items ?? []).map(toAlertNotification)
   }
+}
+
+export async function fetchDeleteAlertNotification(id: number): Promise<void> {
+  await request(pixiuAxios.delete(`/pixiu/alerts/notifications/${id}`), '删除告警历史记录失败')
 }

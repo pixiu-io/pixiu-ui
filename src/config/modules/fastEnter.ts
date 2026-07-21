@@ -56,21 +56,12 @@ const fastEnterConfig: FastEnterConfig = {
       link: WEB_LINKS.COMMUNITY
     },
     {
-      name: '更新日志',
-      description: '版本更新与变更记录',
-      icon: 'ri:gamepad-line',
-      iconColor: '#38C0FC',
-      enabled: true,
-      order: 7,
-      routeName: 'ChangeLog'
-    },
-    {
       name: '哔哩哔哩',
       description: '技术分享与交流',
       icon: 'ri:bilibili-line',
       iconColor: '#FB7299',
       enabled: true,
-      order: 8,
+      order: 7,
       link: WEB_LINKS.BILIBILI
     }
   ],

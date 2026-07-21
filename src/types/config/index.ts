@@ -77,6 +77,8 @@ export interface FestivalConfig {
 export interface SystemBasicConfig {
   // 系统名称
   name: string
+  // 系统版本
+  version?: string
   // 系统描述
   description?: string
   // 系统logo
