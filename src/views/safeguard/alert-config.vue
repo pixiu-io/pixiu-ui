@@ -18,24 +18,6 @@
     >
       <div v-if="activeTabHasCreate || activeTab === 'notifications'" style="display:flex;align-items:center;gap:8px">
         <ElButton v-if="activeTabHasCreate" v-ripple @click="handleCreate">{{ createButtonText }}</ElButton>
-        <template v-if="activeTab === 'rules'">
-          <ElButton
-            v-ripple
-            :disabled="!selectedRules.length"
-            :loading="ruleExporting"
-            @click="handleExportRules"
-          >
-            下载
-          </ElButton>
-          <ElButton v-ripple :loading="ruleImporting" @click="triggerImportRules">上传</ElButton>
-          <input
-            ref="ruleImportInputRef"
-            type="file"
-            accept=".json,application/json"
-            style="display: none"
-            @change="handleImportRulesChange"
-          />
-        </template>
         <template v-if="activeTab === 'notifications'">
           <ElButton v-ripple :disabled="!selectedNotifications.length" @click="handleSilenceNotification">
             静默告警
@@ -66,6 +48,15 @@
           >
             <ElOption v-for="(meta, value) in AlertSeverityMap" :key="value" :label="meta.label" :value="Number(value)" />
           </ElSelect>
+          <ElLink type="primary" :underline="false" style="font-size:12px;cursor:pointer" @click="triggerImportRules">导入</ElLink>
+          <ElLink type="primary" :underline="false" :disabled="!selectedRules.length" style="font-size:12px;cursor:pointer" @click="handleExportRules">导出</ElLink>
+          <input
+            ref="ruleImportInputRef"
+            type="file"
+            accept=".json,application/json"
+            style="display: none"
+            @change="handleImportRulesChange"
+          />
         </template>
 
         <template v-else-if="activeTab === 'channels'">
@@ -497,7 +488,7 @@
 
   async function handleExportRules() {
     if (!selectedRules.value.length) {
-      ElMessage.warning('请先选择要下载的告警规则')
+      ElMessage.warning('请先选择要导出的告警规则')
       return
     }
     ruleExporting.value = true
@@ -509,9 +500,9 @@
       a.download = `alert-rules-${Date.now()}.json`
       a.click()
       URL.revokeObjectURL(url)
-      ElMessage.success(`已下载 ${selectedRules.value.length} 条告警规则`)
+      ElMessage.success(`已导出 ${selectedRules.value.length} 条告警规则`)
     } catch (error) {
-      ElMessage.error(error instanceof Error ? error.message : '下载失败')
+      ElMessage.error(error instanceof Error ? error.message : '导出失败')
     } finally {
       ruleExporting.value = false
     }
@@ -538,7 +529,7 @@
       refreshRuleData()
     } catch (error) {
       if (!(error instanceof PixiuApiError) || !error.notified) {
-        ElMessage.error(error instanceof Error ? error.message : '上传失败')
+        ElMessage.error(error instanceof Error ? error.message : '导入失败')
       }
     } finally {
       ruleImporting.value = false
