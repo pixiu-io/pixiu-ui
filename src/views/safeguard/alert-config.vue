@@ -16,8 +16,13 @@
       class="alert-toolbar-outer"
       :class="{ 'alert-toolbar-outer--no-alert': !descriptionAlertVisible }"
     >
-      <div v-if="activeTabHasCreate || activeTab === 'notifications'" style="display:flex;align-items:center;gap:8px">
+      <div v-if="activeTabHasCreate || activeTab === 'notifications' || activeTab === 'events'" style="display:flex;align-items:center;gap:8px">
         <ElButton v-if="activeTabHasCreate" v-ripple @click="handleCreate">{{ createButtonText }}</ElButton>
+        <template v-if="activeTab === 'events'">
+          <ElButton v-ripple :disabled="!selectedEvents.length" @click="handleBatchProcessEvents">
+            处理事件
+          </ElButton>
+        </template>
         <template v-if="activeTab === 'notifications'">
           <ElButton v-ripple :disabled="!selectedNotifications.length" @click="handleSilenceNotification">
             静默告警
@@ -198,6 +203,7 @@
             :pagination-options="tablePaginationOptions"
             @pagination:size-change="handleEventSizeChange"
             @pagination:current-change="handleEventCurrentChange"
+            @selection-change="handleEventSelectionChange"
           />
         </ElTabPane>
 
@@ -245,7 +251,11 @@
       :preset-rule-id="silencePresetRuleId"
       @success="refreshSilenceData"
     />
-    <AlertEventStatusDialog v-model="eventStatusVisible" :event-data="currentEvent" @success="refreshEventData" />
+    <AlertEventStatusDialog
+      v-model="eventStatusVisible"
+      :events="currentEvents"
+      @success="refreshEventData"
+    />
   </div>
 </template>
 
@@ -872,7 +882,8 @@
   // ---------- Events ----------
   const eventSearch = ref({ ruleId: undefined as string | undefined, status: undefined as number | undefined })
   const eventStatusVisible = ref(false)
-  const currentEvent = ref<AlertEventItem | null>(null)
+  const currentEvents = ref<AlertEventItem[]>([])
+  const selectedEvents = ref<AlertEventItem[]>([])
 
   const {
     columns: eventColumns,
@@ -898,6 +909,7 @@
         }),
       apiParams: { current: 1, size: 10, ...eventSearch.value },
       columnsFactory: () => [
+        { type: 'selection', width: 30 },
         {
           prop: 'ruleName',
           label: '规则',
@@ -973,8 +985,21 @@
     handleEventSearch()
   }
 
+  function handleEventSelectionChange(rows: AlertEventItem[]) {
+    selectedEvents.value = rows
+  }
+
   function openEventStatusDialog(row: AlertEventItem) {
-    currentEvent.value = row
+    currentEvents.value = [row]
+    eventStatusVisible.value = true
+  }
+
+  function handleBatchProcessEvents() {
+    if (!selectedEvents.value.length) {
+      ElMessage.warning('请先勾选要处理的告警事件')
+      return
+    }
+    currentEvents.value = [...selectedEvents.value]
     eventStatusVisible.value = true
   }
 
