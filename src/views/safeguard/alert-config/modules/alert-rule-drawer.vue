@@ -212,6 +212,18 @@
         <ElFormItem label="启用">
           <ElSwitch v-model="formData.enabled" />
         </ElFormItem>
+        <ElFormItem label="自定义标签">
+          <div class="kv-list">
+            <div v-for="(item, index) in labelPairs" :key="item.keyId" class="kv-row">
+              <ElInput v-model="item.labelKey" placeholder="键" />
+              <ElInput v-model="item.labelValue" placeholder="值" />
+              <ElButton link class="kv-del-btn" @click="removeLabelPair(index)"
+                ><ElIcon><Delete /></ElIcon
+              ></ElButton>
+            </div>
+            <ElButton link type="primary" class="kv-add-btn" @click="addLabelPair">新增</ElButton>
+          </div>
+        </ElFormItem>
       </ElForm>
     </div>
 
@@ -517,6 +529,52 @@
   )
 
   const formData = ref(createDefaultFormData())
+  const labelPairs = ref<LabelPair[]>([])
+  let labelPairSeq = 0
+
+  interface LabelPair {
+    keyId: number
+    labelKey: string
+    labelValue: string
+  }
+
+  function createLabelPair(partial?: Partial<LabelPair>): LabelPair {
+    return {
+      keyId: ++labelPairSeq,
+      labelKey: partial?.labelKey ?? '',
+      labelValue: partial?.labelValue ?? ''
+    }
+  }
+
+  function addLabelPair() {
+    labelPairs.value.push(createLabelPair())
+  }
+
+  function removeLabelPair(index: number) {
+    labelPairs.value.splice(index, 1)
+  }
+
+  function parseLabelsJSON(raw?: string): LabelPair[] {
+    if (!raw?.trim()) return []
+    try {
+      const obj = JSON.parse(raw) as Record<string, unknown>
+      return Object.entries(obj).map(([key, value]) =>
+        createLabelPair({ labelKey: key, labelValue: String(value ?? '') })
+      )
+    } catch {
+      return []
+    }
+  }
+
+  function serializeLabelsJSON(): string {
+    const obj: Record<string, string> = {}
+    for (const item of labelPairs.value) {
+      const key = item.labelKey.trim()
+      if (!key) continue
+      obj[key] = item.labelValue
+    }
+    return Object.keys(obj).length ? JSON.stringify(obj) : ''
+  }
 
   function createDefaultFormData() {
     return {
@@ -598,6 +656,7 @@
       resourceVersion.value = detail.resourceVersion
       selectedChannelIds.value = parseChannelIds(detail.notifyChannels)
       enableDays.value = parseEnableDays(detail.enableDaysOfWeek)
+      labelPairs.value = parseLabelsJSON(detail.labels)
       const parsed = parseRuleConfig(detail.ruleConfig)
       conditions.value = parsed.triggers
 
@@ -638,6 +697,7 @@
       resourceVersion.value = 0
       selectedChannelIds.value = parseChannelIds(detail.notifyChannels)
       enableDays.value = parseEnableDays(detail.enableDaysOfWeek)
+      labelPairs.value = parseLabelsJSON(detail.labels)
       const parsed = parseRuleConfig(detail.ruleConfig)
       conditions.value = parsed.triggers
 
@@ -682,6 +742,7 @@
         resourceVersion.value = 0
         selectedChannelIds.value = []
         enableDays.value = []
+        labelPairs.value = []
         conditions.value = [createCondition()]
         formData.value = createDefaultFormData()
       }
@@ -710,6 +771,7 @@
       const { ruleConfig, severity } = buildRuleConfigPayload()
       const notifyChannels = selectedChannelIds.value.join(',')
       const enableDaysOfWeek = serializeEnableDays(enableDays.value)
+      const labels = serializeLabelsJSON()
       const enableStime = formData.value.enableStime || '00:00'
       const enableEtime = formData.value.enableEtime || '00:00'
       if (isEdit.value && props.editId) {
@@ -731,7 +793,8 @@
           enable_stime: enableStime,
           enable_etime: enableEtime,
           datasource_id: formData.value.datasourceId || 0,
-          enabled: formData.value.enabled
+          enabled: formData.value.enabled,
+          labels
         })
         ElMessage.success('更新成功')
       } else {
@@ -752,7 +815,8 @@
           enable_stime: enableStime,
           enable_etime: enableEtime,
           datasource_id: formData.value.datasourceId || 0,
-          enabled: formData.value.enabled
+          enabled: formData.value.enabled,
+          labels
         })
         ElMessage.success(isClone.value ? '克隆成功' : '创建成功')
       }
@@ -1031,5 +1095,28 @@
     .el-time-panel__content::after {
       display: none !important;
     }
+  }
+
+  .kv-list {
+    width: 100%;
+  }
+
+  .kv-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .kv-list > .kv-row:last-of-type {
+    margin-bottom: 0;
+  }
+
+  .kv-add-btn {
+    font-size: 12px;
+  }
+
+  .kv-del-btn {
+    color: var(--el-text-color-primary);
   }
 </style>

@@ -92,6 +92,7 @@ export interface AlertRuleItem {
   enabled: boolean
   createdBy: string
   extension: string
+  labels: string
   gmtCreate: string
   gmtModified: string
 }
@@ -245,6 +246,7 @@ function toAlertRule(item: BackendMeta & Record<string, unknown>): AlertRuleItem
     enabled: Boolean(item.enabled),
     createdBy: (item.created_by as string) ?? '',
     extension: (item.extension as string) ?? '',
+    labels: (item.labels as string) ?? '',
     gmtCreate: formatDateTime(item.gmt_create as string),
     gmtModified: formatDateTime(item.gmt_modified as string)
   }
