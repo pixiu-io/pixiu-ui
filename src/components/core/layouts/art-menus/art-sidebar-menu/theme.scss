@@ -115,6 +115,11 @@ $popup-menu-radius: 6px;
   .menu-icon {
     margin-right: 8px;
     font-size: $menu-icon-size;
+    
+    .art-svg-icon {
+      width: $menu-icon-size !important;
+      height: $menu-icon-size !important;
+    }
   }
 
   // 菜单高度

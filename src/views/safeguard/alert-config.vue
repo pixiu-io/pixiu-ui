@@ -23,7 +23,7 @@
             静默告警
           </ElButton>
           <ElButton v-ripple :disabled="!selectedNotifications.length" @click="handleDeleteNotifications">
-            删除
+            批量删除
           </ElButton>
         </template>
       </div>

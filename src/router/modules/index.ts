@@ -7,6 +7,7 @@ import { aiRoutes } from './ai'
 import { appstoreRoutes } from './appstore'
 import { helpRoutes } from './help'
 import { containerRoutes } from './container'
+import { middlewareRoutes } from './middleware'
 
 /**
  * 导出所有模块化路由
@@ -14,6 +15,7 @@ import { containerRoutes } from './container'
 export const routeModules: AppRouteRecord[] = [
   dashboardRoutes,
   containerRoutes,
+  middlewareRoutes,
   monitorRoutes,
   aiRoutes,
   safeguardRoutes,
