@@ -165,7 +165,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
 
   const route = useRoute()
   const router = useRouter()
-  const kind = ref('svc')
+  const kind = ref((route.query.tab as string) === 'ing' ? 'ing' : 'svc')
 
   // ── Service tab state ──
   const svcSearchForm = ref<{ name?: string }>({})
@@ -583,7 +583,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
         {
           prop: 'metadata.name',
           label: '名称',
-          minWidth: 200,
+          minWidth: 120,
           formatter: (row: K8sIngress) => renderNameCell(row.metadata?.name ?? '-')
         },
         {
@@ -602,7 +602,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
         {
           prop: 'spec.rules',
           label: '后端服务',
-          minWidth: 240,
+          minWidth: 320,
           formatter: (row: K8sIngress) => renderIngressBackends(row)
         },
         {
@@ -620,10 +620,28 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
         {
           prop: 'operation',
           label: '操作',
-          width: 160,
+          width: 200,
           fixed: 'right',
           formatter: (row: K8sIngress) =>
             h('div', { style: 'display:flex;align-items:center;gap:12px' }, [
+              h(
+                ElLink,
+                {
+                  type: 'primary',
+                  underline: 'never',
+                  style: 'font-size:12px',
+                  onClick: () =>
+                    router.push({
+                      path: '/container/ingress-create',
+                      query: {
+                        cluster: String(route.query.cluster ?? ''),
+                        namespace: row.metadata?.namespace ?? '',
+                        name: row.metadata?.name ?? ''
+                      }
+                    })
+                },
+                () => '编辑'
+              ),
               h(
                 ElLink,
                 {
@@ -748,25 +766,23 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
 
   // ── Tab lazy loading ──
   watch(kind, (val) => {
-    const cluster = String(route.query.cluster ?? '')
-    if (!cluster) return
-    if (val === 'svc') getSvcData()
-    else if (val === 'ing') getIngData()
+    router.replace({ query: { ...route.query, tab: val } })
   })
+
+  watch(
+    [kind, () => String(route.query.cluster ?? '')],
+    ([val, cluster]) => {
+      if (!cluster) return
+      if (val === 'svc') getSvcData()
+      else if (val === 'ing') getIngData()
+    },
+    { immediate: true }
+  )
 
   useClusterDetailNamespaceRefresh('services', () => {
     if (kind.value === 'svc') getSvcData()
     if (kind.value === 'ing') getIngData()
   })
-
-  // First tab loads immediately when cluster is available
-  watch(
-    () => String(route.query.cluster ?? ''),
-    (cluster) => {
-      if (cluster && kind.value === 'svc') getSvcData()
-    },
-    { immediate: true }
-  )
 
   function refreshActiveServicesTab() {
     if (kind.value === 'svc') refreshSvcData()
@@ -790,8 +806,29 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   .services-page .art-table .el-table th.el-table__cell {
     font-size: 13px;
   }
+
   .services-page .el-tabs__header {
-    margin-top: -6px;
+    margin: 0 0 4px;
+  }
+  .services-page .el-tabs__nav-wrap::after {
+    height: 1px;
+    background-color: var(--el-border-color-lighter);
+  }
+  .services-page .el-tabs__item {
+    height: 40px;
+    line-height: 40px;
+    padding: 0 18px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--el-text-color-regular);
+  }
+  .services-page .el-tabs__item.is-active {
+    color: var(--el-color-primary);
+    font-weight: 600;
+  }
+  .services-page .el-tabs__active-bar {
+    height: 2px;
+    border-radius: 2px 2px 0 0;
   }
 </style>
 

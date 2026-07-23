@@ -600,6 +600,14 @@ import { nextTick } from 'vue'
   }
 
   onMounted(() => {
+    const typeQ = String(route.query.type ?? '').trim()
+    if (
+      typeQ === 'Opaque' ||
+      typeQ === 'kubernetes.io/tls' ||
+      typeQ === 'kubernetes.io/dockerconfigjson'
+    ) {
+      form.value.secretType = typeQ
+    }
     void loadNamespaces()
   })
 </script>

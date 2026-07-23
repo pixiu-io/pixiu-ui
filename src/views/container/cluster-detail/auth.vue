@@ -322,7 +322,11 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   } as const
 
   const route = useRoute()
-  const kind = ref<AuthTab>('clusterrole')
+  const router = useRouter()
+  const authTabs: AuthTab[] = ['clusterrole', 'clusterrolebinding', 'role', 'rolebinding', 'serviceaccount']
+  const kind = ref<AuthTab>(
+    (authTabs as string[]).includes(route.query.tab as string) ? (route.query.tab as AuthTab) : 'clusterrole'
+  )
   const globalNs = inject(clusterDetailNamespaceKey)
   const selectedNamespace = computed(() => globalNs?.namespace.value ?? '')
 
@@ -957,6 +961,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   }
 
   watch(kind, (val) => {
+    router.replace({ query: { ...route.query, tab: val } })
     const cluster = String(route.query.cluster ?? '')
     if (!cluster) return
     if (val === 'clusterrole') getCrData()

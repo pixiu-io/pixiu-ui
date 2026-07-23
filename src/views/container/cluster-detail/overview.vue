@@ -881,7 +881,31 @@
 
 <style scoped>
   .cluster-overview-tabs :deep(.el-tabs__header) {
-    margin-bottom: 16px;
+    margin: 0 0 4px;
+  }
+
+  .cluster-overview-tabs :deep(.el-tabs__nav-wrap::after) {
+    height: 1px;
+    background-color: var(--el-border-color-lighter);
+  }
+
+  .cluster-overview-tabs :deep(.el-tabs__item) {
+    height: 40px;
+    line-height: 40px;
+    padding: 0 18px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--el-text-color-regular);
+  }
+
+  .cluster-overview-tabs :deep(.el-tabs__item.is-active) {
+    color: var(--el-color-primary);
+    font-weight: 600;
+  }
+
+  .cluster-overview-tabs :deep(.el-tabs__active-bar) {
+    height: 2px;
+    border-radius: 2px 2px 0 0;
   }
 
   .section-title {

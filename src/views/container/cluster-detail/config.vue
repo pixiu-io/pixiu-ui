@@ -1,7 +1,7 @@
 <template>
   <div class="config-page">
     <ElCard class="art-table-card">
-      <ElTabs v-model="kind">
+      <ElTabs v-model="kind" class="config-tabs">
         <!-- ── ConfigMap Tab ── -->
         <ElTabPane label="ConfigMap" name="cm">
           <ArtTableHeader
@@ -630,6 +630,30 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   }
   .config-page .art-table .el-table th.el-table__cell {
     font-size: 13px;
+  }
+
+  .config-page .el-tabs__header {
+    margin: 0 0 4px;
+  }
+  .config-page .el-tabs__nav-wrap::after {
+    height: 1px;
+    background-color: var(--el-border-color-lighter);
+  }
+  .config-page .el-tabs__item {
+    height: 40px;
+    line-height: 40px;
+    padding: 0 18px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--el-text-color-regular);
+  }
+  .config-page .el-tabs__item.is-active {
+    color: var(--el-color-primary);
+    font-weight: 600;
+  }
+  .config-page .el-tabs__active-bar {
+    height: 2px;
+    border-radius: 2px 2px 0 0;
   }
 </style>
 
