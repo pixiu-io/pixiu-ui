@@ -37,6 +37,7 @@
         <ElTabPane label="PersistentVolume" name="pv">
 
           <ArtTable
+            :show-table-header="false"
             row-key="rowKey"
             :loading="pvLoading"
             :data="pvData"
@@ -57,6 +58,7 @@
         <ElTabPane label="PersistentVolumeClaim" name="pvc">
 
           <ArtTable
+            :show-table-header="false"
             row-key="rowKey"
             :loading="pvcLoading"
             :data="pvcData"
@@ -77,6 +79,7 @@
         <ElTabPane label="StorageClass" name="sc">
 
           <ArtTable
+            :show-table-header="false"
             row-key="rowKey"
             :loading="scLoading"
             :data="scData"
@@ -702,6 +705,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     opacity: 1;
   }
   .storage-page .art-table .el-table {
+    margin-top: 10px;
     font-size: 13px;
   }
   .storage-page .art-table .el-table th.el-table__cell {
@@ -735,9 +739,19 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     flex: 1;
     min-height: 0;
   }
+
+  .storage-page :deep(.art-table-card > .el-card__body) {
+    padding-top: 4px;
+  }
 </style>
 
 <style scoped>
+  .storage-page {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
   .cluster-toolbar {
     display: flex;
     align-items: center;

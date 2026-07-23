@@ -1,5 +1,5 @@
 <template>
-  <div class="services-page">
+  <div class="crds-page">
     <div class="cluster-toolbar">
       <ElButton v-ripple @click="goCreateCRD">新建</ElButton>
       <div class="cluster-toolbar__right">
@@ -382,29 +382,38 @@
 </script>
 
 <style>
-  .services-page .icon-action {
+  .crds-page .icon-action {
     opacity: 0;
     transition: opacity 0.15s;
   }
-  .services-page .el-table__row:hover .icon-action {
+  .crds-page .el-table__row:hover .icon-action {
     opacity: 1;
   }
-  .services-page .art-table .el-table {
+  .crds-page .art-table .el-table {
+    margin-top: 10px;
     font-size: 13px;
   }
-  .services-page .art-table .el-table th.el-table__cell {
+  .crds-page .art-table .el-table th.el-table__cell {
     font-size: 13px;
-  }
-  .services-page .el-tabs__header {
-    margin-top: -6px;
-  }
-  .services-page :deep(.art-table-card) {
-    flex: 1;
-    min-height: 0;
   }
 </style>
 
 <style scoped>
+  .crds-page {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .crds-page :deep(.art-table-card) {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .crds-page :deep(.art-table-card > .el-card__body) {
+    padding-top: 4px;
+  }
+
   .cluster-toolbar {
     display: flex;
     align-items: center;
@@ -448,5 +457,4 @@
     outline: 2px solid var(--el-color-primary);
     outline-offset: 1px;
   }
-
 </style>

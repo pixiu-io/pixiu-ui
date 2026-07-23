@@ -1,5 +1,5 @@
 <template>
-  <div class="services-page">
+  <div class="apiservices-page">
     <div class="cluster-toolbar">
       <div />
       <div class="cluster-toolbar__right">
@@ -233,7 +233,51 @@
   useSkipFirstActivatedRefresh(refreshData)
 </script>
 
+<style>
+  .apiservices-page .icon-action {
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  .apiservices-page .el-table__row:hover .icon-action {
+    opacity: 1;
+  }
+
+  .apiservices-page .art-table .el-table {
+    margin-top: 10px;
+    font-size: 13px;
+  }
+
+  .apiservices-page .art-table .el-table th.el-table__cell {
+    font-size: 13px;
+  }
+
+  .apiservices-page .workloads-op-cell {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 8px 10px;
+    min-width: 0;
+    justify-content: flex-end;
+  }
+</style>
+
 <style scoped>
+  .apiservices-page {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .apiservices-page :deep(.art-table-card) {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .apiservices-page :deep(.art-table-card > .el-card__body) {
+    padding-top: 4px;
+  }
+
   .cluster-toolbar {
     display: flex;
     align-items: center;
@@ -276,16 +320,5 @@
   .cluster-toolbar-search-btn:focus-visible {
     outline: 2px solid var(--el-color-primary);
     outline-offset: 1px;
-  }
-</style>
-
-<style>
-  .services-page .icon-action {
-    opacity: 0;
-    transition: opacity 0.15s;
-  }
-
-  .services-page .el-table__row:hover .icon-action {
-    opacity: 1;
   }
 </style>

@@ -55,6 +55,7 @@
       <ElTabs v-model="kind">
         <ElTabPane label="ClusterRole" name="clusterrole">
           <ArtTable
+            :show-table-header="false"
             row-key="rowKey"
             :loading="crLoading"
             :data="crData"
@@ -72,6 +73,7 @@
 
         <ElTabPane label="ClusterRoleBinding" name="clusterrolebinding">
           <ArtTable
+            :show-table-header="false"
             row-key="rowKey"
             :loading="crbLoading"
             :data="crbData"
@@ -89,6 +91,7 @@
 
         <ElTabPane label="Role" name="role">
           <ArtTable
+            :show-table-header="false"
             row-key="rowKey"
             :loading="roleLoading"
             :data="roleData"
@@ -106,6 +109,7 @@
 
         <ElTabPane label="RoleBinding" name="rolebinding">
           <ArtTable
+            :show-table-header="false"
             row-key="rowKey"
             :loading="rbLoading"
             :data="rbData"
@@ -123,6 +127,7 @@
 
         <ElTabPane label="ServiceAccount" name="serviceaccount">
           <ArtTable
+            :show-table-header="false"
             row-key="rowKey"
             :loading="saLoading"
             :data="saData"
@@ -884,6 +889,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     opacity: 1;
   }
   .services-page .art-table .el-table {
+    margin-top: 10px;
     font-size: 13px;
   }
   .services-page .art-table .el-table th.el-table__cell {
@@ -894,15 +900,25 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     min-width: 0;
   }
   .services-page .el-tabs__header {
-    margin-top: -6px;
+    margin: 0 0 4px;
   }
   .services-page :deep(.art-table-card) {
     flex: 1;
     min-height: 0;
   }
+
+  .services-page :deep(.art-table-card > .el-card__body) {
+    padding-top: 4px;
+  }
 </style>
 
 <style scoped>
+  .services-page {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
   .cluster-toolbar {
     display: flex;
     align-items: center;

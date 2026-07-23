@@ -773,6 +773,7 @@
     opacity: 1;
   }
   .services-page .art-table .el-table {
+    margin-top: 10px;
     font-size: 13px;
   }
   .services-page .art-table .el-table th.el-table__cell {
@@ -806,9 +807,19 @@
     flex: 1;
     min-height: 0;
   }
+
+  .services-page :deep(.art-table-card > .el-card__body) {
+    padding-top: 4px;
+  }
 </style>
 
 <style scoped>
+  .services-page {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
   .cluster-toolbar {
     display: flex;
     align-items: center;

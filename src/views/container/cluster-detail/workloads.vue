@@ -57,6 +57,7 @@
         <ElTabPane :label="deployTabLabel" name="deploy">
 
           <ArtTable
+            :show-table-header="false"
             row-key="rowKey"
             :loading="deplLoading"
             :data="deplData"
@@ -77,6 +78,7 @@
         <!-- ── StatefulSet Tab ── -->
         <ElTabPane v-if="props.showStsTab" :label="stsTabLabel" name="sts">
           <ArtTable
+            :show-table-header="false"
             row-key="rowKey"
             :loading="stsLoading"
             :data="stsData"
@@ -100,6 +102,7 @@
           name="ds"
         >
           <ArtTable
+            :show-table-header="false"
             row-key="rowKey"
             :loading="dsLoading"
             :data="dsData"
@@ -119,6 +122,7 @@
         <!-- ── Job Tab ── -->
         <ElTabPane v-if="props.showJobTab" :label="jobTabLabel" name="job">
           <ArtTable
+            :show-table-header="false"
             row-key="rowKey"
             :loading="jobLoading"
             :data="jobData"
@@ -139,6 +143,7 @@
         <!-- ── CronJob Tab ── -->
         <ElTabPane v-if="props.showCjTab" :label="cjTabLabel" name="cj">
           <ArtTable
+            :show-table-header="false"
             row-key="rowKey"
             :loading="cjLoading"
             :data="cjData"
@@ -4254,6 +4259,7 @@
     opacity: 1;
   }
   .workloads-page .art-table .el-table {
+    margin-top: 10px;
     font-size: 13px;
   }
   .workloads-page .art-table .el-table th.el-table__cell {
@@ -4307,9 +4313,19 @@
     flex: 1;
     min-height: 0;
   }
+
+  .workloads-page :deep(.art-table-card > .el-card__body) {
+    padding-top: 4px;
+  }
 </style>
 
 <style scoped>
+  .workloads-page {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
   .cluster-toolbar {
     display: flex;
     align-items: center;
@@ -4415,7 +4431,7 @@
   }
 
   .workloads-page > .art-table-card :deep(> .el-card__body) {
-    padding-top: 8px;
+    padding-top: 4px;
   }
 
   .workloads-tabs :deep(#pane-workloadMetrics),

@@ -589,6 +589,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     opacity: 1;
   }
   .namespaces-page .art-table .el-table {
+    margin-top: 10px;
     font-size: 13px;
   }
   .namespaces-page .art-table .el-table th.el-table__cell {
@@ -597,6 +598,22 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
 </style>
 
 <style scoped>
+  .namespaces-page {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+
+  .namespaces-page :deep(.art-table-card) {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .namespaces-page :deep(.art-table-card > .el-card__body) {
+    padding-top: 4px;
+  }
+
   .cluster-toolbar {
     display: flex;
     align-items: center;

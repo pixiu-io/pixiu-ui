@@ -1400,6 +1400,7 @@
     opacity: 1;
   }
   .pods-page .art-table .el-table {
+    margin-top: 10px;
     font-size: 13px;
   }
   .pods-page .art-table .el-table th.el-table__cell {
@@ -1418,6 +1419,22 @@
 </style>
 
 <style scoped>
+  .pods-page {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+
+  .pods-page :deep(.art-table-card) {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .pods-page :deep(.art-table-card > .el-card__body) {
+    padding-top: 4px;
+  }
+
   .cluster-toolbar {
     display: flex;
     align-items: center;

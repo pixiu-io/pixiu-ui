@@ -308,6 +308,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
 
 <style>
   .events-page .art-table .el-table {
+    margin-top: 10px;
     font-size: 13px;
   }
   .events-page .art-table .el-table th.el-table__cell {
@@ -320,6 +321,16 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     height: 100%;
     display: flex;
     flex-direction: column;
+  }
+
+
+  .events-page :deep(.art-table-card) {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .events-page :deep(.art-table-card > .el-card__body) {
+    padding-top: 4px;
   }
 
   .cluster-toolbar {
