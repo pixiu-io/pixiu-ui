@@ -12,7 +12,6 @@ export const CLUSTER_DETAIL_SEGMENTS = new Set([
   'storage',
   'autoscaling',
   'auth',
-  'addon-components',
   'crds',
   'apiservices',
   'alert',

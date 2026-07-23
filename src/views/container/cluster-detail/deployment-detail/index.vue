@@ -1463,22 +1463,36 @@
     font-family: 'JetBrains Mono', Consolas, monospace;
   }
 
-  /* ── Tabs card ── */
+  /* ── Tabs card（与配置告警 alert-tabs 一致） ── */
   .dd-card--tabs :deep(.el-card__body) {
-    padding: 0 14px;
+    padding-top: 8px;
+    padding-left: var(--el-card-padding);
+    padding-right: var(--el-card-padding);
+    padding-bottom: var(--el-card-padding);
   }
   .dd-tabs :deep(.el-tabs__header) {
-    margin-bottom: 14px;
+    margin: 0 0 4px;
+    flex-shrink: 0;
   }
   .dd-tabs :deep(.el-tabs__nav-wrap::after) {
     height: 1px;
-    background-color: var(--el-border-color);
+    background-color: var(--el-border-color-lighter);
   }
   .dd-tabs :deep(.el-tabs__item) {
-    height: 38px;
-    line-height: 38px;
+    height: 40px;
+    line-height: 40px;
+    padding: 0 18px;
     font-size: 13px;
     font-weight: 500;
+    color: var(--el-text-color-regular);
+  }
+  .dd-tabs :deep(.el-tabs__item.is-active) {
+    color: var(--el-color-primary);
+    font-weight: 600;
+  }
+  .dd-tabs :deep(.el-tabs__active-bar) {
+    height: 2px;
+    border-radius: 2px 2px 0 0;
   }
   .tab-badge {
     margin-left: 4px;
@@ -1714,7 +1728,8 @@
   }
 
   .dd-workloads-copy :deep(.workloads-tabs .el-tabs__header) {
-    margin-bottom: 8px;
+    margin: 0 0 4px;
+    flex-shrink: 0;
   }
 
   .dd-workloads-copy :deep(.workloads-tabs .el-tabs__content) {
@@ -1722,6 +1737,6 @@
   }
 
   .dd-workloads-copy :deep(.art-table-card > .el-card__body) {
-    padding-top: 12px;
+    padding-top: 8px;
   }
 </style>

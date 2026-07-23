@@ -591,8 +591,10 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     font-size: 13px;
   }
 
+
   .config-page .el-tabs__header {
     margin: 0 0 4px;
+    flex-shrink: 0;
   }
   .config-page .el-tabs__nav-wrap::after {
     height: 1px;
@@ -614,13 +616,14 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     height: 2px;
     border-radius: 2px 2px 0 0;
   }
-  .config-page :deep(.art-table-card) {
+
+  .config-page .art-table-card {
     flex: 1;
     min-height: 0;
   }
 
-  .config-page :deep(.art-table-card > .el-card__body) {
-    padding-top: 4px;
+  .config-page .art-table-card > .el-card__body {
+    padding-top: 8px;
   }
 </style>
 

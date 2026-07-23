@@ -998,7 +998,7 @@ watch(selectedDsId, () => {
 }
 
 .es-page :deep(.es-tabs .el-tabs__header) {
-  margin: 0 0 12px;
+  margin: 0 0 4px;
   flex-shrink: 0;
 }
 

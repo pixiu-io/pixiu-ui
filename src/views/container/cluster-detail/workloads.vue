@@ -4309,13 +4309,13 @@
     display: inline-block;
     min-width: max-content;
   }
-  .workloads-page :deep(.art-table-card) {
+  .workloads-page .art-table-card {
     flex: 1;
     min-height: 0;
   }
 
-  .workloads-page :deep(.art-table-card > .el-card__body) {
-    padding-top: 4px;
+  .workloads-page .art-table-card > .el-card__body {
+    padding-top: 8px;
   }
 </style>
 
@@ -4398,8 +4398,10 @@
     font-size: 14px;
   }
 
+
   .workloads-tabs :deep(.el-tabs__header) {
     margin: 0 0 4px;
+    flex-shrink: 0;
   }
 
   .workloads-tabs :deep(.el-tabs__nav-wrap::after) {
@@ -4426,12 +4428,13 @@
     border-radius: 2px 2px 0 0;
   }
 
+
   .workloads-tabs :deep(.el-tabs__content) {
     padding-top: 0;
   }
 
   .workloads-page > .art-table-card :deep(> .el-card__body) {
-    padding-top: 4px;
+    padding-top: 8px;
   }
 
   .workloads-tabs :deep(#pane-workloadMetrics),

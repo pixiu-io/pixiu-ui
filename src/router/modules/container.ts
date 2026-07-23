@@ -35,11 +35,6 @@ const clusterDetailChildren: AppRouteRecord[] = [
     component: '/container/cluster-detail/autoscaling'
   },
   { path: 'auth', name: 'ClusterDetailAuth', component: '/container/cluster-detail/auth' },
-  {
-    path: 'addon-components',
-    name: 'ClusterDetailAddonComponents',
-    component: '/container/cluster-detail/addon-components'
-  },
   { path: 'crds', name: 'ClusterDetailCrds', component: '/container/cluster-detail/crds' },
   {
     path: 'apiservices',

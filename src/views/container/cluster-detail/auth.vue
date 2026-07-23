@@ -1,5 +1,5 @@
 <template>
-  <div class="services-page">
+  <div class="auth-page">
     <div v-if="kind === 'clusterrole'" class="cluster-toolbar">
       <ElButton v-ripple @click="onRbacGenerator">新建策略</ElButton>
       <div class="cluster-toolbar__right">
@@ -52,7 +52,7 @@
     </div>
 
 <ElCard class="art-table-card">
-      <ElTabs v-model="kind">
+      <ElTabs v-model="kind" class="auth-tabs">
         <ElTabPane label="ClusterRole" name="clusterrole">
           <ArtTable
             :show-table-header="false"
@@ -881,39 +881,62 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
 </script>
 
 <style>
-  .services-page .icon-action {
+  .auth-page .icon-action {
     opacity: 0;
     transition: opacity 0.15s;
   }
-  .services-page .el-table__row:hover .icon-action {
+  .auth-page .el-table__row:hover .icon-action {
     opacity: 1;
   }
-  .services-page .art-table .el-table {
+  .auth-page .art-table .el-table {
     margin-top: 10px;
     font-size: 13px;
   }
-  .services-page .art-table .el-table th.el-table__cell {
+  .auth-page .art-table .el-table th.el-table__cell {
     font-size: 13px;
   }
   /* 名称列 ellipsis：让单元格在 flex 布局下可被压缩 */
-  .services-page .art-table .el-table .el-table__cell > .cell {
+  .auth-page .art-table .el-table .el-table__cell > .cell {
     min-width: 0;
   }
-  .services-page .el-tabs__header {
+
+  .auth-page .el-tabs__header {
     margin: 0 0 4px;
+    flex-shrink: 0;
   }
-  .services-page :deep(.art-table-card) {
+  .auth-page .el-tabs__nav-wrap::after {
+    height: 1px;
+    background-color: var(--el-border-color-lighter);
+  }
+  .auth-page .el-tabs__item {
+    height: 40px;
+    line-height: 40px;
+    padding: 0 18px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--el-text-color-regular);
+  }
+  .auth-page .el-tabs__item.is-active {
+    color: var(--el-color-primary);
+    font-weight: 600;
+  }
+  .auth-page .el-tabs__active-bar {
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+  }
+
+  .auth-page .art-table-card {
     flex: 1;
     min-height: 0;
   }
 
-  .services-page :deep(.art-table-card > .el-card__body) {
-    padding-top: 4px;
+  .auth-page .art-table-card > .el-card__body {
+    padding-top: 8px;
   }
 </style>
 
 <style scoped>
-  .services-page {
+  .auth-page {
     display: flex;
     flex-direction: column;
     min-height: 0;

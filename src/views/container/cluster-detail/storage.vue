@@ -32,7 +32,7 @@
     </div>
 
 <ElCard class="art-table-card">
-      <ElTabs v-model="kind">
+      <ElTabs v-model="kind" class="storage-tabs">
         <!-- ── PV Tab ── -->
         <ElTabPane label="PersistentVolume" name="pv">
 
@@ -712,8 +712,10 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     font-size: 13px;
   }
 
+
   .storage-page .el-tabs__header {
     margin: 0 0 4px;
+    flex-shrink: 0;
   }
   .storage-page .el-tabs__nav-wrap::after {
     height: 1px;
@@ -735,13 +737,14 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     height: 2px;
     border-radius: 2px 2px 0 0;
   }
-  .storage-page :deep(.art-table-card) {
+
+  .storage-page .art-table-card {
     flex: 1;
     min-height: 0;
   }
 
-  .storage-page :deep(.art-table-card > .el-card__body) {
-    padding-top: 4px;
+  .storage-page .art-table-card > .el-card__body {
+    padding-top: 8px;
   }
 </style>
 

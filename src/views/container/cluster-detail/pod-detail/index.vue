@@ -606,23 +606,22 @@
     font-size: 12px;
   }
 
-  /* ── Tabs card（与 Deployment 详情 dd-workloads-copy 一致） ── */
+  /* ── Tabs card（与配置告警 alert-tabs 一致） ── */
   .dd-workloads-copy {
     margin-top: -8px;
   }
-  /* Deployment 第二块为 art-table-card，全局有 margin-top: 12px */
   .dd-workloads-copy :deep(.dd-card--tabs) {
     margin-top: 12px;
   }
   .dd-workloads-copy :deep(.dd-card--tabs > .el-card__body) {
-    padding-top: 12px;
+    padding-top: 8px;
     padding-left: var(--el-card-padding);
     padding-right: var(--el-card-padding);
     padding-bottom: var(--el-card-padding);
   }
   .dd-workloads-copy :deep(.dd-tabs .el-tabs__header) {
-    margin-top: -6px;
-    margin-bottom: 8px;
+    margin: 0 0 4px;
+    flex-shrink: 0;
   }
   .dd-workloads-copy :deep(.dd-tabs .el-tabs__content) {
     padding-top: 0;
@@ -635,13 +634,23 @@
   }
   .dd-tabs :deep(.el-tabs__nav-wrap::after) {
     height: 1px;
-    background-color: var(--el-border-color);
+    background-color: var(--el-border-color-lighter);
   }
   .dd-tabs :deep(.el-tabs__item) {
-    height: 38px;
-    line-height: 38px;
+    height: 40px;
+    line-height: 40px;
+    padding: 0 18px;
     font-size: 13px;
     font-weight: 500;
+    color: var(--el-text-color-regular);
+  }
+  .dd-tabs :deep(.el-tabs__item.is-active) {
+    color: var(--el-color-primary);
+    font-weight: 600;
+  }
+  .dd-tabs :deep(.el-tabs__active-bar) {
+    height: 2px;
+    border-radius: 2px 2px 0 0;
   }
 
   /* ── Common table ── */

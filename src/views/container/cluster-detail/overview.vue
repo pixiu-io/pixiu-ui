@@ -882,6 +882,7 @@
 <style scoped>
   .cluster-overview-tabs :deep(.el-tabs__header) {
     margin: 0 0 4px;
+    flex-shrink: 0;
   }
 
   .cluster-overview-tabs :deep(.el-tabs__nav-wrap::after) {

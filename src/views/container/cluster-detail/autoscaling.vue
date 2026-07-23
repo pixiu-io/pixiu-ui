@@ -31,7 +31,7 @@
     </div>
 
     <ElCard class="art-table-card">
-      <ElTabs v-model="resourceTab">
+      <ElTabs v-model="resourceTab" class="hpa-tabs">
         <ElTabPane label="HorizontalPodAutoscaler" name="hpa">
 
           <ArtTable
@@ -587,8 +587,10 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
 </style>
 
 <style scoped>
+
   .hpa-tabs :deep(.el-tabs__header) {
     margin: 0 0 4px;
+    flex-shrink: 0;
   }
 
   .hpa-tabs :deep(.el-tabs__nav-wrap::after) {
@@ -614,6 +616,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     height: 2px;
     border-radius: 2px 2px 0 0;
   }
+
 
   .hpa-tab-placeholder {
     padding: 32px 12px;
@@ -677,6 +680,6 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   }
 
   .hpa-page :deep(.art-table-card > .el-card__body) {
-    padding-top: 4px;
+    padding-top: 8px;
   }
 </style>

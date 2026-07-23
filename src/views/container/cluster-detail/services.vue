@@ -38,7 +38,7 @@
     </div>
 
     <ElCard class="art-table-card">
-      <ElTabs v-model="kind">
+      <ElTabs v-model="kind" class="services-tabs">
         <!-- Service Tab -->
         <ElTabPane label="Service" name="svc">
           <ArtTable
@@ -780,8 +780,10 @@
     font-size: 13px;
   }
 
+
   .services-page .el-tabs__header {
     margin: 0 0 4px;
+    flex-shrink: 0;
   }
   .services-page .el-tabs__nav-wrap::after {
     height: 1px;
@@ -803,13 +805,14 @@
     height: 2px;
     border-radius: 2px 2px 0 0;
   }
-  .services-page :deep(.art-table-card) {
+
+  .services-page .art-table-card {
     flex: 1;
     min-height: 0;
   }
 
-  .services-page :deep(.art-table-card > .el-card__body) {
-    padding-top: 4px;
+  .services-page .art-table-card > .el-card__body {
+    padding-top: 8px;
   }
 </style>
 
