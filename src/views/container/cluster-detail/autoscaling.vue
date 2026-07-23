@@ -588,7 +588,31 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
 
 <style scoped>
   .hpa-tabs :deep(.el-tabs__header) {
-    margin-top: -4px;
+    margin: 0 0 4px;
+  }
+
+  .hpa-tabs :deep(.el-tabs__nav-wrap::after) {
+    height: 1px;
+    background-color: var(--el-border-color-lighter);
+  }
+
+  .hpa-tabs :deep(.el-tabs__item) {
+    height: 40px;
+    line-height: 40px;
+    padding: 0 18px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--el-text-color-regular);
+  }
+
+  .hpa-tabs :deep(.el-tabs__item.is-active) {
+    color: var(--el-color-primary);
+    font-weight: 600;
+  }
+
+  .hpa-tabs :deep(.el-tabs__active-bar) {
+    height: 2px;
+    border-radius: 2px 2px 0 0;
   }
 
   .hpa-tab-placeholder {

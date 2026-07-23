@@ -9,7 +9,7 @@
       <ClusterResourceBreadcrumb
         parent-path="/container/services"
         parent-label="服务与路由"
-        current-label="创建 Ingress"
+        :current-label="isEdit ? '更新 Ingress' : '创建 Ingress'"
       />
     </div>
 
@@ -20,7 +20,12 @@
 
         <ElFormItem label="Ingress 名称" prop="name">
           <div class="ing-field-col">
-            <ElInput v-model="form.name" placeholder="请输入 Ingress 名称" style="width: 300px" />
+            <ElInput
+              v-model="form.name"
+              placeholder="请输入 Ingress 名称"
+              style="width: 300px"
+              :disabled="isEdit"
+            />
             <div class="ing-field-tip"
               >最长 63
               个字符，只能包含小写字母、数字及分隔符（-），且必须以小写字母开头，以数字或小写字母结尾</div
@@ -34,6 +39,7 @@
             filterable
             placeholder="请选择命名空间"
             style="width: 300px"
+            :disabled="isEdit"
             @change="onNamespaceChange"
           >
             <ElOption v-for="ns in namespaces" :key="ns" :label="ns" :value="ns" />
@@ -170,56 +176,81 @@
           </div>
         </ElFormItem>
 
-        <ElFormItem v-if="hasHttps" label="配置 TLS">
-          <div class="ing-field-col">
-            <ElCheckbox v-model="form.tlsEnabled">启用 TLS</ElCheckbox>
-            <div class="ing-field-tip">启用后可配置 HTTPS 证书和域名</div>
-          </div>
-        </ElFormItem>
-
-        <template v-if="hasHttps && form.tlsEnabled">
-          <ElFormItem label="TLS 配置">
-            <div class="ing-field-col" style="width: 100%">
-              <div class="tls-table-box">
+        <ElFormItem label="TLS配置" class="tls-form-item">
+          <div class="ing-field-col tls-field-col" style="width: 100%">
+            <ElSwitch v-model="form.tlsEnabled" @change="onTlsEnabledChange" />
+            <template v-if="form.tlsEnabled">
+              <div v-if="form.tlsEntries.length" class="tls-table-box">
                 <div class="tls-table-header">
-                  <span class="tls-col-hosts">域名（Hosts）</span>
-                  <span class="tls-col-secret">Secret 名称</span>
-                  <span class="tls-col-action"></span>
+                  <span class="tls-col-host">域名</span>
+                  <span class="tls-col-secret">保密字典</span>
                 </div>
                 <div
                   v-for="(tls, idx) in form.tlsEntries"
                   :key="`tls-${idx}`"
                   class="tls-table-row"
                 >
-                  <ElInput
+                  <ElSelect
                     v-model="tls.hosts"
-                    class="tls-col-hosts"
-                    placeholder="多个域名用逗号分隔"
-                  />
-                  <ElInput
-                    v-model="tls.secretName"
-                    class="tls-col-secret"
-                    placeholder="TLS Secret 名称（可选）"
-                  />
-                  <ElButton
-                    link
-                    class="kv-del-btn tls-col-action"
-                    @click="form.tlsEntries.splice(idx, 1)"
-                    ><ElIcon><Close /></ElIcon
-                  ></ElButton>
+                    :class="['tls-col-host', { 'rule-cell-error': tlsErrors[idx]?.hosts }]"
+                    placeholder="请选择域名"
+                    filterable
+                    clearable
+                    @change="clearTlsError(idx, 'hosts')"
+                  >
+                    <ElOption
+                      v-for="h in tlsHostOptions"
+                      :key="h"
+                      :label="h"
+                      :value="h"
+                      :disabled="isTlsHostUsed(h, idx)"
+                    />
+                  </ElSelect>
+                  <div class="tls-col-secret tls-secret-controls">
+                    <ElSelect
+                      v-model="tls.secretName"
+                      :class="[
+                        'tls-secret-select',
+                        { 'rule-cell-error': tlsErrors[idx]?.secretName }
+                      ]"
+                      placeholder="请选择 TLS Secret"
+                      filterable
+                      clearable
+                      :loading="tlsSecretLoading"
+                      @change="clearTlsError(idx, 'secretName')"
+                    >
+                      <ElOption
+                        v-for="s in tlsSecrets"
+                        :key="s"
+                        :label="s"
+                        :value="s"
+                        :disabled="isTlsSecretUsed(s, idx)"
+                      />
+                    </ElSelect>
+                    <div class="tls-icon-group">
+                      <ElButton link class="tls-icon-btn" title="刷新" @click="loadTlsSecrets">
+                        <ElIcon><Refresh /></ElIcon>
+                      </ElButton>
+                      <ElButton link class="tls-icon-btn" title="删除" @click="removeTls(idx)">
+                        <ElIcon><Close /></ElIcon>
+                      </ElButton>
+                    </div>
+                  </div>
                 </div>
               </div>
               <ElButton link type="primary" class="kv-add-btn" @click="addTls"
                 >添加 TLS 配置</ElButton
               >
-            </div>
-          </ElFormItem>
-        </template>
+            </template>
+          </div>
+        </ElFormItem>
       </ElForm>
 
       <div class="ing-create-footer">
         <ElButton @click="goBack">取消</ElButton>
-        <ElButton type="primary" :loading="submitting" @click="submit">创建 Ingress</ElButton>
+        <ElButton type="primary" :loading="submitting" @click="submit">{{
+          isEdit ? '更新 Ingress' : '创建 Ingress'
+        }}</ElButton>
       </div>
     </ElCard>
   </div>
@@ -228,11 +259,12 @@
 <script setup lang="ts">
   import type { FormInstance, FormRules } from 'element-plus'
   import { ElMessage } from 'element-plus'
-  import { ArrowLeft, Close } from '@element-plus/icons-vue'
-  import { computed, onMounted, ref, watch } from 'vue'
+  import { ArrowLeft, Close, Refresh } from '@element-plus/icons-vue'
+  import { computed, onMounted, ref } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
-  import { createK8sIngress } from '@/api/kubernetes/ingress'
+  import { createK8sIngress, patchK8sIngress, fetchK8sIngress } from '@/api/kubernetes/ingress'
   import { fetchK8sNamespaceList } from '@/api/kubernetes/namespace'
+  import { fetchK8sSecretList } from '@/api/kubernetes/secret'
   import { fetchK8sServiceList, type K8sService } from '@/api/kubernetes/service'
   import ClusterResourceBreadcrumb from '../components/cluster-resource-breadcrumb.vue'
 
@@ -242,10 +274,14 @@
   const router = useRouter()
   const cluster = computed(() => String(route.query.cluster ?? ''))
   const defaultNamespace = computed(() => String(route.query.namespace ?? ''))
+  const editName = computed(() => String(route.query.name ?? '').trim())
+  const isEdit = computed(() => Boolean(editName.value))
 
   const namespaces = ref<string[]>([])
   const submitting = ref(false)
   const formRef = ref<FormInstance>()
+  const tlsSecrets = ref<string[]>([])
+  const tlsSecretLoading = ref(false)
 
   type RuleEntry = {
     protocol: 'HTTP' | 'HTTPS'
@@ -285,14 +321,34 @@
   >
   const ruleErrors = ref<RuleError[]>([{}])
 
-  const hasHttps = computed(() => form.value.rules.some((r) => r.protocol === 'HTTPS'))
+  type TlsError = Partial<Record<'hosts' | 'secretName', boolean>>
+  const tlsErrors = ref<TlsError[]>([])
 
-  watch(hasHttps, (val) => {
-    if (!val) {
-      form.value.tlsEnabled = false
-      form.value.tlsEntries = []
+  /** 转发规则中已填写的域名，供 TLS 域名下拉使用 */
+  const tlsHostOptions = computed(() => {
+    const set = new Set<string>()
+    for (const r of form.value.rules) {
+      const host = r.host.trim()
+      if (host) set.add(host)
     }
+    return [...set]
   })
+
+  function isTlsSecretUsed(secret: string, currentIdx: number) {
+    return form.value.tlsEntries.some(
+      (t, i) => i !== currentIdx && t.secretName.trim() === secret
+    )
+  }
+
+  function isTlsHostUsed(host: string, currentIdx: number) {
+    return form.value.tlsEntries.some(
+      (t, i) => i !== currentIdx && t.hosts.trim() === host
+    )
+  }
+
+  function clearTlsError(idx: number, field: keyof TlsError) {
+    if (tlsErrors.value[idx]) tlsErrors.value[idx][field] = false
+  }
 
   const rules: FormRules = {
     name: [
@@ -350,11 +406,57 @@
 
   function onNamespaceChange(ns: string) {
     void loadServices(ns)
+    void loadTlsSecrets()
     // clear per-rule service selections when namespace changes
     form.value.rules.forEach((r) => {
       r.serviceName = ''
       r.servicePort = ''
     })
+    form.value.tlsEntries.forEach((t) => {
+      t.secretName = ''
+    })
+  }
+
+  async function loadTlsSecrets() {
+    const ns = form.value.namespace
+    if (!cluster.value || !ns) {
+      tlsSecrets.value = []
+      return
+    }
+    tlsSecretLoading.value = true
+    try {
+      const { items } = await fetchK8sSecretList(cluster.value, {
+        page: 1,
+        limit: 999999,
+        namespace: ns
+      })
+      tlsSecrets.value = items
+        .filter((s) => s.type === 'kubernetes.io/tls')
+        .map((s) => s.metadata?.name ?? '')
+        .filter(Boolean)
+        .sort()
+    } catch {
+      tlsSecrets.value = []
+    } finally {
+      tlsSecretLoading.value = false
+    }
+  }
+
+  function onTlsEnabledChange(enabled: boolean | string | number) {
+    if (enabled) {
+      if (!form.value.tlsEntries.length) addTls()
+      tlsErrors.value = form.value.tlsEntries.map(() => ({}))
+      void loadTlsSecrets()
+    } else {
+      form.value.tlsEntries = []
+      tlsErrors.value = []
+    }
+  }
+
+  function removeTls(idx: number) {
+    form.value.tlsEntries.splice(idx, 1)
+    tlsErrors.value.splice(idx, 1)
+    if (!form.value.tlsEntries.length) addTls()
   }
 
   function clearRuleError(idx: number, field: keyof RuleError) {
@@ -380,6 +482,7 @@
 
   function addTls() {
     form.value.tlsEntries.push({ hosts: '', secretName: '' })
+    tlsErrors.value.push({})
   }
 
   function kvToObj(list: Array<{ key: string; value: string }>): Record<string, string> {
@@ -420,15 +523,15 @@
 
     const tls = f.tlsEnabled
       ? f.tlsEntries
-          .filter((t) => t.hosts.trim())
+          .filter((t) => t.hosts.trim() && t.secretName.trim())
           .map((t) => ({
             hosts: t.hosts
               .split(',')
               .map((h) => h.trim())
               .filter(Boolean),
-            ...(t.secretName.trim() ? { secretName: t.secretName.trim() } : {})
+            secretName: t.secretName.trim()
           }))
-      : undefined
+      : []
 
     return {
       apiVersion: 'networking.k8s.io/v1',
@@ -440,7 +543,8 @@
       },
       spec: {
         ...(f.ingressClassName.trim() ? { ingressClassName: f.ingressClassName.trim() } : {}),
-        ...(tls?.length ? { tls } : {}),
+        // 更新时需显式带上 tls（含空数组）以便清空原配置
+        ...(f.tlsEnabled || isEdit.value ? { tls } : {}),
         rules: specRules.length ? specRules : undefined
       }
     }
@@ -488,25 +592,69 @@
       ElMessage.warning('请完善转发规则中的必填项')
       return
     }
+    if (form.value.tlsEnabled) {
+      if (!tlsHostOptions.value.length) {
+        ElMessage.warning('请先在转发规则中填写域名，再配置 TLS')
+        return
+      }
+      if (!tlsSecrets.value.length) {
+        ElMessage.warning('当前命名空间下无可用 TLS Secret，请先创建后再配置')
+        return
+      }
+      if (!form.value.tlsEntries.length) {
+        ElMessage.warning('请至少添加一条 TLS 配置')
+        return
+      }
+      let tlsValid = true
+      tlsErrors.value = form.value.tlsEntries.map((t) => {
+        const e: TlsError = {}
+        if (!t.hosts.trim()) {
+          e.hosts = true
+          tlsValid = false
+        }
+        if (!t.secretName.trim()) {
+          e.secretName = true
+          tlsValid = false
+        }
+        return e
+      })
+      if (!tlsValid) {
+        ElMessage.warning('TLS 配置中的域名和保密字典不能为空')
+        return
+      }
+    }
     submitting.value = true
     try {
       const manifest = buildManifest()
-      await createK8sIngress(
-        cluster.value,
-        form.value.namespace,
-        manifest as Parameters<typeof createK8sIngress>[2]
-      )
-      ElMessage.success(`Ingress（${form.value.name}）创建成功`)
+      if (isEdit.value) {
+        await patchK8sIngress(cluster.value, form.value.namespace, editName.value, {
+          metadata: {
+            annotations: (manifest.metadata as { annotations?: Record<string, string> }).annotations
+          },
+          spec: (manifest as { spec: object }).spec
+        })
+        ElMessage.success(`Ingress（${form.value.name}）更新成功`)
+      } else {
+        await createK8sIngress(
+          cluster.value,
+          form.value.namespace,
+          manifest as Parameters<typeof createK8sIngress>[2]
+        )
+        ElMessage.success(`Ingress（${form.value.name}）创建成功`)
+      }
       goBack()
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '创建失败')
+      ElMessage.error(e instanceof Error ? e.message : isEdit.value ? '更新失败' : '创建失败')
     } finally {
       submitting.value = false
     }
   }
 
   function goBack() {
-    router.push({ path: '/container/services', query: { cluster: cluster.value } })
+    router.push({
+      path: '/container/services',
+      query: { cluster: cluster.value, tab: 'ing' }
+    })
   }
 
   async function loadNamespaces() {
@@ -518,11 +666,79 @@
       namespaces.value = []
     }
     form.value.namespace = defaultNamespace.value || namespaces.value[0] || 'default'
-    if (form.value.namespace) void loadServices(form.value.namespace)
+    if (form.value.namespace) {
+      void loadServices(form.value.namespace)
+      void loadTlsSecrets()
+    }
   }
 
-  onMounted(() => {
-    void loadNamespaces()
+  async function loadExistingIngress() {
+    if (!isEdit.value || !cluster.value) return
+    const ns = defaultNamespace.value || form.value.namespace
+    if (!ns) return
+    try {
+      const ing = await fetchK8sIngress(cluster.value, ns, editName.value)
+      form.value.name = ing.metadata?.name ?? editName.value
+      form.value.namespace = ing.metadata?.namespace ?? ns
+      form.value.ingressClassName = ing.spec?.ingressClassName ?? ''
+      const anns = ing.metadata?.annotations ?? {}
+      form.value.annotations = Object.entries(anns).map(([key, value]) => ({ key, value }))
+      const tlsList = ing.spec?.tls ?? []
+      if (tlsList.length) {
+        form.value.tlsEnabled = true
+        form.value.tlsEntries = tlsList.flatMap((t) => {
+          const hosts = (t.hosts ?? []).filter(Boolean)
+          if (!hosts.length) {
+            return [{ hosts: '', secretName: t.secretName ?? '' }]
+          }
+          return hosts.map((h) => ({ hosts: h, secretName: t.secretName ?? '' }))
+        })
+        tlsErrors.value = form.value.tlsEntries.map(() => ({}))
+      } else {
+        form.value.tlsEnabled = false
+        form.value.tlsEntries = []
+        tlsErrors.value = []
+      }
+      const loadedRules: RuleEntry[] = []
+      for (const rule of ing.spec?.rules ?? []) {
+        const paths = rule.http?.paths ?? []
+        if (!paths.length) {
+          loadedRules.push({
+            protocol: 'HTTP',
+            listenPort: '80',
+            host: rule.host ?? '',
+            path: '/',
+            serviceName: '',
+            servicePort: ''
+          })
+          continue
+        }
+        for (const p of paths) {
+          const port = p.backend?.service?.port
+          loadedRules.push({
+            protocol: 'HTTP',
+            listenPort: '80',
+            host: rule.host ?? '',
+            path: p.path ?? '/',
+            serviceName: p.backend?.service?.name ?? '',
+            servicePort: port?.number ?? port?.name ?? ''
+          })
+        }
+      }
+      if (loadedRules.length) {
+        form.value.rules = loadedRules
+        ruleErrors.value = loadedRules.map(() => ({}))
+      }
+      await loadServices(form.value.namespace)
+      await loadTlsSecrets()
+    } catch (e: unknown) {
+      ElMessage.error(e instanceof Error ? e.message : '加载 Ingress 失败')
+    }
+  }
+
+  onMounted(async () => {
+    await loadNamespaces()
+    if (isEdit.value) await loadExistingIngress()
   })
 </script>
 
@@ -642,7 +858,39 @@
     align-self: flex-start;
   }
 
-  /* ── TLS table ── */
+  /* ── TLS ── */
+  .tls-form-item {
+    align-items: flex-start;
+  }
+
+  /* 与「转发规则」等表单项标签同宽右对齐，并与开关垂直居中 */
+  .tls-form-item :deep(.el-form-item__label) {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    height: 32px;
+    line-height: 32px;
+    padding: 0 16px 0 0;
+    box-sizing: border-box;
+  }
+
+  .tls-form-item :deep(.el-form-item__content) {
+    align-items: flex-start;
+    min-height: 32px;
+    line-height: 32px;
+  }
+
+  .tls-field-col {
+    gap: 8px;
+  }
+
+  .tls-field-col > :deep(.el-switch) {
+    height: 32px;
+    margin: 2px 0 0;
+    display: inline-flex;
+    align-items: center;
+  }
+
   .tls-table-box {
     width: 100%;
     border: 1px solid var(--el-border-color-light);
@@ -658,6 +906,7 @@
     align-items: center;
     gap: 8px;
     padding: 6px 10px;
+    box-sizing: border-box;
   }
 
   .tls-table-header {
@@ -671,22 +920,53 @@
     border-top: 1px solid var(--el-border-color-lighter);
   }
 
-  .tls-col-hosts {
-    width: 300px;
-    flex-shrink: 0;
+  .tls-col-host {
+    flex: 1 1 0;
+    min-width: 140px;
     font-size: 12px;
   }
 
   .tls-col-secret {
-    width: 260px;
-    flex-shrink: 0;
+    flex: 1 1 0;
+    min-width: 180px;
     font-size: 12px;
   }
 
-  .tls-col-action {
-    width: 28px;
+  .tls-secret-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .tls-secret-select {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .tls-icon-group {
+    display: flex;
+    align-items: center;
+    gap: 5px;
     flex-shrink: 0;
-    margin-left: auto;
+  }
+
+  .tls-icon-btn {
+    padding: 4px;
+    margin: 0 !important;
+    color: var(--el-text-color-secondary);
+  }
+
+  .tls-icon-group :deep(.el-button + .el-button) {
+    margin-left: 0 !important;
+  }
+
+  .tls-icon-btn:hover {
+    color: var(--el-color-primary);
+  }
+
+  .tls-icon-btn + .tls-icon-btn:hover {
+    color: var(--el-color-danger);
   }
 
   /* ── Rule table ── */

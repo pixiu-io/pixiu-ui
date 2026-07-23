@@ -774,6 +774,30 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   .storage-page .art-table .el-table th.el-table__cell {
     font-size: 13px;
   }
+
+  .storage-page .el-tabs__header {
+    margin: 0 0 4px;
+  }
+  .storage-page .el-tabs__nav-wrap::after {
+    height: 1px;
+    background-color: var(--el-border-color-lighter);
+  }
+  .storage-page .el-tabs__item {
+    height: 40px;
+    line-height: 40px;
+    padding: 0 18px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--el-text-color-regular);
+  }
+  .storage-page .el-tabs__item.is-active {
+    color: var(--el-color-primary);
+    font-weight: 600;
+  }
+  .storage-page .el-tabs__active-bar {
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+  }
 </style>
 
 <style scoped>

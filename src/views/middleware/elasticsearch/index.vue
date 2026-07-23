@@ -338,36 +338,30 @@ async function fetchHealth() {
   const ds = selectedDatasource.value
   if (!ds) {
     healthData.value = null
-    return
+    return false
   }
   const dsUrl = resolveDatasourceUrl(ds)
   if (!dsUrl) {
     healthData.value = null
-    return
+    return false
   }
 
   healthLoading.value = true
   healthData.value = null
   try {
     let healthBody: any
-    let versionBody: any
     if (ds.external) {
       const headers = getExternalProxyHeaders(ds)
-      const baseUrl = dsUrl.replace(/\/+$/, '')
-      const [healthRes, versionRes] = await Promise.all([
-        pixiuAxios.get('/pixiu/external/_cluster/health', { params: { url: baseUrl }, headers }),
-        pixiuAxios.get('/pixiu/external/', { params: { url: baseUrl }, headers })
-      ])
-      healthBody = healthRes.data?.result ?? healthRes.data
-      versionBody = versionRes.data?.result ?? versionRes.data
+      const res = await pixiuAxios.get('/pixiu/external/_cluster/health', {
+        params: { url: dsUrl.replace(/\/+$/, '') },
+        headers
+      })
+      healthBody = res.data?.result ?? res.data
     } else {
-      const baseUrl = dsUrl.replace(/\/+$/, '')
-      const [healthRes, versionRes] = await Promise.all([
-        kubeProxyAxios.get(buildClusterServiceProxyPath(ds.clusterName, baseUrl, '/_cluster/health')),
-        kubeProxyAxios.get(buildClusterServiceProxyPath(ds.clusterName, baseUrl, '/'))
-      ])
-      healthBody = healthRes.data?.result ?? healthRes.data
-      versionBody = versionRes.data?.result ?? versionRes.data
+      const res = await kubeProxyAxios.get(
+        buildClusterServiceProxyPath(ds.clusterName, dsUrl.replace(/\/+$/, ''), '/_cluster/health')
+      )
+      healthBody = res.data?.result ?? res.data
     }
     healthData.value = {
       status: healthBody?.status ?? null,
@@ -379,17 +373,60 @@ async function fetchHealth() {
       initializing_shards: healthBody?.initializing_shards ?? 0,
       unassigned_shards: healthBody?.unassigned_shards ?? 0,
       cluster_name: healthBody?.cluster_name ?? '',
-      version_number: versionBody?.version?.number ?? ''
+      version_number: ''
     }
+    return true
   } catch {
     healthData.value = null
+    return false
   } finally {
     healthLoading.value = false
   }
 }
 
-watch(selectedDsId, () => {
-  fetchHealth()
+async function fetchVersion() {
+  const ds = selectedDatasource.value
+  if (!ds) return
+  const dsUrl = resolveDatasourceUrl(ds)
+  if (!dsUrl) return
+
+  try {
+    let versionBody: any
+    if (ds.external) {
+      const headers = getExternalProxyHeaders(ds)
+      const res = await pixiuAxios.get('/pixiu/external/', {
+        params: { url: dsUrl.replace(/\/+$/, '') },
+        headers
+      })
+      versionBody = res.data?.result ?? res.data
+    } else {
+      const res = await kubeProxyAxios.get(
+        buildClusterServiceProxyPath(ds.clusterName, dsUrl.replace(/\/+$/, ''), '/')
+      )
+      versionBody = res.data?.result ?? res.data
+    }
+    if (healthData.value) {
+      healthData.value.version_number = versionBody?.version?.number ?? ''
+    }
+  } catch {
+    // version is optional
+  }
+}
+
+async function loadIndexData() {
+  const ok = await fetchHealth()
+  if (!ok) return
+  await fetchVersion()
+  await fetchIndices()
+}
+
+watch(selectedDsId, async () => {
+  if (activeTab.value === 'index') {
+    loadIndexData()
+  } else {
+    const ok = await fetchHealth()
+    if (ok) await fetchVersion()
+  }
 })
 
 // ---- index management ----
@@ -726,7 +763,7 @@ async function handleToggleReadOnly(row: IndexItem) {
 
 watch(activeTab, (tab) => {
   if (tab === 'index') {
-    fetchIndices()
+    loadIndexData()
   }
 })
 

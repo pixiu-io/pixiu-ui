@@ -4645,8 +4645,31 @@
   }
 
   .workloads-tabs :deep(.el-tabs__header) {
-    margin-top: -6px;
-    margin-bottom: 8px;
+    margin: 0 0 4px;
+  }
+
+  .workloads-tabs :deep(.el-tabs__nav-wrap::after) {
+    height: 1px;
+    background-color: var(--el-border-color-lighter);
+  }
+
+  .workloads-tabs :deep(.el-tabs__item) {
+    height: 40px;
+    line-height: 40px;
+    padding: 0 18px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--el-text-color-regular);
+  }
+
+  .workloads-tabs :deep(.el-tabs__item.is-active) {
+    color: var(--el-color-primary);
+    font-weight: 600;
+  }
+
+  .workloads-tabs :deep(.el-tabs__active-bar) {
+    height: 2px;
+    border-radius: 2px 2px 0 0;
   }
 
   .workloads-tabs :deep(.el-tabs__content) {
@@ -4654,7 +4677,7 @@
   }
 
   .workloads-page > .art-table-card :deep(> .el-card__body) {
-    padding-top: 12px;
+    padding-top: 8px;
   }
 
   .workloads-tabs :deep(#pane-workloadMetrics),
