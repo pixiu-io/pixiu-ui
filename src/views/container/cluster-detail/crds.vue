@@ -1,55 +1,52 @@
 <template>
   <div class="services-page">
-    <ElCard class="art-table-card">
-          <ArtTableHeader
-            v-model:columns="columnChecks"
-            :loading="loading"
-            layout="size,fullscreen,columns,settings"
-            style="margin-top: 15px"
-            @refresh="onRefresh"
-          >
-            <template #left>
-              <div class="workloads-toolbar">
-                <ElButton v-ripple @click="openCreateYaml">新建</ElButton>
-                <div class="workloads-toolbar__filters">
-                  <ElInput
-                    v-model="searchForm.name"
-                    clearable
-                    placeholder="请输入名称"
-                    class="workloads-toolbar__search"
-                    @keyup.enter="runSearch"
-                    @clear="runSearch"
-                  />
-                  <div
-                    class="workloads-toolbar-search-btn"
-                    role="button"
-                    tabindex="0"
-                    title="搜索"
-                    @click="forceSearch"
-                    @keyup.enter="forceSearch"
-                  >
-                    <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
-                  </div>
-                </div>
-              </div>
-            </template>
-          </ArtTableHeader>
+    <div class="cluster-toolbar">
+      <ElButton v-ripple @click="goCreateCRD">新建</ElButton>
+      <div class="cluster-toolbar__right">
+        <ElInput
+          v-model="searchForm.name"
+          clearable
+          placeholder="请输入名称"
+          class="cluster-toolbar__search"
+          @keyup.enter="runSearch"
+          @clear="runSearch"
+        />
+        <div
+          class="cluster-toolbar-search-btn"
+          role="button"
+          tabindex="0"
+          title="搜索"
+          @click="forceSearch"
+          @keyup.enter="forceSearch"
+        >
+          <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
+        </div>
+        <ArtTableHeader
+          v-model:columns="columnChecks"
+          :loading="loading"
+          layout="size,columns,settings"
+          @refresh="onRefresh"
+        />
+      </div>
+    </div>
 
-          <ArtTable
-            row-key="rowKey"
-            :loading="loading"
-            :data="data"
-            :columns="columns"
-            :pagination="pagination"
-            :pagination-options="CLUSTER_TABLE_PAGINATION_OPTIONS"
-            @pagination:size-change="handleSizeChange"
-            @pagination:current-change="handleCurrentChange"
-            @sort-change="onSortChange"
-          >
-            <template #empty>
-              <ClusterTableEmpty />
-            </template>
-          </ArtTable>
+    <ElCard class="art-table-card">
+      <ArtTable
+        row-key="rowKey"
+        :show-table-header="false"
+        :loading="loading"
+        :data="data"
+        :columns="columns"
+        :pagination="pagination"
+        :pagination-options="CLUSTER_TABLE_PAGINATION_OPTIONS"
+        @pagination:size-change="handleSizeChange"
+        @pagination:current-change="handleCurrentChange"
+        @sort-change="onSortChange"
+      >
+        <template #empty>
+          <ClusterTableEmpty />
+        </template>
+      </ArtTable>
     </ElCard>
 
     <K8sYamlDialog
@@ -78,6 +75,7 @@
       @save="onCreateYamlSave"
     />
   </div>
+
 </template>
 
 <script setup lang="ts">
@@ -400,34 +398,35 @@
   .services-page .el-tabs__header {
     margin-top: -6px;
   }
+  .services-page :deep(.art-table-card) {
+    flex: 1;
+    min-height: 0;
+  }
 </style>
 
 <style scoped>
-  .workloads-toolbar {
+  .cluster-toolbar {
     display: flex;
-    width: 100%;
-    min-width: 0;
-    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    flex-shrink: 0;
     gap: 12px;
   }
 
-  .workloads-toolbar__filters {
+  .cluster-toolbar__right {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
-    gap: 10px;
-    margin-left: auto;
-    margin-right: 8px;
+    gap: 8px;
   }
 
-  .workloads-toolbar__search {
-    width: 350px;
+  .cluster-toolbar__search {
+    width: 250px;
     max-width: 100%;
   }
 
-  .workloads-toolbar-search-btn {
+  .cluster-toolbar-search-btn {
     flex-shrink: 0;
     display: flex;
     width: 32px;
@@ -441,11 +440,11 @@
     transition: background-color 0.15s ease;
   }
 
-  .workloads-toolbar-search-btn:hover {
+  .cluster-toolbar-search-btn:hover {
     background: var(--art-gray-300);
   }
 
-  .workloads-toolbar-search-btn:focus-visible {
+  .cluster-toolbar-search-btn:focus-visible {
     outline: 2px solid var(--el-color-primary);
     outline-offset: 1px;
   }

@@ -1,45 +1,49 @@
 <template>
   <div class="services-page">
+    <!-- Service 工具栏 -->
+    <div v-if="kind === 'svc'" class="cluster-toolbar">
+      <ElButton v-ripple @click="goCreateService">新建</ElButton>
+      <div class="cluster-toolbar__right">
+        <ElInput
+          v-model="svcSearchForm.name"
+          clearable
+          placeholder="请输入名称"
+          class="cluster-toolbar__search"
+          @keyup.enter="runSvcSearch"
+          @clear="runSvcSearch"
+        />
+        <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceSvcSearch" @keyup.enter="forceSvcSearch">
+          <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
+        </div>
+        <ArtTableHeader v-model:columns="svcColumnChecks" :loading="svcLoading" layout="size,columns,settings" @refresh="onSvcRefresh" />
+      </div>
+    </div>
+    <!-- Ingress 工具栏 -->
+    <div v-else class="cluster-toolbar">
+      <ElButton v-ripple @click="goCreateIngress">新建</ElButton>
+      <div class="cluster-toolbar__right">
+        <ElInput
+          v-model="ingSearchForm.name"
+          clearable
+          placeholder="请输入名称"
+          class="cluster-toolbar__search"
+          @keyup.enter="runIngSearch"
+          @clear="runIngSearch"
+        />
+        <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceIngSearch" @keyup.enter="forceIngSearch">
+          <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
+        </div>
+        <ArtTableHeader v-model:columns="ingColumnChecks" :loading="ingLoading" layout="size,columns,settings" @refresh="onIngRefresh" />
+      </div>
+    </div>
+
     <ElCard class="art-table-card">
       <ElTabs v-model="kind">
-        <!-- ── Service Tab ── -->
+        <!-- Service Tab -->
         <ElTabPane label="Service" name="svc">
-          <ArtTableHeader
-            v-model:columns="svcColumnChecks"
-            :loading="svcLoading"
-            layout="size,fullscreen,columns,settings"
-            style="margin-top: 15px"
-            @refresh="onSvcRefresh"
-          >
-            <template #left>
-              <div class="workloads-toolbar">
-                <ElButton v-ripple @click="goCreateService">新建</ElButton>
-                <div class="workloads-toolbar__filters">
-                  <ElInput
-                    v-model="svcSearchForm.name"
-                    clearable
-                    placeholder="请输入名称"
-                    class="workloads-toolbar__search"
-                    @keyup.enter="runSvcSearch"
-                    @clear="runSvcSearch"
-                  />
-                  <div
-                    class="workloads-toolbar-search-btn"
-                    role="button"
-                    tabindex="0"
-                    title="搜索"
-                    @click="forceSvcSearch"
-                    @keyup.enter="forceSvcSearch"
-                  >
-                    <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
-                  </div>
-                </div>
-              </div>
-            </template>
-          </ArtTableHeader>
-
           <ArtTable
             row-key="rowKey"
+            :show-table-header="false"
             :loading="svcLoading"
             :data="svcData"
             :columns="svcVisibleColumns"
@@ -48,51 +52,18 @@
             @pagination:size-change="svcHandleSizeChange"
             @pagination:current-change="svcHandleCurrentChange"
             @sort-change="onSvcSortChange"
->
-        <template #empty>
-          <ClusterTableEmpty />
-        </template>
+          >
+            <template #empty>
+              <ClusterTableEmpty />
+            </template>
           </ArtTable>
         </ElTabPane>
 
-        <!-- ── Ingress Tab ── -->
+        <!-- Ingress Tab -->
         <ElTabPane label="Ingress" name="ing">
-          <ArtTableHeader
-            v-model:columns="ingColumnChecks"
-            :loading="ingLoading"
-            layout="size,fullscreen,columns,settings"
-            style="margin-top: 15px"
-            @refresh="onIngRefresh"
-          >
-            <template #left>
-              <div class="workloads-toolbar">
-                <ElButton v-ripple @click="goCreateIngress">新建</ElButton>
-                <div class="workloads-toolbar__filters">
-                  <ElInput
-                    v-model="ingSearchForm.name"
-                    clearable
-                    placeholder="请输入名称"
-                    class="workloads-toolbar__search"
-                    @keyup.enter="runIngSearch"
-                    @clear="runIngSearch"
-                  />
-                  <div
-                    class="workloads-toolbar-search-btn"
-                    role="button"
-                    tabindex="0"
-                    title="搜索"
-                    @click="forceIngSearch"
-                    @keyup.enter="forceIngSearch"
-                  >
-                    <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
-                  </div>
-                </div>
-              </div>
-            </template>
-          </ArtTableHeader>
-
           <ArtTable
             row-key="rowKey"
+            :show-table-header="false"
             :loading="ingLoading"
             :data="ingData"
             :columns="ingVisibleColumns"
@@ -101,10 +72,10 @@
             @pagination:size-change="ingHandleSizeChange"
             @pagination:current-change="ingHandleCurrentChange"
             @sort-change="onIngSortChange"
->
-        <template #empty>
-          <ClusterTableEmpty />
-        </template>
+          >
+            <template #empty>
+              <ClusterTableEmpty />
+            </template>
           </ArtTable>
         </ElTabPane>
       </ElTabs>
@@ -138,8 +109,9 @@
   import { CopyDocument } from '@element-plus/icons-vue'
   import yaml from 'js-yaml'
   import { computed, h, inject, ref, watch } from 'vue'
-import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
-import ClusterTableEmpty from './components/cluster-table-empty.vue'
+  import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
+  import ClusterTableEmpty from './components/cluster-table-empty.vue'
+  import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
   import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
@@ -830,43 +802,35 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     height: 2px;
     border-radius: 2px 2px 0 0;
   }
+  .services-page :deep(.art-table-card) {
+    flex: 1;
+    min-height: 0;
+  }
 </style>
 
 <style scoped>
-  .workloads-toolbar {
+  .cluster-toolbar {
     display: flex;
-    width: 100%;
-    min-width: 0;
-    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    flex-shrink: 0;
     gap: 12px;
   }
 
-  .workloads-toolbar__filters {
+  .cluster-toolbar__right {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
-    gap: 10px;
-    margin-left: auto;
-    margin-right: 8px;
+    gap: 8px;
   }
 
-  .workloads-toolbar__ns-select {
-    width: 160px;
-  }
-
-  .workloads-toolbar__ns-select :deep(.el-select__placeholder) {
-    color: var(--el-text-color-regular);
-    font-size: 13px;
-  }
-
-  .workloads-toolbar__search {
-    width: 350px;
+  .cluster-toolbar__search {
+    width: 250px;
     max-width: 100%;
   }
 
-  .workloads-toolbar-search-btn {
+  .cluster-toolbar-search-btn {
     flex-shrink: 0;
     display: flex;
     width: 32px;
@@ -880,11 +844,11 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     transition: background-color 0.15s ease;
   }
 
-  .workloads-toolbar-search-btn:hover {
+  .cluster-toolbar-search-btn:hover {
     background: var(--art-gray-300);
   }
 
-  .workloads-toolbar-search-btn:focus-visible {
+  .cluster-toolbar-search-btn:focus-visible {
     outline: 2px solid var(--el-color-primary);
     outline-offset: 1px;
   }

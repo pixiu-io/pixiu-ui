@@ -1,90 +1,60 @@
 <template>
   <div class="workloads-page">
-    <ElCard class="art-table-card">
+    <div v-if="kind === 'deploy'" class="cluster-toolbar">
+      <ElButton v-ripple @click="openCreateDialog">新建</ElButton>
+      <div class="cluster-toolbar__right">
+        <ElInput v-model="deplSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runDeplSearch" @clear="runDeplSearch" />
+        <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceDeplSearch" @keyup.enter="forceDeplSearch">
+          <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
+        </div>
+        <ArtTableHeader v-model:columns="deplColumnChecks" :loading="deplLoading" layout="size,columns,settings" @refresh="onDeplRefresh" />
+      </div>
+    </div>
+    <div v-else-if="kind === 'sts'" class="cluster-toolbar">
+      <ElButton v-ripple @click="goCreateSts">新建</ElButton>
+      <div class="cluster-toolbar__right">
+        <ElInput v-model="stsSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runStsSearch" @clear="runStsSearch" />
+        <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceStsSearch" @keyup.enter="forceStsSearch">
+          <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
+        </div>
+        <ArtTableHeader v-model:columns="stsColumnChecks" :loading="stsLoading" layout="size,columns,settings" @refresh="onStsRefresh" />
+      </div>
+    </div>
+    <div v-else-if="kind === 'ds'" class="cluster-toolbar">
+      <ElButton v-ripple @click="goCreateDs">新建</ElButton>
+      <div class="cluster-toolbar__right">
+        <ElInput v-model="dsSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runDsSearch" @clear="runDsSearch" />
+        <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceDsSearch" @keyup.enter="forceDsSearch">
+          <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
+        </div>
+        <ArtTableHeader v-model:columns="dsColumnChecks" :loading="dsLoading" layout="size,columns,settings" @refresh="onDsRefresh" />
+      </div>
+    </div>
+    <div v-else-if="kind === 'cj'" class="cluster-toolbar">
+      <ElButton v-ripple @click="goCreateCronJob">新建</ElButton>
+      <div class="cluster-toolbar__right">
+        <ElInput v-model="cjSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runCjSearch" @clear="runCjSearch" />
+        <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceCjSearch" @keyup.enter="forceCjSearch">
+          <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
+        </div>
+        <ArtTableHeader v-model:columns="cjColumnChecks" :loading="cjLoading" layout="size,columns,settings" @refresh="onCjRefresh" />
+      </div>
+    </div>
+    <div v-else class="cluster-toolbar">
+      <ElButton v-ripple @click="goCreateJob">新建</ElButton>
+      <div class="cluster-toolbar__right">
+        <ElInput v-model="jobSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runJobSearch" @clear="runJobSearch" />
+        <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceJobSearch" @keyup.enter="forceJobSearch">
+          <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
+        </div>
+        <ArtTableHeader v-model:columns="jobColumnChecks" :loading="jobLoading" layout="size,columns,settings" @refresh="onJobRefresh" />
+      </div>
+    </div>
+
+<ElCard class="art-table-card">
       <ElTabs v-model="kind" class="workloads-tabs">
         <!-- ── Deployment Tab ── -->
         <ElTabPane :label="deployTabLabel" name="deploy">
-          <ArtTableHeader
-            v-model:columns="deplColumnChecks"
-            :loading="deplLoading"
-            layout="size,fullscreen,columns,settings"
-            style="margin-top: 15px"
-            @refresh="onDeplRefresh"
-          >
-            <template #left>
-              <div class="workloads-toolbar">
-                <ElButton
-                  v-if="isDeployPodMode"
-                  v-ripple
-                  :disabled="deplSelectedRows.length === 0"
-                  :loading="deplBatchDeleting"
-                  @click="batchDeletePods"
-                >
-                  销毁重建
-                </ElButton>
-                <ElButton v-if="props.showDeployCreate" v-ripple @click="openCreateDialog"
-                  >新建</ElButton
-                >
-                <div class="workloads-toolbar__filters">
-                  <span
-                    v-if="isDeployPodMode && !props.deployNamespace"
-                    class="workloads-toolbar__ns-label"
-                  >
-                    命名空间:
-                  </span>
-                  <ElSelect
-                    v-if="isDeployPodMode && !props.deployNamespace"
-                    v-model="deplNamespace"
-                    placeholder="所有命名空间"
-                    class="workloads-toolbar__namespace"
-                    filterable
-                    :reserve-keyword="false"
-                    :fit-input-width="true"
-                    popper-class="workloads-toolbar__namespace-popper"
-                    @change="onDeplNamespaceChange"
-                  >
-                    <template #label="{ label, value }">
-                      <span style="display: inline-flex; align-items: center; gap: 4px">
-                        <span style="font-size: 13px; color: #c7c7d1">{{ label }}</span>
-                        <span
-                          v-if="isSystemNamespace(String(value || ''))"
-                          class="workloads-ns-system-tag"
-                          >系统</span
-                        >
-                      </span>
-                    </template>
-                    <ElOption label="所有命名空间" value="" />
-                    <ElOption v-for="ns in nsOptions" :key="ns" :label="ns" :value="ns">
-                      <span style="display: inline-flex; align-items: center; gap: 0">
-                        <span class="workloads-ns-option-name">{{ ns }}</span>
-                        <span v-if="isSystemNamespace(ns)" class="workloads-ns-system-tag"
-                          >系统</span
-                        >
-                      </span>
-                    </ElOption>
-                  </ElSelect>
-                  <ElInput
-                    v-model="deplSearchForm.name"
-                    clearable
-                    placeholder="请输入名称"
-                    class="workloads-toolbar__search"
-                    @keyup.enter="runDeplSearch"
-                    @clear="runDeplSearch"
-                  />
-                  <div
-                    class="workloads-toolbar-search-btn"
-                    role="button"
-                    tabindex="0"
-                    title="搜索"
-                    @click="forceDeplSearch"
-                    @keyup.enter="forceDeplSearch"
-                  >
-                    <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
-                  </div>
-                </div>
-              </div>
-            </template>
-          </ArtTableHeader>
 
           <ArtTable
             row-key="rowKey"
@@ -106,39 +76,6 @@
 
         <!-- ── StatefulSet Tab ── -->
         <ElTabPane v-if="props.showStsTab" :label="stsTabLabel" name="sts">
-          <ArtTableHeader
-            v-model:columns="stsColumnChecks"
-            :loading="stsLoading"
-            layout="size,fullscreen,columns,settings"
-            style="margin-top: 15px"
-            @refresh="onStsRefresh"
-          >
-            <template #left>
-              <div class="workloads-toolbar">
-                <ElButton v-ripple @click="onStsCreateClick">新建</ElButton>
-                <div class="workloads-toolbar__filters">
-                  <ElInput
-                    v-model="stsSearchForm.name"
-                    clearable
-                    placeholder="请输入名称"
-                    class="workloads-toolbar__search"
-                    @keyup.enter="runStsSearch"
-                    @clear="runStsSearch"
-                  />
-                  <div
-                    class="workloads-toolbar-search-btn"
-                    role="button"
-                    tabindex="0"
-                    title="搜索"
-                    @click="forceStsSearch"
-                    @keyup.enter="forceStsSearch"
-                  >
-                    <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
-                  </div>
-                </div>
-              </div>
-            </template>
-          </ArtTableHeader>
           <ArtTable
             row-key="rowKey"
             :loading="stsLoading"
@@ -162,39 +99,6 @@
           :label="dsTabLabel"
           name="ds"
         >
-          <ArtTableHeader
-            v-model:columns="dsColumnChecks"
-            :loading="dsLoading"
-            layout="size,fullscreen,columns,settings"
-            style="margin-top: 15px"
-            @refresh="onDsRefresh"
-          >
-            <template #left>
-              <div class="workloads-toolbar">
-                <ElButton v-ripple @click="goCreateDs">新建</ElButton>
-                <div class="workloads-toolbar__filters">
-                  <ElInput
-                    v-model="dsSearchForm.name"
-                    clearable
-                    placeholder="请输入名称"
-                    class="workloads-toolbar__search"
-                    @keyup.enter="runDsSearch"
-                    @clear="runDsSearch"
-                  />
-                  <div
-                    class="workloads-toolbar-search-btn"
-                    role="button"
-                    tabindex="0"
-                    title="搜索"
-                    @click="forceDsSearch"
-                    @keyup.enter="forceDsSearch"
-                  >
-                    <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
-                  </div>
-                </div>
-              </div>
-            </template>
-          </ArtTableHeader>
           <ArtTable
             row-key="rowKey"
             :loading="dsLoading"
@@ -214,61 +118,6 @@
 
         <!-- ── Job Tab ── -->
         <ElTabPane v-if="props.showJobTab" :label="jobTabLabel" name="job">
-          <ArtTableHeader
-            v-model:columns="jobColumnChecks"
-            :loading="jobLoading"
-            layout="size,fullscreen,columns,settings"
-            style="margin-top: 15px"
-            @refresh="onJobRefresh"
-          >
-            <template #left>
-              <div class="workloads-toolbar">
-                <ElButton
-                  v-if="props.jobDataMode === 'events'"
-                  v-ripple
-                  :disabled="jobSelectedRows.length === 0"
-                  @click="batchDeleteMirrorEvents"
-                >
-                  批量删除
-                </ElButton>
-                <ElButton v-else v-ripple @click="goCreateJob">新建</ElButton>
-                <div class="workloads-toolbar__filters">
-                  <ElSelect
-                    v-if="props.jobDataMode === 'events'"
-                    v-model="jobSearchForm.type"
-                    clearable
-                    placeholder="全部类型"
-                    class="workloads-toolbar__type"
-                    @change="runJobSearch"
-                    @clear="runJobSearch"
-                  >
-                    <ElOption label="Normal" value="Normal" />
-                    <ElOption label="Warning" value="Warning" />
-                    <ElOption label="Unknown" value="Unknown" />
-                  </ElSelect>
-                  <ElInput
-                    v-else
-                    v-model="jobSearchForm.name"
-                    clearable
-                    placeholder="请输入名称"
-                    class="workloads-toolbar__search"
-                    @keyup.enter="runJobSearch"
-                    @clear="runJobSearch"
-                  />
-                  <div
-                    class="workloads-toolbar-search-btn"
-                    role="button"
-                    tabindex="0"
-                    title="搜索"
-                    @click="forceJobSearch"
-                    @keyup.enter="forceJobSearch"
-                  >
-                    <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
-                  </div>
-                </div>
-              </div>
-            </template>
-          </ArtTableHeader>
           <ArtTable
             row-key="rowKey"
             :loading="jobLoading"
@@ -289,41 +138,6 @@
 
         <!-- ── CronJob Tab ── -->
         <ElTabPane v-if="props.showCjTab" :label="cjTabLabel" name="cj">
-          <ArtTableHeader
-            v-model:columns="cjColumnChecks"
-            :loading="cjLoading"
-            layout="size,fullscreen,columns,settings"
-            style="margin-top: 15px"
-            @refresh="onCjRefresh"
-          >
-            <template #left>
-              <div class="workloads-toolbar">
-                <ElButton v-if="props.cjDataMode !== 'history'" v-ripple @click="goCreateCronJob"
-                  >新建</ElButton
-                >
-                <div class="workloads-toolbar__filters">
-                  <ElInput
-                    v-model="cjSearchForm.name"
-                    clearable
-                    placeholder="请输入名称"
-                    class="workloads-toolbar__search"
-                    @keyup.enter="runCjSearch"
-                    @clear="runCjSearch"
-                  />
-                  <div
-                    class="workloads-toolbar-search-btn"
-                    role="button"
-                    tabindex="0"
-                    title="搜索"
-                    @click="forceCjSearch"
-                    @keyup.enter="forceCjSearch"
-                  >
-                    <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
-                  </div>
-                </div>
-              </div>
-            </template>
-          </ArtTableHeader>
           <ArtTable
             row-key="rowKey"
             :loading="cjLoading"
@@ -609,6 +423,7 @@
       @updated="onImageDialogUpdated"
     />
   </div>
+
 </template>
 
 <script setup lang="ts">
@@ -4472,128 +4287,51 @@
     }
   }
 
-  .workloads-toolbar__namespace-popper .el-select-dropdown__list {
+  .cluster-toolbar__namespace-popper .el-select-dropdown__list {
     max-height: 280px;
     overflow-x: auto;
     overflow-y: auto;
   }
 
-  .workloads-toolbar__namespace-popper .el-select-dropdown__item {
+  .cluster-toolbar__namespace-popper .el-select-dropdown__item {
     overflow: visible;
     text-overflow: clip;
     white-space: nowrap;
   }
 
-  .workloads-toolbar__namespace-popper .workloads-ns-option-name {
+  .cluster-toolbar__namespace-popper .workloads-ns-option-name {
     display: inline-block;
     min-width: max-content;
+  }
+  .workloads-page :deep(.art-table-card) {
+    flex: 1;
+    min-height: 0;
   }
 </style>
 
 <style scoped>
-  .workloads-toolbar {
+  .cluster-toolbar {
     display: flex;
-    width: 100%;
-    min-width: 0;
-    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    flex-shrink: 0;
     gap: 12px;
   }
 
-  .workloads-toolbar__filters {
+  .cluster-toolbar__right {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
-    gap: 10px;
-    margin-left: auto;
-    margin-right: 8px;
+    gap: 8px;
   }
 
-  .workloads-toolbar__ns-select {
-    width: 160px;
-  }
-
-  .workloads-toolbar__ns-select :deep(.el-select__placeholder) {
-    color: var(--el-text-color-regular);
-    font-size: 13px;
-  }
-
-  .workloads-toolbar__search {
-    width: 350px;
+  .cluster-toolbar__search {
+    width: 250px;
     max-width: 100%;
   }
 
-  .workloads-toolbar__type {
-    width: 220px;
-    max-width: 100%;
-  }
-
-  .workloads-toolbar__ns-label {
-    font-size: var(--el-menu-item-font-size, 14px);
-    font-weight: var(--el-menu-item-font-weight, 400);
-    color: #c7c7d1;
-    flex-shrink: 0;
-    white-space: nowrap;
-  }
-
-  .workloads-toolbar__namespace {
-    width: max-content;
-    min-width: 210px;
-    max-width: min(38vw, 440px);
-  }
-
-  .workloads-toolbar__namespace :deep(.el-select__wrapper) {
-    font-size: 13px;
-    min-height: 32px;
-    max-width: 100%;
-    box-shadow: 0 0 0 1px var(--el-border-color) inset !important;
-    background-color: var(--el-bg-color);
-    border-radius: 8px;
-  }
-
-  .workloads-toolbar__namespace :deep(.el-select__selection) {
-    min-width: 0;
-  }
-
-  .workloads-toolbar__namespace :deep(.el-select__placeholder) {
-    color: #c7c7d1;
-  }
-
-  .workloads-toolbar__namespace :deep(.el-select__wrapper:hover) {
-    box-shadow: 0 0 0 1px var(--el-border-color-dark) inset !important;
-  }
-
-  .workloads-toolbar__namespace :deep(.el-select__wrapper.is-focused) {
-    box-shadow: 0 0 0 1px var(--el-color-primary) inset !important;
-  }
-
-  .workloads-ns-option-name {
-    font-size: 13px;
-  }
-
-  .workloads-ns-system-tag {
-    margin-left: 6px;
-    font-size: 11px;
-    padding: 0 4px;
-    line-height: 16px;
-    border-radius: 3px;
-    background: var(--el-color-primary-light-9);
-    color: var(--el-color-primary);
-    border: 1px solid var(--el-color-primary-light-7);
-    flex-shrink: 0;
-  }
-
-  .workloads-toolbar__namespace :deep(.el-select__selected-item),
-  .workloads-toolbar__namespace :deep(.el-select__placeholder),
-  .workloads-toolbar__type :deep(.el-select__selected-item),
-  .workloads-toolbar__type :deep(.el-select__placeholder) {
-    font-size: 13px;
-    font-weight: var(--el-menu-item-font-weight, 400);
-    color: #c7c7d1;
-  }
-
-  .workloads-toolbar-search-btn {
+  .cluster-toolbar-search-btn {
     flex-shrink: 0;
     display: flex;
     width: 32px;
@@ -4607,11 +4345,11 @@
     transition: background-color 0.15s ease;
   }
 
-  .workloads-toolbar-search-btn:hover {
+  .cluster-toolbar-search-btn:hover {
     background: var(--art-gray-300);
   }
 
-  .workloads-toolbar-search-btn:focus-visible {
+  .cluster-toolbar-search-btn:focus-visible {
     outline: 2px solid var(--el-color-primary);
     outline-offset: 1px;
   }

@@ -1,42 +1,30 @@
 <template>
   <div class="config-page">
-    <ElCard class="art-table-card">
+    <div v-if="kind === 'cm'" class="cluster-toolbar">
+      <ElButton v-ripple @click="goCreateConfigMap">新建</ElButton>
+      <div class="cluster-toolbar__right">
+        <ElInput v-model="cmSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runCmSearch" @clear="runCmSearch" />
+        <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceCmSearch" @keyup.enter="forceCmSearch">
+          <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
+        </div>
+        <ArtTableHeader v-model:columns="cmColumnChecks" :loading="cmLoading" layout="size,columns,settings" @refresh="onCmRefresh" />
+      </div>
+    </div>
+    <div v-else class="cluster-toolbar">
+      <ElButton v-ripple @click="goCreateSecret">新建</ElButton>
+      <div class="cluster-toolbar__right">
+        <ElInput v-model="secSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runSecSearch" @clear="runSecSearch" />
+        <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceSecSearch" @keyup.enter="forceSecSearch">
+          <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
+        </div>
+        <ArtTableHeader v-model:columns="secColumnChecks" :loading="secLoading" layout="size,columns,settings" @refresh="onSecRefresh" />
+      </div>
+    </div>
+
+<ElCard class="art-table-card">
       <ElTabs v-model="kind" class="config-tabs">
         <!-- ── ConfigMap Tab ── -->
         <ElTabPane label="ConfigMap" name="cm">
-          <ArtTableHeader
-            v-model:columns="cmColumnChecks"
-            :loading="cmLoading"
-            layout="size,fullscreen,columns,settings"
-            style="margin-top: 15px"
-            @refresh="onCmRefresh"
-          >
-            <template #left>
-              <div class="workloads-toolbar">
-                <ElButton v-ripple @click="goCreateConfigMap">新建</ElButton>
-                <div class="workloads-toolbar__filters">
-                  <ElInput
-                    v-model="cmSearchForm.name"
-                    clearable
-                    placeholder="请输入名称"
-                    class="workloads-toolbar__search"
-                    @keyup.enter="runCmSearch"
-                    @clear="runCmSearch"
-                  />
-                  <div
-                    class="workloads-toolbar-search-btn"
-                    role="button"
-                    tabindex="0"
-                    title="搜索"
-                    @click="forceCmSearch"
-                    @keyup.enter="forceCmSearch"
-                  >
-                    <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
-                  </div>
-                </div>
-              </div>
-            </template>
-          </ArtTableHeader>
 
           <ArtTable
             row-key="rowKey"
@@ -57,39 +45,6 @@
 
         <!-- ── Secret Tab ── -->
         <ElTabPane label="Secret" name="sec">
-          <ArtTableHeader
-            v-model:columns="secColumnChecks"
-            :loading="secLoading"
-            layout="size,fullscreen,columns,settings"
-            style="margin-top: 15px"
-            @refresh="onSecRefresh"
-          >
-            <template #left>
-              <div class="workloads-toolbar">
-                <ElButton v-ripple @click="goCreateSecret">新建</ElButton>
-                <div class="workloads-toolbar__filters">
-                  <ElInput
-                    v-model="secSearchForm.name"
-                    clearable
-                    placeholder="请输入名称"
-                    class="workloads-toolbar__search"
-                    @keyup.enter="runSecSearch"
-                    @clear="runSecSearch"
-                  />
-                  <div
-                    class="workloads-toolbar-search-btn"
-                    role="button"
-                    tabindex="0"
-                    title="搜索"
-                    @click="forceSecSearch"
-                    @keyup.enter="forceSecSearch"
-                  >
-                    <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
-                  </div>
-                </div>
-              </div>
-            </template>
-          </ArtTableHeader>
 
           <ArtTable
             row-key="rowKey"
@@ -122,6 +77,7 @@
       @save="onYamlSave"
     />
   </div>
+
 </template>
 
 <script setup lang="ts">
@@ -655,26 +611,68 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     height: 2px;
     border-radius: 2px 2px 0 0;
   }
+  .config-page :deep(.art-table-card) {
+    flex: 1;
+    min-height: 0;
+  }
 </style>
 
 <style scoped>
-  .workloads-toolbar {
+  .cluster-toolbar {
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    flex-shrink: 0;
     gap: 12px;
   }
-  .workloads-toolbar__filters {
+
+  .cluster-toolbar__right {
     display: flex;
     align-items: center;
     gap: 8px;
   }
-  .workloads-toolbar__ns-select {
+
+  .cluster-toolbar__search {
+    width: 250px;
+    max-width: 100%;
+  }
+
+  .cluster-toolbar-search-btn {
+    flex-shrink: 0;
+    display: flex;
+    width: 32px;
+    height: 32px;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--art-gray-300) 55%, transparent);
+    color: var(--el-text-color-secondary);
+    transition: background-color 0.15s ease;
+  }
+
+  .cluster-toolbar-search-btn:hover {
+    background: var(--art-gray-300);
+  }
+
+  .cluster-toolbar-search-btn:focus-visible {
+    outline: 2px solid var(--el-color-primary);
+    outline-offset: 1px;
+  }
+  .cluster-toolbar__filters {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .cluster-toolbar__ns-select {
     width: 180px;
   }
-  .workloads-toolbar__search {
+  .cluster-toolbar__search {
     width: 200px;
   }
-  .workloads-toolbar-search-btn {
+  .cluster-toolbar-search-btn {
     width: 32px;
     height: 32px;
     border-radius: 6px;
@@ -685,7 +683,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     cursor: pointer;
     transition: border-color 0.2s;
   }
-  .workloads-toolbar-search-btn:hover {
+  .cluster-toolbar-search-btn:hover {
     border-color: var(--el-color-primary);
   }
 </style>

@@ -1,47 +1,45 @@
 <template>
   <div class="events-page">
-    <ElCard class="art-table-card">
-      <ArtTableHeader
-        v-model:columns="columnChecks"
-        :loading="loading"
-        layout="size,fullscreen,columns,settings"
-        @refresh="onRefresh"
-      >
-        <template #left>
-          <div class="events-toolbar">
-            <ElButton v-ripple :disabled="!selectedEvents.length" @click="batchDeleteEvents">
-              批量删除
-            </ElButton>
-            <div class="events-toolbar__filters">
-              <ElSelect
-                v-model="searchForm.type"
-                clearable
-                placeholder="全部类型"
-                class="events-toolbar__type"
-                @change="runSearch"
-                @clear="runSearch"
-              >
-                <ElOption label="Normal" value="Normal" />
-                <ElOption label="Warning" value="Warning" />
-                <ElOption label="Unknown" value="Unknown" />
-              </ElSelect>
-              <div
-                class="events-toolbar-search-btn"
-                role="button"
-                tabindex="0"
-                title="搜索"
-                @click="runSearch"
-                @keyup.enter="runSearch"
-              >
-                <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
-              </div>
-            </div>
-          </div>
-        </template>
-      </ArtTableHeader>
+    <div class="cluster-toolbar">
+      <ElButton v-ripple :disabled="!selectedEvents.length" @click="batchDeleteEvents">
+        批量删除
+      </ElButton>
+      <div class="cluster-toolbar__right">
+        <ElSelect
+          v-model="searchForm.type"
+          clearable
+          placeholder="全部类型"
+          class="cluster-toolbar__search"
+          @change="runSearch"
+          @clear="runSearch"
+        >
+          <ElOption label="Normal" value="Normal" />
+          <ElOption label="Warning" value="Warning" />
+          <ElOption label="Unknown" value="Unknown" />
+        </ElSelect>
+        <div
+          class="cluster-toolbar-search-btn"
+          role="button"
+          tabindex="0"
+          title="搜索"
+          @click="runSearch"
+          @keyup.enter="runSearch"
+        >
+          <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
+        </div>
+        <ArtTableHeader
+          v-model:columns="columnChecks"
+          :loading="loading"
+          layout="size,columns,settings"
+          @refresh="onRefresh"
+        />
+      </div>
+    </div>
 
+    <ElCard class="art-table-card">
       <ArtTable
         row-key="rowKey"
+        :show-table-header="false"
         :loading="loading"
         :data="data"
         :columns="columns"
@@ -50,7 +48,7 @@
         @selection-change="onSelectionChange"
         @pagination:size-change="handleSizeChange"
         @pagination:current-change="handleCurrentChange"
->
+      >
         <template #empty>
           <ClusterTableEmpty />
         </template>
@@ -324,53 +322,28 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     flex-direction: column;
   }
 
-  .events-toolbar {
+  .cluster-toolbar {
     display: flex;
-    width: 100%;
-    min-width: 0;
-    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    flex-shrink: 0;
     gap: 12px;
   }
 
-  .events-toolbar__filters {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 10px;
-    margin-left: auto;
-    margin-right: 8px;
-  }
-
-  .events-toolbar__ns-wrap {
+  .cluster-toolbar__right {
     display: flex;
     align-items: center;
-    flex-shrink: 0;
+    gap: 8px;
   }
 
-  .events-toolbar__ns-select {
-    width: 160px;
-  }
-
-  .events-toolbar__ns-select :deep(.el-select__placeholder) {
-    color: var(--el-text-color-regular);
-    font-size: 13px;
-  }
-
-  .events-toolbar__type {
-    width: 220px;
+  .cluster-toolbar__search {
+    width: 250px;
     max-width: 100%;
   }
 
-  .events-toolbar__type :deep(.el-select__selected-item),
-  .events-toolbar__type :deep(.el-select__placeholder) {
-    font-size: 13px;
-    font-weight: var(--el-menu-item-font-weight, 400);
-    color: #C7C7D1;
-  }
-
-  .events-toolbar-search-btn {
+  .cluster-toolbar-search-btn {
     flex-shrink: 0;
     display: flex;
     width: 32px;
@@ -384,11 +357,11 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     transition: background-color 0.15s ease;
   }
 
-  .events-toolbar-search-btn:hover {
+  .cluster-toolbar-search-btn:hover {
     background: var(--art-gray-300);
   }
 
-  .events-toolbar-search-btn:focus-visible {
+  .cluster-toolbar-search-btn:focus-visible {
     outline: 2px solid var(--el-color-primary);
     outline-offset: 1px;
   }

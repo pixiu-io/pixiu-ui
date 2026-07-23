@@ -1,41 +1,40 @@
 <!-- 组件管理（演示数据，列表样式与命名空间页一致） -->
 <template>
   <div class="addon-components-page">
-    <ElCard class="art-table-card">
-      <ArtTableHeader
-        v-model:columns="columnChecks"
-        :loading="loading"
-        layout="size,fullscreen,columns,settings"
-        @refresh="onRefresh"
-      >
-        <template #left>
-          <div class="addon-toolbar">
-            <div class="addon-toolbar__filters">
-              <ElInput
-                v-model="searchForm.name"
-                clearable
-                placeholder="请输入组件名称"
-                class="addon-toolbar__search"
-                @keyup.enter="runSearch"
-                @clear="runSearch"
-              />
-              <div
-                class="addon-toolbar-search-btn"
-                role="button"
-                tabindex="0"
-                title="搜索"
-                @click="forceSearch"
-                @keyup.enter="forceSearch"
-              >
-                <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
-              </div>
-            </div>
-          </div>
-        </template>
-      </ArtTableHeader>
+    <div class="cluster-toolbar">
+      <div />
+      <div class="cluster-toolbar__right">
+        <ElInput
+          v-model="searchForm.name"
+          clearable
+          placeholder="请输入组件名称"
+          class="cluster-toolbar__search"
+          @keyup.enter="runSearch"
+          @clear="runSearch"
+        />
+        <div
+          class="cluster-toolbar-search-btn"
+          role="button"
+          tabindex="0"
+          title="搜索"
+          @click="forceSearch"
+          @keyup.enter="forceSearch"
+        >
+          <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
+        </div>
+        <ArtTableHeader
+          v-model:columns="columnChecks"
+          :loading="loading"
+          layout="size,columns,settings"
+          @refresh="onRefresh"
+        />
+      </div>
+    </div>
 
+    <ElCard class="art-table-card">
       <ArtTable
         row-key="rowKey"
+        :show-table-header="false"
         :loading="loading"
         :data="data"
         :columns="columns"
@@ -43,7 +42,7 @@
         :pagination-options="CLUSTER_TABLE_PAGINATION_OPTIONS"
         @pagination:size-change="handleSizeChange"
         @pagination:current-change="handleCurrentChange"
->
+      >
         <template #empty>
           <ClusterTableEmpty />
         </template>
@@ -222,30 +221,28 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
 </style>
 
 <style scoped>
-  .addon-toolbar {
+  .cluster-toolbar {
     display: flex;
-    width: 100%;
-    min-width: 0;
-    flex-wrap: wrap;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: space-between;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    flex-shrink: 0;
     gap: 12px;
   }
 
-  .addon-toolbar__filters {
+  .cluster-toolbar__right {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
-    gap: 10px;
-    margin-right: 8px;
+    gap: 8px;
   }
 
-  .addon-toolbar__search {
-    width: 360px;
+  .cluster-toolbar__search {
+    width: 250px;
     max-width: 100%;
   }
 
-  .addon-toolbar-search-btn {
+  .cluster-toolbar-search-btn {
     flex-shrink: 0;
     display: flex;
     width: 32px;
@@ -259,11 +256,11 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     transition: background-color 0.15s ease;
   }
 
-  .addon-toolbar-search-btn:hover {
+  .cluster-toolbar-search-btn:hover {
     background: var(--art-gray-300);
   }
 
-  .addon-toolbar-search-btn:focus-visible {
+  .cluster-toolbar-search-btn:focus-visible {
     outline: 2px solid var(--el-color-primary);
     outline-offset: 1px;
   }

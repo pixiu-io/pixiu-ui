@@ -1,41 +1,39 @@
 <template>
   <div class="namespaces-page">
-    <ElCard class="art-table-card">
-      <ArtTableHeader
-        v-model:columns="columnChecks"
-        :loading="loading"
-        layout="size,fullscreen,columns,settings"
-        @refresh="onRefresh"
-      >
-        <template #left>
-          <div class="namespaces-toolbar">
-            <ElButton v-ripple @click="createDialogVisible = true">新建命名空间</ElButton>
-            <div class="namespaces-toolbar__filters">
-              <ElInput
-                v-model="searchForm.name"
-                clearable
-                placeholder="请输入命名空间名称"
-                class="namespaces-toolbar__name"
-                @keyup.enter="runSearch"
-                @clear="runSearch"
-              />
-              <div
-                class="namespaces-toolbar-search-btn"
-                role="button"
-                tabindex="0"
-                title="搜索"
-                @click="forceSearch"
-                @keyup.enter="forceSearch"
-              >
-                <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
-              </div>
-            </div>
-          </div>
-        </template>
-      </ArtTableHeader>
+    <div class="cluster-toolbar">
+      <ElButton v-ripple @click="createDialogVisible = true">新建命名空间</ElButton>
+      <div class="cluster-toolbar__right">
+        <ElInput
+          v-model="searchForm.name"
+          clearable
+          placeholder="请输入命名空间名称"
+          class="cluster-toolbar__search"
+          @keyup.enter="runSearch"
+          @clear="runSearch"
+        />
+        <div
+          class="cluster-toolbar-search-btn"
+          role="button"
+          tabindex="0"
+          title="搜索"
+          @click="forceSearch"
+          @keyup.enter="forceSearch"
+        >
+          <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
+        </div>
+        <ArtTableHeader
+          v-model:columns="columnChecks"
+          :loading="loading"
+          layout="size,columns,settings"
+          @refresh="onRefresh"
+        />
+      </div>
+    </div>
 
+    <ElCard class="art-table-card">
       <ArtTable
         row-key="rowKey"
+        :show-table-header="false"
         :loading="loading"
         :data="data"
         :columns="columns"
@@ -44,7 +42,7 @@
         @selection-change="onSelectionChange"
         @pagination:size-change="handleSizeChange"
         @pagination:current-change="handleCurrentChange"
->
+      >
         <template #empty>
           <ClusterTableEmpty />
         </template>
@@ -599,31 +597,28 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
 </style>
 
 <style scoped>
-  .namespaces-toolbar {
+  .cluster-toolbar {
     display: flex;
-    width: 100%;
-    min-width: 0;
-    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    flex-shrink: 0;
     gap: 12px;
   }
 
-  .namespaces-toolbar__filters {
+  .cluster-toolbar__right {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
-    gap: 10px;
-    margin-left: auto;
-    margin-right: 8px;
+    gap: 8px;
   }
 
-  .namespaces-toolbar__name {
-    width: 360px;
+  .cluster-toolbar__search {
+    width: 250px;
     max-width: 100%;
   }
 
-  .namespaces-toolbar-search-btn {
+  .cluster-toolbar-search-btn {
     flex-shrink: 0;
     display: flex;
     width: 32px;
@@ -637,11 +632,11 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     transition: background-color 0.15s ease;
   }
 
-  .namespaces-toolbar-search-btn:hover {
+  .cluster-toolbar-search-btn:hover {
     background: var(--art-gray-300);
   }
 
-  .namespaces-toolbar-search-btn:focus-visible {
+  .cluster-toolbar-search-btn:focus-visible {
     outline: 2px solid var(--el-color-primary);
     outline-offset: 1px;
   }

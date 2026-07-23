@@ -1,44 +1,42 @@
 <template>
   <div class="hpa-page">
+    <div class="cluster-toolbar">
+      <ElButton v-ripple @click="onCreateHpaHint">新建 HPA</ElButton>
+      <div class="cluster-toolbar__right">
+        <ElInput
+          v-model="searchForm.name"
+          clearable
+          placeholder="请输入名称"
+          class="cluster-toolbar__search"
+          @keyup.enter="runSearch"
+          @clear="runSearch"
+        />
+        <div
+          class="cluster-toolbar-search-btn"
+          role="button"
+          tabindex="0"
+          title="搜索"
+          @click="forceSearch"
+          @keyup.enter="forceSearch"
+        >
+          <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
+        </div>
+        <ArtTableHeader
+          v-model:columns="columnChecks"
+          :loading="loading"
+          layout="size,columns,settings"
+          @refresh="onRefresh"
+        />
+      </div>
+    </div>
+
     <ElCard class="art-table-card">
       <ElTabs v-model="resourceTab">
         <ElTabPane label="HorizontalPodAutoscaler" name="hpa">
-          <ArtTableHeader
-            v-model:columns="columnChecks"
-            :loading="loading"
-            layout="size,fullscreen,columns,settings"
-            style="margin-top: 12px"
-            @refresh="onRefresh"
-          >
-            <template #left>
-              <div class="hpa-toolbar">
-                <ElButton v-ripple @click="onCreateHpaHint">新建 HPA</ElButton>
-                <div class="hpa-toolbar__filters">
-                  <ElInput
-                    v-model="searchForm.name"
-                    clearable
-                    placeholder="按名称关键字筛选"
-                    class="hpa-toolbar__search"
-                    @keyup.enter="runSearch"
-                    @clear="runSearch"
-                  />
-                  <div
-                    class="hpa-toolbar-search-btn"
-                    role="button"
-                    tabindex="0"
-                    title="搜索"
-                    @click="runSearch"
-                    @keyup.enter="runSearch"
-                  >
-                    <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
-                  </div>
-                </div>
-              </div>
-            </template>
-          </ArtTableHeader>
 
           <ArtTable
             row-key="rowKey"
+            :show-table-header="false"
             :loading="loading"
             :data="data"
             :columns="visibleColumns"
@@ -73,6 +71,7 @@
       @save="onYamlSave"
     />
   </div>
+
 </template>
 
 <script setup lang="ts">
@@ -622,31 +621,28 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     text-align: center;
   }
 
-  .hpa-toolbar {
+  .cluster-toolbar {
     display: flex;
-    width: 100%;
-    min-width: 0;
-    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    flex-shrink: 0;
     gap: 12px;
   }
 
-  .hpa-toolbar__filters {
+  .cluster-toolbar__right {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
-    gap: 10px;
-    margin-left: auto;
-    margin-right: 8px;
+    gap: 8px;
   }
 
-  .hpa-toolbar__search {
-    width: 360px;
+  .cluster-toolbar__search {
+    width: 250px;
     max-width: 100%;
   }
 
-  .hpa-toolbar-search-btn {
+  .cluster-toolbar-search-btn {
     flex-shrink: 0;
     display: flex;
     width: 32px;
@@ -660,12 +656,16 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     transition: background-color 0.15s ease;
   }
 
-  .hpa-toolbar-search-btn:hover {
+  .cluster-toolbar-search-btn:hover {
     background: var(--art-gray-300);
   }
 
-  .hpa-toolbar-search-btn:focus-visible {
+  .cluster-toolbar-search-btn:focus-visible {
     outline: 2px solid var(--el-color-primary);
     outline-offset: 1px;
+  }
+  .hpa-page :deep(.art-table-card) {
+    flex: 1;
+    min-height: 0;
   }
 </style>

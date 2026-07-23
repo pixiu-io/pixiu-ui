@@ -1,32 +1,30 @@
 <!-- 节点管理：数据与操作对齐 dashboard node.vue，样式对齐 pixiu-ui 表格页 -->
 <template>
   <div class="nodes-page">
-    <ElCard class="art-table-card">
-      <ArtTableHeader
-        v-model:columns="columnChecks"
-        :loading="loading"
-        :show-search-bar="false"
-        :layout="headerLayout"
-        @search="runNodeSearch"
-      >
-        <template #left>
-          <div class="node-toolbar">
-            <ElButton v-ripple @click="openAddNodeDialog">添加节点</ElButton>
-            <div class="node-toolbar__filters">
-              <ElInput
-                v-model="searchForm.name"
-                clearable
-                placeholder="请输入节点名"
-                class="node-toolbar__name"
-                @keyup.enter="runNodeSearch"
-              />
-            </div>
-          </div>
-        </template>
-      </ArtTableHeader>
+    <div class="node-toolbar-outer">
+      <ElButton v-ripple @click="openAddNodeDialog">添加节点</ElButton>
+      <div class="node-toolbar__right">
+        <ElInput
+          v-model="searchForm.name"
+          clearable
+          placeholder="请输入节点名"
+          class="node-toolbar__name"
+          @keyup.enter="runNodeSearch"
+          @clear="runNodeSearch"
+        />
+        <ArtTableHeader
+          v-model:columns="columnChecks"
+          :loading="loading"
+          :layout="headerLayout"
+          @refresh="onRefresh"
+        />
+      </div>
+    </div>
 
+    <ElCard class="art-table-card">
       <ArtTable
         row-key="rowKey"
+        :show-table-header="false"
         :loading="loading"
         :data="mergedData"
         :columns="columns"
@@ -341,8 +339,8 @@
   const hideExtraColumns = computed(() => props.hideExtraColumns)
   const headerLayout = computed(() =>
     props.hideFullscreenTool
-      ? 'search,size,columns,settings'
-      : 'search,size,fullscreen,columns,settings'
+      ? 'refresh,size,columns,settings'
+      : 'refresh,size,fullscreen,columns,settings'
   )
 
   function formatNodeMemory(raw: string): string {
@@ -1283,43 +1281,45 @@
 </script>
 
 <style scoped>
-  .node-name-cell {
-    min-width: 0;
-    max-width: 100%;
-    overflow: hidden;
+  .nodes-page {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
   }
 
-  .node-toolbar {
+  .node-toolbar-outer {
     display: flex;
-    width: 100%;
-    min-width: 0;
-    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    flex-shrink: 0;
   }
 
-  .node-toolbar__filters {
+  .node-toolbar__right {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
     gap: 8px;
-    margin-left: auto;
-  }
-
-  /* 右上第一个工具按钮（搜索）与左侧筛选区拉开距离 */
-  .nodes-page :deep(#art-table-header > .flex-c > .button:first-child) {
-    margin-left: 8px !important;
-  }
-
-  /* 整体表头上移，左右图标一起对齐 */
-  .nodes-page :deep(#art-table-header) {
-    margin-top: 0px;
   }
 
   .node-toolbar__name {
     width: 250px;
     max-width: 100%;
+  }
+
+  .nodes-page :deep(.art-table-card) {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .nodes-page :deep(.art-table-card > .el-card__body) {
+    padding-top: 4px;
+  }
+
+  .node-name-cell {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
   }
 
   .label-row {
