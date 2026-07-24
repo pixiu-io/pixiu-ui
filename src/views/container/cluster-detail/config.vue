@@ -78,6 +78,42 @@
       :submit-loading="yamlSaving"
       @save="onYamlSave"
     />
+
+    <ElDialog
+      v-model="certDialogVisible"
+      :title="certDialogMode === 'unbind' ? '解除域名证书' : '关联域名证书'"
+      width="520px"
+      :close-on-click-modal="false"
+      destroy-on-close
+    >
+      <div v-if="certSecret" style="margin-bottom:12px;font-size:13px;color:var(--el-text-color-regular)">
+        <template v-if="certDialogMode === 'unbind'">
+          解除 Secret <b>{{ certSecret.name }}</b>（{{ certSecret.namespace }}）已关联的域名
+        </template>
+        <template v-else>
+          为 Secret <b>{{ certSecret.name }}</b>（{{ certSecret.namespace }}）绑定域名
+        </template>
+      </div>
+      <div v-loading="certLoading" style="max-height:360px;overflow-y:auto">
+        <template v-if="!certLoading && certDomainOptions.length === 0">
+          <div style="text-align:center;padding:24px 0;color:var(--el-text-color-placeholder);font-size:13px">
+            当前命名空间下未找到域名（Ingress）
+          </div>
+        </template>
+        <ElCheckboxGroup v-model="checkedDomains" class="cert-domain-list">
+          <div v-for="opt in certDomainOptions" :key="`${opt.ingressName}:${opt.host}`" style="padding:4px 0">
+            <ElCheckbox :label="`${opt.ingressName}:${opt.host}`" :value="`${opt.ingressName}:${opt.host}`">
+              <span style="font-size:13px">{{ opt.host }}</span>
+              <span style="font-size:11px;color:var(--el-text-color-placeholder);margin-left:6px">({{ opt.ingressName }})</span>
+            </ElCheckbox>
+          </div>
+        </ElCheckboxGroup>
+      </div>
+      <template #footer>
+        <ElButton @click="certDialogVisible = false">取消</ElButton>
+        <ElButton type="primary" :loading="certSaving" :disabled="certLoading || checkedDomains.length === 0" @click="submitBindCertificate">确定</ElButton>
+      </template>
+    </ElDialog>
   </div>
 
 </template>
@@ -86,6 +122,9 @@
   import {
     ElButton,
     ElCard,
+    ElCheckbox,
+    ElCheckboxGroup,
+    ElDialog,
     ElInput,
     ElLink,
     ElMessage,
@@ -98,7 +137,8 @@
   import { CopyDocument } from '@element-plus/icons-vue'
   import yaml from 'js-yaml'
   import { computed, h, inject, ref, watch } from 'vue'
-import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
+  import ArtButtonMore, { type ButtonMoreItem } from '@/components/core/forms/art-button-more/index.vue'
+  import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
 import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
@@ -116,6 +156,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     deleteK8sSecret,
     type K8sSecret
   } from '@/api/kubernetes/secret'
+  import { fetchK8sIngressList, fetchK8sIngress, patchK8sIngress, type K8sIngress } from '@/api/kubernetes/ingress'
   import { formatNodeCreationTime } from '@/utils/kubernetes/nodeDisplay'
   import { clusterDetailNamespaceKey } from './context'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
@@ -142,6 +183,137 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   const yamlText = ref('')
   const yamlSaving = ref(false)
   const currentYamlKind = ref<'cm' | 'sec'>('cm')
+
+  // ── Certificate binding dialog ──
+  const certDialogVisible = ref(false)
+  const certSecret = ref<{ name: string; namespace: string } | null>(null)
+  const certLoading = ref(false)
+  const certSaving = ref(false)
+  const certDialogMode = ref<'bind' | 'unbind'>('bind')
+  const certDomainOptions = ref<Array<{ host: string; ingressName: string }>>([])
+  const checkedDomains = ref<string[]>([])
+
+  interface DomainOption {
+    host: string
+    ingressName: string
+  }
+
+  async function openCertDialog(row: K8sSecret, mode: 'bind' | 'unbind' = 'bind') {
+    const ns = row.metadata?.namespace ?? ''
+    const name = row.metadata?.name ?? ''
+    if (!ns || !name) return
+    certSecret.value = { name, namespace: ns }
+    certDialogMode.value = mode
+    certDomainOptions.value = []
+    certDialogVisible.value = true
+    certLoading.value = true
+    try {
+      const cluster = String(route.query.cluster ?? '')
+      const { items } = await fetchK8sIngressList(cluster, { page: 1, limit: 9999, namespace: ns })
+      const seen = new Set<string>()
+      const preChecked = new Set<string>()
+      const opts: Array<{ host: string; ingressName: string }> = []
+      for (const ing of items) {
+        const ingName = ing.metadata?.name ?? ''
+        for (const tls of ing.spec?.tls ?? []) {
+          const isBound = tls.secretName === name
+          for (const host of tls.hosts ?? []) {
+            if (!host || seen.has(host)) continue
+            seen.add(host)
+            if (mode === 'unbind' && !isBound) continue
+            opts.push({ host, ingressName: ingName })
+            if (isBound) preChecked.add(`${ingName}:${host}`)
+          }
+        }
+        if (mode === 'bind') {
+          for (const rule of ing.spec?.rules ?? []) {
+            const host = rule.host
+            if (!host || seen.has(host)) continue
+            seen.add(host)
+            opts.push({ host, ingressName: ingName })
+          }
+        }
+      }
+      certDomainOptions.value = opts
+      checkedDomains.value = mode === 'bind' ? [...preChecked] : []
+    } catch (e: any) {
+      ElMessage.error(e?.message || '获取域名列表失败')
+      certDialogVisible.value = false
+    } finally {
+      certLoading.value = false
+    }
+  }
+
+  async function submitBindCertificate() {
+    if (!checkedDomains.value.length || !certSecret.value) return
+    const cluster = String(route.query.cluster ?? '')
+    const ns = certSecret.value.namespace
+    const secretName = certSecret.value.name
+    const isUnbind = certDialogMode.value === 'unbind'
+    certSaving.value = true
+    try {
+      const selected = checkedDomains.value.map((key) => {
+        const [ingressName, host] = key.split(':', 2)
+        return { ingressName, host }
+      })
+      const byIngress = new Map<string, string[]>()
+      for (const opt of selected) {
+        if (!byIngress.has(opt.ingressName)) byIngress.set(opt.ingressName, [])
+        byIngress.get(opt.ingressName)!.push(opt.host)
+      }
+      for (const [ingName, hosts] of byIngress) {
+        const ing = await fetchK8sIngress(cluster, ns, ingName)
+        const existingTls = ing.spec?.tls ?? []
+        const selectedHostSet = new Set(hosts)
+        if (isUnbind) {
+          // 从 TLS 条目中移除选中的 hosts，若条目无剩余 hosts 则整条删除
+          const newTls = existingTls
+            .map((t) => {
+              const remaining = (t.hosts ?? []).filter((h) => !selectedHostSet.has(h))
+              if (remaining.length === 0) return null
+              return { ...t, hosts: remaining }
+            })
+            .filter(Boolean)
+          await patchK8sIngress(cluster, ns, ingName, { spec: { tls: newTls } })
+        } else {
+          // 已绑定相同 secretName 的域名无需重复 PATCH
+          const alreadyBound = existingTls.some(
+            (t) => t.secretName === secretName && t.hosts?.some((h) => selectedHostSet.has(h))
+          )
+          const newHosts = hosts.filter((h) => !existingTls.some((t) => t.secretName === secretName && (t.hosts ?? []).includes(h)))
+          if (!alreadyBound && newHosts.length === 0) continue
+          if (newHosts.length === 0) continue
+          let newTls = [...existingTls]
+          for (let i = 0; i < newTls.length; i++) {
+            const tls = newTls[i]
+            if (tls && newHosts.some((h) => (tls.hosts ?? []).includes(h))) {
+              newTls[i] = { ...tls, secretName, hosts: tls.hosts }
+            }
+          }
+          const coveredHosts = new Set(newTls.flatMap((t) => t?.hosts ?? []))
+          const extraHosts = newHosts.filter((h) => !coveredHosts.has(h))
+          for (const host of extraHosts) {
+            newTls.push({ hosts: [host], secretName })
+          }
+          await patchK8sIngress(cluster, ns, ingName, { spec: { tls: newTls } })
+        }
+      }
+      ElMessage.success(isUnbind ? `已解除 ${selected.length} 个域名的证书绑定` : `已为 ${selected.length} 个域名绑定证书「${secretName}」`)
+      certDialogVisible.value = false
+    } catch (e: any) {
+      ElMessage.error(e?.response?.data?.message || e?.message || (isUnbind ? '解除绑定失败' : '绑定证书失败'))
+    } finally {
+      certSaving.value = false
+    }
+  }
+
+  function certMoreClick(item: ButtonMoreItem, row: K8sSecret) {
+    if (item.key === 'bind') {
+      openCertDialog(row, 'bind')
+    } else if (item.key === 'unbind') {
+      openCertDialog(row, 'unbind')
+    }
+  }
 
   function goCreateConfigMap() {
     router.push({
@@ -515,13 +687,22 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
         {
           prop: 'operation',
           label: '操作',
-          width: 160,
+          width: 150,
           fixed: 'right',
-          formatter: (row: K8sSecret) =>
-            h('div', { style: 'display:flex;align-items:center;gap:12px' }, [
+          formatter: (row: K8sSecret) => {
+            const isTls = row.type === 'kubernetes.io/tls'
+            return h('div', { style: 'display:flex;align-items:center;gap:8px' }, [
               h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void openYamlDialog('sec', row.metadata?.namespace ?? '', row.metadata?.name ?? '') }, () => '查看YAML'),
-              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void deleteResource('sec', row.metadata?.namespace ?? '', row.metadata?.name ?? '', onSecRefresh) }, () => '删除')
+              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void deleteResource('sec', row.metadata?.namespace ?? '', row.metadata?.name ?? '', onSecRefresh) }, () => '删除'),
+              h(ArtButtonMore, {
+                list: [
+                  { key: 'bind', label: '关联域名', icon: 'ri:link', disabled: !isTls },
+                  { key: 'unbind', label: '解除域名', icon: 'ri:link-unlink', disabled: !isTls }
+                ],
+                onClick: (item: ButtonMoreItem) => certMoreClick(item, row)
+              })
             ])
+          }
         }
       ]
     }
