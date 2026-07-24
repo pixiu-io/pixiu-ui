@@ -1,7 +1,7 @@
 <template>
   <div class="workloads-page">
     <div v-if="kind === 'deploy'" class="cluster-toolbar">
-      <ElButton v-ripple @click="openCreateDialog">新建</ElButton>
+      <ElButton v-ripple @click="openCreateDialog">新建 Deployment</ElButton>
       <div class="cluster-toolbar__right">
         <ElInput v-model="deplSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runDeplSearch" @clear="runDeplSearch" />
         <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceDeplSearch" @keyup.enter="forceDeplSearch">
@@ -11,7 +11,7 @@
       </div>
     </div>
     <div v-else-if="kind === 'sts'" class="cluster-toolbar">
-      <ElButton v-ripple @click="goCreateSts">新建</ElButton>
+      <ElButton v-ripple @click="goCreateSts">新建 StatefulSet</ElButton>
       <div class="cluster-toolbar__right">
         <ElInput v-model="stsSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runStsSearch" @clear="runStsSearch" />
         <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceStsSearch" @keyup.enter="forceStsSearch">
@@ -21,7 +21,7 @@
       </div>
     </div>
     <div v-else-if="kind === 'ds'" class="cluster-toolbar">
-      <ElButton v-ripple @click="goCreateDs">新建</ElButton>
+      <ElButton v-ripple @click="goCreateDs">新建 DaemonSet</ElButton>
       <div class="cluster-toolbar__right">
         <ElInput v-model="dsSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runDsSearch" @clear="runDsSearch" />
         <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceDsSearch" @keyup.enter="forceDsSearch">
@@ -31,7 +31,7 @@
       </div>
     </div>
     <div v-else-if="kind === 'cj'" class="cluster-toolbar">
-      <ElButton v-ripple @click="goCreateCronJob">新建</ElButton>
+      <ElButton v-ripple @click="goCreateCronJob">新建 CronJob</ElButton>
       <div class="cluster-toolbar__right">
         <ElInput v-model="cjSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runCjSearch" @clear="runCjSearch" />
         <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceCjSearch" @keyup.enter="forceCjSearch">
@@ -41,7 +41,7 @@
       </div>
     </div>
     <div v-else class="cluster-toolbar">
-      <ElButton v-ripple @click="goCreateJob">新建</ElButton>
+      <ElButton v-ripple @click="goCreateJob">新建 Job</ElButton>
       <div class="cluster-toolbar__right">
         <ElInput v-model="jobSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runJobSearch" @clear="runJobSearch" />
         <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceJobSearch" @keyup.enter="forceJobSearch">
@@ -4315,7 +4315,7 @@
   }
 
   .workloads-page .art-table-card > .el-card__body {
-    padding-top: 8px;
+    padding-top: 12px;
   }
 </style>
 
@@ -4434,7 +4434,7 @@
   }
 
   .workloads-page > .art-table-card :deep(> .el-card__body) {
-    padding-top: 8px;
+    padding-top: 12px;
   }
 
   .workloads-tabs :deep(#pane-workloadMetrics),

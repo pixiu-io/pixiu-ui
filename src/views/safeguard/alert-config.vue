@@ -16,18 +16,31 @@
       class="alert-toolbar-outer"
       :class="{ 'alert-toolbar-outer--no-alert': !descriptionAlertVisible }"
     >
-      <div v-if="activeTabHasCreate || activeTab === 'notifications' || activeTab === 'events'" style="display:flex;align-items:center;gap:8px">
-        <ElButton v-if="activeTabHasCreate" v-ripple @click="handleCreate">{{ createButtonText }}</ElButton>
+      <div
+        v-if="activeTabHasCreate || activeTab === 'notifications' || activeTab === 'events'"
+        style="display: flex; align-items: center; gap: 8px"
+      >
+        <ElButton v-if="activeTabHasCreate" v-ripple @click="handleCreate">{{
+          createButtonText
+        }}</ElButton>
         <template v-if="activeTab === 'events'">
           <ElButton v-ripple :disabled="!selectedEvents.length" @click="handleBatchProcessEvents">
             处理事件
           </ElButton>
         </template>
         <template v-if="activeTab === 'notifications'">
-          <ElButton v-ripple :disabled="!selectedNotifications.length" @click="handleSilenceNotification">
+          <ElButton
+            v-ripple
+            :disabled="!selectedNotifications.length"
+            @click="handleSilenceNotification"
+          >
             静默告警
           </ElButton>
-          <ElButton v-ripple :disabled="!selectedNotifications.length" @click="handleDeleteNotifications">
+          <ElButton
+            v-ripple
+            :disabled="!selectedNotifications.length"
+            @click="handleDeleteNotifications"
+          >
             批量删除
           </ElButton>
         </template>
@@ -51,10 +64,28 @@
             class="alert-toolbar__filter"
             @change="handleRuleSearch"
           >
-            <ElOption v-for="(meta, value) in AlertSeverityMap" :key="value" :label="meta.label" :value="Number(value)" />
+            <ElOption
+              v-for="(meta, value) in AlertSeverityMap"
+              :key="value"
+              :label="meta.label"
+              :value="Number(value)"
+            />
           </ElSelect>
-          <ElLink type="primary" :underline="false" style="font-size:12px;cursor:pointer" @click="triggerImportRules">导入</ElLink>
-          <ElLink type="primary" :underline="false" :disabled="!selectedRules.length" style="font-size:12px;cursor:pointer" @click="handleExportRules">导出</ElLink>
+          <ElLink
+            type="primary"
+            :underline="false"
+            style="font-size: 12px; cursor: pointer"
+            @click="triggerImportRules"
+            >导入</ElLink
+          >
+          <ElLink
+            type="primary"
+            :underline="false"
+            :disabled="!selectedRules.length"
+            style="font-size: 12px; cursor: pointer"
+            @click="handleExportRules"
+            >导出</ElLink
+          >
           <input
             ref="ruleImportInputRef"
             type="file"
@@ -80,7 +111,12 @@
             class="alert-toolbar__filter"
             @change="handleChannelSearch"
           >
-            <ElOption v-for="(label, value) in AlertChannelTypeMap" :key="value" :label="label" :value="Number(value)" />
+            <ElOption
+              v-for="(label, value) in AlertChannelTypeMap"
+              :key="value"
+              :label="label"
+              :value="Number(value)"
+            />
           </ElSelect>
         </template>
 
@@ -111,7 +147,12 @@
             class="alert-toolbar__filter"
             @change="handleEventSearch"
           >
-            <ElOption v-for="(meta, value) in AlertEventStatusMap" :key="value" :label="meta.label" :value="Number(value)" />
+            <ElOption
+              v-for="(meta, value) in AlertEventStatusMap"
+              :key="value"
+              :label="meta.label"
+              :value="Number(value)"
+            />
           </ElSelect>
         </template>
         <template v-else-if="activeTab === 'notifications'">
@@ -124,8 +165,6 @@
             @clear="resetNotificationSearch"
           />
         </template>
-
-
 
         <ArtTableHeader
           v-if="activeTab === 'rules'"
@@ -244,7 +283,11 @@
       :clone-id="ruleCloneId"
       @success="refreshRuleData"
     />
-    <AlertChannelDrawer v-model="channelDrawerVisible" :edit-id="channelEditId" @success="refreshChannelData" />
+    <AlertChannelDrawer
+      v-model="channelDrawerVisible"
+      :edit-id="channelEditId"
+      @success="refreshChannelData"
+    />
     <AlertSilenceDrawer
       v-model="silenceDrawerVisible"
       :edit-id="silenceEditId"
@@ -335,7 +378,7 @@
   }
 
   const tabDescriptions: Record<AlertTab, string> = {
-    rules: '管理告警规则，配置触发条件、评估间隔和通知渠道。规则更新后约 9 秒内自动生效。',
+    rules: '管理告警规则，配置触发条件、评估间隔和通知渠道。',
     channels: '管理通知渠道配置，支持邮件、钉钉、企业微信和 Webhook。',
     silences: '配置告警静默，在指定时间段内抑制匹配的告警通知。',
     events: '查看引擎产生的告警事件，可手动更新事件状态（确认/解决等）。',
@@ -344,7 +387,9 @@
 
   const tabDescription = computed(() => tabDescriptions[activeTab.value])
 
-  const activeTabHasCreate = computed(() => ['rules', 'channels', 'silences'].includes(activeTab.value))
+  const activeTabHasCreate = computed(() =>
+    ['rules', 'channels', 'silences'].includes(activeTab.value)
+  )
 
   const channelIdToNameMap = ref<Record<number, string>>({})
 
@@ -386,7 +431,10 @@
   })
 
   // ---------- Rules ----------
-  const ruleSearch = ref({ nameSelector: undefined as string | undefined, severity: undefined as number | undefined })
+  const ruleSearch = ref({
+    nameSelector: undefined as string | undefined,
+    severity: undefined as number | undefined
+  })
   const ruleDrawerVisible = ref(false)
   const ruleEditId = ref<number | undefined>()
   const ruleCloneId = ref<number | undefined>()
@@ -599,7 +647,11 @@
   }
 
   async function deleteRule(row: AlertRuleItem) {
-    await confirmDelete(`确定删除告警规则「${row.name}」吗？`, () => fetchDeleteAlertRule(row.id), refreshRuleData)
+    await confirmDelete(
+      `确定删除告警规则「${row.name}」吗？`,
+      () => fetchDeleteAlertRule(row.id),
+      refreshRuleData
+    )
   }
 
   // ---------- Channels ----------
@@ -671,7 +723,8 @@
           label: '描述',
           minWidth: 180,
           showOverflowTooltip: true,
-          formatter: (row: AlertChannelItem) => h('span', { style: { fontSize: '12px' } }, row.description || '-')
+          formatter: (row: AlertChannelItem) =>
+            h('span', { style: { fontSize: '12px' } }, row.description || '-')
         },
         {
           prop: 'operation',
@@ -701,7 +754,11 @@
   }
 
   async function deleteChannel(row: AlertChannelItem) {
-    await confirmDelete(`确定删除通知渠道「${row.name}」吗？`, () => fetchDeleteAlertChannel(row.id), refreshChannelData)
+    await confirmDelete(
+      `确定删除通知渠道「${row.name}」吗？`,
+      () => fetchDeleteAlertChannel(row.id),
+      refreshChannelData
+    )
   }
 
   // ---------- Silences ----------
@@ -838,7 +895,11 @@
           }
         },
         entries.map(([key, value]) =>
-          h(ElTag, { size: 'small', style: { margin: '1px 2px', fontSize: '11px' } }, () => `${key}=${value == null ? '' : String(value)}`)
+          h(
+            ElTag,
+            { size: 'small', style: { margin: '1px 2px', fontSize: '11px' } },
+            () => `${key}=${value == null ? '' : String(value)}`
+          )
         )
       )
     } catch {
@@ -876,11 +937,18 @@
   }
 
   async function deleteSilence(row: AlertSilenceItem) {
-    await confirmDelete(`确定删除告警静默「${row.name}」吗？`, () => fetchDeleteAlertSilence(row.id), refreshSilenceData)
+    await confirmDelete(
+      `确定删除告警静默「${row.name}」吗？`,
+      () => fetchDeleteAlertSilence(row.id),
+      refreshSilenceData
+    )
   }
 
   // ---------- Events ----------
-  const eventSearch = ref({ ruleId: undefined as string | undefined, status: undefined as number | undefined })
+  const eventSearch = ref({
+    ruleId: undefined as string | undefined,
+    status: undefined as number | undefined
+  })
   const eventStatusVisible = ref(false)
   const currentEvents = ref<AlertEventItem[]>([])
   const selectedEvents = ref<AlertEventItem[]>([])
@@ -914,7 +982,8 @@
           prop: 'ruleName',
           label: '规则',
           minWidth: 120,
-          formatter: (row: AlertEventItem) => h('span', { style: { fontSize: '12px' } }, row.ruleName || '-')
+          formatter: (row: AlertEventItem) =>
+            h('span', { style: { fontSize: '12px' } }, row.ruleName || '-')
         },
         {
           prop: 'status',
@@ -1037,7 +1106,8 @@
           label: '标题',
           minWidth: 120,
           showOverflowTooltip: true,
-          formatter: (row: AlertNotificationItem) => h('span', { style: { fontSize: '12px' } }, row.title || '-')
+          formatter: (row: AlertNotificationItem) =>
+            h('span', { style: { fontSize: '12px' } }, row.title || '-')
         },
         {
           prop: 'severity',
@@ -1100,38 +1170,34 @@
   async function handleDeleteNotifications() {
     const ids = selectedNotifications.value.map((n) => n.id)
     if (!ids.length) return
-    ElMessageBox.confirm(
-      `确定删除选中的 ${ids.length} 条告警历史记录吗？`,
-      '提示',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning',
-        beforeClose: async (action, instance, done) => {
-          if (action !== 'confirm') {
-            done()
-            return
-          }
-          instance.confirmButtonLoading = true
-          let failed = 0
-          for (const id of ids) {
-            try {
-              await fetchDeleteAlertNotification(id)
-            } catch {
-              failed++
-            }
-          }
-          instance.confirmButtonLoading = false
-          if (failed > 0) {
-            ElMessage.warning(`删除完成，${failed} 条失败`)
-          } else {
-            ElMessage.success('删除成功')
-          }
-          refreshNotificationData()
+    ElMessageBox.confirm(`确定删除选中的 ${ids.length} 条告警历史记录吗？`, '提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+      beforeClose: async (action, instance, done) => {
+        if (action !== 'confirm') {
           done()
+          return
         }
+        instance.confirmButtonLoading = true
+        let failed = 0
+        for (const id of ids) {
+          try {
+            await fetchDeleteAlertNotification(id)
+          } catch {
+            failed++
+          }
+        }
+        instance.confirmButtonLoading = false
+        if (failed > 0) {
+          ElMessage.warning(`删除完成，${failed} 条失败`)
+        } else {
+          ElMessage.success('删除成功')
+        }
+        refreshNotificationData()
+        done()
       }
-    )
+    })
   }
 
   function renderNotificationLabels(raw?: string) {
@@ -1155,7 +1221,15 @@
           }
         },
         entries.map(([key, value]) =>
-          h(ElTag, { size: 'small', type: 'info', style: { margin: '1px 2px', fontSize: '11px', color: '#606266' } }, () => `${key}=${value == null ? '' : String(value)}`)
+          h(
+            ElTag,
+            {
+              size: 'small',
+              type: 'info',
+              style: { margin: '1px 2px', fontSize: '11px', color: '#606266' }
+            },
+            () => `${key}=${value == null ? '' : String(value)}`
+          )
         )
       )
     } catch {
@@ -1217,12 +1291,22 @@
     return h('div', { style: 'display:flex;align-items:center;gap:8px;flex-wrap:nowrap' }, [
       h(
         ElLink,
-        { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => editRule(row) },
+        {
+          type: 'primary',
+          underline: 'never',
+          style: 'font-size:12px',
+          onClick: () => editRule(row)
+        },
         () => '编辑'
       ),
       h(
         ElLink,
-        { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => cloneRule(row) },
+        {
+          type: 'primary',
+          underline: 'never',
+          style: 'font-size:12px',
+          onClick: () => cloneRule(row)
+        },
         () => '克隆'
       ),
       h(
@@ -1237,7 +1321,12 @@
       ),
       h(
         ElLink,
-        { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => deleteRule(row) },
+        {
+          type: 'primary',
+          underline: 'never',
+          style: 'font-size:12px',
+          onClick: () => deleteRule(row)
+        },
         () => '删除'
       )
     ])
@@ -1274,8 +1363,26 @@
     onDelete: (row: T) => void
   ) {
     return h('div', { style: 'display:flex;align-items:center;gap:8px;flex-wrap:nowrap' }, [
-      h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => onEdit(row) }, () => '编辑'),
-      h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => onDelete(row) }, () => '删除')
+      h(
+        ElLink,
+        {
+          type: 'primary',
+          underline: 'never',
+          style: 'font-size:12px',
+          onClick: () => onEdit(row)
+        },
+        () => '编辑'
+      ),
+      h(
+        ElLink,
+        {
+          type: 'primary',
+          underline: 'never',
+          style: 'font-size:12px',
+          onClick: () => onDelete(row)
+        },
+        () => '删除'
+      )
     ])
   }
 

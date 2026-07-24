@@ -304,12 +304,13 @@
 
 <style lang="scss" scoped>
   .datasource-page :deep(.art-table-card > .el-card__body) {
-    padding-top: 8px;
+    padding-top: 12px;
     padding-bottom: 10px;
     display: flex;
     flex-direction: column;
     overflow: hidden;
   }
+
 
   .datasource-page :deep(.art-table) {
     display: flex;

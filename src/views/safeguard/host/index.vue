@@ -1,16 +1,35 @@
 <template>
   <div class="host-page art-full-height">
-    <HostSearch v-model="searchForm" @search="handleSearch" @reset="handleReset" />
+    <ElAlert
+      v-if="alertVisible"
+      type="info"
+      closable
+      show-icon
+      class="quota-alert"
+      style="margin: 5px 0 20px 0"
+      description="管理主机节点，支持新增、编辑和删除节点。节点可用于自建集群部署与远程 SSH 连接。"
+      @close="alertVisible = false"
+    />
+
+    <div class="host-toolbar" :class="{ 'host-toolbar--no-alert': !alertVisible }">
+      <ElButton v-ripple @click="openAddNodeDialog">新增节点</ElButton>
+      <div class="host-toolbar__right">
+        <ElInput
+          v-model="searchForm.hostName"
+          clearable
+          placeholder="请输入主机名称"
+          class="host-toolbar__search"
+          @keyup.enter="handleSearch(searchForm)"
+          @clear="handleSearch(searchForm)"
+        />
+        <ArtTableHeader v-model:columns="columnChecks" :loading="loading" @refresh="handleTableRefresh" />
+      </div>
+    </div>
 
     <ElCard class="art-table-card">
-      <ArtTableHeader v-model:columns="columnChecks" :loading="loading" @refresh="handleTableRefresh">
-        <template #left>
-          <ElButton v-ripple @click="openAddNodeDialog">新增节点</ElButton>
-        </template>
-      </ArtTableHeader>
-
       <ArtTable
         row-key="id"
+        :show-table-header="false"
         :loading="loading"
         :data="data"
         :columns="columns"
@@ -143,7 +162,7 @@
 <script setup lang="ts">
   import { h, nextTick, reactive, ref } from 'vue'
   import { CopyDocument } from '@element-plus/icons-vue'
-  import { ElLink, ElMessage, ElMessageBox } from 'element-plus'
+  import { ElAlert, ElInput, ElLink, ElMessage, ElMessageBox } from 'element-plus'
   import type { FormInstance, FormRules } from 'element-plus'
   import ArtButtonMore, { type ButtonMoreItem } from '@/components/core/forms/art-button-more/index.vue'
   import { useTable } from '@/hooks/core/useTable'
@@ -157,7 +176,6 @@
   } from '@/api/node'
   import { PixiuApiError } from '@/api/container'
   import { useUserStore } from '@/store/modules/user'
-  import HostSearch from './modules/host-search.vue'
   import HostRemoteSsh from './modules/host-remote-ssh.vue'
 
   defineOptions({ name: 'SafeguardHost' })
@@ -166,6 +184,7 @@
   const hostRemoteSshRef = ref<InstanceType<typeof HostRemoteSsh> | null>(null)
 
   const searchForm = ref<{ hostName?: string }>({})
+  const alertVisible = ref(true)
   const selectedRows = ref<PixiuNodeItem[]>([])
 
   function handleSelectionChange(rows: PixiuNodeItem[]) {
@@ -620,9 +639,6 @@
   .host-page .art-table .el-table th.el-table__cell {
     font-size: 13px;
   }
-  .host-add-node-fixed-user {
-    color: var(--el-text-color-regular);
-  }
 
   /*
    * 与「导入集群」弹窗一致：body/footer 水平 16px 留白，表单项占满内容区（见 cluster-add-dialog.vue）。
@@ -639,6 +655,53 @@
   .host-node-form {
     padding-top: 12px;
   }
+  .host-add-node-fixed-user {
+    color: var(--el-text-color-regular);
+  }
+</style>
+
+<style scoped>
+  /* :deep 仅在 scoped 下生效；此前写在非 scoped 中导致 padding 未覆盖默认卡片内边距 */
+  .host-page :deep(.art-table-card) {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .host-page :deep(.art-table-card > .el-card__body) {
+    padding-top: 12px;
+    padding-bottom: 0;
+  }
+
+  .host-page :deep(.custom-pagination) {
+    margin-top: 10px;
+    margin-bottom: 0;
+    padding-bottom: 4px;
+  }
+
+  .host-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    flex-shrink: 0;
+    gap: 12px;
+  }
+
+  .host-toolbar--no-alert {
+    margin-top: 10px;
+  }
+
+  .host-toolbar__right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .host-toolbar__search {
+    width: 280px;
+    max-width: 100%;
+  }
+
   .host-node-form :deep(.el-form-item) {
     margin-bottom: 18px;
   }

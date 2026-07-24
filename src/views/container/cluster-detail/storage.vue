@@ -1,7 +1,7 @@
 <template>
   <div class="storage-page">
     <div v-if="kind === 'pv'" class="cluster-toolbar">
-      <ElButton v-ripple @click="goCreatePV">新建</ElButton>
+      <ElButton v-ripple @click="goCreatePV">新建 PV</ElButton>
       <div class="cluster-toolbar__right">
         <ElInput v-model="pvSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runPvSearch" @clear="runPvSearch" />
         <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forcePvSearch" @keyup.enter="forcePvSearch">
@@ -11,7 +11,7 @@
       </div>
     </div>
     <div v-else-if="kind === 'pvc'" class="cluster-toolbar">
-      <ElButton v-ripple @click="goCreatePVC">新建</ElButton>
+      <ElButton v-ripple @click="goCreatePVC">新建 PVC</ElButton>
       <div class="cluster-toolbar__right">
         <ElInput v-model="pvcSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runPvcSearch" @clear="runPvcSearch" />
         <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forcePvcSearch" @keyup.enter="forcePvcSearch">
@@ -21,7 +21,7 @@
       </div>
     </div>
     <div v-else class="cluster-toolbar">
-      <ElButton v-ripple @click="goCreateStorageClass">新建</ElButton>
+      <ElButton v-ripple @click="goCreateStorageClass">新建 StorageClass</ElButton>
       <div class="cluster-toolbar__right">
         <ElInput v-model="scSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runScSearch" @clear="runScSearch" />
         <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceScSearch" @keyup.enter="forceScSearch">
@@ -744,7 +744,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   }
 
   .storage-page .art-table-card > .el-card__body {
-    padding-top: 8px;
+    padding-top: 12px;
   }
 </style>
 

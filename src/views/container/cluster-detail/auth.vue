@@ -1,7 +1,7 @@
 <template>
   <div class="auth-page">
     <div v-if="kind === 'clusterrole'" class="cluster-toolbar">
-      <ElButton v-ripple @click="onRbacGenerator">新建策略</ElButton>
+      <ElButton v-ripple @click="onRbacGenerator">新建 ClusterRole</ElButton>
       <div class="cluster-toolbar__right">
         <ElInput v-model="crSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runCrSearch" @clear="runCrSearch" />
         <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceCrSearch" @keyup.enter="forceCrSearch">
@@ -11,7 +11,7 @@
       </div>
     </div>
     <div v-else-if="kind === 'clusterrolebinding'" class="cluster-toolbar">
-      <ElButton v-ripple @click="onRbacGenerator">新建策略</ElButton>
+      <ElButton v-ripple @click="onRbacGenerator">新建 ClusterRoleBinding</ElButton>
       <div class="cluster-toolbar__right">
         <ElInput v-model="crbSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runCrbSearch" @clear="runCrbSearch" />
         <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceCrbSearch" @keyup.enter="forceCrbSearch">
@@ -21,7 +21,7 @@
       </div>
     </div>
     <div v-else-if="kind === 'role'" class="cluster-toolbar">
-      <ElButton v-ripple @click="onRbacGenerator">新建策略</ElButton>
+      <ElButton v-ripple @click="onRbacGenerator">新建 Role</ElButton>
       <div class="cluster-toolbar__right">
         <ElInput v-model="roleSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runRoleSearch" @clear="runRoleSearch" />
         <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceRoleSearch" @keyup.enter="forceRoleSearch">
@@ -31,7 +31,7 @@
       </div>
     </div>
     <div v-else-if="kind === 'rolebinding'" class="cluster-toolbar">
-      <ElButton v-ripple @click="onRbacGenerator">新建策略</ElButton>
+      <ElButton v-ripple @click="onRbacGenerator">新建 RoleBinding</ElButton>
       <div class="cluster-toolbar__right">
         <ElInput v-model="rbSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runRbSearch" @clear="runRbSearch" />
         <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceRbSearch" @keyup.enter="forceRbSearch">
@@ -41,7 +41,7 @@
       </div>
     </div>
     <div v-else class="cluster-toolbar">
-      <ElButton v-ripple @click="onRbacGenerator">新建策略</ElButton>
+      <ElButton v-ripple @click="onRbacGenerator">新建 ServiceAccount</ElButton>
       <div class="cluster-toolbar__right">
         <ElInput v-model="saSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runSaSearch" @clear="runSaSearch" />
         <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceSaSearch" @keyup.enter="forceSaSearch">
@@ -931,7 +931,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   }
 
   .auth-page .art-table-card > .el-card__body {
-    padding-top: 8px;
+    padding-top: 12px;
   }
 </style>
 

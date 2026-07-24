@@ -23,6 +23,7 @@
       <!-- 表格 -->
       <ArtTable
         row-key="id"
+        :show-table-header="false"
         :loading="loading"
         :data="data"
         :columns="columns"
@@ -378,9 +379,10 @@
   }
 
   .user-page :deep(.art-table-card .el-card__body) {
-    padding-top: 8px;
+    padding-top: 12px;
     padding-bottom: 0;
   }
+
 
   .user-page :deep(.custom-pagination) {
     padding-bottom: 0;

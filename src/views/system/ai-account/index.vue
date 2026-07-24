@@ -37,6 +37,7 @@
     <ElCard class="art-table-card">
       <ArtTable
         row-key="id"
+        :show-table-header="false"
         :loading="loading"
         :data="data"
         :columns="columns"
@@ -283,12 +284,13 @@
 
 <style lang="scss" scoped>
   .ai-account-page :deep(.art-table-card > .el-card__body) {
-    padding-top: 8px;
+    padding-top: 12px;
     padding-bottom: 10px;
     display: flex;
     flex-direction: column;
     overflow: hidden;
   }
+
 
   .ai-account-page :deep(.art-table) {
     display: flex;

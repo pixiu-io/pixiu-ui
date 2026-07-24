@@ -48,56 +48,58 @@
         <ElTag :type="statusTag.type" effect="light" class="cluster-detail-status">
           {{ statusTag.text }}
         </ElTag>
-        <ElDivider direction="vertical" />
-        <div class="cluster-detail-ns-wrap">
-          <span class="cluster-detail-name-label">命名空间：</span>
-          <ElSelect
-            v-model="selectedNamespace"
-            class="cluster-detail-ns-select"
-            clearable
-            placeholder="所有命名空间"
-            :loading="nsLoading"
-            :fit-input-width="true"
-            popper-class="cluster-detail-ns-select-popper"
-            @visible-change="onNamespaceSelectVisibleChange"
-          >
-            <template #header>
-              <ElInput
-                ref="namespaceSearchInputRef"
-                v-model="namespaceSearchKeyword"
-                class="cluster-detail-ns-search"
-                placeholder="搜索命名空间"
-                clearable
-                @click.stop
-                @keydown.stop
-              >
-                <template #prefix>
-                  <ElIcon><Search /></ElIcon>
-                </template>
-              </ElInput>
-            </template>
-            <template #label="{ label, value }">
-              <span style="display: inline-flex; align-items: center; gap: 4px">
-                <span class="ns-selected-label">{{ label }}</span>
-                <span v-if="isSystemNamespace(String(value || ''))" class="ns-system-tag"
-                  >系统</span
+        <template v-if="showNamespaceSelector">
+          <ElDivider direction="vertical" />
+          <div class="cluster-detail-ns-wrap">
+            <span class="cluster-detail-name-label">命名空间：</span>
+            <ElSelect
+              v-model="selectedNamespace"
+              class="cluster-detail-ns-select"
+              clearable
+              placeholder="所有命名空间"
+              :loading="nsLoading"
+              :fit-input-width="true"
+              popper-class="cluster-detail-ns-select-popper"
+              @visible-change="onNamespaceSelectVisibleChange"
+            >
+              <template #header>
+                <ElInput
+                  ref="namespaceSearchInputRef"
+                  v-model="namespaceSearchKeyword"
+                  class="cluster-detail-ns-search"
+                  placeholder="搜索命名空间"
+                  clearable
+                  @click.stop
+                  @keydown.stop
                 >
-              </span>
-            </template>
-            <ElOption v-for="ns in filteredNamespaceOptions" :key="ns" :value="ns" :label="ns">
-              <span style="display: inline-flex; align-items: center; gap: 0">
-                <span class="ns-option-name">{{ ns }}</span>
-                <span v-if="isSystemNamespace(ns)" class="ns-system-tag">系统</span>
-              </span>
-            </ElOption>
-            <template #empty>
-              <span class="cluster-detail-ns-empty">无匹配命名空间</span>
-            </template>
-          </ElSelect>
-          <ElTag v-if="ctx.permissionId" type="success" effect="plain" style="margin-left: 8px">
-            授权
-          </ElTag>
-        </div>
+                  <template #prefix>
+                    <ElIcon><Search /></ElIcon>
+                  </template>
+                </ElInput>
+              </template>
+              <template #label="{ label, value }">
+                <span style="display: inline-flex; align-items: center; gap: 4px">
+                  <span class="ns-selected-label">{{ label }}</span>
+                  <span v-if="isSystemNamespace(String(value || ''))" class="ns-system-tag"
+                    >系统</span
+                  >
+                </span>
+              </template>
+              <ElOption v-for="ns in filteredNamespaceOptions" :key="ns" :value="ns" :label="ns">
+                <span style="display: inline-flex; align-items: center; gap: 0">
+                  <span class="ns-option-name">{{ ns }}</span>
+                  <span v-if="isSystemNamespace(ns)" class="ns-system-tag">系统</span>
+                </span>
+              </ElOption>
+              <template #empty>
+                <span class="cluster-detail-ns-empty">无匹配命名空间</span>
+              </template>
+            </ElSelect>
+            <ElTag v-if="ctx.permissionId" type="success" effect="plain" style="margin-left: 8px">
+              授权
+            </ElTag>
+          </div>
+        </template>
       </div>
       <div class="cluster-detail-header__right">
         <ElButton
@@ -531,6 +533,33 @@
     const m = route.path.match(/\/container\/([^/]+)$/)
     const seg = m?.[1] ?? 'overview'
     return DETAIL_SEGMENTS.has(seg) ? seg : 'overview'
+  })
+
+  /** 集群级资源（非命名空间作用域）不展示顶栏命名空间切换 */
+  const CLUSTER_SCOPED_MENUS = new Set([
+    'overview',
+    'nodes',
+    'namespaces',
+    'crds',
+    'apiservices'
+  ])
+  const CLUSTER_SCOPED_TABS: Record<string, Set<string>> = {
+    storage: new Set(['pv', 'sc']),
+    auth: new Set(['clusterrole', 'clusterrolebinding'])
+  }
+
+  const showNamespaceSelector = computed(() => {
+    const menu = activeMenuKey.value
+    if (CLUSTER_SCOPED_MENUS.has(menu)) return false
+    const tab = String(route.query.tab ?? '').toLowerCase()
+    const scopedTabs = CLUSTER_SCOPED_TABS[menu]
+    if (scopedTabs) {
+      // 存储默认 tab 为 pv；认证默认 tab 为 clusterrole
+      const effectiveTab =
+        tab || (menu === 'storage' ? 'pv' : menu === 'auth' ? 'clusterrole' : '')
+      if (scopedTabs.has(effectiveTab)) return false
+    }
+    return true
   })
 
   provide(clusterDetailContextKey, ctx)

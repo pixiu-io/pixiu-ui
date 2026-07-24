@@ -1313,7 +1313,7 @@
   }
 
   .nodes-page :deep(.art-table-card > .el-card__body) {
-    padding-top: 4px;
+    padding-top: 12px;
   }
 
   .node-name-cell {
@@ -1370,7 +1370,7 @@
   }
 
   .mb-3 {
-    margin-bottom: 12px;
+    margin-bottom: 10px;
   }
 
   .mb-4 {

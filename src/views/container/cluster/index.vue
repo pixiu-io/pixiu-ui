@@ -1,16 +1,35 @@
 <template>
   <div class="cluster-page art-full-height">
-    <ClusterSearch v-model="searchForm" @search="handleSearch as any" @reset="handleReset" />
+    <ElAlert
+      v-if="alertVisible"
+      type="info"
+      closable
+      show-icon
+      class="quota-alert"
+      style="margin: 5px 0 20px 0"
+      description="管理 Kubernetes 集群，支持导入标准集群和自建集群。集群创建后可在集群详情页查看资源与监控。"
+      @close="alertVisible = false"
+    />
+
+    <div class="cluster-toolbar" :class="{ 'cluster-toolbar--no-alert': !alertVisible }">
+      <ElButton @click="addClusterVisible = true" v-ripple>新增集群</ElButton>
+      <div class="cluster-toolbar__right">
+        <ElInput
+          v-model="searchForm.name"
+          clearable
+          placeholder="请输入集群名称"
+          class="cluster-toolbar__search"
+          @keyup.enter="handleSearch"
+          @clear="handleSearch"
+        />
+        <ArtTableHeader v-model:columns="columnChecks" :loading="loading" @refresh="refreshData" />
+      </div>
+    </div>
 
     <ElCard class="art-table-card">
-      <ArtTableHeader v-model:columns="columnChecks" :loading="loading" @refresh="refreshData">
-        <template #left>
-          <ElButton @click="addClusterVisible = true" v-ripple>新增集群</ElButton>
-        </template>
-      </ArtTableHeader>
-
       <ArtTable
         row-key="id"
+        :show-table-header="false"
         :loading="loading"
         :data="data"
         :columns="columns"
@@ -101,7 +120,7 @@
               {{ row.status === '运行中' || row.status === '未开始' ? '-' : formatDate(row.gmt_modified) }}
             </template>
           </ElTableColumn>
-          <ElTableColumn label="操作" width="88" fixed="right" align="center">
+          <ElTableColumn label="操作" width="68" fixed="right" align="center">
             <template #default="{ row }">
               <ElLink
                 type="primary"
@@ -169,7 +188,9 @@
 
 <script setup lang="ts">
   import {
+    ElAlert,
     ElIcon,
+    ElInput,
     ElLink,
     ElMessage,
     ElMessageBox,
@@ -192,7 +213,6 @@
   import { useTable } from '@/hooks/core/useTable'
   import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
   import { useRouter } from 'vue-router'
-  import ClusterSearch from './modules/cluster-search.vue'
   import ClusterAddDialog from './modules/cluster-add-dialog.vue'
   import ClusterMonitor from './modules/cluster-monitor.vue'
   import ClusterCloudShell from './modules/cluster-cloud-shell.vue'
@@ -265,9 +285,9 @@
   }
 
   const searchForm = ref({
-    clusterName: undefined as string | undefined,
-    status: undefined as string | undefined
+    name: undefined as string | undefined
   })
+  const alertVisible = ref(true)
   const addClusterVisible = ref(false)
   const selectedRows = ref<ClusterItem[]>([])
   const monitorVisible = ref(false)
@@ -507,7 +527,6 @@
     pagination,
     getData,
     replaceSearchParams,
-    resetSearchParams,
     handleSizeChange,
     handleCurrentChange,
     refreshData
@@ -516,14 +535,12 @@
       apiFn: async (params: {
         current: number
         size: number
-        clusterName?: string
-        status?: string
+        name?: string
       }) => {
         const { total, items } = await fetchClusterList({
           page: params.current,
           limit: params.size,
-          nameSelector: params.clusterName,
-          status: params.status
+          nameSelector: params.name
         })
         return {
           code: 200,
@@ -742,7 +759,7 @@
         {
           prop: 'operation',
           label: '操作',
-          width: 200,
+          width: 180,
           fixed: 'right',
           formatter: (row: ClusterItem) =>
             h('div', { style: 'display:flex;align-items:center;gap:12px;flex-wrap:nowrap' }, [
@@ -890,13 +907,9 @@
     }
   }
 
-  function handleSearch(params: typeof searchForm.value) {
-    replaceSearchParams(params)
+  function handleSearch() {
+    replaceSearchParams(searchForm.value)
     getData()
-  }
-
-  function handleReset() {
-    resetSearchParams()
   }
 
   function getErrorMessage(error: unknown, fallback: string): string {
@@ -1005,13 +1018,17 @@
   .cluster-page .el-table__row:hover .icon-action {
     opacity: 1;
   }
-  /* 与后台表单（如菜单管理弹窗）视觉统一：表格正文字号略小于标题，易扫读 */
   .cluster-page .art-table .el-table {
     font-size: 13px;
   }
   .cluster-page .art-table .el-table th.el-table__cell {
     font-size: 13px;
   }
+  .cluster-page .art-table-card {
+    flex: 1;
+    min-height: 0;
+  }
+
   .cluster-nowrap-col .cell {
     white-space: nowrap;
   }
@@ -1087,6 +1104,76 @@
 </style>
 
 <style scoped>
+  .cluster-page {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .cluster-page :deep(.art-table-card) {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .cluster-page :deep(.art-table-card > .el-card__body) {
+    padding-top: 12px;
+    padding-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .cluster-page :deep(.art-table) {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    height: auto !important;
+    overflow: visible;
+  }
+
+  .cluster-page :deep(.art-table .el-table) {
+    flex: 1 1 0;
+    min-height: 0;
+    height: 100% !important;
+  }
+
+  .cluster-page :deep(.custom-pagination) {
+    flex: 0 0 auto;
+    margin-top: 10px;
+    margin-bottom: 0;
+    padding-bottom: 4px;
+    box-sizing: border-box;
+  }
+
+  .cluster-page :deep(.el-pagination) {
+    padding: 0;
+  }
+
+  .cluster-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    flex-shrink: 0;
+    gap: 12px;
+  }
+
+  .cluster-toolbar--no-alert {
+    margin-top: 10px;
+  }
+
+  .cluster-toolbar__right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .cluster-toolbar__search {
+    width: 280px;
+    max-width: 100%;
+  }
+
   .cluster-type-header {
     display: inline-flex;
     align-items: center;

@@ -1,7 +1,7 @@
 <template>
   <div class="config-page">
     <div v-if="kind === 'cm'" class="cluster-toolbar">
-      <ElButton v-ripple @click="goCreateConfigMap">新建</ElButton>
+      <ElButton v-ripple @click="goCreateConfigMap">新建 ConfigMap</ElButton>
       <div class="cluster-toolbar__right">
         <ElInput v-model="cmSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runCmSearch" @clear="runCmSearch" />
         <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceCmSearch" @keyup.enter="forceCmSearch">
@@ -11,7 +11,7 @@
       </div>
     </div>
     <div v-else class="cluster-toolbar">
-      <ElButton v-ripple @click="goCreateSecret">新建</ElButton>
+      <ElButton v-ripple @click="goCreateSecret">新建 Secret</ElButton>
       <div class="cluster-toolbar__right">
         <ElInput v-model="secSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runSecSearch" @clear="runSecSearch" />
         <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceSecSearch" @keyup.enter="forceSecSearch">
@@ -623,7 +623,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   }
 
   .config-page .art-table-card > .el-card__body {
-    padding-top: 8px;
+    padding-top: 12px;
   }
 </style>
 

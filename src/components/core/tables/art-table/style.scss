@@ -4,7 +4,12 @@
 
   .el-table {
     height: 100%;
+    // 工具栏在卡片外时（showTableHeader=false）由卡片 padding-top 控制顶距，避免再叠 10px
     margin-top: 10px;
+  }
+
+  &.is-header-hidden .el-table {
+    margin-top: 0;
   }
 
   :deep(.el-loading-mask) {

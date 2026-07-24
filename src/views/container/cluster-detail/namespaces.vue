@@ -611,7 +611,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   }
 
   .namespaces-page :deep(.art-table-card > .el-card__body) {
-    padding-top: 4px;
+    padding-top: 12px;
   }
 
   .cluster-toolbar {
@@ -659,7 +659,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   }
 
   .mb-3 {
-    margin-bottom: 12px;
+    margin-bottom: 10px;
   }
 
   .quota-alert {

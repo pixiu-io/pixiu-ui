@@ -2,7 +2,7 @@
   <div class="services-page">
     <!-- Service 工具栏 -->
     <div v-if="kind === 'svc'" class="cluster-toolbar">
-      <ElButton v-ripple @click="goCreateService">新建</ElButton>
+      <ElButton v-ripple @click="goCreateService">新建 Service</ElButton>
       <div class="cluster-toolbar__right">
         <ElInput
           v-model="svcSearchForm.name"
@@ -20,7 +20,7 @@
     </div>
     <!-- Ingress 工具栏 -->
     <div v-else class="cluster-toolbar">
-      <ElButton v-ripple @click="goCreateIngress">新建</ElButton>
+      <ElButton v-ripple @click="goCreateIngress">新建 Ingress</ElButton>
       <div class="cluster-toolbar__right">
         <ElInput
           v-model="ingSearchForm.name"
@@ -812,7 +812,7 @@
   }
 
   .services-page .art-table-card > .el-card__body {
-    padding-top: 8px;
+    padding-top: 12px;
   }
 </style>
 

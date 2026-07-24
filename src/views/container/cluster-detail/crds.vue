@@ -1,7 +1,7 @@
 <template>
   <div class="crds-page">
     <div class="cluster-toolbar">
-      <ElButton v-ripple @click="goCreateCRD">新建</ElButton>
+      <ElButton v-ripple @click="goCreateCRD">新建 CRD</ElButton>
       <div class="cluster-toolbar__right">
         <ElInput
           v-model="searchForm.name"
@@ -411,7 +411,7 @@
   }
 
   .crds-page :deep(.art-table-card > .el-card__body) {
-    padding-top: 4px;
+    padding-top: 12px;
   }
 
   .cluster-toolbar {

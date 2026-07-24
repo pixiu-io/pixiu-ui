@@ -1,43 +1,35 @@
 <template>
   <div class="plan-page art-full-height">
-    <!-- 搜索栏 -->
-    <ElCard class="art-search-card">
-      <div class="search-bar">
-        <span class="search-label">部署名称</span>
+    <ElAlert
+      v-if="alertVisible"
+      type="info"
+      closable
+      show-icon
+      class="quota-alert"
+      style="margin: 5px 0 20px 0"
+      description="管理部署计划，配置集群节点与网络参数。提交部署后系统将自动执行安装流程。"
+      @close="alertVisible = false"
+    />
+
+    <div class="plan-toolbar" :class="{ 'plan-toolbar--no-alert': !alertVisible }">
+      <ElButton v-ripple @click="goToCreate">新增部署</ElButton>
+      <div class="plan-toolbar__right">
         <ElInput
           v-model="searchName"
           placeholder="请输入部署名称"
           clearable
-          style="width: 240px"
+          class="plan-toolbar__search"
           @keyup.enter="handleSearch"
+          @clear="handleSearch"
         />
-        <span class="search-label status-label">状态</span>
-        <ElSelect
-          v-model="searchStatus"
-          placeholder="全部"
-          clearable
-          style="width: 200px"
-          @change="handleSearch"
-        >
-          <ElOption label="未开始" value="未开始" />
-          <ElOption label="运行中" value="运行中" />
-          <ElOption label="已成功" value="已成功" />
-          <ElOption label="已失败" value="已失败" />
-        </ElSelect>
-        <ElButton @click="handleReset">重置</ElButton>
-        <ElButton type="primary" @click="handleSearch">查询</ElButton>
+        <ArtTableHeader v-model:columns="columnChecks" :loading="loading" @refresh="refreshData" />
       </div>
-    </ElCard>
+    </div>
 
     <ElCard class="art-table-card">
-      <ArtTableHeader v-model:columns="columnChecks" :loading="loading" @refresh="refreshData">
-        <template #left>
-          <ElButton v-ripple @click="goToCreate">新增部署</ElButton>
-        </template>
-      </ArtTableHeader>
-
       <ArtTable
         row-key="id"
+        :show-table-header="false"
         :loading="loading"
         :data="filteredData"
         :columns="columns"
@@ -153,7 +145,7 @@
 </template>
 
 <script setup lang="ts">
-  import { ElIcon, ElLink, ElMessage, ElMessageBox, ElOption, ElSelect, ElTag } from 'element-plus'
+  import { ElAlert, ElIcon, ElInput, ElLink, ElMessage, ElMessageBox, ElTag } from 'element-plus'
   import {
     SuccessFilled,
     CircleCloseFilled,
@@ -389,9 +381,7 @@
 
   // 搜索
   const searchName = ref('')
-  const searchStatus = ref('')
-  const appliedSearch = ref('')
-  const appliedStatus = ref('')
+  const alertVisible = ref(true)
   const selectedRows = ref<PlanItemFormatted[]>([])
 
   // 任务进度抽屉
@@ -417,8 +407,7 @@
         const { list, total } = await fetchPlanList({
           page: params.current,
           limit: params.size,
-          nameSelector: appliedSearch.value || undefined,
-          step: appliedStatus.value || undefined
+          nameSelector: searchName.value || undefined
         })
         return {
           code: 200,
@@ -570,25 +559,12 @@
 
   // 前端过滤
   const filteredData = computed(() => {
-    return data.value.filter((item: any) => {
-      const nameMatch =
-        !appliedSearch.value || item.name.toLowerCase().includes(appliedSearch.value.toLowerCase())
-      const statusMatch = !appliedStatus.value || item.step === appliedStatus.value
-      return nameMatch && statusMatch
-    })
+    if (!searchName.value) return data.value
+    const kw = searchName.value.toLowerCase()
+    return data.value.filter((item: any) => item.name.toLowerCase().includes(kw))
   })
 
   function handleSearch() {
-    appliedSearch.value = searchName.value
-    appliedStatus.value = searchStatus.value
-    refreshData()
-  }
-
-  function handleReset() {
-    searchName.value = ''
-    searchStatus.value = ''
-    appliedSearch.value = ''
-    appliedStatus.value = ''
     refreshData()
   }
 
@@ -756,6 +732,71 @@
 </style>
 
 <style scoped>
+  /* :deep 仅在 scoped 下生效 */
+  .plan-page :deep(.art-table-card) {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .plan-page :deep(.art-table-card > .el-card__body) {
+    padding-top: 12px;
+    padding-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .plan-page :deep(.art-table) {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    height: auto !important;
+    overflow: visible;
+  }
+
+  .plan-page :deep(.art-table .el-table) {
+    flex: 1 1 0;
+    min-height: 0;
+    height: 100% !important;
+  }
+
+  .plan-page :deep(.custom-pagination) {
+    flex: 0 0 auto;
+    margin-top: 10px;
+    margin-bottom: 0;
+    padding-bottom: 4px;
+    box-sizing: border-box;
+  }
+
+  .plan-page :deep(.el-pagination) {
+    padding: 0;
+  }
+
+  .plan-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    flex-shrink: 0;
+    gap: 12px;
+  }
+
+  .plan-toolbar--no-alert {
+    margin-top: 10px;
+  }
+
+  .plan-toolbar__right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .plan-toolbar__search {
+    width: 280px;
+    max-width: 100%;
+  }
+
   .search-bar {
     display: flex;
     align-items: center;

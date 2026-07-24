@@ -347,6 +347,11 @@
     margin-top: 6vh;
   }
 
+  /* 标题与 YAML 编辑框间距收紧 10px */
+  .k8s-yaml-dialog .el-dialog__header {
+    padding-bottom: calc(var(--el-dialog-padding-primary, 16px) - 10px);
+  }
+
   .k8s-yaml-dialog .el-dialog__body {
     padding-top: 8px;
     padding-bottom: 4px;
@@ -354,5 +359,7 @@
 
   .k8s-yaml-dialog .el-dialog__footer {
     justify-content: center;
+    /* 编辑框与取消/确认按钮间距收紧 10px */
+    padding-top: calc(var(--el-dialog-padding-primary, 16px) - 10px);
   }
 </style>

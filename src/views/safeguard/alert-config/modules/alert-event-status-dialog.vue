@@ -96,7 +96,21 @@
       if (failed === 0) {
         ElMessage.success(isBatch.value ? `已更新 ${succeeded} 条事件状态` : '状态更新成功')
       } else if (succeeded === 0) {
-        ElMessage.error('状态更新失败')
+        // 拦截器已对业务错误弹过提示时，避免再弹「状态更新失败」
+        const alreadyNotified = results.every(
+          (item) =>
+            item.status === 'rejected' &&
+            item.reason instanceof PixiuApiError &&
+            item.reason.notified
+        )
+        if (!alreadyNotified) {
+          const firstReason = results.find((item) => item.status === 'rejected')
+          const msg =
+            firstReason && firstReason.status === 'rejected' && firstReason.reason instanceof Error
+              ? firstReason.reason.message
+              : '状态更新失败'
+          ElMessage.error(msg || '状态更新失败')
+        }
       } else {
         ElMessage.warning(`成功 ${succeeded} 条，失败 ${failed} 条`)
       }

@@ -275,7 +275,7 @@
   }
 
   .apiservices-page :deep(.art-table-card > .el-card__body) {
-    padding-top: 4px;
+    padding-top: 12px;
   }
 
   .cluster-toolbar {

@@ -3,7 +3,11 @@
 <!-- 扩展功能：分页组件、渲染自定义列、loading、表格全局边框、斑马纹、表格尺寸、表头背景配置 -->
 <!-- 获取 ref：默认暴露了 elTableRef 外部通过 ref.value.elTableRef 可以调用 el-table 方法 -->
 <template>
-  <div class="art-table" :class="{ 'is-empty': isEmpty }" :style="containerHeight">
+  <div
+    class="art-table"
+    :class="{ 'is-empty': isEmpty, 'is-header-hidden': !showTableHeader }"
+    :style="containerHeight"
+  >
     <ElTable ref="elTableRef" v-loading="!!loading" v-bind="mergedTableProps">
       <template v-for="col in columns" :key="col.prop || col.type">
         <!-- 渲染全局序号列 -->
