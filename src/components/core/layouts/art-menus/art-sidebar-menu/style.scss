@@ -162,10 +162,18 @@
       box-sizing: border-box;
       margin-left: 10px;
       font-size: 18px;
+      white-space: nowrap;
 
       &.is-dual-menu-name {
         left: 25px;
         margin: auto;
+      }
+
+      .version {
+        margin-left: 6px;
+        font-size: 11px;
+        vertical-align: middle;
+        cursor: pointer;
       }
     }
   }
