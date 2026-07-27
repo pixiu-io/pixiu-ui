@@ -645,9 +645,9 @@
             }
           }
         // 拉取全部资源（不带 fieldSelector），本地模糊搜索
-        const { items: allItems, total: realTotal } = await fetchK8sConfigMapList(cluster, {
+        const { items: allItems } = await fetchK8sConfigMapList(cluster, {
           page: 1,
-          limit: params.current * params.size,
+          limit: 999999,
           namespace: selectedNamespace.value || undefined
         })
         // 本地模糊筛选
@@ -672,7 +672,7 @@
           code: 200,
           data: {
             records: list,
-            total: keyword ? filtered.length : realTotal,
+            total: filtered.length,
             current: params.current,
             size: params.size
           }
@@ -812,13 +812,13 @@
               size: params.size
             }
           }
-        // 拉取当前页资源，通过 remainingItemCount 获取真实总数
-        const { items: allItems, total: realTotal } = await fetchK8sSecretList(cluster, {
+        // 拉取全部资源（不带 fieldSelector），本地模糊搜索
+        const { items: allItems } = await fetchK8sSecretList(cluster, {
           page: 1,
-          limit: params.current * params.size,
+          limit: 999999,
           namespace: selectedNamespace.value || undefined
         })
-        // 本地模糊筛选（搜索时需拉取更多数据）
+        // 本地模糊筛选
         const keyword = (params.name ?? '').trim().toLowerCase()
         const filtered = keyword
           ? allItems.filter((r) => (r.metadata?.name ?? '').toLowerCase().includes(keyword))
@@ -840,7 +840,7 @@
           code: 200,
           data: {
             records: list,
-            total: keyword ? allItems.length : realTotal,
+            total: filtered.length,
             current: params.current,
             size: params.size
           }
