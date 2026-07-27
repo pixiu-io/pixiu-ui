@@ -232,10 +232,12 @@
       const host = rule.host ?? ''
       for (const p of rule.http?.paths ?? []) {
         const path = p.path ?? '/'
+        // path 仅为根路径「/」时不展示尾部斜杠：http://host-->svc:port
+        const pathSuffix = path === '/' ? '' : path
         const svcName = p.backend?.service?.name ?? ''
         const svcPort = p.backend?.service?.port?.number ?? p.backend?.service?.port?.name ?? ''
         lines.push({
-          url: `${proto}://${host}${path}`,
+          url: `${proto}://${host}${pathSuffix}`,
           backend: svcName ? `-->${svcName}:${svcPort}` : ''
         })
       }
@@ -325,9 +327,9 @@
             }
           }
         // 拉取全部资源（不带 fieldSelector），本地模糊搜索
-        const { items: allItems } = await fetchK8sServiceList(cluster, {
+        const { items: allItems, total: realTotal } = await fetchK8sServiceList(cluster, {
           page: 1,
-          limit: 999999,
+          limit: params.current * params.size,
           namespace: selectedNamespace.value || undefined
         })
         // 本地模糊筛选
@@ -351,7 +353,7 @@
         }
         return {
           code: 200,
-          data: { records: list, total: filtered.length, current: params.current, size: params.size }
+          data: { records: list, total: keyword ? filtered.length : realTotal, current: params.current, size: params.size }
         }
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
@@ -520,9 +522,9 @@
             }
           }
         // 拉取全部资源（不带 fieldSelector），本地模糊搜索
-        const { items: allItems } = await fetchK8sIngressList(cluster, {
+        const { items: allItems, total: realTotal } = await fetchK8sIngressList(cluster, {
           page: 1,
-          limit: 999999,
+          limit: params.current * params.size,
           namespace: selectedNamespace.value || undefined
         })
         // 本地模糊筛选
@@ -546,7 +548,7 @@
         }
         return {
           code: 200,
-          data: { records: list, total: filtered.length, current: params.current, size: params.size }
+          data: { records: list, total: keyword ? filtered.length : realTotal, current: params.current, size: params.size }
         }
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },

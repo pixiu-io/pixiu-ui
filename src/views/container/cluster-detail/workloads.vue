@@ -1061,7 +1061,7 @@
           const ns = props.mirrorNamespace || params.namespace || undefined
           const { items } = await fetchK8sServiceList(cluster, {
             page: 1,
-            limit: 999999,
+            limit: params.current * params.size,
             namespace: ns
           })
           const selector = parseSelectorMap(props.mirrorSelector || '')
@@ -1089,9 +1089,9 @@
           }
         }
         // 拉取全部资源（不带 fieldSelector），本地模糊搜索
-        const { items: allItems } = await fetchK8sStatefulSetList(cluster, {
+        const { items: allItems, total: realTotal } = await fetchK8sStatefulSetList(cluster, {
           page: 1,
-          limit: 999999,
+          limit: params.current * params.size,
           namespace: params.namespace || undefined
         })
         // 本地模糊筛选
@@ -1115,7 +1115,7 @@
         }
         return {
           code: 200,
-          data: { records: list, total: filtered.length, current: params.current, size: params.size }
+          data: { records: list, total: keyword ? filtered.length : realTotal, current: params.current, size: params.size }
         }
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
@@ -1440,9 +1440,9 @@
           }
         }
         // 拉取全部资源（不带 fieldSelector），本地模糊搜索
-        const { items: allItems } = await fetchK8sDaemonSetList(cluster, {
+        const { items: allItems, total: realTotal } = await fetchK8sDaemonSetList(cluster, {
           page: 1,
-          limit: 999999,
+          limit: params.current * params.size,
           namespace: params.namespace || undefined
         })
         // 本地模糊筛选
@@ -1466,7 +1466,7 @@
         }
         return {
           code: 200,
-          data: { records: list, total: filtered.length, current: params.current, size: params.size }
+          data: { records: list, total: keyword ? filtered.length : realTotal, current: params.current, size: params.size }
         }
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
@@ -2058,9 +2058,9 @@
           }
         }
         // 拉取全部资源（不带 fieldSelector），本地模糊搜索
-        const { items: allItems } = await fetchK8sJobList(cluster, {
+        const { items: allItems, total: realTotal } = await fetchK8sJobList(cluster, {
           page: 1,
-          limit: 999999,
+          limit: params.current * params.size,
           namespace: params.namespace || undefined
         })
         // 本地模糊筛选
@@ -2084,7 +2084,7 @@
         }
         return {
           code: 200,
-          data: { records: list, total: filtered.length, current: params.current, size: params.size }
+          data: { records: list, total: keyword ? filtered.length : realTotal, current: params.current, size: params.size }
         }
       },
       apiParams: { current: 1, size: 10, name: undefined, type: undefined, namespace: undefined },
@@ -2523,9 +2523,9 @@
           }
         }
         // 拉取全部资源（不带 fieldSelector），本地模糊搜索
-        const { items: allItems } = await fetchK8sCronJobList(cluster, {
+        const { items: allItems, total: realTotal } = await fetchK8sCronJobList(cluster, {
           page: 1,
-          limit: 999999,
+          limit: params.current * params.size,
           namespace: params.namespace || undefined,
           cronJobApiVersion: cronJobApiVersion.value
         })
@@ -2550,7 +2550,7 @@
         }
         return {
           code: 200,
-          data: { records: list, total: filtered.length, current: params.current, size: params.size }
+          data: { records: list, total: keyword ? filtered.length : realTotal, current: params.current, size: params.size }
         }
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
@@ -2974,9 +2974,9 @@
           }
         }
         // 拉取全部资源（不带 fieldSelector），本地模糊搜索
-        const { items: allItems } = await fetchK8sDeploymentList(cluster, {
+        const { items: allItems, total: realTotal } = await fetchK8sDeploymentList(cluster, {
           page: 1,
-          limit: 999999,
+          limit: params.current * params.size,
           namespace: params.namespace || undefined
         })
         // 本地模糊筛选
@@ -3000,7 +3000,7 @@
         }
         return {
           code: 200,
-          data: { records: list, total: filtered.length, current: params.current, size: params.size }
+          data: { records: list, total: keyword ? filtered.length : realTotal, current: params.current, size: params.size }
         }
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },

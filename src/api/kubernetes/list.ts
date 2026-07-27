@@ -98,9 +98,13 @@ export async function fetchKubeListPage<T>(
 
   const allItems: T[] = []
   let continueToken: string | undefined
+  let realTotal = 0
+  let firstResponse = true
+  const needed = page * limit
 
   do {
-    const query: Record<string, unknown> = { limit: chunkLimit }
+    const requestLimit = Math.min(chunkLimit, Math.max(1, needed - allItems.length))
+    const query: Record<string, unknown> = { limit: requestLimit }
     if (params.fieldSelector) query.fieldSelector = params.fieldSelector
     if (params.extraQuery) Object.assign(query, params.extraQuery)
     if (continueToken) query.continue = continueToken
@@ -110,14 +114,23 @@ export async function fetchKubeListPage<T>(
       skipErrorNotification: params.skipErrorNotification
     })
     allItems.push(...(data.items ?? []))
+    if (firstResponse) {
+      firstResponse = false
+      const remaining = data.metadata?.remainingItemCount
+      if (typeof remaining === 'number' && remaining >= 0) {
+        realTotal = allItems.length + remaining
+      } else {
+        realTotal = allItems.length
+      }
+    }
     continueToken = data.metadata?.continue || undefined
-  } while (continueToken)
+  } while (continueToken && allItems.length < needed)
 
   const start = (page - 1) * limit
   const end = start + limit
   return {
     items: allItems.slice(start, end),
-    total: allItems.length
+    total: realTotal
   }
 }
 

@@ -639,9 +639,9 @@
           }
         }
         // 拉取全部 pod（不带 fieldSelector），本地模糊搜索
-        const { items: allItems } = await fetchK8sPodList(cluster, {
+        const { items: allItems, total: realTotal } = await fetchK8sPodList(cluster, {
           page: 1,
-          limit: 999999,
+          limit: params.current * params.size,
           namespace: params.namespace || undefined
         })
 
@@ -660,7 +660,7 @@
         }))
         return {
           code: 200,
-          data: { records, total: filtered.length, current: params.current, size: params.size }
+          data: { records, total: keyword ? filtered.length : realTotal, current: params.current, size: params.size }
         }
       },
       apiParams: {

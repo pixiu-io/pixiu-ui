@@ -445,9 +445,9 @@
             }
           }
         // 拉取全部节点（不带 fieldSelector），本地模糊搜索
-        const { items: allItems } = await fetchK8sNodeList(cluster, {
+        const { items: allItems, total: realTotal } = await fetchK8sNodeList(cluster, {
           page: 1,
-          limit: 999999
+          limit: params.current * params.size
         })
 
         // 本地模糊筛选
@@ -467,7 +467,7 @@
           code: 200,
           data: {
             records,
-            total: filtered.length,
+            total: keyword ? filtered.length : realTotal,
             current: params.current,
             size: params.size
           }
