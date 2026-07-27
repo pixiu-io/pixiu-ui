@@ -169,6 +169,68 @@
         >
       </template>
     </ElDialog>
+
+    <ElDialog
+      v-model="replaceCertVisible"
+      title="替换证书"
+      width="760px"
+      align-center
+      :close-on-click-modal="false"
+      destroy-on-close
+      class="replace-cert-dialog"
+      header-class="cert-domain-dialog-header"
+      body-class="cert-domain-dialog-body"
+      @closed="resetReplaceCertForm"
+    >
+      <div v-if="replaceCertSecret" class="replace-cert-dialog__hint">
+        替换 Secret <b>{{ replaceCertSecret.name }}</b>（{{ replaceCertSecret.namespace }}）的 TLS
+        证书与私钥
+      </div>
+      <div class="tls-panes">
+        <div class="tls-pane">
+          <div class="tls-pane-header">
+            <span class="tls-pane-label">证书（tls.crt）</span>
+            <ElButton link type="primary" class="kv-add-btn" @click="importReplaceCertFile('cert')"
+              >文件导入</ElButton
+            >
+          </div>
+          <ElInput
+            v-model="replaceCertForm.cert"
+            type="textarea"
+            :rows="12"
+            :class="{ 'tls-input-error': replaceCertValidated && !replaceCertForm.cert.trim() }"
+            placeholder="请粘贴 PEM 格式证书内容"
+          />
+          <span v-if="replaceCertValidated && !replaceCertForm.cert.trim()" class="tls-field-error"
+            >证书不能为空</span
+          >
+        </div>
+        <div class="tls-pane">
+          <div class="tls-pane-header">
+            <span class="tls-pane-label">私钥（tls.key）</span>
+            <ElButton link type="primary" class="kv-add-btn" @click="importReplaceCertFile('key')"
+              >文件导入</ElButton
+            >
+          </div>
+          <ElInput
+            v-model="replaceCertForm.key"
+            type="textarea"
+            :rows="12"
+            :class="{ 'tls-input-error': replaceCertValidated && !replaceCertForm.key.trim() }"
+            placeholder="请粘贴 PEM 格式私钥内容"
+          />
+          <span v-if="replaceCertValidated && !replaceCertForm.key.trim()" class="tls-field-error"
+            >私钥不能为空</span
+          >
+        </div>
+      </div>
+      <template #footer>
+        <ElButton @click="replaceCertVisible = false">取消</ElButton>
+        <ElButton type="primary" :loading="replaceCertSaving" @click="submitReplaceCert"
+          >保存</ElButton
+        >
+      </template>
+    </ElDialog>
   </div>
 </template>
 
@@ -211,6 +273,7 @@
     fetchK8sSecretList,
     fetchK8sSecret,
     deleteK8sSecret,
+    patchK8sSecret,
     type K8sSecret
   } from '@/api/kubernetes/secret'
   import {
@@ -402,11 +465,88 @@
     }
   }
 
+  // ── Replace TLS certificate ──
+  const replaceCertVisible = ref(false)
+  const replaceCertSaving = ref(false)
+  const replaceCertValidated = ref(false)
+  const replaceCertSecret = ref<{ name: string; namespace: string } | null>(null)
+  const replaceCertForm = ref({ cert: '', key: '' })
+
+  function openReplaceCertDialog(row: K8sSecret) {
+    const ns = row.metadata?.namespace ?? ''
+    const name = row.metadata?.name ?? ''
+    if (!ns || !name) return
+    if (row.type !== 'kubernetes.io/tls') {
+      ElMessage.warning('仅支持 TLS 类型 Secret 替换证书')
+      return
+    }
+    replaceCertSecret.value = { name, namespace: ns }
+    replaceCertForm.value = { cert: '', key: '' }
+    replaceCertValidated.value = false
+    replaceCertVisible.value = true
+  }
+
+  function resetReplaceCertForm() {
+    replaceCertSecret.value = null
+    replaceCertForm.value = { cert: '', key: '' }
+    replaceCertValidated.value = false
+    replaceCertSaving.value = false
+  }
+
+  function importReplaceCertFile(target: 'cert' | 'key') {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.pem,.crt,.key,.txt'
+    input.onchange = () => {
+      const file = input.files?.[0]
+      if (!file) return
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const content = String(e.target?.result ?? '')
+        if (target === 'cert') replaceCertForm.value.cert = content
+        else replaceCertForm.value.key = content
+      }
+      reader.readAsText(file)
+    }
+    input.click()
+  }
+
+  async function submitReplaceCert() {
+    replaceCertValidated.value = true
+    const cert = replaceCertForm.value.cert.trim()
+    const key = replaceCertForm.value.key.trim()
+    if (!cert || !key) return
+    if (!replaceCertSecret.value) return
+    const cluster = String(route.query.cluster ?? '')
+    if (!cluster) {
+      ElMessage.error('缺少集群参数')
+      return
+    }
+    replaceCertSaving.value = true
+    try {
+      await patchK8sSecret(cluster, replaceCertSecret.value.namespace, replaceCertSecret.value.name, {
+        stringData: {
+          'tls.crt': cert,
+          'tls.key': key
+        }
+      })
+      ElMessage.success('证书已更新')
+      replaceCertVisible.value = false
+      refreshSecData()
+    } catch (e: any) {
+      ElMessage.error(e?.response?.data?.message || e?.message || '更新证书失败')
+    } finally {
+      replaceCertSaving.value = false
+    }
+  }
+
   function certMoreClick(item: ButtonMoreItem, row: K8sSecret) {
     if (item.key === 'bind') {
       openCertDialog(row, 'bind')
     } else if (item.key === 'unbind') {
       openCertDialog(row, 'unbind')
+    } else if (item.key === 'replace') {
+      openReplaceCertDialog(row)
     }
   }
 
@@ -927,7 +1067,8 @@
               h(ArtButtonMore, {
                 list: [
                   { key: 'bind', label: '关联域名', icon: 'ri:link', disabled: !isTls },
-                  { key: 'unbind', label: '解除域名', icon: 'ri:link-unlink', disabled: !isTls }
+                  { key: 'unbind', label: '解除域名', icon: 'ri:link-unlink', disabled: !isTls },
+                  { key: 'replace', label: '替换证书', icon: 'ri:file-shield-2-line', disabled: !isTls }
                 ],
                 onClick: (item: ButtonMoreItem) => certMoreClick(item, row)
               })
@@ -1156,5 +1297,56 @@
 
   :global(.cert-domain-dialog-body) {
     padding: 0 24px 12px !important;
+  }
+
+  .replace-cert-dialog__hint {
+    margin: 15px 0 12px;
+    font-size: 13px;
+    color: var(--el-text-color-regular);
+    line-height: 1.5;
+  }
+
+  .tls-panes {
+    display: flex;
+    gap: 16px;
+    width: 100%;
+  }
+
+  .tls-pane {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .tls-pane-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+  }
+
+  .tls-pane-label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .kv-add-btn {
+    font-size: 12px;
+    padding: 0;
+    height: auto;
+    align-self: flex-start;
+  }
+
+  .tls-input-error :deep(.el-textarea__inner) {
+    border-color: var(--el-color-danger) !important;
+  }
+
+  .tls-field-error {
+    font-size: 12px;
+    color: var(--el-color-danger);
   }
 </style>
