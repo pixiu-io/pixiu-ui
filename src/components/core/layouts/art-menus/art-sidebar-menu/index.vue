@@ -84,6 +84,13 @@
           }"
         >
           {{ AppConfig.systemInfo.name }}
+          <span
+            class="version"
+            :style="{ color: getMenuTheme.textColor, marginLeft: '1px' }"
+            @click.stop="handleVersionClick"
+          >
+            {{ AppConfig.systemInfo.version }}
+          </span>
         </p>
       </div>
       <ElScrollbar :style="scrollbarStyle">
@@ -262,6 +269,13 @@
    */
   const navigateToHome = (): void => {
     router.push(homePath.value)
+  }
+
+  /**
+   * 点击版本号跳转到 GitHub
+   */
+  const handleVersionClick = (): void => {
+    window.open('https://github.com/caoyingjunz', '_blank', 'noopener,noreferrer')
   }
 
   /**
