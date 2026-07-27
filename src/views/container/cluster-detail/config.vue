@@ -3,29 +3,66 @@
     <div v-if="kind === 'cm'" class="cluster-toolbar">
       <ElButton v-ripple @click="goCreateConfigMap">新建 ConfigMap</ElButton>
       <div class="cluster-toolbar__right">
-        <ElInput v-model="cmSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runCmSearch" @clear="runCmSearch" />
-        <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceCmSearch" @keyup.enter="forceCmSearch">
+        <ElInput
+          v-model="cmSearchForm.name"
+          clearable
+          placeholder="请输入名称"
+          class="cluster-toolbar__search"
+          @keyup.enter="runCmSearch"
+          @clear="runCmSearch"
+        />
+        <div
+          class="cluster-toolbar-search-btn"
+          role="button"
+          tabindex="0"
+          title="搜索"
+          @click="forceCmSearch"
+          @keyup.enter="forceCmSearch"
+        >
           <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
         </div>
-        <ArtTableHeader v-model:columns="cmColumnChecks" :loading="cmLoading" layout="size,columns,settings" @refresh="onCmRefresh" />
+        <ArtTableHeader
+          v-model:columns="cmColumnChecks"
+          :loading="cmLoading"
+          layout="size,columns,settings"
+          @refresh="onCmRefresh"
+        />
       </div>
     </div>
     <div v-else class="cluster-toolbar">
       <ElButton v-ripple @click="goCreateSecret">新建 Secret</ElButton>
       <div class="cluster-toolbar__right">
-        <ElInput v-model="secSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runSecSearch" @clear="runSecSearch" />
-        <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceSecSearch" @keyup.enter="forceSecSearch">
+        <ElInput
+          v-model="secSearchForm.name"
+          clearable
+          placeholder="请输入名称"
+          class="cluster-toolbar__search"
+          @keyup.enter="runSecSearch"
+          @clear="runSecSearch"
+        />
+        <div
+          class="cluster-toolbar-search-btn"
+          role="button"
+          tabindex="0"
+          title="搜索"
+          @click="forceSecSearch"
+          @keyup.enter="forceSecSearch"
+        >
           <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
         </div>
-        <ArtTableHeader v-model:columns="secColumnChecks" :loading="secLoading" layout="size,columns,settings" @refresh="onSecRefresh" />
+        <ArtTableHeader
+          v-model:columns="secColumnChecks"
+          :loading="secLoading"
+          layout="size,columns,settings"
+          @refresh="onSecRefresh"
+        />
       </div>
     </div>
 
-<ElCard class="art-table-card">
+    <ElCard class="art-table-card">
       <ElTabs v-model="kind" class="config-tabs">
         <!-- ── ConfigMap Tab ── -->
         <ElTabPane label="ConfigMap" name="cm">
-
           <ArtTable
             :show-table-header="false"
             row-key="rowKey"
@@ -37,16 +74,15 @@
             @pagination:size-change="cmHandleSizeChange"
             @pagination:current-change="cmHandleCurrentChange"
             @sort-change="onCmSortChange"
->
-        <template #empty>
-          <ClusterTableEmpty />
-        </template>
+          >
+            <template #empty>
+              <ClusterTableEmpty />
+            </template>
           </ArtTable>
         </ElTabPane>
 
         <!-- ── Secret Tab ── -->
         <ElTabPane label="Secret" name="sec">
-
           <ArtTable
             :show-table-header="false"
             row-key="rowKey"
@@ -58,10 +94,10 @@
             @pagination:size-change="secHandleSizeChange"
             @pagination:current-change="secHandleCurrentChange"
             @sort-change="onSecSortChange"
->
-        <template #empty>
-          <ClusterTableEmpty />
-        </template>
+          >
+            <template #empty>
+              <ClusterTableEmpty />
+            </template>
           </ArtTable>
         </ElTabPane>
       </ElTabs>
@@ -81,65 +117,86 @@
 
     <ElDialog
       v-model="certDialogVisible"
-      :title="certDialogMode === 'unbind' ? '解除域名证书' : '关联域名证书'"
-      width="520px"
+      :title="certDialogMode === 'unbind' ? '解除域名' : '关联域名'"
+      width="700px"
+      align-center
       :close-on-click-modal="false"
       destroy-on-close
+      class="cert-domain-dialog"
+      header-class="cert-domain-dialog-header"
+      body-class="cert-domain-dialog-body"
     >
-      <div v-if="certSecret" style="margin-bottom:12px;font-size:13px;color:var(--el-text-color-regular)">
+      <ElAlert
+        type="info"
+        :closable="false"
+        show-icon
+        class="quota-alert"
+        :description="certDialogMode === 'unbind' ? '解除域名和证书的绑定关系，勾选需要解除的域名，进行解绑。' : '关联域名可将 TLS Secret 绑定到 Ingress 的 HTTPS 证书。'"
+      />
+      <div v-if="certSecret" class="cert-domain-dialog__hint">
         <template v-if="certDialogMode === 'unbind'">
-          解除 Secret <b>{{ certSecret.name }}</b>（{{ certSecret.namespace }}）已关联的域名
+          解除 Secret <b>{{ certSecret.name }}</b
+          >（{{ certSecret.namespace }}）已关联的域名
         </template>
         <template v-else>
-          为 Secret <b>{{ certSecret.name }}</b>（{{ certSecret.namespace }}）绑定域名
+          为 Secret <b>{{ certSecret.name }}</b
+          >（{{ certSecret.namespace }}）绑定域名
         </template>
       </div>
-      <div v-loading="certLoading" style="max-height:360px;overflow-y:auto">
-        <template v-if="!certLoading && certDomainOptions.length === 0">
-          <div style="text-align:center;padding:24px 0;color:var(--el-text-color-placeholder);font-size:13px">
-            当前命名空间下未找到域名（Ingress）
-          </div>
-        </template>
-        <ElCheckboxGroup v-model="checkedDomains" class="cert-domain-list">
-          <div v-for="opt in certDomainOptions" :key="`${opt.ingressName}:${opt.host}`" style="padding:4px 0">
-            <ElCheckbox :label="`${opt.ingressName}:${opt.host}`" :value="`${opt.ingressName}:${opt.host}`">
-              <span style="font-size:13px">{{ opt.host }}</span>
-              <span style="font-size:11px;color:var(--el-text-color-placeholder);margin-left:6px">({{ opt.ingressName }})</span>
-            </ElCheckbox>
-          </div>
-        </ElCheckboxGroup>
-      </div>
+      <ElTable
+        ref="certTableRef"
+        v-loading="certLoading"
+        :data="certDomainOptions"
+        stripe
+        row-key="rowKey"
+        class="cert-domain-dialog__table"
+        empty-text="当前命名空间下未找到域名（Ingress）"
+        @selection-change="onCertSelectionChange"
+      >
+        <ElTableColumn type="selection" width="30" />
+        <ElTableColumn label="域名" prop="host" min-width="220" show-overflow-tooltip />
+        <ElTableColumn label="命名空间" prop="namespace" width="140" show-overflow-tooltip />
+        <ElTableColumn label="Ingress" prop="ingressName" min-width="160" show-overflow-tooltip />
+      </ElTable>
       <template #footer>
         <ElButton @click="certDialogVisible = false">取消</ElButton>
-        <ElButton type="primary" :loading="certSaving" :disabled="certLoading || checkedDomains.length === 0" @click="submitBindCertificate">确定</ElButton>
+        <ElButton
+          type="primary"
+          :loading="certSaving"
+          :disabled="certLoading || checkedDomains.length === 0"
+          @click="submitBindCertificate"
+          >{{ certDialogMode === 'unbind' ? '解除绑定' : '确定' }}</ElButton
+        >
       </template>
     </ElDialog>
   </div>
-
 </template>
 
 <script setup lang="ts">
   import {
+    ElAlert,
     ElButton,
     ElCard,
-    ElCheckbox,
-    ElCheckboxGroup,
     ElDialog,
     ElInput,
     ElLink,
     ElMessage,
     ElMessageBox,
     ElPopover,
+    ElTable,
+    ElTableColumn,
     ElTabs,
     ElTabPane,
     ElTooltip
   } from 'element-plus'
   import { CopyDocument } from '@element-plus/icons-vue'
   import yaml from 'js-yaml'
-  import { computed, h, inject, ref, watch } from 'vue'
-  import ArtButtonMore, { type ButtonMoreItem } from '@/components/core/forms/art-button-more/index.vue'
+  import { computed, h, inject, nextTick, ref, watch } from 'vue'
+  import ArtButtonMore, {
+    type ButtonMoreItem
+  } from '@/components/core/forms/art-button-more/index.vue'
   import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
-import ClusterTableEmpty from './components/cluster-table-empty.vue'
+  import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
   import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
@@ -156,7 +213,12 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     deleteK8sSecret,
     type K8sSecret
   } from '@/api/kubernetes/secret'
-  import { fetchK8sIngressList, fetchK8sIngress, patchK8sIngress, type K8sIngress } from '@/api/kubernetes/ingress'
+  import {
+    fetchK8sIngressList,
+    fetchK8sIngress,
+    patchK8sIngress,
+    type K8sIngress
+  } from '@/api/kubernetes/ingress'
   import { formatNodeCreationTime } from '@/utils/kubernetes/nodeDisplay'
   import { clusterDetailNamespaceKey } from './context'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
@@ -190,12 +252,22 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   const certLoading = ref(false)
   const certSaving = ref(false)
   const certDialogMode = ref<'bind' | 'unbind'>('bind')
-  const certDomainOptions = ref<Array<{ host: string; ingressName: string }>>([])
+  const certDomainOptions = ref<DomainOption[]>([])
   const checkedDomains = ref<string[]>([])
+  const certTableRef = ref<{
+    toggleRowSelection: (row: DomainOption, selected?: boolean) => void
+    clearSelection: () => void
+  } | null>(null)
 
   interface DomainOption {
     host: string
     ingressName: string
+    namespace: string
+    rowKey: string
+  }
+
+  function onCertSelectionChange(rows: DomainOption[]) {
+    checkedDomains.value = rows.map((r) => r.rowKey)
   }
 
   async function openCertDialog(row: K8sSecret, mode: 'bind' | 'unbind' = 'bind') {
@@ -205,6 +277,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     certSecret.value = { name, namespace: ns }
     certDialogMode.value = mode
     certDomainOptions.value = []
+    checkedDomains.value = []
     certDialogVisible.value = true
     certLoading.value = true
     try {
@@ -212,17 +285,19 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       const { items } = await fetchK8sIngressList(cluster, { page: 1, limit: 9999, namespace: ns })
       const seen = new Set<string>()
       const preChecked = new Set<string>()
-      const opts: Array<{ host: string; ingressName: string }> = []
+      const opts: DomainOption[] = []
       for (const ing of items) {
         const ingName = ing.metadata?.name ?? ''
+        const ingNs = ing.metadata?.namespace ?? ns
         for (const tls of ing.spec?.tls ?? []) {
           const isBound = tls.secretName === name
           for (const host of tls.hosts ?? []) {
             if (!host || seen.has(host)) continue
             seen.add(host)
             if (mode === 'unbind' && !isBound) continue
-            opts.push({ host, ingressName: ingName })
-            if (isBound) preChecked.add(`${ingName}:${host}`)
+            const rowKey = `${ingName}:${host}`
+            opts.push({ host, ingressName: ingName, namespace: ingNs, rowKey })
+            if (isBound) preChecked.add(rowKey)
           }
         }
         if (mode === 'bind') {
@@ -230,12 +305,23 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
             const host = rule.host
             if (!host || seen.has(host)) continue
             seen.add(host)
-            opts.push({ host, ingressName: ingName })
+            opts.push({
+              host,
+              ingressName: ingName,
+              namespace: ingNs,
+              rowKey: `${ingName}:${host}`
+            })
           }
         }
       }
       certDomainOptions.value = opts
-      checkedDomains.value = mode === 'bind' ? [...preChecked] : []
+      await nextTick()
+      certTableRef.value?.clearSelection?.()
+      for (const opt of opts) {
+        if (preChecked.has(opt.rowKey)) {
+          certTableRef.value?.toggleRowSelection(opt, true)
+        }
+      }
     } catch (e: any) {
       ElMessage.error(e?.message || '获取域名列表失败')
       certDialogVisible.value = false
@@ -280,7 +366,10 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
           const alreadyBound = existingTls.some(
             (t) => t.secretName === secretName && t.hosts?.some((h) => selectedHostSet.has(h))
           )
-          const newHosts = hosts.filter((h) => !existingTls.some((t) => t.secretName === secretName && (t.hosts ?? []).includes(h)))
+          const newHosts = hosts.filter(
+            (h) =>
+              !existingTls.some((t) => t.secretName === secretName && (t.hosts ?? []).includes(h))
+          )
           if (!alreadyBound && newHosts.length === 0) continue
           if (newHosts.length === 0) continue
           let newTls = [...existingTls]
@@ -298,10 +387,16 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
           await patchK8sIngress(cluster, ns, ingName, { spec: { tls: newTls } })
         }
       }
-      ElMessage.success(isUnbind ? `已解除 ${selected.length} 个域名的证书绑定` : `已为 ${selected.length} 个域名绑定证书「${secretName}」`)
+      ElMessage.success(
+        isUnbind
+          ? `已解除 ${selected.length} 个域名的证书绑定`
+          : `已为 ${selected.length} 个域名绑定证书「${secretName}」`
+      )
       certDialogVisible.value = false
     } catch (e: any) {
-      ElMessage.error(e?.response?.data?.message || e?.message || (isUnbind ? '解除绑定失败' : '绑定证书失败'))
+      ElMessage.error(
+        e?.response?.data?.message || e?.message || (isUnbind ? '解除绑定失败' : '绑定证书失败')
+      )
     } finally {
       certSaving.value = false
     }
@@ -335,10 +430,14 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     return h('div', { style: 'display:flex;align-items:center;gap:6px' }, [
       h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, ns),
       isSystem
-        ? h('span', {
-            style:
-              'font-size:11px;padding:0 4px;line-height:16px;border-radius:3px;background:var(--el-color-primary-light-9);color:var(--el-color-primary);border:1px solid var(--el-color-primary-light-7);flex-shrink:0'
-          }, '系统')
+        ? h(
+            'span',
+            {
+              style:
+                'font-size:11px;padding:0 4px;line-height:16px;border-radius:3px;background:var(--el-color-primary-light-9);color:var(--el-color-primary);border:1px solid var(--el-color-primary-light-7);flex-shrink:0'
+            },
+            '系统'
+          )
         : null
     ])
   }
@@ -363,7 +462,11 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       lines.map((t, i) =>
         h(
           'div',
-          { key: `f${i}`, style: 'font-size:12px;font-weight:400;line-height:1.8;color:var(--el-text-color-regular);white-space:nowrap' },
+          {
+            key: `f${i}`,
+            style:
+              'font-size:12px;font-weight:400;line-height:1.8;color:var(--el-text-color-regular);white-space:nowrap'
+          },
           t
         )
       )
@@ -398,17 +501,21 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
             )
         }
       ),
-      h('span', {
-        class: 'icon-action',
-        style:
-          'flex-shrink:0;cursor:pointer;color:var(--el-text-color-secondary);display:inline-flex;align-items:center',
-        title: '复制',
-        onClick: (e: MouseEvent) => {
-          e.stopPropagation()
-          navigator.clipboard.writeText(name)
-          ElMessage.success('已复制')
-        }
-      }, [h(CopyDocument, { style: 'width:12px;height:12px' })])
+      h(
+        'span',
+        {
+          class: 'icon-action',
+          style:
+            'flex-shrink:0;cursor:pointer;color:var(--el-text-color-secondary);display:inline-flex;align-items:center',
+          title: '复制',
+          onClick: (e: MouseEvent) => {
+            e.stopPropagation()
+            navigator.clipboard.writeText(name)
+            ElMessage.success('已复制')
+          }
+        },
+        [h(CopyDocument, { style: 'width:12px;height:12px' })]
+      )
     ])
   }
 
@@ -435,17 +542,21 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
             )
         }
       ),
-      h('span', {
-        class: 'icon-action',
-        style:
-          'flex-shrink:0;cursor:pointer;color:var(--el-text-color-secondary);display:inline-flex;align-items:center',
-        title: '复制',
-        onClick: (e: MouseEvent) => {
-          e.stopPropagation()
-          navigator.clipboard.writeText(name)
-          ElMessage.success('已复制')
-        }
-      }, [h(CopyDocument, { style: 'width:12px;height:12px' })])
+      h(
+        'span',
+        {
+          class: 'icon-action',
+          style:
+            'flex-shrink:0;cursor:pointer;color:var(--el-text-color-secondary);display:inline-flex;align-items:center',
+          title: '复制',
+          onClick: (e: MouseEvent) => {
+            e.stopPropagation()
+            navigator.clipboard.writeText(name)
+            ElMessage.success('已复制')
+          }
+        },
+        [h(CopyDocument, { style: 'width:12px;height:12px' })]
+      )
     ])
   }
 
@@ -523,10 +634,20 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       immediate: true,
       apiFn: async (params: CmParams) => {
         const cluster = String(route.query.cluster ?? '')
-        if (!cluster) return { code: 200, data: { records: [] as (K8sConfigMap & { rowKey: string })[], total: 0, current: 1, size: params.size } }
+        if (!cluster)
+          return {
+            code: 200,
+            data: {
+              records: [] as (K8sConfigMap & { rowKey: string })[],
+              total: 0,
+              current: 1,
+              size: params.size
+            }
+          }
         // 拉取全部资源（不带 fieldSelector），本地模糊搜索
         const { items: allItems } = await fetchK8sConfigMapList(cluster, {
-          page: 1, limit: 999999,
+          page: 1,
+          limit: 999999,
           namespace: selectedNamespace.value || undefined
         })
         // 本地模糊筛选
@@ -537,14 +658,25 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
         // 本地分页
         const start = (params.current - 1) * params.size
         const end = start + params.size
-        let list = filtered.slice(start, end).map((d, i) => ({ ...d, rowKey: d.metadata?.uid ?? d.metadata?.name ?? `cm-${i}` }))
+        let list = filtered
+          .slice(start, end)
+          .map((d, i) => ({ ...d, rowKey: d.metadata?.uid ?? d.metadata?.name ?? `cm-${i}` }))
         if (cmSortOrder.value) {
           list = [...list].sort((a, b) => {
-            const ta = a.metadata?.creationTimestamp ?? '', tb = b.metadata?.creationTimestamp ?? ''
+            const ta = a.metadata?.creationTimestamp ?? '',
+              tb = b.metadata?.creationTimestamp ?? ''
             return cmSortOrder.value === 'ascending' ? ta.localeCompare(tb) : tb.localeCompare(ta)
           })
         }
-        return { code: 200, data: { records: list, total: filtered.length, current: params.current, size: params.size } }
+        return {
+          code: 200,
+          data: {
+            records: list,
+            total: filtered.length,
+            current: params.current,
+            size: params.size
+          }
+        }
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
       columnsFactory: () => [
@@ -577,7 +709,11 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
           width: 168,
           sortable: 'custom',
           formatter: (row: K8sConfigMap) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, formatNodeCreationTime(row.metadata?.creationTimestamp))
+            h(
+              'span',
+              { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+              formatNodeCreationTime(row.metadata?.creationTimestamp)
+            )
         },
         {
           prop: 'operation',
@@ -586,8 +722,37 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
           fixed: 'right',
           formatter: (row: K8sConfigMap) =>
             h('div', { style: 'display:flex;align-items:center;gap:12px' }, [
-              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void openYamlDialog('cm', row.metadata?.namespace ?? '', row.metadata?.name ?? '') }, () => '查看YAML'),
-              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void deleteResource('cm', row.metadata?.namespace ?? '', row.metadata?.name ?? '', onCmRefresh) }, () => '删除')
+              h(
+                ElLink,
+                {
+                  type: 'primary',
+                  underline: 'never',
+                  style: 'font-size:12px',
+                  onClick: () =>
+                    void openYamlDialog(
+                      'cm',
+                      row.metadata?.namespace ?? '',
+                      row.metadata?.name ?? ''
+                    )
+                },
+                () => '查看YAML'
+              ),
+              h(
+                ElLink,
+                {
+                  type: 'primary',
+                  underline: 'never',
+                  style: 'font-size:12px',
+                  onClick: () =>
+                    void deleteResource(
+                      'cm',
+                      row.metadata?.namespace ?? '',
+                      row.metadata?.name ?? '',
+                      onCmRefresh
+                    )
+                },
+                () => '删除'
+              )
             ])
         }
       ]
@@ -595,7 +760,9 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   })
 
   const cmVisibleColumns = computed(() =>
-    cmColumns.value.filter((c: any) => !(selectedNamespace.value && c.prop === 'metadata.namespace'))
+    cmColumns.value.filter(
+      (c: any) => !(selectedNamespace.value && c.prop === 'metadata.namespace')
+    )
   )
   function runCmSearch() {
     const name = (cmSearchForm.value.name ?? '').trim() || undefined
@@ -607,9 +774,14 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     replaceCmSearchParams({ name, namespace: selectedNamespace.value || undefined })
     getCmData()
   }
-  function onCmRefresh() { refreshCmData() }
+  function onCmRefresh() {
+    refreshCmData()
+  }
   function onCmSortChange({ prop, order }: { prop: string; order: string | null }) {
-    if (prop === 'metadata.creationTimestamp') { cmSortOrder.value = (order as 'ascending' | 'descending' | null) ?? null; getCmData() }
+    if (prop === 'metadata.creationTimestamp') {
+      cmSortOrder.value = (order as 'ascending' | 'descending' | null) ?? null
+      getCmData()
+    }
   }
 
   // ── Secret useTable ──
@@ -630,10 +802,20 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       immediate: false,
       apiFn: async (params: SecParams) => {
         const cluster = String(route.query.cluster ?? '')
-        if (!cluster) return { code: 200, data: { records: [] as (K8sSecret & { rowKey: string })[], total: 0, current: 1, size: params.size } }
+        if (!cluster)
+          return {
+            code: 200,
+            data: {
+              records: [] as (K8sSecret & { rowKey: string })[],
+              total: 0,
+              current: 1,
+              size: params.size
+            }
+          }
         // 拉取全部资源（不带 fieldSelector），本地模糊搜索
         const { items: allItems } = await fetchK8sSecretList(cluster, {
-          page: 1, limit: 999999,
+          page: 1,
+          limit: 999999,
           namespace: selectedNamespace.value || undefined
         })
         // 本地模糊筛选
@@ -644,14 +826,25 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
         // 本地分页
         const start = (params.current - 1) * params.size
         const end = start + params.size
-        let list = filtered.slice(start, end).map((d, i) => ({ ...d, rowKey: d.metadata?.uid ?? d.metadata?.name ?? `sec-${i}` }))
+        let list = filtered
+          .slice(start, end)
+          .map((d, i) => ({ ...d, rowKey: d.metadata?.uid ?? d.metadata?.name ?? `sec-${i}` }))
         if (secSortOrder.value) {
           list = [...list].sort((a, b) => {
-            const ta = a.metadata?.creationTimestamp ?? '', tb = b.metadata?.creationTimestamp ?? ''
+            const ta = a.metadata?.creationTimestamp ?? '',
+              tb = b.metadata?.creationTimestamp ?? ''
             return secSortOrder.value === 'ascending' ? ta.localeCompare(tb) : tb.localeCompare(ta)
           })
         }
-        return { code: 200, data: { records: list, total: filtered.length, current: params.current, size: params.size } }
+        return {
+          code: 200,
+          data: {
+            records: list,
+            total: filtered.length,
+            current: params.current,
+            size: params.size
+          }
+        }
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
       columnsFactory: () => [
@@ -668,7 +861,11 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
           width: 280,
           showOverflowTooltip: true,
           formatter: (row: K8sSecret) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, row.type ?? 'Opaque')
+            h(
+              'span',
+              { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+              row.type ?? 'Opaque'
+            )
         },
         {
           prop: 'metadata.namespace',
@@ -682,7 +879,11 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
           width: 168,
           sortable: 'custom',
           formatter: (row: K8sSecret) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, formatNodeCreationTime(row.metadata?.creationTimestamp))
+            h(
+              'span',
+              { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+              formatNodeCreationTime(row.metadata?.creationTimestamp)
+            )
         },
         {
           prop: 'operation',
@@ -692,8 +893,37 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
           formatter: (row: K8sSecret) => {
             const isTls = row.type === 'kubernetes.io/tls'
             return h('div', { style: 'display:flex;align-items:center;gap:8px' }, [
-              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void openYamlDialog('sec', row.metadata?.namespace ?? '', row.metadata?.name ?? '') }, () => '查看YAML'),
-              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void deleteResource('sec', row.metadata?.namespace ?? '', row.metadata?.name ?? '', onSecRefresh) }, () => '删除'),
+              h(
+                ElLink,
+                {
+                  type: 'primary',
+                  underline: 'never',
+                  style: 'font-size:12px',
+                  onClick: () =>
+                    void openYamlDialog(
+                      'sec',
+                      row.metadata?.namespace ?? '',
+                      row.metadata?.name ?? ''
+                    )
+                },
+                () => '查看YAML'
+              ),
+              h(
+                ElLink,
+                {
+                  type: 'primary',
+                  underline: 'never',
+                  style: 'font-size:12px',
+                  onClick: () =>
+                    void deleteResource(
+                      'sec',
+                      row.metadata?.namespace ?? '',
+                      row.metadata?.name ?? '',
+                      onSecRefresh
+                    )
+                },
+                () => '删除'
+              ),
               h(ArtButtonMore, {
                 list: [
                   { key: 'bind', label: '关联域名', icon: 'ri:link', disabled: !isTls },
@@ -709,7 +939,9 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   })
 
   const secVisibleColumns = computed(() =>
-    secColumns.value.filter((c: any) => !(selectedNamespace.value && c.prop === 'metadata.namespace'))
+    secColumns.value.filter(
+      (c: any) => !(selectedNamespace.value && c.prop === 'metadata.namespace')
+    )
   )
   function runSecSearch() {
     const name = (secSearchForm.value.name ?? '').trim() || undefined
@@ -721,9 +953,14 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     replaceSecSearchParams({ name, namespace: selectedNamespace.value || undefined })
     getSecData()
   }
-  function onSecRefresh() { refreshSecData() }
+  function onSecRefresh() {
+    refreshSecData()
+  }
   function onSecSortChange({ prop, order }: { prop: string; order: string | null }) {
-    if (prop === 'metadata.creationTimestamp') { secSortOrder.value = (order as 'ascending' | 'descending' | null) ?? null; getSecData() }
+    if (prop === 'metadata.creationTimestamp') {
+      secSortOrder.value = (order as 'ascending' | 'descending' | null) ?? null
+      getSecData()
+    }
   }
 
   // ── Tab lazy loading ──
@@ -771,7 +1008,6 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   .config-page .art-table .el-table th.el-table__cell {
     font-size: 13px;
   }
-
 
   .config-page .el-tabs__header {
     margin: 0 0 4px;
@@ -882,5 +1118,43 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   }
   .cluster-toolbar-search-btn:hover {
     border-color: var(--el-color-primary);
+  }
+
+  .cert-domain-dialog__hint {
+    margin: 0 0 12px;
+    font-size: 13px;
+    color: var(--el-text-color-regular);
+    line-height: 1.5;
+  }
+
+  .cert-domain-dialog__table {
+    width: 100%;
+    max-height: 420px;
+  }
+
+  .cert-domain-dialog__table :deep(.el-table__cell) {
+    font-size: 13px;
+  }
+
+  .cert-domain-dialog__table :deep(.el-table__empty-text) {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+    line-height: 50px;
+  }
+
+  /* 与集群列表/Secret 列表一致：selection 宽 30，不额外加大左右 padding */
+  .cert-domain-dialog__table :deep(.el-table-column--selection .cell) {
+    padding-left: 10px;
+    padding-right: 0;
+  }
+
+  /* 与配额管理弹窗一致：header / body / 说明栏上下距 */
+  :global(.cert-domain-dialog-header) {
+    padding: 10px 24px 0 !important;
+    margin-bottom: 0 !important;
+  }
+
+  :global(.cert-domain-dialog-body) {
+    padding: 0 24px 12px !important;
   }
 </style>
