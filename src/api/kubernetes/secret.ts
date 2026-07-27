@@ -46,3 +46,17 @@ export async function createK8sSecret(cluster: string, namespace: string, body: 
   const { data } = await kubeProxyAxios.post<K8sSecret>(secretBase(cluster, namespace), body)
   return data
 }
+
+export async function patchK8sSecret(
+  cluster: string,
+  namespace: string,
+  name: string,
+  patch: object
+): Promise<K8sSecret> {
+  const { data } = await kubeProxyAxios.patch<K8sSecret>(
+    `${secretBase(cluster, namespace)}/${encodeURIComponent(name)}`,
+    patch,
+    { headers: { 'Content-Type': 'application/merge-patch+json' } }
+  )
+  return data
+}
