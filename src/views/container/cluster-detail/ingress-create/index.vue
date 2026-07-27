@@ -376,7 +376,7 @@
     try {
       const { items } = await fetchK8sServiceList(cluster.value, {
         page: 1,
-        limit: 999999,
+        limit: 500,
         namespace: ns
       })
       serviceOptions.value = items.map((s: K8sService) => ({
@@ -427,7 +427,7 @@
     try {
       const { items } = await fetchK8sSecretList(cluster.value, {
         page: 1,
-        limit: 999999,
+        limit: 500,
         namespace: ns
       })
       tlsSecrets.value = items

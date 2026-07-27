@@ -911,7 +911,7 @@
     try {
       const { items } = await fetchK8sServiceList(cluster.value, {
         page: 1,
-        limit: 999999,
+        limit: 500,
         namespace: namespace.value
       })
       const deployLabels =

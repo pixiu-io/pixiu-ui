@@ -507,7 +507,7 @@
       if (bindResourceType.value === 'deployment') {
         const { items } = await fetchK8sDeploymentList(cluster.value, {
           page: 1,
-          limit: 999999,
+          limit: 500,
           namespace: form.value.namespace
         })
         bindResourceList.value = items.map((d) => ({
@@ -517,7 +517,7 @@
       } else {
         const { items } = await fetchK8sStatefulSetList(cluster.value, {
           page: 1,
-          limit: 999999,
+          limit: 500,
           namespace: form.value.namespace
         })
         bindResourceList.value = items.map((d) => ({

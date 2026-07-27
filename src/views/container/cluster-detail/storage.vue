@@ -327,8 +327,8 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
         const cluster = String(route.query.cluster ?? '')
         if (!cluster) return { code: 200, data: { records: [] as (K8sPVC & { rowKey: string })[], total: 0, current: 1, size: params.size } }
         // 拉取全部资源（不带 fieldSelector），本地模糊搜索
-        const { items: allItems } = await fetchK8sPVCList(cluster, {
-          page: 1, limit: 999999,
+        const { items: allItems, total: realTotal } = await fetchK8sPVCList(cluster, {
+          page: 1, limit: params.current * params.size,
           namespace: selectedNamespace.value || undefined
         })
         // 本地模糊筛选
@@ -346,7 +346,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
             return pvcSortOrder.value === 'ascending' ? ta.localeCompare(tb) : tb.localeCompare(ta)
           })
         }
-        return { code: 200, data: { records: list, total: filtered.length, current: params.current, size: params.size } }
+        return { code: 200, data: { records: list, total: keyword ? filtered.length : realTotal, current: params.current, size: params.size } }
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
       columnsFactory: () => [
@@ -441,8 +441,8 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
         const cluster = String(route.query.cluster ?? '')
         if (!cluster) return { code: 200, data: { records: [] as (K8sPV & { rowKey: string })[], total: 0, current: 1, size: params.size } }
         // 拉取全部资源（不带 fieldSelector），本地模糊搜索
-        const { items: allItems } = await fetchK8sPVList(cluster, {
-          page: 1, limit: 999999
+        const { items: allItems, total: realTotal } = await fetchK8sPVList(cluster, {
+          page: 1, limit: params.current * params.size
         })
         // 本地模糊筛选
         const keyword = (params.name ?? '').trim().toLowerCase()
@@ -459,7 +459,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
             return pvSortOrder.value === 'ascending' ? ta.localeCompare(tb) : tb.localeCompare(ta)
           })
         }
-        return { code: 200, data: { records: list, total: filtered.length, current: params.current, size: params.size } }
+        return { code: 200, data: { records: list, total: keyword ? filtered.length : realTotal, current: params.current, size: params.size } }
       },
       apiParams: { current: 1, size: 10, name: undefined },
       columnsFactory: () => [
@@ -558,8 +558,8 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
         const cluster = String(route.query.cluster ?? '')
         if (!cluster) return { code: 200, data: { records: [] as (K8sStorageClass & { rowKey: string })[], total: 0, current: 1, size: params.size } }
         // 拉取全部资源（不带 fieldSelector），本地模糊搜索
-        const { items: allItems } = await fetchK8sStorageClassList(cluster, {
-          page: 1, limit: 999999
+        const { items: allItems, total: realTotal } = await fetchK8sStorageClassList(cluster, {
+          page: 1, limit: params.current * params.size
         })
         // 本地模糊筛选
         const keyword = (params.name ?? '').trim().toLowerCase()
@@ -576,7 +576,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
             return scSortOrder.value === 'ascending' ? ta.localeCompare(tb) : tb.localeCompare(ta)
           })
         }
-        return { code: 200, data: { records: list, total: filtered.length, current: params.current, size: params.size } }
+        return { code: 200, data: { records: list, total: keyword ? filtered.length : realTotal, current: params.current, size: params.size } }
       },
       apiParams: { current: 1, size: 10, name: undefined },
       columnsFactory: () => [
