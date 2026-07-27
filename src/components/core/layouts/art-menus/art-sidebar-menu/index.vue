@@ -86,7 +86,7 @@
           {{ AppConfig.systemInfo.name }}
           <span
             class="version"
-            :style="{ color: getMenuTheme.textColor, marginLeft: '4px' }"
+            :style="{ color: getMenuTheme.textColor, marginLeft: '1px' }"
             @click.stop="handleVersionClick"
           >
             {{ AppConfig.systemInfo.version }}
