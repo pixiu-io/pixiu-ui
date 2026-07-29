@@ -360,6 +360,7 @@
   import { deleteK8sPod, fetchK8sPod, fetchK8sPodList, type K8sPod } from '@/api/kubernetes/pod'
   import { PixiuApiError } from '@/api/container'
   import { respondAIStream, type AIStreamEvent } from '@/api/ai'
+  import { fetchGetAIAccountList } from '@/api/ai-account'
   import { formatNodeCreationTime } from '@/utils/kubernetes/nodeDisplay'
   import {
     formatPodDisplayStatus,
@@ -413,6 +414,7 @@
   const aiAnalysisError = ref('')
   const aiAnalysisPod = ref<K8sPod | null>(null)
   const aiConversationId = ref(0)
+  const aiAccountId = ref(0)
   const aiConversationBodyRef = ref<HTMLElement | null>(null)
   const aiFollowupInput = ref('')
   const aiAnalysisMessages = ref<Array<{ id: number; role: 'user' | 'assistant'; text: string }>>(
@@ -1128,9 +1130,15 @@
     aiAnalysisText.value = ''
     pushAIAnalysisStep('开始', '已提交 AI 分析请求')
     try {
+      if (!aiAccountId.value) {
+        const { records } = await fetchGetAIAccountList({ current: 1, size: 1 })
+        aiAccountId.value = records[0]?.id || 0
+      }
+      if (!aiAccountId.value) throw new Error('请先配置 AI 账号')
       const result = await respondAIStream(
         {
           conversation_id: aiConversationId.value || undefined,
+          account_id: aiAccountId.value,
           input
         },
         {
@@ -1424,7 +1432,6 @@
     flex-direction: column;
     min-height: 0;
   }
-
 
   .pods-page :deep(.art-table-card) {
     flex: 1;

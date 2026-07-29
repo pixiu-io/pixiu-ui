@@ -9,26 +9,33 @@
         justify-content: space-between;
       "
     >
-      <ElButton @click="showDialog('add')" v-ripple>添加Provider</ElButton>
+      <div style="display: flex; gap: 8px">
+        <ElButton @click="showDialog('add')" v-ripple>添加账号</ElButton>
+        <ElButton @click="providerDialogVisible = true">管理 Provider</ElButton>
+      </div>
       <div style="display: flex; align-items: center; gap: 8px">
         <ElInput
-          v-model="searchForm.provider"
+          v-model="searchForm.name"
           clearable
-          placeholder="请输入供应商"
+          placeholder="请输入账号名称"
           style="width: 220px"
           @keyup.enter="handleSearch"
           @clear="resetAndSearch"
         />
         <ElSelect
-          v-model="searchForm.enabled"
+          v-model="searchForm.providerId"
           clearable
-          placeholder="启用状态"
-          style="width: 120px"
+          placeholder="Provider"
+          style="width: 180px"
           @change="handleSearch"
           @clear="handleSearch"
         >
-          <ElOption label="已启用" :value="true" />
-          <ElOption label="已停用" :value="false" />
+          <ElOption
+            v-for="provider in providers"
+            :key="provider.id"
+            :label="provider.name"
+            :value="provider.id"
+          />
         </ElSelect>
         <ArtTableHeader v-model:columns="columnChecks" :loading="loading" @refresh="refreshData" />
       </div>
@@ -51,8 +58,10 @@
         v-model:visible="dialogVisible"
         :type="dialogType"
         :account-data="currentAccountData"
+        :providers="providers"
         @submit="handleDialogSubmit"
       />
+      <ProviderManageDialog v-model:visible="providerDialogVisible" @changed="loadProviders" />
     </ElCard>
   </div>
 </template>
@@ -63,10 +72,12 @@
     fetchCreateAIAccount,
     fetchDeleteAIAccount,
     fetchGetAIAccountList,
+    fetchGetAIProviderList,
     fetchUpdateAIAccount
   } from '@/api/ai-account'
   import AIAccountDialog from './modules/ai-account-dialog.vue'
-  import { ElLink, ElMessage, ElMessageBox, ElSwitch, ElTag } from 'element-plus'
+  import ProviderManageDialog from './modules/provider-manage-dialog.vue'
+  import { ElLink, ElMessage, ElMessageBox, ElTag } from 'element-plus'
   import { DialogType } from '@/types'
 
   defineOptions({ name: 'AiAccount' })
@@ -76,10 +87,12 @@
   const dialogType = ref<DialogType>('add')
   const dialogVisible = ref(false)
   const currentAccountData = ref<Partial<AIAccountListItem>>({})
+  const providers = ref<Api.SystemManage.AIProviderListItem[]>([])
+  const providerDialogVisible = ref(false)
 
   const searchForm = ref({
-    provider: undefined as string | undefined,
-    enabled: undefined as boolean | undefined
+    name: undefined as string | undefined,
+    providerId: undefined as number | undefined
   })
 
   const {
@@ -104,19 +117,16 @@
       },
       columnsFactory: () => [
         {
-          prop: 'provider',
-          label: '供应商',
+          prop: 'name',
+          label: '账号名称',
           minWidth: 140,
-          formatter: (row) => h('span', { style: { fontSize: '12px' } }, row.provider || '-')
+          formatter: (row) => h('span', { style: { fontSize: '12px' } }, row.name || '-')
         },
         {
-          prop: 'enabled',
-          label: '状态',
-          width: 100,
-          formatter: (row) =>
-            h(ElTag, { size: 'small', type: row.enabled ? 'success' : 'info' }, () =>
-              row.enabled ? '启用' : '停用'
-            )
+          prop: 'provider',
+          label: 'Provider',
+          minWidth: 150,
+          formatter: (row) => h(ElTag, { size: 'small' }, () => row.provider?.name || '-')
         },
         {
           prop: 'model',
@@ -126,29 +136,20 @@
           formatter: (row) => h('span', { style: { fontSize: '12px' } }, row.model || '-')
         },
         {
+          prop: 'protocol',
+          label: '协议',
+          minWidth: 220,
+          showOverflowTooltip: true,
+          formatter: (row) =>
+            h('span', { style: { fontSize: '12px' } }, row.provider?.protocol || '-')
+        },
+        {
           prop: 'baseUrl',
           label: 'Base URL',
           minWidth: 220,
           showOverflowTooltip: true,
-          formatter: (row) => h('span', { style: { fontSize: '12px' } }, row.baseUrl || '-')
-        },
-        {
-          prop: 'toggleEnabled',
-          label: '启用',
-          width: 100,
           formatter: (row) =>
-            h(ElSwitch, {
-              modelValue: row.enabled,
-              size: 'small',
-              onChange: (value) => toggleEnabled(row, Boolean(value))
-            })
-        },
-        {
-          prop: 'description',
-          label: '说明',
-          minWidth: 200,
-          showOverflowTooltip: true,
-          formatter: (row) => h('span', { style: { fontSize: '12px' } }, row.description || '-')
+            h('span', { style: { fontSize: '12px' } }, row.provider?.baseUrl || '-')
         },
         {
           prop: 'createTime',
@@ -192,15 +193,15 @@
 
   const handleSearch = () => {
     replaceSearchParams({
-      provider: searchForm.value.provider,
-      enabled: searchForm.value.enabled
+      name: searchForm.value.name,
+      providerId: searchForm.value.providerId
     })
     getData()
   }
 
   const resetAndSearch = () => {
-    searchForm.value.provider = undefined
-    searchForm.value.enabled = undefined
+    searchForm.value.name = undefined
+    searchForm.value.providerId = undefined
     resetSearchParams()
     handleSearch()
   }
@@ -215,8 +216,8 @@
 
   const deleteAccount = (row: AIAccountListItem): void => {
     ElMessageBox.confirm(
-      `确认删除 AI 配置“${row.provider} / ${row.model || '-'}”吗？`,
-      '删除 AI 配置',
+      `确认删除 AI 账号“${row.name} / ${row.model || '-'}”吗？`,
+      '删除 AI 账号',
       {
         confirmButtonText: '确认',
         cancelButtonText: '取消',
@@ -233,32 +234,11 @@
     })
   }
 
-  const toggleEnabled = async (row: AIAccountListItem, enabled: boolean) => {
-    try {
-      await fetchUpdateAIAccount({
-        id: row.id,
-        resourceVersion: row.resourceVersion,
-        provider: row.provider,
-        apiKey: row.apiKey,
-        baseUrl: row.baseUrl,
-        model: row.model,
-        description: row.description,
-        enabled
-      })
-      ElMessage.success(enabled ? '已启用' : '已停用')
-      await refreshData()
-    } catch {
-      await refreshData()
-    }
-  }
-
   const handleDialogSubmit = async (data: {
-    provider: string
+    name: string
+    providerId: number
     apiKey: string
-    baseUrl: string
     model: string
-    description: string
-    enabled: boolean
   }) => {
     try {
       if (dialogType.value === 'add') {
@@ -280,6 +260,16 @@
       // HTTP 错误提示由统一封装处理
     }
   }
+
+  const loadProviders = async () => {
+    try {
+      providers.value = await fetchGetAIProviderList()
+    } catch {
+      providers.value = []
+    }
+  }
+
+  onMounted(loadProviders)
 </script>
 
 <style lang="scss" scoped>
@@ -290,7 +280,6 @@
     flex-direction: column;
     overflow: hidden;
   }
-
 
   .ai-account-page :deep(.art-table) {
     display: flex;

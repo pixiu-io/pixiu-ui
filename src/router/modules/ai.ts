@@ -14,7 +14,7 @@ export const aiRoutes: AppRouteRecord = {
       name: 'AiAccount',
       component: '/system/ai-account',
       meta: {
-        title: 'Provider',
+        title: 'AI 账号',
         icon: 'ri:openai-line',
         keepAlive: true,
         roles: ['R_SUPER', 'R_ADMIN']

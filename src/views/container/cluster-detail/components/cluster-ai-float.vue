@@ -100,11 +100,11 @@
           <div v-if="providerChecked && !hasProvider" class="cluster-ai-float__provider-hint">
             <ElIcon :size="16"><WarningFilled /></ElIcon>
             <span>
-              未接入 AI Provider，点击
+              未配置 AI 账号，点击
               <router-link to="/ai/ai-account" class="cluster-ai-float__provider-link"
                 >添加</router-link
               >
-              AI供应商后才能使用
+              AI 账号后才能使用
             </span>
           </div>
         </div>
@@ -200,7 +200,6 @@
           内容由 AI 生成，仅供参考，您据此所作判断及操作均由您自行承担责任。
         </div>
       </div>
-
     </div>
   </div>
 </template>
@@ -253,6 +252,7 @@
   const rootRef = ref<HTMLElement | null>(null)
   const providerChecked = ref(false)
   const hasProvider = ref(false)
+  const accountId = ref(0)
   const isMaximized = ref(false)
   const panelSize = ref<{ width: number; height: number } | null>(null)
 
@@ -486,7 +486,9 @@
     }
     if (resizeEdge.includes('n')) {
       position.value = {
-        x: resizeEdge.includes('w') ? resizeStartLeft + (resizeStartWidth - newWidth) : resizeStartLeft,
+        x: resizeEdge.includes('w')
+          ? resizeStartLeft + (resizeStartWidth - newWidth)
+          : resizeStartLeft,
         y: resizeStartTop + (resizeStartHeight - newHeight)
       }
     }
@@ -568,10 +570,12 @@
 
   async function checkProvider() {
     try {
-      const { total } = await fetchGetAIAccountList({ enabled: true, current: 1, size: 1 })
+      const { total, records } = await fetchGetAIAccountList({ current: 1, size: 1 })
       hasProvider.value = total > 0
+      accountId.value = records[0]?.id || 0
     } catch {
       hasProvider.value = false
+      accountId.value = 0
     } finally {
       providerChecked.value = true
     }
@@ -797,6 +801,7 @@
       const result = await respondAIStream(
         {
           conversation_id: conversationId.value || undefined,
+          account_id: accountId.value,
           input: buildClusterScopedInput(question)
         },
         {
