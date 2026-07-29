@@ -51,6 +51,7 @@ interface BackendCluster {
   permission_id: number
   description: string
   kube_config?: string
+  connect_mode?: number
   gmt_create: string
   gmt_modified: string
 }
@@ -74,6 +75,7 @@ export interface ClusterItem {
   isProtected: boolean
   permissionId: number
   createTime: string
+  connectMode: number
 }
 
 /** pixiu 接口错误（notified 为 true 表示拦截器已弹出提示，业务层无需重复提示） */
@@ -229,7 +231,8 @@ function toClusterItem(c: BackendCluster): ClusterItem {
     nodeCount: nodeReady + nodeNotReady,
     isProtected: c.protected,
     permissionId: c.permission_id ?? 0,
-    createTime: formatDate(c.gmt_create)
+    createTime: formatDate(c.gmt_create),
+    connectMode: c.connect_mode ?? 0
   }
 }
 
@@ -328,6 +331,8 @@ export async function fetchCreateCluster(params: {
   description?: string
   protected?: boolean
   cluster_type?: number
+  connect_mode?: number
+  agent_token?: string
 }): Promise<void> {
   const userStore = useUserStore()
   const userId = userStore.getUserInfo?.userId
@@ -337,6 +342,8 @@ export async function fetchCreateCluster(params: {
     description: params.description ?? '',
     protected: params.protected ?? true,
     cluster_type: params.cluster_type ?? 0,
+    connect_mode: params.connect_mode ?? 0,
+    agent_token: params.agent_token ?? '',
     user_id: userId ?? 0
   })
 }
