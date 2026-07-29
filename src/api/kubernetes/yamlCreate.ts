@@ -3,16 +3,6 @@ import yaml from 'js-yaml'
 import { kubeProxyAxios } from '@/api/kubeProxy'
 import { PixiuApiError } from '@/api/container'
 
-interface K8sAPIResource {
-  name: string
-  kind: string
-  namespaced: boolean
-}
-
-interface APIResourceList {
-  resources?: K8sAPIResource[]
-}
-
 function checkEmpty(_name: string, value: unknown): boolean {
   return value === undefined || value === '' || value === null
 }
@@ -23,95 +13,123 @@ function k8sErrorMessage(err: unknown): string {
   return d?.message || d?.reason || d?.status || err.message || '请求失败'
 }
 
-function parseYamlObject(yamlText: string): Record<string, unknown> {
+// kind → resource name (lowercase plural) for well-known K8s resources
+const KIND_RESOURCE_MAP: Record<string, string> = {
+  Namespace: 'namespaces',
+  Node: 'nodes',
+  ServiceAccount: 'serviceaccounts',
+  ConfigMap: 'configmaps',
+  Secret: 'secrets',
+  PersistentVolume: 'persistentvolumes',
+  PersistentVolumeClaim: 'persistentvolumeclaims',
+  StorageClass: 'storageclasses',
+  Pod: 'pods',
+  Service: 'services',
+  Endpoints: 'endpoints',
+  Ingress: 'ingresses',
+  Deployment: 'deployments',
+  StatefulSet: 'statefulsets',
+  DaemonSet: 'daemonsets',
+  ReplicaSet: 'replicasets',
+  Job: 'jobs',
+  CronJob: 'cronjobs',
+  HorizontalPodAutoscaler: 'horizontalpodautoscalers',
+  ClusterRole: 'clusterroles',
+  ClusterRoleBinding: 'clusterrolebindings',
+  Role: 'roles',
+  RoleBinding: 'rolebindings',
+  CustomResourceDefinition: 'customresourcedefinitions',
+  NetworkPolicy: 'networkpolicies',
+  ResourceQuota: 'resourcequotas',
+  LimitRange: 'limitranges',
+  Event: 'events',
+}
+
+// cluster-scoped resources (don't need namespace)
+const CLUSTER_SCOPED_KINDS = new Set([
+  'Namespace', 'Node', 'PersistentVolume', 'ClusterRole', 'ClusterRoleBinding',
+  'StorageClass', 'CustomResourceDefinition',
+])
+
+function kindToResource(kind: string): string {
+  if (KIND_RESOURCE_MAP[kind]) return KIND_RESOURCE_MAP[kind]
+  return (kind.endsWith('s') ? kind.toLowerCase() : kind.toLowerCase() + 's')
+}
+
+function resolveResourceUrl(yamlData: Record<string, unknown>): {
+  url: string
+  name: string
+} {
+  const kind = yamlData.kind as string | undefined
+  const apiVersion = yamlData.apiVersion as string | undefined
+  const metadata = yamlData.metadata as { name?: string; namespace?: string } | undefined
+  const name = metadata?.name
+
+  if (checkEmpty('kind', kind)) throw new Error('kind 为必填项')
+  if (checkEmpty('apiVersion', apiVersion)) throw new Error('apiVersion 为必填项')
+  if (!name) throw new Error('metadata.name 为必填项')
+
+  const apiVersionStr = apiVersion as string
+  // v1 → /api/v1, {group}/{version} → /apis/{group}/{version}
+  const groupPath = apiVersionStr.includes('/')
+    ? `/apis/${apiVersionStr}`
+    : `/api/${apiVersionStr}`
+
+  const resource = kindToResource(kind as string)
+  let url = `${groupPath}/${resource}`
+
+  if (!CLUSTER_SCOPED_KINDS.has(kind as string)) {
+    const namespace = metadata?.namespace
+    if (namespace) {
+      url = `${groupPath}/namespaces/${encodeURIComponent(namespace)}/${resource}`
+    }
+  }
+
+  return { url, name }
+}
+
+function parseYamlDocuments(yamlText: string): Record<string, unknown>[] {
   const trimmed = yamlText.trim()
   if (!trimmed) {
     throw new Error('YAML 创建资源不能为空')
   }
 
   try {
-    const loaded = yaml.load(trimmed)
-    if (loaded === null || typeof loaded !== 'object' || Array.isArray(loaded)) {
-      throw new Error('YAML 须为单个 Kubernetes 对象')
+    const docs: Record<string, unknown>[] = []
+    for (const doc of yaml.loadAll(trimmed)) {
+      if (doc === null || typeof doc !== 'object' || Array.isArray(doc)) continue
+      docs.push(doc as Record<string, unknown>)
     }
-    return loaded as Record<string, unknown>
+    if (docs.length === 0) {
+      throw new Error('YAML 须为有效的 Kubernetes 对象')
+    }
+    return docs
   } catch (e) {
-    if (e instanceof Error && (e.message.includes('YAML') || e.message.includes('对象'))) throw e
+    if (e instanceof Error && (e.message.includes('YAML') || e.message.includes('对象') || e.message.includes('Kubernetes'))) throw e
     throw new Error(e instanceof Error ? e.message : 'YAML 解析失败')
   }
 }
 
-async function resolveResourceUrl(
-  cluster: string,
-  yamlData: Record<string, unknown>
-): Promise<{ url: string; kind: string; apiVersion: string; name: string }> {
-  const kind = yamlData.kind as string | undefined
-  const apiVersion = yamlData.apiVersion as string | undefined
-  const metadata = yamlData.metadata as { name?: string; namespace?: string } | undefined
-
-  if (checkEmpty('kind', kind)) throw new Error('kind 为必填项')
-  if (checkEmpty('apiVersion', apiVersion)) throw new Error('apiVersion 为必填项')
-  if (!metadata || checkEmpty('metadata', metadata) || checkEmpty('metadata.name', metadata.name)) {
-    throw new Error('metadata.name 为必填项')
-  }
-
-  const name = metadata.name as string
-  const base = `/pixiu/proxy/${encodeURIComponent(cluster)}`
-
-  // apiVersion 为 "v1" 属于 core group (/api)，含 "/" 的属于 named group (/apis)
-  const apiVersionStr = apiVersion as string
-  const APIPaths = apiVersionStr.includes('/') ? (['/apis'] as const) : (['/api'] as const)
-
-  let found = false
-  let wantedAPIPath = ''
-  let wantedResource: K8sAPIResource | null = null
-
-  for (const APIPath of APIPaths) {
-    try {
-      const { data } = await kubeProxyAxios.get<APIResourceList>(`${base}${APIPath}/${apiVersion}`, {
-        skipErrorNotification: true
-      } as any)
-      for (const resource of data.resources ?? []) {
-        if (resource.kind === kind) {
-          found = true
-          wantedAPIPath = APIPath
-          wantedResource = resource
-          break
-        }
-      }
-    } catch {
-      continue
-    }
-    if (found) break
-  }
-
-  if (!found || !wantedResource) {
-    throw new Error(`kind: ${kind} apiVersion: ${apiVersion} 暂不支持`)
-  }
-
-  let url = `${base}${wantedAPIPath}/${apiVersion}`
-  if (wantedResource.namespaced) {
-    const namespace = metadata.namespace
-    if (checkEmpty('metadata.namespace', namespace)) {
-      throw new Error('metadata.namespace 为必填项')
-    }
-    url = `${url}/namespaces/${encodeURIComponent(namespace as string)}`
-  }
-  url = `${url}/${wantedResource.name}`
-  return { url, kind: kind as string, apiVersion: apiVersion as string, name }
-}
-
 /**
- * 与 dashboard `pixiuyaml/index.vue` 一致：解析 YAML → 查 API 资源列表 → POST 创建
- * k8s API 资源已存在时返回 409 Conflict，直接依赖此状态码判断，无需额外 GET 探测
+ * 与 dashboard `pixiuyaml/index.vue` 一致：解析 YAML → POST 创建
+ * 支持单个文档和 --- 分隔的多文档批量创建
  */
 export async function createK8sResourceFromYaml(cluster: string, yamlText: string): Promise<void> {
-  const yamlData = parseYamlObject(yamlText)
-  const { url } = await resolveResourceUrl(cluster, yamlData)
+  const docs = parseYamlDocuments(yamlText)
+  if (docs.length > 1) {
+    return createK8sResourcesFromYaml(cluster, docs)
+  }
+  return postOneResource(cluster, docs[0])
+}
 
+async function postOneResource(cluster: string, yamlData: Record<string, unknown>, opts?: { ignoreExisting?: boolean }): Promise<void> {
+  const { url } = resolveResourceUrl(yamlData)
+  const base = `/pixiu/proxy/${encodeURIComponent(cluster)}`
   try {
-    await kubeProxyAxios.post(url, yamlData, { skipErrorNotification: true } as any)
+    await kubeProxyAxios.post(`${base}${url}`, yamlData, { skipErrorNotification: true } as any)
   } catch (postErr) {
+    if (opts?.ignoreExisting && isAxiosError(postErr) && postErr.response?.status === 409) return
+    if (opts?.ignoreExisting && postErr instanceof PixiuApiError && /already exists/i.test(postErr.message)) return
     if (postErr instanceof PixiuApiError) throw postErr
     if (isAxiosError(postErr) && postErr.response?.status === 409) {
       throw new Error(k8sErrorMessage(postErr) || '资源已存在')
@@ -121,13 +139,38 @@ export async function createK8sResourceFromYaml(cluster: string, yamlText: strin
 }
 
 /**
- * 与 dashboard `viewOrEdit/index.vue` 一致：解析 YAML → 查 API 资源列表 → PUT 覆盖更新
+ * 批量创建多个 Kubernetes 资源（使用 --- 分隔的 YAML 多文档）
+ */
+async function createK8sResourcesFromYaml(cluster: string, docs: Record<string, unknown>[]): Promise<void> {
+  const errors: string[] = []
+  for (const yamlData of docs) {
+    try {
+      await postOneResource(cluster, yamlData, { ignoreExisting: true })
+    } catch (postErr) {
+      if (postErr instanceof PixiuApiError) throw postErr
+      const kind = yamlData.kind as string ?? 'Unknown'
+      const name = (yamlData.metadata as { name?: string })?.name ?? ''
+      errors.push(`${kind}/${name}: ${k8sErrorMessage(postErr)}`)
+    }
+  }
+  if (errors.length > 0) {
+    throw new Error(errors.join('\n'))
+  }
+}
+
+/**
+ * 与 dashboard `viewOrEdit/index.vue` 一致：解析 YAML → PUT 覆盖更新
  */
 export async function updateK8sResourceFromYaml(cluster: string, yamlText: string): Promise<void> {
-  const yamlData = parseYamlObject(yamlText)
-  const { url, name } = await resolveResourceUrl(cluster, yamlData)
+  const docs = parseYamlDocuments(yamlText)
+  if (docs.length > 1) {
+    throw new Error('YAML 更新不支持多文档，请拆分后逐个操作')
+  }
+  const yamlData = docs[0]
+  const { url, name } = resolveResourceUrl(yamlData)
+  const base = `/pixiu/proxy/${encodeURIComponent(cluster)}`
   try {
-    await kubeProxyAxios.put(`${url}/${encodeURIComponent(name)}`, yamlData, { skipErrorNotification: true } as any)
+    await kubeProxyAxios.put(`${base}${url}/${encodeURIComponent(name)}`, yamlData, { skipErrorNotification: true } as any)
   } catch (e) {
     if (e instanceof PixiuApiError) throw e
     throw new Error(k8sErrorMessage(e))
