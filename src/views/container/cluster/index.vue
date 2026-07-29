@@ -57,6 +57,24 @@
             </ElTooltip>
           </span>
         </template>
+        <template #connectMode-header>
+          <span class="cluster-type-header">
+            <span>连接模式</span>
+            <ElTooltip placement="top" :show-after="200" popper-class="cluster-type-header-tooltip">
+              <template #content>
+                <div class="cluster-type-header-tooltip-inner">
+                  <div>直连方式：Pixiu 通过直接访问 apiserver，适用于网络互通的集群</div>
+                  <div>隧道方式：通过 Agent 反向代理访问 apiserver，适用于网络隔离环境的集群</div>
+                </div>
+              </template>
+              <span class="cluster-type-header__icon" role="img" aria-label="说明">
+                <ElIcon :size="15" class="cluster-type-header__icon-el">
+                  <InfoFilled />
+                </ElIcon>
+              </span>
+            </ElTooltip>
+          </span>
+        </template>
       </ArtTable>
 
       <ClusterAddDialog v-model:visible="addClusterVisible" @success="refreshData" />
@@ -96,7 +114,11 @@
           <ElTableColumn label="状态" width="130">
             <template #default="{ row }">
               <div class="task-status">
-                <ElIcon v-if="row.status === '运行中'" class="is-loading" color="var(--el-color-primary)">
+                <ElIcon
+                  v-if="row.status === '运行中'"
+                  class="is-loading"
+                  color="var(--el-color-primary)"
+                >
                   <LoadingIcon />
                 </ElIcon>
                 <ElIcon v-else-if="row.status === '已成功'" color="var(--el-color-success)">
@@ -117,7 +139,11 @@
           </ElTableColumn>
           <ElTableColumn label="结束时间" prop="gmt_modified" min-width="160">
             <template #default="{ row }">
-              {{ row.status === '运行中' || row.status === '未开始' ? '-' : formatDate(row.gmt_modified) }}
+              {{
+                row.status === '运行中' || row.status === '未开始'
+                  ? '-'
+                  : formatDate(row.gmt_modified)
+              }}
             </template>
           </ElTableColumn>
           <ElTableColumn label="操作" width="68" fixed="right" align="center">
@@ -245,10 +271,7 @@
   }
 
   /** 先校验集群详情可访问（GET /pixiu/clusters/:id），成功后再跳转 */
-  async function ensureClusterDetailThen(
-    row: ClusterItem,
-    navigate: () => void
-  ): Promise<void> {
+  async function ensureClusterDetailThen(row: ClusterItem, navigate: () => void): Promise<void> {
     try {
       await fetchGetCluster(row.id)
       navigate()
@@ -532,11 +555,7 @@
     refreshData
   } = useTable({
     core: {
-      apiFn: async (params: {
-        current: number
-        size: number
-        name?: string
-      }) => {
+      apiFn: async (params: { current: number; size: number; name?: string }) => {
         const { total, items } = await fetchClusterList({
           page: params.current,
           limit: params.size,
@@ -561,8 +580,7 @@
                   ? h(
                       'span',
                       {
-                        style:
-                          'font-size:12px;color:var(--el-color-primary);cursor:not-allowed'
+                        style: 'font-size:12px;color:var(--el-color-primary);cursor:not-allowed'
                       },
                       row.aliasName || '-'
                     )
@@ -664,42 +682,52 @@
           width: 120,
           formatter: (row: ClusterItem) => {
             const cfg = STATUS_CONFIG[row.status] ?? { type: 'info' as const, text: '未知' }
-            return h('div', { style: 'display:flex;flex-direction:column;align-items:flex-start;gap:4px' }, [
-              h('div', { style: 'display:flex;align-items:center;gap:4px' }, [
-                h(ElTag, { type: cfg.type }, () => cfg.text),
-                ...(Number(row.status) === 1
+            return h(
+              'div',
+              { style: 'display:flex;flex-direction:column;align-items:flex-start;gap:4px' },
+              [
+                h('div', { style: 'display:flex;align-items:center;gap:4px' }, [
+                  h(ElTag, { type: cfg.type }, () => cfg.text),
+                  ...(Number(row.status) === 1
+                    ? [
+                        h(ElIcon, { class: 'is-loading', color: 'var(--el-color-primary)' }, () =>
+                          h(LoadingIcon)
+                        )
+                      ]
+                    : [])
+                ]),
+                ...(shouldShowDeployProgress(row)
                   ? [
                       h(
-                        ElIcon,
-                        { class: 'is-loading', color: 'var(--el-color-primary)' },
-                        () => h(LoadingIcon)
+                        'span',
+                        {
+                          style:
+                            'font-size:12px;color:var(--el-color-primary);cursor:pointer;white-space:nowrap;line-height:1;margin-left:10px',
+                          onClick: () => openTaskDrawer(row)
+                        },
+                        '查看进度'
                       )
                     ]
                   : [])
-              ]),
-              ...(shouldShowDeployProgress(row)
-                ? [
-                    h(
-                      'span',
-                      {
-                        style:
-                          'font-size:12px;color:var(--el-color-primary);cursor:pointer;white-space:nowrap;line-height:1;margin-left:10px',
-                        onClick: () => openTaskDrawer(row)
-                      },
-                      '查看进度'
-                    )
-                  ]
-                : [])
-            ])
+              ]
+            )
           }
         },
         {
           prop: 'clusterType',
           label: '集群类型',
-          width: 130,
+          width: 125,
           useHeaderSlot: true,
           formatter: (row: ClusterItem) =>
             h('span', { style: 'font-size:12px' }, row.clusterType === 1 ? '自建集群' : '标准集群')
+        },
+        {
+          prop: 'connectMode',
+          label: '连接模式',
+          width: 100,
+          useHeaderSlot: true,
+          formatter: (row: ClusterItem) =>
+            h('span', { style: 'font-size:12px' }, row.connectMode === 1 ? '隧道' : '直连')
         },
         {
           prop: 'version',
@@ -779,7 +807,9 @@
                   type: 'primary',
                   underline: 'never',
                   style: `font-size:12px;${row.permissionId ? 'cursor:not-allowed;color:var(--el-text-color-disabled)' : ''}`,
-                  onClick: () => { if (!row.permissionId) deleteCluster(row) }
+                  onClick: () => {
+                    if (!row.permissionId) deleteCluster(row)
+                  }
                 },
                 () => '删除'
               ),
@@ -1078,7 +1108,6 @@
     height: 82vh;
     margin-top: 9vh;
   }
-
 
   .destroy-plan-dialog .el-message-box__message {
     padding-top: 2px;

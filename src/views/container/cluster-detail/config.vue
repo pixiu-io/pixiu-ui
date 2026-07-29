@@ -131,7 +131,11 @@
         :closable="false"
         show-icon
         class="quota-alert"
-        :description="certDialogMode === 'unbind' ? '解除域名和证书的绑定关系，勾选需要解除的域名，进行解绑。' : '关联域名可将 TLS Secret 绑定到 Ingress 的 HTTPS 证书。'"
+        :description="
+          certDialogMode === 'unbind'
+            ? '解除域名和证书的绑定关系，勾选需要解除的域名，进行解绑。'
+            : '关联域名可将 TLS Secret 绑定到 Ingress 的 HTTPS 证书。'
+        "
       />
       <div v-if="certSecret" class="cert-domain-dialog__hint">
         <template v-if="certDialogMode === 'unbind'">
@@ -183,8 +187,8 @@
       @closed="resetReplaceCertForm"
     >
       <div v-if="replaceCertSecret" class="replace-cert-dialog__hint">
-        替换 Secret <b>{{ replaceCertSecret.name }}</b>（{{ replaceCertSecret.namespace }}）的 TLS
-        证书与私钥
+        替换 Secret <b>{{ replaceCertSecret.name }}</b
+        >（{{ replaceCertSecret.namespace }}）的 TLS 证书与私钥
       </div>
       <div class="tls-panes">
         <div class="tls-pane">
@@ -231,6 +235,77 @@
         >
       </template>
     </ElDialog>
+
+    <ElDialog
+      v-model="syncNsVisible"
+      title="同步到命名空间"
+      width="660px"
+      align-center
+      :close-on-click-modal="false"
+      destroy-on-close
+      class="sync-ns-dialog"
+      header-class="cert-domain-dialog-header"
+      body-class="cert-domain-dialog-body"
+      footer-class="sync-ns-dialog-footer"
+      @closed="resetSyncNsDialog"
+    >
+      <ElAlert
+        type="info"
+        :closable="false"
+        show-icon
+        class="quota-alert"
+        description="将当前 Secret 同步到其他命名空间。"
+      />
+      <div v-if="syncNsSecret" class="sync-ns-dialog__hint">
+        同步 Secret <b>{{ syncNsSecret.name }}</b
+        >（源命名空间：{{ syncNsSecret.namespace }}）
+      </div>
+      <ElTable
+        ref="syncNsTableRef"
+        v-loading="syncNsLoading"
+        :data="syncNsRows"
+        stripe
+        row-key="name"
+        max-height="360"
+        class="sync-ns-dialog__table"
+        empty-text="暂无可用命名空间"
+        @selection-change="onSyncNsSelectionChange"
+      >
+        <ElTableColumn type="selection" width="30" />
+        <ElTableColumn label="命名空间" prop="name" min-width="200" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span class="sync-ns-cell">{{ row.name }}</span>
+          </template>
+        </ElTableColumn>
+        <ElTableColumn label="状态" width="100">
+          <template #default="{ row }">
+            <span class="sync-ns-status" :class="row.exists ? 'is-exists' : 'is-empty'">{{
+              row.exists ? '已存在' : '未同步'
+            }}</span>
+          </template>
+        </ElTableColumn>
+        <ElTableColumn label="更新时间" width="168">
+          <template #default="{ row }">
+            <span class="sync-ns-cell">{{ row.updateTime || '-' }}</span>
+          </template>
+        </ElTableColumn>
+      </ElTable>
+      <template #footer>
+        <div class="sync-ns-dialog__footer">
+          <ElCheckbox v-model="syncNsForce" class="sync-ns-force">强制同步</ElCheckbox>
+          <div class="sync-ns-dialog__footer-actions">
+            <ElButton @click="syncNsVisible = false">取消</ElButton>
+            <ElButton
+              type="primary"
+              :loading="syncNsSaving"
+              :disabled="syncNsLoading || !syncNsCanSubmit"
+              @click="submitSyncNs"
+              >确认同步</ElButton
+            >
+          </div>
+        </div>
+      </template>
+    </ElDialog>
   </div>
 </template>
 
@@ -239,6 +314,7 @@
     ElAlert,
     ElButton,
     ElCard,
+    ElCheckbox,
     ElDialog,
     ElInput,
     ElLink,
@@ -274,8 +350,10 @@
     fetchK8sSecret,
     deleteK8sSecret,
     patchK8sSecret,
+    createK8sSecret,
     type K8sSecret
   } from '@/api/kubernetes/secret'
+  import { fetchK8sNamespaceList } from '@/api/kubernetes/namespace'
   import {
     fetchK8sIngressList,
     fetchK8sIngress,
@@ -524,12 +602,17 @@
     }
     replaceCertSaving.value = true
     try {
-      await patchK8sSecret(cluster, replaceCertSecret.value.namespace, replaceCertSecret.value.name, {
-        stringData: {
-          'tls.crt': cert,
-          'tls.key': key
+      await patchK8sSecret(
+        cluster,
+        replaceCertSecret.value.namespace,
+        replaceCertSecret.value.name,
+        {
+          stringData: {
+            'tls.crt': cert,
+            'tls.key': key
+          }
         }
-      })
+      )
       ElMessage.success('证书已更新')
       replaceCertVisible.value = false
       refreshSecData()
@@ -547,6 +630,196 @@
       openCertDialog(row, 'unbind')
     } else if (item.key === 'replace') {
       openReplaceCertDialog(row)
+    } else if (item.key === 'sync-ns') {
+      openSyncNsDialog(row)
+    }
+  }
+
+  // ── 同步到命名空间 ──
+  interface SyncNsRow {
+    name: string
+    exists: boolean
+    /** 目标命名空间已存在同名 Secret 时的创建/更新时间展示 */
+    updateTime: string
+  }
+
+  const syncNsVisible = ref(false)
+  const syncNsLoading = ref(false)
+  const syncNsSaving = ref(false)
+  /** 强制同步：已存在则覆盖为源内容，不存在则创建 */
+  const syncNsForce = ref(false)
+  const syncNsSecret = ref<{ name: string; namespace: string } | null>(null)
+  const syncNsSource = ref<K8sSecret | null>(null)
+  const syncNsRows = ref<SyncNsRow[]>([])
+  /** 打开弹窗时已存在同名 Secret 的命名空间（确认时默认跳过创建） */
+  const syncNsExistingSet = ref<Set<string>>(new Set())
+  const syncNsChecked = ref<string[]>([])
+  const syncNsTableRef = ref<{
+    toggleRowSelection: (row: SyncNsRow, selected?: boolean) => void
+    clearSelection: () => void
+  } | null>(null)
+
+  const syncNsCreateTargets = computed(() =>
+    syncNsChecked.value.filter((ns) => !syncNsExistingSet.value.has(ns))
+  )
+
+  const syncNsCanSubmit = computed(() => {
+    if (syncNsForce.value) return syncNsChecked.value.length > 0
+    return syncNsCreateTargets.value.length > 0
+  })
+
+  function onSyncNsSelectionChange(rows: SyncNsRow[]) {
+    syncNsChecked.value = rows.map((r) => r.name)
+  }
+
+  function resetSyncNsDialog() {
+    syncNsSecret.value = null
+    syncNsSource.value = null
+    syncNsRows.value = []
+    syncNsExistingSet.value = new Set()
+    syncNsChecked.value = []
+    syncNsForce.value = false
+    syncNsLoading.value = false
+    syncNsSaving.value = false
+  }
+
+  async function openSyncNsDialog(row: K8sSecret) {
+    const ns = row.metadata?.namespace ?? ''
+    const name = row.metadata?.name ?? ''
+    if (!ns || !name) return
+    const cluster = String(route.query.cluster ?? '')
+    if (!cluster) {
+      ElMessage.error('缺少集群参数')
+      return
+    }
+    syncNsSecret.value = { name, namespace: ns }
+    syncNsVisible.value = true
+    syncNsLoading.value = true
+    syncNsRows.value = []
+    syncNsChecked.value = []
+    try {
+      const [source, nsRes, sameNameRes] = await Promise.all([
+        fetchK8sSecret(cluster, ns, name),
+        fetchK8sNamespaceList(cluster, { page: 1, limit: 9999 }),
+        fetchK8sSecretList(cluster, { page: 1, limit: 9999, name })
+      ])
+      syncNsSource.value = source
+      const existingByNs = new Map<string, string>()
+      for (const s of sameNameRes.items) {
+        const n = s.metadata?.namespace
+        if (!n) continue
+        existingByNs.set(n, formatNodeCreationTime(s.metadata?.creationTimestamp))
+      }
+      syncNsExistingSet.value = new Set(existingByNs.keys())
+      const rows: SyncNsRow[] = (nsRes.items ?? [])
+        .map((item) => item.metadata?.name)
+        .filter((n): n is string => !!n && n !== ns)
+        .sort((a, b) => a.localeCompare(b))
+        .map((n) => ({
+          name: n,
+          exists: existingByNs.has(n),
+          updateTime: existingByNs.get(n) ?? ''
+        }))
+      syncNsRows.value = rows
+      await nextTick()
+      syncNsTableRef.value?.clearSelection?.()
+      for (const r of rows) {
+        if (r.exists) syncNsTableRef.value?.toggleRowSelection(r, true)
+      }
+    } catch (e: any) {
+      ElMessage.error(e?.response?.data?.message || e?.message || '加载命名空间失败')
+      syncNsVisible.value = false
+    } finally {
+      syncNsLoading.value = false
+    }
+  }
+
+  async function submitSyncNs() {
+    if (!syncNsSecret.value || !syncNsSource.value) return
+    const checked = syncNsChecked.value
+    if (!checked.length) {
+      ElMessage.warning('请选择命名空间')
+      return
+    }
+    const force = syncNsForce.value
+    const createTargets = syncNsCreateTargets.value
+    const updateTargets = force
+      ? checked.filter((ns) => syncNsExistingSet.value.has(ns))
+      : []
+    const targets = force ? checked : createTargets
+    if (!targets.length) {
+      ElMessage.warning(force ? '请选择命名空间' : '没有需要新建的命名空间')
+      return
+    }
+    const cluster = String(route.query.cluster ?? '')
+    if (!cluster) {
+      ElMessage.error('缺少集群参数')
+      return
+    }
+    const source = syncNsSource.value
+    const secretName = syncNsSecret.value.name
+    const bodyBase = {
+      apiVersion: 'v1',
+      kind: 'Secret',
+      type: source.type || 'Opaque',
+      data: source.data ?? {},
+      metadata: {
+        name: secretName,
+        labels: source.metadata?.labels,
+        annotations: source.metadata?.annotations
+      }
+    }
+    const patchBody = {
+      type: source.type || 'Opaque',
+      data: source.data ?? {},
+      metadata: {
+        labels: source.metadata?.labels,
+        annotations: source.metadata?.annotations
+      }
+    }
+    syncNsSaving.value = true
+    try {
+      const results = await Promise.allSettled(
+        targets.map((targetNs) => {
+          if (syncNsExistingSet.value.has(targetNs)) {
+            return patchK8sSecret(cluster, targetNs, secretName, patchBody)
+          }
+          return createK8sSecret(cluster, targetNs, {
+            ...bodyBase,
+            metadata: { ...bodyBase.metadata, namespace: targetNs }
+          })
+        })
+      )
+      const ok = results.filter((r) => r.status === 'fulfilled').length
+      const fail = results.length - ok
+      if (fail === 0) {
+        if (force && updateTargets.length > 0 && createTargets.length > 0) {
+          ElMessage.success(
+            `已创建 ${createTargets.length} 个、覆盖更新 ${updateTargets.length} 个命名空间`
+          )
+        } else if (force && updateTargets.length > 0) {
+          ElMessage.success(`已覆盖更新 ${ok} 个命名空间`)
+        } else {
+          ElMessage.success(`已同步到 ${ok} 个命名空间`)
+        }
+        syncNsVisible.value = false
+      } else if (ok > 0) {
+        ElMessage.warning(`成功 ${ok} 个，失败 ${fail} 个`)
+      } else {
+        const firstErr = results.find((r) => r.status === 'rejected') as
+          | PromiseRejectedResult
+          | undefined
+        ElMessage.error(
+          (firstErr?.reason as any)?.response?.data?.message ||
+            (firstErr?.reason as Error)?.message ||
+            '同步失败'
+        )
+      }
+      refreshSecData()
+    } catch (e: any) {
+      ElMessage.error(e?.response?.data?.message || e?.message || '同步失败')
+    } finally {
+      syncNsSaving.value = false
     }
   }
 
@@ -1068,7 +1341,13 @@
                 list: [
                   { key: 'bind', label: '关联域名', icon: 'ri:link', disabled: !isTls },
                   { key: 'unbind', label: '解除域名', icon: 'ri:link-unlink', disabled: !isTls },
-                  { key: 'replace', label: '替换证书', icon: 'ri:file-shield-2-line', disabled: !isTls }
+                  {
+                    key: 'replace',
+                    label: '替换证书',
+                    icon: 'ri:file-shield-2-line',
+                    disabled: !isTls
+                  },
+                  { key: 'sync-ns', label: '同步到命名空间', icon: 'ri:share-forward-box-line' }
                 ],
                 onClick: (item: ButtonMoreItem) => certMoreClick(item, row)
               })
@@ -1348,5 +1627,102 @@
   .tls-field-error {
     font-size: 12px;
     color: var(--el-color-danger);
+  }
+
+  .sync-ns-dialog__hint {
+    margin: 0 0 12px;
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--el-text-color-regular);
+    line-height: 1.5;
+  }
+
+  .sync-ns-dialog__hint b {
+    font-weight: 500;
+    color: var(--el-text-color-primary);
+  }
+
+  .sync-ns-dialog__table {
+    width: 100%;
+  }
+
+  .sync-ns-dialog__table :deep(.el-table) {
+    font-size: 13px;
+    color: var(--el-text-color-regular);
+  }
+
+  .sync-ns-dialog__table :deep(.el-table th.el-table__cell) {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--el-text-color-secondary);
+  }
+
+  .sync-ns-dialog__table :deep(.el-table td.el-table__cell) {
+    font-size: 12px;
+    color: var(--el-text-color-regular);
+  }
+
+  .sync-ns-dialog__table :deep(.el-table__empty-text) {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+  }
+
+  .sync-ns-dialog__table :deep(.el-table-column--selection .cell) {
+    padding-left: 10px;
+    padding-right: 0;
+  }
+
+  .sync-ns-cell {
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.5;
+    color: var(--el-text-color-regular);
+  }
+
+  .sync-ns-status {
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.5;
+  }
+
+  .sync-ns-status.is-exists {
+    color: var(--el-color-success);
+  }
+
+  .sync-ns-status.is-empty {
+    color: var(--el-text-color-secondary);
+  }
+
+  .sync-ns-dialog__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 12px;
+  }
+
+  .sync-ns-dialog__footer-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-left: auto;
+  }
+
+  /* 与 body 左右 24px、表格 selection cell padding-left 10px 对齐 */
+  :global(.sync-ns-dialog-footer) {
+    padding: 8px 24px 16px !important;
+  }
+
+  .sync-ns-force {
+    margin-left: 10px;
+    height: auto;
+    font-size: 12px;
+    color: var(--el-text-color-regular);
+  }
+
+  .sync-ns-force :deep(.el-checkbox__label) {
+    font-size: 12px;
+    color: var(--el-text-color-regular);
+    padding-left: 8px;
   }
 </style>

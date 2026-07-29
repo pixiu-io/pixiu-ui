@@ -102,14 +102,32 @@
             </ElRadioGroup>
           </div>
         </ElFormItem>
+        <ElFormItem label="连接模式" class="connect-form-row">
+          <ElRadioGroup v-model="importForm.connectMode" class="connect-mode-group">
+            <ElRadio :value="0">直连</ElRadio>
+            <ElRadio :value="1">隧道</ElRadio>
+          </ElRadioGroup>
+          <p class="connect-hint">
+            直连模式：Pixiu 通过 kubeconfig 直接访问 apiserver，适用于网络互通的集群<br />
+            隧道模式：通过反向代理访问 apiserver，适用于网络隔离环境的集群
+          </p>
+        </ElFormItem>
+        <ElFormItem v-if="importForm.connectMode === 1" label="API Key" class="agent-token-row">
+          <ElRadioGroup v-model="agentTokenMode" class="agent-token-mode">
+            <ElRadio value="auto">自动生成</ElRadio>
+            <ElRadio value="manual">手动指定</ElRadio>
+          </ElRadioGroup>
+          <ElInput
+            v-if="agentTokenMode === 'manual'"
+            v-model="importForm.agentToken"
+            placeholder="请输入 Agent Token"
+            clearable
+            class="agent-token-input"
+          />
+        </ElFormItem>
         <ElFormItem label="删除保护" class="protect-form-row">
           <div class="protect-block">
-            <ElSwitch
-              v-model="importForm.protected"
-              inline-prompt
-              active-text="开"
-              inactive-text="关"
-            />
+            <ElSwitch v-model="importForm.protected" />
             <p class="protect-hint">开启后不允许删除该集群</p>
           </div>
         </ElFormItem>
@@ -184,9 +202,12 @@
   const importForm = reactive({
     aliasName: '',
     kubeRaw: '',
+    connectMode: 0,
+    agentToken: '',
     protected: true,
     description: ''
   })
+  const agentTokenMode = ref<'auto' | 'manual'>('auto')
 
   const importRules: FormRules = {
     aliasName: [
@@ -222,6 +243,9 @@
     kubeInputMode.value = 'file'
     importForm.aliasName = ''
     importForm.kubeRaw = ''
+    importForm.connectMode = 0
+    importForm.agentToken = ''
+    agentTokenMode.value = 'auto'
     importForm.protected = true
     importForm.description = ''
     nextTick(() => uploadRef.value?.clearFiles())
@@ -274,6 +298,10 @@
       ElMessage.success('Kubernetes API 连接正常')
     } catch (e: unknown) {
       if (e instanceof PixiuApiError && e.notified) return
+      if (importForm.connectMode === 1) {
+        ElMessage.warning('隧道模式，等待 agent 安装完成后即可连接')
+        return
+      }
       const msg = e instanceof Error ? e.message : '连接失败'
       ElMessage.error(msg || '连接失败')
     } finally {
@@ -298,6 +326,8 @@
           kube_config: b64,
           description: importForm.description.trim(),
           protected: importForm.protected,
+          connect_mode: importForm.connectMode,
+          agent_token: importForm.connectMode === 1 ? (agentTokenMode.value === 'manual' ? importForm.agentToken.trim() : '') : undefined,
           cluster_type: 0
         })
         ElMessage.success('集群导入成功')
@@ -388,7 +418,7 @@
 
   /* 标签与开关同一行对齐，不与下方说明一起垂直居中 */
   .import-form :deep(.protect-form-row.el-form-item) {
-    align-items: flex-start;
+    align-items: center;
   }
 
   .import-form :deep(.protect-form-row .el-form-item__label) {
@@ -396,14 +426,16 @@
     height: 32px;
     padding-top: 0;
     padding-bottom: 0;
-    display: inline-flex;
-    align-items: center;
   }
 
   .import-form :deep(.el-form-item__label) {
-    font-size: 14px;
+    font-size: 12px;
     color: var(--el-text-color-regular);
     padding-right: 12px;
+  }
+
+  .import-form :deep(.el-input__inner) {
+    font-size: 12px;
   }
 
   .kube-config-block {
@@ -446,7 +478,10 @@
     background: transparent;
     border: 1px solid var(--el-border-color);
     border-radius: 0 !important;
-    transition: border-color 0.15s, color 0.15s, background-color 0.15s;
+    transition:
+      border-color 0.15s,
+      color 0.15s,
+      background-color 0.15s;
   }
 
   .kube-mode-group :deep(.el-radio-button:first-child .el-radio-button__inner),
@@ -467,6 +502,25 @@
     box-shadow: none !important;
     position: relative;
     z-index: 1;
+  }
+
+  .connect-mode-group :deep(.el-radio__label) {
+    font-size: 12px;
+  }
+
+  .connect-hint {
+    margin: 4px 0 0;
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+    line-height: 1.5;
+  }
+
+  .agent-token-mode :deep(.el-radio__label) {
+    font-size: 12px;
+  }
+
+  .agent-token-input {
+    margin-top: 6px;
   }
 
   .kube-panel {
@@ -491,19 +545,26 @@
     color: var(--el-text-color-placeholder);
   }
 
+  .kube-upload :deep(.el-upload__text) {
+    font-size: 12px;
+    color: var(--el-text-color-regular);
+  }
+
   .kube-upload :deep(.el-upload__text em) {
     color: var(--el-color-primary);
     font-style: normal;
+    font-size: 12px;
   }
 
   .kube-upload :deep(.el-upload__tip) {
     margin-top: 8px;
     line-height: 1.5;
+    font-size: 12px;
   }
 
   .kube-textarea :deep(textarea) {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    font-size: 13px;
+    font-size: 12px;
     line-height: 1.5;
   }
 
@@ -513,9 +574,9 @@
 
   .protect-block {
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
   }
 
   .protect-hint {
@@ -523,6 +584,10 @@
     font-size: 12px;
     color: var(--el-text-color-secondary);
     line-height: 1.5;
+  }
+
+  .protect-block :deep(.el-switch__label) {
+    font-size: 12px;
   }
 
   .dialog-footer-btns {

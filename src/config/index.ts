@@ -38,7 +38,7 @@ import { headerBarConfig } from './modules/headerBar'
 const appConfig: SystemConfig = {
   // 系统信息
   systemInfo: {
-    name: 'Pixiu Cloud', // 系统名称
+    name: 'Pixiu', // 系统名称
     version: 'v2.0.1' // 系统版本号
   },
   // 系统主题

@@ -21,7 +21,7 @@ function secretBase(cluster: string, namespace: string) {
 
 export async function fetchK8sSecretList(
   cluster: string,
-  params: { page: number; limit: number; namespace?: string }
+  params: { page: number; limit: number; namespace?: string; name?: string }
 ): Promise<{ items: K8sSecret[]; total: number }> {
   const base = params.namespace
     ? `/pixiu/proxy/${encodeURIComponent(cluster)}/api/v1/namespaces/${encodeURIComponent(params.namespace)}/secrets`
@@ -29,7 +29,8 @@ export async function fetchK8sSecretList(
   return fetchKubeListPage<K8sSecret>({
     path: base,
     page: params.page,
-    limit: params.limit
+    limit: params.limit,
+    fieldSelector: params.name ? `metadata.name=${params.name}` : undefined
   })
 }
 
