@@ -55,6 +55,7 @@
   const clearAnimationTimers = () => {
     animationTimers.value.forEach((timer) => clearTimeout(timer))
     animationTimers.value = []
+    clearRaf()
   }
 
   // 判断是否为多数据（使用 VueUse 的 computedEager 优化）
@@ -143,23 +144,62 @@
   }
 
   const LEFT_TO_RIGHT_TOTAL_MS = 300
-  const LEFT_TO_RIGHT_MIN_POINT_DELAY = 5
-  const LEFT_TO_RIGHT_MAX_POINT_DELAY = 20
+  const LEFT_TO_RIGHT_SKIP_ANIM_THRESHOLD = 100
+  const LEFT_TO_RIGHT_STEP_COUNT_MAX = 30
+  let rafId: number | null = null
 
-  function getLeftToRightPointDelay(pointCount: number): number {
-    if (pointCount <= 1) return 0
-    return Math.min(
-      LEFT_TO_RIGHT_MAX_POINT_DELAY,
-      Math.max(
-        LEFT_TO_RIGHT_MIN_POINT_DELAY,
-        Math.floor(LEFT_TO_RIGHT_TOTAL_MS / (pointCount - 1))
-      )
-    )
+  function clearRaf() {
+    if (rafId !== null) {
+      cancelAnimationFrame(rafId)
+      rafId = null
+    }
   }
 
-  /** 从左到右逐点展示：未展示位置为 null，折线只连左侧已展示点 */
-  function buildLeftToRightData(values: number[], revealCount: number): (number | null)[] {
-    return values.map((v, idx) => (idx < revealCount ? v : null))
+  function getDataPointCount(): number {
+    if (!Array.isArray(props.data) || !props.data.length) return 0
+    if (typeof props.data[0] === 'object' && 'name' in (props.data[0] as any)) {
+      const multiData = props.data as LineDataItem[]
+      return multiData.reduce((max, item) => Math.max(max, item.data?.length ?? 0), 0)
+    }
+    return (props.data as number[]).length
+  }
+
+  function shouldSkipLeftToRightAnimation(): boolean {
+    return getDataPointCount() > LEFT_TO_RIGHT_SKIP_ANIM_THRESHOLD
+  }
+
+  function buildLeftToRightDataValues(values: number[], ratio: number): (number | null)[] {
+    const len = values.length
+    if (!len) return []
+    if (ratio >= 1) return values.slice()
+    const revealFloat = Math.max(1, ratio * len)
+    const revealIdx = Math.floor(revealFloat)
+    const frac = revealFloat - revealIdx
+    const result: (number | null)[] = values.map((v, idx) => {
+      if (idx < revealIdx) return v
+      if (idx === revealIdx && frac > 0) {
+        const prev = revealIdx > 0 ? values[revealIdx - 1] ?? 0 : 0
+        return +(prev + (v - prev) * frac).toFixed(2)
+      }
+      return null
+    })
+    return result
+  }
+
+  function runRafAnimation(totalMs: number, onTick: (ratio: number) => void, onDone: () => void) {
+    const startTime = performance.now()
+    const tick = (now: number) => {
+      const elapsed = now - startTime
+      const ratio = Math.min(1, elapsed / totalMs)
+      onTick(ratio)
+      if (ratio >= 1) {
+        rafId = null
+        onDone()
+        return
+      }
+      rafId = requestAnimationFrame(tick)
+    }
+    rafId = requestAnimationFrame(tick)
   }
 
   // 创建系列配置
@@ -279,27 +319,32 @@
       return
     }
 
-    const pointDelay = getLeftToRightPointDelay(pointCount)
-
-    animatedData.value = buildLeftToRightData(realData, 1) as any
-    updateChartOptions(generateChartOptions(true, true))
-
-    if (pointCount === 1) {
+    if (shouldSkipLeftToRightAnimation() || pointCount === 1) {
+      animatedData.value = realData.slice() as any
+      updateChartOptions(generateChartOptions(false, false))
       isAnimating.value = false
       return
     }
 
-    for (let revealCount = 2; revealCount <= pointCount; revealCount++) {
-      const timer = window.setTimeout(
-        () => {
-          animatedData.value = buildLeftToRightData(realData, revealCount) as any
-          updateChartOptions(generateChartOptions(false, true))
-          if (revealCount === pointCount) isAnimating.value = false
-        },
-        (revealCount - 1) * pointDelay
-      )
-      animationTimers.value.push(timer)
-    }
+    animatedData.value = buildLeftToRightDataValues(realData, 0) as any
+    updateChartOptions(generateChartOptions(true, true))
+
+    let lastRenderRatio = -1
+    runRafAnimation(
+      LEFT_TO_RIGHT_TOTAL_MS,
+      (ratio) => {
+        const step = 1 / LEFT_TO_RIGHT_STEP_COUNT_MAX
+        if (ratio - lastRenderRatio < step && ratio < 1) return
+        lastRenderRatio = ratio
+        animatedData.value = buildLeftToRightDataValues(realData, ratio) as any
+        updateChartOptions(generateChartOptions(false, true))
+      },
+      () => {
+        animatedData.value = realData.slice() as any
+        updateChartOptions(generateChartOptions(false, true))
+        isAnimating.value = false
+      }
+    )
   }
 
   /** 多条折线同步从左到右逐点生成 */
@@ -310,39 +355,38 @@
       return
     }
 
-    const pointDelay = getLeftToRightPointDelay(maxLen)
-
-    animatedData.value = multiData.map((item) => ({
-      ...item,
-      data: buildLeftToRightData(item.data, 1) as any
-    }))
-    updateChartOptions(generateChartOptions(true, true))
-
-    if (maxLen === 1) {
+    if (shouldSkipLeftToRightAnimation() || maxLen === 1) {
       animatedData.value = copyRealData()
-      updateChartOptions(generateChartOptions(false, true))
+      updateChartOptions(generateChartOptions(false, false))
       isAnimating.value = false
       return
     }
 
-    for (let revealCount = 2; revealCount <= maxLen; revealCount++) {
-      const timer = window.setTimeout(
-        () => {
-          animatedData.value = multiData.map((item) => ({
-            ...item,
-            data: buildLeftToRightData(item.data, revealCount) as any
-          }))
-          updateChartOptions(generateChartOptions(false, true))
-          if (revealCount === maxLen) {
-            animatedData.value = copyRealData()
-            updateChartOptions(generateChartOptions(false, true))
-            isAnimating.value = false
-          }
-        },
-        (revealCount - 1) * pointDelay
-      )
-      animationTimers.value.push(timer)
-    }
+    animatedData.value = multiData.map((item) => ({
+      ...item,
+      data: buildLeftToRightDataValues(item.data ?? [], 0) as any
+    }))
+    updateChartOptions(generateChartOptions(true, true))
+
+    let lastRenderRatio = -1
+    runRafAnimation(
+      LEFT_TO_RIGHT_TOTAL_MS,
+      (ratio) => {
+        const step = 1 / LEFT_TO_RIGHT_STEP_COUNT_MAX
+        if (ratio - lastRenderRatio < step && ratio < 1) return
+        lastRenderRatio = ratio
+        animatedData.value = multiData.map((item) => ({
+          ...item,
+          data: buildLeftToRightDataValues(item.data ?? [], ratio) as any
+        }))
+        updateChartOptions(generateChartOptions(false, true))
+      },
+      () => {
+        animatedData.value = copyRealData()
+        updateChartOptions(generateChartOptions(false, true))
+        isAnimating.value = false
+      }
+    )
   }
 
   // 初始化动画：折线从左向右逐点展开

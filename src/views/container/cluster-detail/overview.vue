@@ -790,29 +790,14 @@
     () => usageOverviewLoading.value && !usageChartReady.value
   )
 
-  const usageChartSilentUpdate = ref(false)
-  let usageChartAnimateTimer: ReturnType<typeof setTimeout> | null = null
+  const usageChartSilentUpdate = ref(true)
 
-  function scheduleUsageChartSilentUpdate() {
-    if (usageChartAnimateTimer) clearTimeout(usageChartAnimateTimer)
-    usageChartAnimateTimer = setTimeout(() => {
-      usageChartSilentUpdate.value = true
-      usageChartAnimateTimer = null
-    }, 1500)
-  }
-
-  watch(usageChartReady, (ready: any) => {
-    if (ready && !usageChartSilentUpdate.value) scheduleUsageChartSilentUpdate()
-  })
+  watch(usageChartReady, () => {})
 
   function stopOverviewBackgroundLoads() {
     stopUsageOverviewRefresh()
     resetUsageOverviewCharts()
-    usageChartSilentUpdate.value = false
-    if (usageChartAnimateTimer) {
-      clearTimeout(usageChartAnimateTimer)
-      usageChartAnimateTimer = null
-    }
+    usageChartSilentUpdate.value = true
   }
 
   /** 仅在概览路由且 KeepAlive 激活时拉取各 Tab 数据，避免切到节点管理等页仍发统计请求 */
