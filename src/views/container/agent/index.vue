@@ -81,6 +81,7 @@
 import { computed, h, ref } from 'vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { useTable } from '@/hooks/core/useTable'
+import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
 import { pixiuAxios } from '@/api/container'
 import { fetchAgentList, fetchCreateAgent, fetchUpdateAgent, fetchDeleteAgent, type AgentItem } from '@/api/agent'
 
@@ -239,6 +240,8 @@ const {
     ]
   }
 })
+
+useSkipFirstActivatedRefresh(refreshData)
 
 function handleSearch() {
   refreshData()

@@ -166,7 +166,6 @@
     fetchPlanTasks,
     fetchDestroyPlan
   } from '@/api/plan'
-  import { fetchAgentList, type AgentItem } from '@/api/agent'
   import { confirmDestroyPlan } from '../utils/destroy-plan-dialog'
   import type { PlanItemFormatted, PlanTask } from '@/api/plan'
 
@@ -384,7 +383,6 @@
   const searchName = ref('')
   const alertVisible = ref(true)
   const selectedRows = ref<PlanItemFormatted[]>([])
-  const agentNameMap = ref<Record<number, string>>({})
 
   // 任务进度抽屉
   const taskDrawerVisible = ref(false)
@@ -473,17 +471,7 @@
           label: '执行模式',
           width: 110,
           formatter: (row: PlanItemFormatted) =>
-            h('span', { style: 'font-size:12px' }, row.execMode === 'agent' ? 'Agent模式' : '本地模式')
-        },
-        {
-          prop: 'deployAgentId',
-          label: '执行Agent',
-          width: 140,
-          formatter: (row: PlanItemFormatted) => {
-            if (row.execMode !== 'agent') return h('span', { style: 'font-size:12px;color:var(--el-text-color-placeholder)' }, '-')
-            const name = agentNameMap.value[row.deployAgentId]
-            return h('span', { style: 'font-size:12px' }, name || String(row.deployAgentId))
-          }
+            h('span', { style: 'font-size:12px' }, row.execMode || '-')
         },
         {
           prop: 'kubernetesVersion',
@@ -705,24 +693,7 @@
     selectedRows.value = rows
   }
 
-  async function loadAgentNameMap() {
-    try {
-      const { items } = await fetchAgentList({ limit: 200 })
-      const map: Record<number, string> = {}
-      for (const a of items) {
-        map[a.id] = a.name
-      }
-      agentNameMap.value = map
-    } catch {
-      // ignore
-    }
-  }
-
   useSkipFirstActivatedRefresh(refreshData)
-
-  onMounted(() => {
-    loadAgentNameMap()
-  })
 
   onBeforeUnmount(() => {
     stopTaskPolling()

@@ -420,6 +420,14 @@
     deployAgentId: number | undefined
   }
 
+  function validateDeployAgentId(_r: unknown, value: number | undefined, cb: (err?: Error) => void) {
+    if (props.form.execMode === 'agent' && !value) {
+      cb(new Error('请选择执行Agent'))
+      return
+    }
+    cb()
+  }
+
   defineOptions({ name: 'StepBasic' })
 
   const props = withDefaults(
@@ -569,8 +577,13 @@
 
   // 当 execMode 从外部变更为 agent 时（如加载已有计划详情），自动拉取 agent 列表
   watch(() => props.form.execMode, (mode) => {
-    if (mode === 'agent' && agents.value.length === 0) {
-      loadAgents()
+    if (mode === 'agent') {
+      if (agents.value.length === 0) {
+        loadAgents()
+      }
+      nextTick(() => formRef.value?.validateField('deployAgentId'))
+    } else {
+      formRef.value?.clearValidate('deployAgentId')
     }
   })
 
@@ -745,7 +758,8 @@
     networkInterface: [{ required: true, message: '请输入节点网口名称', trigger: 'blur' }],
     cni: [{ required: true, message: '请选择容器网络插件', trigger: 'change' }],
     podNetwork: [{ required: true, validator: validateCidr, trigger: 'blur' }],
-    serviceNetwork: [{ required: true, validator: validateCidr, trigger: 'change' }]
+    serviceNetwork: [{ required: true, validator: validateCidr, trigger: 'change' }],
+    deployAgentId: [{ validator: validateDeployAgentId, trigger: ['change', 'blur'] }]
   }
 
   async function validate(): Promise<boolean> {
