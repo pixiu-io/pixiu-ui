@@ -236,7 +236,7 @@ const {
       { prop: 'status', label: '状态', width: 100, formatter: (row: AgentItem) => {
         const online = row.status === 1
         return h('div', { style: 'display:flex;align-items:center;gap:4px' }, [
-          h('span', { style: `width:8px;height:8px;border-radius:50%;background:${online ? '#16a34a' : '#9ca3af'};flex-shrink:0` }),
+          h('span', { style: `width:10px;height:10px;border-radius:50%;background:${online ? '#16a34a' : '#9ca3af'};flex-shrink:0` }),
           h('span', { style: 'font-size:12px' }, online ? '在线' : '离线')
         ])
       }},
