@@ -1,20 +1,30 @@
 <template>
   <ElDialog
     v-model="dialogVisible"
-    :title="dialogType === 'add' ? '新增Provider' : '编辑 AI 配置'"
+    :title="dialogType === 'add' ? '新增 AI 账号' : '编辑 AI 账号'"
     width="560px"
     align-center
   >
     <ElForm ref="formRef" :model="formData" :rules="rules" label-width="100px">
-      <ElFormItem label="供应商" prop="provider">
-        <ElInput v-model="formData.provider" placeholder="例如 OpenAI / Azure OpenAI" />
+      <ElFormItem label="账号名称" prop="name">
+        <ElInput v-model="formData.name" placeholder="例如 生产环境 GLM" />
+      </ElFormItem>
+      <ElFormItem label="Provider" prop="providerId">
+        <ElSelect v-model="formData.providerId" placeholder="请选择 Provider" style="width: 100%">
+          <ElOption
+            v-for="provider in providers"
+            :key="provider.id"
+            :label="`${provider.name} (${provider.protocol})`"
+            :value="provider.id"
+          />
+        </ElSelect>
       </ElFormItem>
       <ElFormItem label="API Key" prop="apiKey">
         <div class="api-key-field">
           <ElInput
             v-model="formData.apiKey"
             :type="apiKeyVisible ? 'text' : 'password'"
-            placeholder="请输入 API Key"
+            :placeholder="dialogType === 'edit' ? '留空表示不修改' : '请输入 API Key'"
           />
           <button
             type="button"
@@ -28,22 +38,8 @@
           </button>
         </div>
       </ElFormItem>
-      <ElFormItem label="Base URL" prop="baseUrl">
-        <ElInput v-model="formData.baseUrl" placeholder="例如 https://api.openai.com" />
-      </ElFormItem>
       <ElFormItem label="模型" prop="model">
         <ElInput v-model="formData.model" placeholder="例如 gpt-4.1 / gpt-4o-mini" />
-      </ElFormItem>
-      <ElFormItem label="说明" prop="description">
-        <ElInput
-          v-model="formData.description"
-          type="textarea"
-          :rows="4"
-          placeholder="可选，备注用途或场景"
-        />
-      </ElFormItem>
-      <ElFormItem label="启用状态" prop="enabled">
-        <ElSwitch v-model="formData.enabled" />
       </ElFormItem>
     </ElForm>
     <template #footer>
@@ -63,6 +59,7 @@
     visible: boolean
     type: string
     accountData?: Partial<Api.SystemManage.AIAccountListItem>
+    providers: Api.SystemManage.AIProviderListItem[]
   }
 
   interface Emits {
@@ -70,12 +67,10 @@
     (
       e: 'submit',
       data: {
-        provider: string
+        name: string
+        providerId: number
         apiKey: string
-        baseUrl: string
         model: string
-        description: string
-        enabled: boolean
       }
     ): void
   }
@@ -93,18 +88,26 @@
   const apiKeyVisible = ref(false)
 
   const formData = reactive({
-    provider: '',
+    name: '',
+    providerId: undefined as number | undefined,
     apiKey: '',
-    baseUrl: '',
-    model: '',
-    description: '',
-    enabled: true
+    model: ''
   })
 
   const rules: FormRules = {
-    provider: [{ required: true, message: '请输入供应商', trigger: 'blur' }],
-    apiKey: [{ required: true, message: '请输入 API Key', trigger: 'blur' }],
-    baseUrl: [{ required: true, message: '请输入 Base URL', trigger: 'blur' }]
+    name: [{ required: true, message: '请输入账号名称', trigger: 'blur' }],
+    providerId: [{ required: true, message: '请选择 Provider', trigger: 'change' }],
+    apiKey: [
+      {
+        validator: (_rule, value, callback) => {
+          if (props.type === 'add' && !String(value || '').trim())
+            callback(new Error('请输入 API Key'))
+          else callback()
+        },
+        trigger: 'blur'
+      }
+    ],
+    model: [{ required: true, message: '请输入模型', trigger: 'blur' }]
   }
 
   const initFormData = () => {
@@ -112,12 +115,10 @@
     const row = props.accountData
 
     Object.assign(formData, {
-      provider: isEdit && row ? row.provider || '' : '',
-      apiKey: isEdit && row ? row.apiKey || '' : '',
-      baseUrl: isEdit && row ? row.baseUrl || '' : '',
-      model: isEdit && row ? row.model || '' : '',
-      description: isEdit && row ? row.description || '' : '',
-      enabled: isEdit && row ? Boolean(row.enabled) : true
+      name: isEdit && row ? row.name || '' : '',
+      providerId: isEdit && row ? row.providerId : props.providers[0]?.id,
+      apiKey: '',
+      model: isEdit && row ? row.model || '' : ''
     })
   }
 
@@ -140,7 +141,7 @@
 
     await formRef.value.validate((valid) => {
       if (valid) {
-        emit('submit', { ...formData })
+        emit('submit', { ...formData, providerId: formData.providerId! })
       }
     })
   }
