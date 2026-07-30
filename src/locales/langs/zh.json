@@ -260,7 +260,8 @@
       "title": "容器服务",
       "cluster": "集群",
       "clusterDetail": "集群详情",
-      "plan": "部署"
+      "plan": "部署",
+      "agent": "Agent"
     },
     "help": {
       "title": "帮助中心",

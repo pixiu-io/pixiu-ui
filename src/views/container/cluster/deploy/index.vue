@@ -232,7 +232,9 @@
     ingressNginx: true,
     nodes: [] as NodeConfig[],
     enablePrometheus: false,
-    enableLogging: false
+    enableLogging: false,
+    execMode: 'local',
+    deployAgentId: 0
   })
 
   const form = ref<DeployClusterForm>(defaultForm())
@@ -324,7 +326,9 @@
         ingressNginx: Boolean((cfg.component as any)?.ingress_nginx?.enable),
         nodes: (detail.nodes ?? []).map(mapNodeFromApi),
         enablePrometheus: Boolean(cfg.component?.prometheus?.enabled),
-        enableLogging: Boolean(cfg.component?.logging?.enabled)
+        enableLogging: Boolean(cfg.component?.logging?.enabled),
+        execMode: planMeta.execMode || 'local',
+        deployAgentId: planMeta.deployAgentId || 0
       }
       // 进入部署详情默认落在「集群信息」
       activeTabName.value = '0'
@@ -443,6 +447,8 @@
     return {
       name: f.name,
       description: f.description,
+      exec_mode: f.execMode || 'local',
+      deploy_agent_id: f.deployAgentId || 0,
       config: {
         os_image: f.osImage,
         description: f.description,

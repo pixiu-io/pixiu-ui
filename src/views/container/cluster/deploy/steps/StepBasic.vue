@@ -141,6 +141,36 @@
       </div>
     </ElFormItem>
 
+    <ElFormItem label="执行模式" prop="execMode">
+      <ElRadioGroup
+        :model-value="form.execMode"
+        :disabled="readOnly"
+        @update:model-value="onExecModeChange"
+      >
+        <ElRadio value="local">本地模式</ElRadio>
+        <ElRadio value="agent">Agent模式</ElRadio>
+      </ElRadioGroup>
+      <div class="form-tip">本地模式由 Pixiu Server 直接执行部署，Agent模式由边缘 Agent 拉取任务执行</div>
+    </ElFormItem>
+    <ElFormItem v-if="form.execMode === 'agent'" label="部署 Agent" prop="deployAgentId">
+      <ElSelect
+        :model-value="form.deployAgentId"
+        placeholder="请选择部署 Agent"
+        style="width: 280px"
+        :loading="agentLoading"
+        :disabled="readOnly"
+        @update:model-value="emit('update:form', { ...form, deployAgentId: Number($event) || 0 })"
+      >
+        <ElOption
+          v-for="a in agents"
+          :key="a.id"
+          :label="`${a.name} (${a.hostname || '-'})`"
+          :value="a.id"
+        />
+      </ElSelect>
+      <div class="form-tip">选择执行部署任务的 Agent，需确保 Agent 已在线</div>
+    </ElFormItem>
+
     <ElFormItem label="描述">
       <ElInput
         :model-value="form.description"
@@ -341,6 +371,7 @@
   import { WarningFilled } from '@element-plus/icons-vue'
   import { fetchAllDistributions } from '@/api/distribution'
   import type { DistributionItem } from '@/api/distribution'
+  import { fetchAgentList, type AgentItem } from '@/api/agent'
 
   export interface NodeConfig {
     name: string
@@ -383,6 +414,8 @@
     nodes: NodeConfig[]
     enablePrometheus: boolean
     enableLogging: boolean
+    execMode: string
+    deployAgentId: number
   }
 
   defineOptions({ name: 'StepBasic' })
@@ -503,7 +536,33 @@
         })
       }
     }
+
+    if (props.form.execMode === 'agent') {
+      loadAgents()
+    }
   })
+
+  const agentLoading = ref(false)
+  const agents = ref<AgentItem[]>([])
+
+  async function loadAgents() {
+    agentLoading.value = true
+    try {
+      const { items } = await fetchAgentList({ limit: 200 })
+      agents.value = items
+    } catch {
+      agents.value = []
+    } finally {
+      agentLoading.value = false
+    }
+  }
+
+  function onExecModeChange(mode: string) {
+    emit('update:form', { ...props.form, execMode: mode, deployAgentId: mode === 'agent' ? props.form.deployAgentId : 0 })
+    if (mode === 'agent' && agents.value.length === 0) {
+      loadAgents()
+    }
+  }
 
   function onOsTypeChange(osType: string) {
     const images = distributions.value

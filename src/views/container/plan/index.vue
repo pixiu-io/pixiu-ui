@@ -467,6 +467,13 @@
           }
         },
         {
+          prop: 'execMode',
+          label: '执行模式',
+          width: 110,
+          formatter: (row: PlanItemFormatted) =>
+            h('span', { style: 'font-size:12px' }, row.execMode || '-')
+        },
+        {
           prop: 'kubernetesVersion',
           label: 'Kubernetes 版本',
           width: 200,
