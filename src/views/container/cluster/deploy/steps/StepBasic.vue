@@ -145,27 +145,29 @@
       <ElRadioGroup
         :model-value="form.execMode"
         :disabled="readOnly"
+        class="kube-mode-group"
         @update:model-value="onExecModeChange"
       >
-        <ElRadio value="local">本地模式</ElRadio>
-        <ElRadio value="agent">Agent模式</ElRadio>
+        <ElRadioButton value="local">本地模式</ElRadioButton>
+        <ElRadioButton value="agent">Agent模式</ElRadioButton>
       </ElRadioGroup>
       <div class="form-tip">本地模式由 Pixiu Server 直接执行部署，Agent模式由边缘 Agent 拉取任务执行</div>
     </ElFormItem>
-    <ElFormItem v-if="form.execMode === 'agent'" label="部署 Agent" prop="deployAgentId">
+    <ElFormItem v-if="form.execMode === 'agent'" label="执行Agent" prop="deployAgentId">
       <ElSelect
         :model-value="form.deployAgentId"
-        placeholder="请选择部署 Agent"
+        placeholder="请选择执行Agent"
         style="width: 280px"
         :loading="agentLoading"
         :disabled="readOnly"
-        @update:model-value="emit('update:form', { ...form, deployAgentId: Number($event) || 0 })"
+        @update:model-value="emit('update:form', { ...form, deployAgentId: $event })"
       >
         <ElOption
           v-for="a in agents"
           :key="a.id"
-          :label="`${a.name} (${a.hostname || '-'})`"
+          :label="`${a.name} (${a.hostname || '-'})${a.status !== 1 ? ' [离线]' : ''}`"
           :value="a.id"
+          :disabled="a.status !== 1"
         />
       </ElSelect>
       <div class="form-tip">选择执行部署任务的 Agent，需确保 Agent 已在线</div>
@@ -415,7 +417,7 @@
     enablePrometheus: boolean
     enableLogging: boolean
     execMode: string
-    deployAgentId: number
+    deployAgentId: number | undefined
   }
 
   defineOptions({ name: 'StepBasic' })
@@ -545,6 +547,14 @@
   const agentLoading = ref(false)
   const agents = ref<AgentItem[]>([])
 
+  const agentNameMap = computed(() => {
+    const map: Record<number, string> = {}
+    for (const a of agents.value) {
+      map[a.id] = a.name
+    }
+    return map
+  })
+
   async function loadAgents() {
     agentLoading.value = true
     try {
@@ -557,8 +567,15 @@
     }
   }
 
+  // 当 execMode 从外部变更为 agent 时（如加载已有计划详情），自动拉取 agent 列表
+  watch(() => props.form.execMode, (mode) => {
+    if (mode === 'agent' && agents.value.length === 0) {
+      loadAgents()
+    }
+  })
+
   function onExecModeChange(mode: string) {
-    emit('update:form', { ...props.form, execMode: mode, deployAgentId: mode === 'agent' ? props.form.deployAgentId : 0 })
+    emit('update:form', { ...props.form, execMode: mode, deployAgentId: mode === 'agent' ? props.form.deployAgentId : undefined })
     if (mode === 'agent' && agents.value.length === 0) {
       loadAgents()
     }
@@ -1035,5 +1052,33 @@
 
   .advanced-toggle-btn {
     font-size: 12px;
+  }
+
+  .kube-mode-group {
+    display: flex;
+    width: 200px;
+    min-width: 200px;
+    max-width: 200px;
+    overflow: hidden;
+    box-sizing: border-box;
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+  .kube-mode-group :deep(.el-radio-button) { flex: 1 1 0; min-width: 0; display: flex; }
+  .kube-mode-group :deep(.el-radio-button__inner) {
+    display: flex; flex: 1; align-items: center; justify-content: center;
+    width: 100%; box-sizing: border-box; text-align: center;
+    font-size: 12px; padding: 0 10px; line-height: 10px; font-weight: 400;
+    color: var(--el-text-color-regular); background: transparent;
+    border: 1px solid var(--el-border-color); border-radius: 0 !important;
+    transition: border-color 0.15s, color 0.15s, background-color 0.15s;
+  }
+  .kube-mode-group :deep(.el-radio-button:first-child .el-radio-button__inner),
+  .kube-mode-group :deep(.el-radio-button:last-child .el-radio-button__inner) { border-radius: 0 !important; }
+  .kube-mode-group :deep(.el-radio-button__inner:hover) { border-color: var(--el-color-primary); color: var(--el-color-primary); }
+  .kube-mode-group :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
+    background-color: var(--el-bg-color-overlay) !important; color: var(--el-color-primary) !important;
+    font-weight: 500 !important; border-color: var(--el-color-primary) !important;
+    box-shadow: none !important; position: relative; z-index: 1;
   }
 </style>

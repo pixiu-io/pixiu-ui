@@ -234,7 +234,7 @@
     enablePrometheus: false,
     enableLogging: false,
     execMode: 'local',
-    deployAgentId: 0
+    deployAgentId: undefined as number | undefined
   })
 
   const form = ref<DeployClusterForm>(defaultForm())
@@ -328,7 +328,7 @@
         enablePrometheus: Boolean(cfg.component?.prometheus?.enabled),
         enableLogging: Boolean(cfg.component?.logging?.enabled),
         execMode: planMeta.execMode || 'local',
-        deployAgentId: planMeta.deployAgentId || 0
+        deployAgentId: planMeta.deployAgentId || undefined
       }
       // 进入部署详情默认落在「集群信息」
       activeTabName.value = '0'
