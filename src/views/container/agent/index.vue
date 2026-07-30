@@ -74,15 +74,34 @@
         <ElButton @click="editVisible = false">取消</ElButton>
         <ElButton type="primary" :loading="editLoading" @click="handleEditSubmit">确定</ElButton>
       </template>
-    </ElDialog></div>
+    </ElDialog>
+
+    <ElDialog v-model="tokenVisible" title="查看凭证" width="560px" align-center destroy-on-close class="agent-dialog">
+      <div class="token-dialog-body">
+        <ElInput v-model="tokenValue" type="textarea" :rows="4" readonly resize="none" />
+        <div class="token-dialog-tip">将 Token 配置到目标节点环境变量后启动 Agent。</div>
+      </div>
+      <template #footer>
+        <ElButton @click="tokenVisible = false">关闭</ElButton>
+        <ElButton type="primary" @click="copyToken">复制 Token</ElButton>
+      </template>
+    </ElDialog>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { computed, h, ref } from 'vue'
+import { h, ref } from 'vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { useTable } from '@/hooks/core/useTable'
-import { pixiuAxios } from '@/api/container'
-import { fetchAgentList, fetchCreateAgent, fetchUpdateAgent, fetchDeleteAgent, type AgentItem } from '@/api/agent'
+import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
+import {
+  fetchAgentList,
+  fetchAgentDetail,
+  fetchCreateAgent,
+  fetchUpdateAgent,
+  fetchDeleteAgent,
+  type AgentItem
+} from '@/api/agent'
 
 defineOptions({ name: 'ContainerAgent' })
 
@@ -123,10 +142,8 @@ function openEditDialog(row: AgentItem) {
 
 const tokenVisible = ref(false)
 const tokenValue = ref('')
-const tokenAgentName = ref('')
 
 async function showToken(row: AgentItem) {
-  tokenAgentName.value = row.name
   tokenVisible.value = true
   tokenValue.value = '加载中...'
   try {
@@ -219,7 +236,7 @@ const {
       { prop: 'status', label: '状态', width: 100, formatter: (row: AgentItem) => {
         const online = row.status === 1
         return h('div', { style: 'display:flex;align-items:center;gap:4px' }, [
-          h('span', { style: `width:8px;height:8px;border-radius:50%;background:${online ? '#16a34a' : '#9ca3af'};flex-shrink:0` }),
+          h('span', { style: `width:10px;height:10px;border-radius:50%;background:${online ? '#16a34a' : '#9ca3af'};flex-shrink:0` }),
           h('span', { style: 'font-size:12px' }, online ? '在线' : '离线')
         ])
       }},
@@ -239,6 +256,8 @@ const {
     ]
   }
 })
+
+useSkipFirstActivatedRefresh(refreshData)
 
 function handleSearch() {
   refreshData()
@@ -266,6 +285,9 @@ function handleSearch() {
 .agent-page :deep(.art-table-card) { flex: 1; min-height: 0; }
 .agent-page :deep(.art-table-card > .el-card__body) { padding-top: 12px; padding-bottom: 10px; }
 .agent-page :deep(.custom-pagination) { margin-top: 10px; margin-bottom: 0; padding-bottom: 4px; }
+
+.token-dialog-body { display: flex; flex-direction: column; gap: 10px; }
+.token-dialog-tip { font-size: 12px; color: var(--el-text-color-secondary); line-height: 1.5; }
 
 .kube-mode-group {
   display: flex;
