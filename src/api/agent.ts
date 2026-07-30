@@ -20,7 +20,9 @@ interface BackendAgent {
   id: number
   resource_version: number
   name: string
-  agent_type: number
+  /** backend types.Agent uses json:"type" */
+  type?: number
+  agent_type?: number
   user_id: number
   status: number
   hostname: string
@@ -44,7 +46,7 @@ function toAgentItem(item: BackendAgent): AgentItem {
     id: item.id,
     resourceVersion: item.resource_version,
     name: item.name,
-    type: item.agent_type,
+    type: item.type ?? item.agent_type ?? 0,
     userId: item.user_id ?? 0,
     status: item.status,
     hostname: item.hostname ?? '',
