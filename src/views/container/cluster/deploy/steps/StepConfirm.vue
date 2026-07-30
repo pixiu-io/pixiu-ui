@@ -27,6 +27,14 @@
           <div class="kv-label">操作系统</div>
           <div class="kv-value">{{ form.osImage || '-' }}</div>
         </div>
+        <div class="kv-item">
+          <div class="kv-label">执行模式</div>
+          <div class="kv-value">{{ form.execMode === 'agent' ? 'Agent模式' : '本地模式' }}</div>
+        </div>
+        <div v-if="form.execMode === 'agent'" class="kv-item">
+          <div class="kv-label">执行Agent</div>
+          <div class="kv-value">{{ agentName || form.deployAgentId || '-' }}</div>
+        </div>
         <div class="kv-item kv-item--full">
           <div class="kv-label">描述</div>
           <div class="kv-value">{{ form.description || '-' }}</div>
@@ -178,6 +186,7 @@
 
 <script setup lang="ts">
   import type { DeployClusterForm } from './StepBasic.vue'
+  import { fetchAgentList } from '@/api/agent'
 
   defineOptions({ name: 'StepConfirm' })
 
@@ -189,6 +198,31 @@
     'go-step': [number]
   }>()
   const readOnly = computed(() => props.readOnly)
+
+  const agentName = ref('')
+
+  async function loadAgentName() {
+    if (props.form.execMode !== 'agent' || !props.form.deployAgentId) return
+    try {
+      const { items } = await fetchAgentList({ limit: 200 })
+      const agent = items.find(a => a.id === props.form.deployAgentId)
+      if (agent) {
+        agentName.value = agent.name
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  watch(() => props.form.deployAgentId, () => {
+    if (props.form.execMode === 'agent' && props.form.deployAgentId) {
+      loadAgentName()
+    }
+  })
+
+  onMounted(() => {
+    loadAgentName()
+  })
 
   async function validate(): Promise<boolean> {
     return true

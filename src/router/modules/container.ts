@@ -100,6 +100,16 @@ export const containerRoutes: AppRouteRecord = {
       }
     },
     {
+      path: 'agent',
+      name: 'ContainerAgent',
+      component: '/container/agent/index',
+      meta: {
+        title: 'menus.container.agent',
+        icon: 'ri:robot-2-line',
+        keepAlive: true
+      }
+    },
+    {
       path: 'deployment-detail',
       name: 'DeploymentDetail',
       component: '/container/cluster-detail/deployment-detail/index',

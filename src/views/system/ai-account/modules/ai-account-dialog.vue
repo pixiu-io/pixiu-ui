@@ -5,7 +5,7 @@
     width="560px"
     align-center
   >
-    <ElForm ref="formRef" :model="formData" :rules="rules" label-width="92px">
+    <ElForm ref="formRef" :model="formData" :rules="rules" label-width="100px">
       <ElFormItem label="供应商" prop="provider">
         <ElInput v-model="formData.provider" placeholder="例如 OpenAI / Azure OpenAI" />
       </ElFormItem>
@@ -152,20 +152,22 @@
   }
 
   :deep(.el-form-item__label) {
-    font-size: 13px;
+    font-size: 12px;
+    color: var(--el-text-color-regular);
+    padding-right: 12px;
   }
 
   :deep(.el-dialog__body) {
-    padding: 16px 28px;
-  }
-
-  :deep(.el-form-item__content) {
-    max-width: 400px;
+    padding: 10px 16px 12px 16px;
   }
 
   :deep(.el-input__inner),
   :deep(.el-textarea__inner) {
     font-size: 12px;
+  }
+
+  :deep(.el-form-item__content) {
+    max-width: 400px;
   }
 
   .api-key-field {

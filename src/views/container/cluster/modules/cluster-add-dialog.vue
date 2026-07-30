@@ -642,4 +642,8 @@
   .cluster-add-dialog--import .el-dialog__footer {
     padding: 12px 16px 16px 16px !important;
   }
+
+  .cluster-add-dialog--import :deep(.el-form-item__content) {
+    max-width: 520px;
+  }
 </style>

@@ -21,6 +21,8 @@ export interface PlanNodeParams {
 export interface CreatePlanParams {
   name: string
   description?: string
+  exec_mode?: string
+  deploy_agent_id?: number
   config: {
     os_image: string
     description?: string
@@ -77,6 +79,8 @@ export interface PlanItem {
   step: string
   kubernetes_version: string
   node_count: number
+  exec_mode: string
+  deploy_agent_id: number
   gmt_create: string
   gmt_modified: string
 }
@@ -135,6 +139,8 @@ export interface PlanItemFormatted {
   step: string
   kubernetesVersion: string
   nodeCount: number
+  execMode: string
+  deployAgentId: number
   createTime: string
 }
 
@@ -224,6 +230,8 @@ function toPlanItem(p: PlanItem): PlanItemFormatted {
     step: p.step === '部署失败' ? '已失败' : (p.step ?? '未开始'),
     kubernetesVersion: p.kubernetes_version ?? '',
     nodeCount: p.node_count ?? 0,
+    execMode: p.exec_mode ?? 'local',
+    deployAgentId: p.deploy_agent_id ?? 0,
     createTime: formatDate(p.gmt_create)
   }
 }

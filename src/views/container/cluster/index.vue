@@ -304,7 +304,8 @@
     1: { type: 'primary' as const, text: '部署中' },
     2: { type: 'info' as const, text: '等待部署' },
     3: { type: 'danger' as const, text: '部署失败' },
-    4: { type: 'warning' as const, text: '集群失联' }
+    4: { type: 'warning' as const, text: '集群失联' },
+    5: { type: 'info' as const, text: '等待接入' }
   }
 
   const searchForm = ref({
