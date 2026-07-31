@@ -56,7 +56,7 @@
         ref="importFormRef"
         :model="importForm"
         :rules="importRules"
-        label-width="100px"
+        label-width="80px"
         label-position="right"
         class="import-form"
       >
@@ -412,10 +412,6 @@
     margin-top: 6px;
   }
 
-  .import-form :deep(.el-form-item) {
-    margin-bottom: 18px;
-  }
-
   /* 标签与开关同一行对齐，不与下方说明一起垂直居中 */
   .import-form :deep(.protect-form-row.el-form-item) {
     align-items: center;
@@ -643,7 +639,7 @@
     padding: 12px 16px 16px 16px !important;
   }
 
-  .cluster-add-dialog--import :deep(.el-form-item__content) {
-    max-width: 520px;
+  .cluster-add-dialog--import .el-form-item__content {
+    max-width: 480px;
   }
 </style>
