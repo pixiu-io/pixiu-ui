@@ -262,7 +262,12 @@
   import { ArrowLeft, Close, Refresh } from '@element-plus/icons-vue'
   import { computed, onMounted, ref } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
-  import { createK8sIngress, patchK8sIngress, fetchK8sIngress } from '@/api/kubernetes/ingress'
+  import {
+    createK8sIngress,
+    patchK8sIngress,
+    fetchK8sIngress,
+    resolveIngressGroupVersion
+  } from '@/api/kubernetes/ingress'
   import { fetchK8sNamespaceList } from '@/api/kubernetes/namespace'
   import { fetchK8sSecretList } from '@/api/kubernetes/secret'
   import { fetchK8sServiceList, type K8sService } from '@/api/kubernetes/service'
@@ -625,7 +630,8 @@
     }
     submitting.value = true
     try {
-      const manifest = buildManifest()
+      const gv = await resolveIngressGroupVersion(cluster.value)
+      const manifest = { ...buildManifest(), apiVersion: gv }
       if (isEdit.value) {
         await patchK8sIngress(cluster.value, form.value.namespace, editName.value, {
           metadata: {
