@@ -52,6 +52,7 @@ interface BackendCluster {
   description: string
   kube_config?: string
   connect_mode?: number
+  agent_token?: string
   gmt_create: string
   gmt_modified: string
 }
@@ -76,6 +77,7 @@ export interface ClusterItem {
   permissionId: number
   createTime: string
   connectMode: number
+  agentToken?: string
 }
 
 /** pixiu 接口错误（notified 为 true 表示拦截器已弹出提示，业务层无需重复提示） */
@@ -232,7 +234,8 @@ function toClusterItem(c: BackendCluster): ClusterItem {
     isProtected: c.protected,
     permissionId: c.permission_id ?? 0,
     createTime: formatDate(c.gmt_create),
-    connectMode: c.connect_mode ?? 0
+    connectMode: c.connect_mode ?? 0,
+    agentToken: c.agent_token || ''
   }
 }
 
