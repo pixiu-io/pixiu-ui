@@ -184,6 +184,24 @@
       </div>
     </ElDrawer>
 
+    <!-- 查看代理凭证 -->
+    <ElDialog
+      v-model="agentTokenVisible"
+      title="查看代理凭证"
+      width="560px"
+      align-center
+      destroy-on-close
+    >
+      <div class="token-dialog-body">
+        <ElInput v-model="agentTokenValue" type="textarea" :rows="4" readonly resize="none" />
+        <div class="token-dialog-tip">将 Token 配置到 Cluster Agent 环境变量 PIXIU_TOKEN 后启动。</div>
+      </div>
+      <template #footer>
+        <ElButton @click="agentTokenVisible = false">关闭</ElButton>
+        <ElButton type="primary" @click="copyAgentToken">复制 Token</ElButton>
+      </template>
+    </ElDialog>
+
     <!-- 编辑集群名称对话框 -->
     <ElDialog
       v-model="renameVisible"
@@ -832,13 +850,19 @@
                     key: 'logs',
                     label: '采集日志',
                     icon: 'ri:file-list-3-line',
-                    disabled: isCustomClusterNotRunning(row) || !!row.permissionId
+                    disabled: true
                   },
                   {
                     key: 'destroy',
                     label: '销毁',
                     icon: 'ri:delete-back-2-line',
-                    disabled: Number(row.clusterType) !== 1 || !row.planId
+                    disabled: true
+                  },
+                  {
+                    key: 'agentToken',
+                    label: '查看代理凭证',
+                    icon: 'ri:key-2-line',
+                    disabled: row.connectMode !== 1
                   }
                 ],
                 onClick: (item: ButtonMoreItem) => clusterMoreClick(item, row)
@@ -854,8 +878,35 @@
     monitorVisible.value = true
   }
 
-  function openClusterTab(row: ClusterItem, tab: 'alert' | 'logs') {
-    router.push({ path: `/container/${tab}`, query: clusterDetailQuery(row) })
+  const agentTokenVisible = ref(false)
+  const agentTokenValue = ref('')
+
+  async function showAgentToken(row: ClusterItem) {
+    if (row.connectMode !== 1) return
+    agentTokenVisible.value = true
+    agentTokenValue.value = '加载中...'
+    try {
+      const detail = await fetchGetCluster(row.id)
+      agentTokenValue.value = detail.agent_token || row.agentToken || '无'
+    } catch (e: unknown) {
+      if (e instanceof PixiuApiError && e.notified) {
+        agentTokenValue.value = '获取失败'
+        return
+      }
+      agentTokenValue.value = '获取失败'
+    }
+  }
+
+  function copyAgentToken() {
+    if (
+      agentTokenValue.value &&
+      agentTokenValue.value !== '获取失败' &&
+      agentTokenValue.value !== '无' &&
+      agentTokenValue.value !== '加载中...'
+    ) {
+      navigator.clipboard.writeText(agentTokenValue.value)
+      ElMessage.success('已复制')
+    }
   }
 
   function clusterMoreClick(item: ButtonMoreItem, row: ClusterItem) {
@@ -875,13 +926,17 @@
         })
         break
       }
+      case 'agentToken':
+        void showAgentToken(row)
+        break
       case 'alert':
-        if (isCustomClusterNotRunning(row)) return
-        openClusterTab(row, 'alert')
+        if (isCustomClusterNotRunning(row) || row.permissionId) return
+        router.push({
+          path: '/monitor/alert-config',
+          query: clusterDetailQuery(row)
+        })
         break
       case 'logs':
-        if (isCustomClusterNotRunning(row)) return
-        openClusterTab(row, 'logs')
         break
       case 'destroy':
         if (Number(row.clusterType) !== 1) return
@@ -1379,6 +1434,18 @@
     display: inline-block;
     color: var(--el-color-primary);
     animation: blink 1s step-end infinite;
+  }
+
+  .token-dialog-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .token-dialog-tip {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+    line-height: 1.5;
   }
 
   @keyframes blink {
