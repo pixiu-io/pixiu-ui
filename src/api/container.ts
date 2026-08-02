@@ -327,6 +327,27 @@ export async function fetchGetClusterKubeconfig(clusterId: number): Promise<Kube
   return res.data.result as KubeconfigResponse
 }
 
+/** POST /pixiu/clusters/:id/proxy-kubeconfig — 经 Pixiu 转发的标准 kubeconfig */
+export interface ProxyKubeconfigResponse {
+  cluster_id: number
+  cluster_name: string
+  alias_name: string
+  jti: string
+  expire_at: string
+  server: string
+  token: string
+  kubeconfig: string
+  kubeconfig_encoding: string
+}
+
+export async function fetchCreateProxyKubeconfig(
+  clusterId: number,
+  params?: { name?: string; expire_hours?: number }
+): Promise<ProxyKubeconfigResponse> {
+  const res = await pixiuAxios.post(`/pixiu/clusters/${clusterId}/proxy-kubeconfig`, params ?? {})
+  return res.data.result as ProxyKubeconfigResponse
+}
+
 /** 导入集群（标准集群，cluster_type = 0） */
 export async function fetchCreateCluster(params: {
   alias_name: string
