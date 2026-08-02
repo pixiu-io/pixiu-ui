@@ -412,52 +412,68 @@
           <ElCard shadow="never" class="basic-info-card mt-2">
             <template #header>
               <div style="display: flex; align-items: center; justify-content: space-between">
-                <span class="basic-info-card__title">外部访问</span>
-                <div style="display: flex; align-items: center; gap: 12px">
+                <div class="proxy-header-left">
+                  <span class="basic-info-card__title">外部访问</span>
                   <ElSwitch
                     :model-value="proxyEnabled"
-                    :loading="proxyLoading"
+                    :loading="proxyLoading || proxyFormLoading"
                     :disabled="!ctx.id"
                     @change="onProxyToggle"
                   />
                   <span class="info-dl__switch-text">{{
                     proxyEnabled ? '已开启' : '未开启'
                   }}</span>
-                  <ElButton
-                    v-if="proxyFull"
-                    link
+                  <span v-if="proxyFull?.expire_at" class="proxy-expire-text">
+                    过期时间 {{ formatProxyExpireAt(proxyFull.expire_at) }}
+                  </span>
+                </div>
+                <div v-if="proxyFull" class="kubeconfig-actions">
+                  <ElLink
+                    v-if="!proxyKubeconfigVisible"
                     type="primary"
+                    underline="never"
+                    class="kubeconfig-action"
+                    @click="proxyKubeconfigVisible = true"
+                  >
+                    显示
+                  </ElLink>
+                  <ElLink
+                    v-else
+                    type="primary"
+                    underline="never"
+                    class="kubeconfig-action"
+                    @click="proxyKubeconfigVisible = false"
+                  >
+                    隐藏
+                  </ElLink>
+                  <ElLink
+                    type="primary"
+                    underline="never"
+                    class="kubeconfig-action"
+                    @click="copyProxyKubeconfig"
+                  >
+                    拷贝
+                  </ElLink>
+                  <ElLink
+                    type="primary"
+                    underline="never"
                     class="kubeconfig-action"
                     @click="downloadProxyKubeconfig"
                   >
                     下载
-                  </ElButton>
+                  </ElLink>
                 </div>
               </div>
             </template>
-            <div v-loading="proxyLoading" class="proxy-body">
-              <template v-if="proxyFull">
-                <dl class="info-dl">
-                  <div class="info-dl__row">
-                    <dt>代理地址</dt>
-                    <dd>
-                      <span>{{ proxyFull.server }}</span>
-                      <ElButton link class="info-dl__copy" @click="copyText(proxyFull.server)">
-                        <ArtSvgIcon icon="ri:file-copy-line" style="font-size: 13px" />
-                      </ElButton>
-                    </dd>
-                  </div>
-                  <div class="info-dl__row">
-                    <dt>名称</dt>
-                    <dd>{{ proxyFull.alias_name || '-' }}</dd>
-                  </div>
-                  <div class="info-dl__row">
-                    <dt>过期时间</dt>
-                    <dd>{{ proxyFull.expire_at || '-' }}</dd>
-                  </div>
-                </dl>
-              </template>
-              <ElEmpty v-else description="未开启，启用后可通过外网 kubectl 连接集群" :image-size="60" />
+            <div v-loading="proxyLoading" class="kubeconfig-body">
+              <pre
+                v-if="proxyFull?.kubeconfig && proxyKubeconfigVisible"
+                class="kubeconfig-pre"
+              >{{ proxyFull.kubeconfig }}</pre>
+              <div v-else-if="proxyFull?.kubeconfig" class="kubeconfig-hidden">
+                代理 KubeConfig 内容已隐藏
+              </div>
+              <ElEmpty v-else description="未开启，启用后可通过外网 kubectl 连接集群" :image-size="80" />
             </div>
           </ElCard>
         </div>
@@ -663,6 +679,7 @@
   // 外网代理相关状态
   const proxyLoading = ref(false)
   const proxyFull = ref<ProxyKubeconfigResponse | null>(null)
+  const proxyKubeconfigVisible = ref(false)
   const proxyEnabled = computed(() => proxyFull.value !== null)
   const loadedProxyCluster = ref('')
 
@@ -674,6 +691,14 @@
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     return date.getTime() < today.getTime()
+  }
+
+  function formatProxyExpireAt(value: string) {
+    if (!value) return '-'
+    const d = new Date(value)
+    if (Number.isNaN(d.getTime())) return value
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
   }
 
   async function resolveClusterId(): Promise<number> {
@@ -753,6 +778,7 @@
     if (!force && !proxyLoading.value && loadedProxyCluster.value === clusterKey) return
 
     proxyLoading.value = true
+    proxyKubeconfigVisible.value = false
     try {
       const data = await fetchGetProxyKubeconfig(clusterId)
       proxyFull.value = data
@@ -785,6 +811,7 @@
       try {
         await fetchRevokeAccessToken(ctx.value.id, proxyFull.value.jti)
         proxyFull.value = null
+        proxyKubeconfigVisible.value = false
         loadedProxyCluster.value = ''
         ElMessage.success('已关闭外部访问')
       } catch (e: unknown) {
@@ -796,12 +823,20 @@
     }
   }
 
+  function copyProxyKubeconfig() {
+    if (!proxyFull.value?.kubeconfig) {
+      ElMessage.warning('暂无代理 KubeConfig 内容')
+      return
+    }
+    copyText(proxyFull.value.kubeconfig)
+  }
+
   function downloadProxyKubeconfig() {
     if (!proxyFull.value?.kubeconfig) {
       ElMessage.warning('暂无代理 KubeConfig 内容')
       return
     }
-    const name = proxyFull.value.cluster_name || 'kubeconfig'
+    const name = proxyFull.value.cluster_name || ctx.value.name || 'kubeconfig'
     const blob = new Blob([proxyFull.value.kubeconfig], { type: 'text/yaml' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -1386,7 +1421,16 @@
     min-height: 440px;
   }
 
-  .proxy-body {
-    min-height: 120px;
+  .proxy-header-left {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+
+  .proxy-expire-text {
+    color: var(--el-text-color-secondary);
+    font-size: 12px;
   }
 </style>
