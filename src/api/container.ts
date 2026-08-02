@@ -342,10 +342,9 @@ export interface ProxyKubeconfigResponse {
 
 export async function fetchCreateProxyKubeconfig(
   clusterId: number,
-  params?: { name?: string; expire_hours?: number }
-): Promise<ProxyKubeconfigResponse> {
-  const res = await pixiuAxios.post(`/pixiu/clusters/${clusterId}/proxy-kubeconfig`, params ?? {})
-  return res.data.result as ProxyKubeconfigResponse
+  params?: { expires_at?: string }
+): Promise<void> {
+  await pixiuAxios.post(`/pixiu/clusters/${clusterId}/proxy-kubeconfig`, params ?? {})
 }
 
 /** GET /pixiu/clusters/:id/proxy-kubeconfig */

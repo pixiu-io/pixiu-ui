@@ -465,14 +465,15 @@
     </ElTabs>
 
     <ElDialog v-model="proxyDialogVisible" title="启用外部访问" width="460px" destroy-on-close>
-      <ElForm label-width="120px">
-        <ElFormItem label="备注名称">
-          <ElInput v-model="proxyForm.name" placeholder="如：生产环境访问" clearable />
-        </ElFormItem>
-        <ElFormItem label="过期时间（小时）">
-          <ElInput
-            v-model="proxyForm.expireHours"
+      <ElForm label-width="90px">
+        <ElFormItem label="过期时间">
+          <ElDatePicker
+            v-model="proxyForm.expiresAt"
+            type="datetime"
+            value-format="YYYY-MM-DDTHH:mm:ssZ"
+            class="w-full"
             placeholder="留空则使用默认配置"
+            :disabled-date="disablePastDate"
           />
         </ElFormItem>
       </ElForm>
@@ -667,7 +668,13 @@
 
   const proxyDialogVisible = ref(false)
   const proxyFormLoading = ref(false)
-  const proxyForm = ref({ name: '', expireHours: '' })
+  const proxyForm = ref({ expiresAt: '' })
+
+  function disablePastDate(date: Date) {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    return date.getTime() < today.getTime()
+  }
 
   async function resolveClusterId(): Promise<number> {
     if (ctx.value.id) return ctx.value.id
@@ -739,11 +746,11 @@
   }
 
   // 外网代理
-  async function loadProxyKubeconfig() {
+  async function loadProxyKubeconfig(force = false) {
     const clusterId = ctx.value.id
     if (!clusterId) return
     const clusterKey = `${ctx.value.name}:${clusterId}`
-    if (!proxyLoading.value && loadedProxyCluster.value === clusterKey) return
+    if (!force && !proxyLoading.value && loadedProxyCluster.value === clusterKey) return
 
     proxyLoading.value = true
     try {
@@ -752,6 +759,7 @@
       loadedProxyCluster.value = clusterKey
     } catch {
       proxyFull.value = null
+      loadedProxyCluster.value = ''
     } finally {
       proxyLoading.value = false
     }
@@ -759,14 +767,14 @@
 
   async function onProxyToggle(val: string | number | boolean) {
     if (val) {
-      proxyForm.value = { name: '', expireHours: '' }
+      proxyForm.value = { expiresAt: '' }
       proxyDialogVisible.value = true
     } else {
-      // 关闭：确认后吊销 token
+      // 关闭：确认后删除 token 记录
       if (!proxyFull.value?.jti) return
       try {
         await ElMessageBox.confirm(
-          '关闭后该代理 KubeConfig 将立即失效。',
+          '关闭后将删除代理凭证，该 KubeConfig 立即失效。',
           '确认关闭',
           { confirmButtonText: '确认', cancelButtonText: '取消', type: 'warning' }
         )
@@ -777,6 +785,7 @@
       try {
         await fetchRevokeAccessToken(ctx.value.id, proxyFull.value.jti)
         proxyFull.value = null
+        loadedProxyCluster.value = ''
         ElMessage.success('已关闭外部访问')
       } catch (e: unknown) {
         if (e instanceof PixiuApiError && e.notified) return
@@ -803,20 +812,22 @@
   }
 
   async function submitProxyCreate() {
-    const hours = parseInt(proxyForm.value.expireHours, 10)
-    if (proxyForm.value.expireHours && (isNaN(hours) || hours <= 0)) {
-      ElMessage.warning('请输入有效的过期时间')
-      return
+    if (proxyForm.value.expiresAt) {
+      const expireMs = new Date(proxyForm.value.expiresAt).getTime()
+      if (Number.isNaN(expireMs) || expireMs <= Date.now()) {
+        ElMessage.warning('过期时间必须晚于当前时间')
+        return
+      }
     }
     proxyFormLoading.value = true
     try {
       await fetchCreateProxyKubeconfig(ctx.value.id, {
-        name: proxyForm.value.name || '外部访问',
-        expire_hours: hours || undefined
+        expires_at: proxyForm.value.expiresAt || undefined
       })
-      ElMessage.success('已开启外部访问')
       proxyDialogVisible.value = false
-      await loadProxyKubeconfig()
+      // 创建成功后强制 GET，刷新页面缓存与开关状态
+      await loadProxyKubeconfig(true)
+      ElMessage.success('已开启外部访问')
     } catch (e: unknown) {
       if (e instanceof PixiuApiError && e.notified) return
       ElMessage.error(e instanceof Error ? e.message : '开启失败')
