@@ -348,6 +348,25 @@ export async function fetchCreateProxyKubeconfig(
   return res.data.result as ProxyKubeconfigResponse
 }
 
+/** GET /pixiu/clusters/:id/proxy-kubeconfig */
+export interface ProxyKubeconfigInfo {
+  jti: string
+  name: string
+  server: string
+  expire_at: string
+  created_at: string
+  is_active: boolean
+}
+
+export async function fetchGetProxyKubeconfig(clusterId: number): Promise<ProxyKubeconfigResponse | null> {
+  const res = await pixiuAxios.get(`/pixiu/clusters/${clusterId}/proxy-kubeconfig`)
+  return (res.data.result ?? null) as ProxyKubeconfigResponse | null
+}
+
+export async function fetchRevokeAccessToken(clusterId: number, jti: string): Promise<void> {
+  await pixiuAxios.delete(`/pixiu/clusters/${clusterId}/access-tokens/${jti}`)
+}
+
 /** 导入集群（标准集群，cluster_type = 0） */
 export async function fetchCreateCluster(params: {
   alias_name: string

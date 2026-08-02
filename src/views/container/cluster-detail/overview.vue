@@ -408,14 +408,84 @@
               <ElEmpty v-else description="暂无 KubeConfig 内容" :image-size="80" />
             </div>
           </ElCard>
+
+          <ElCard shadow="never" class="basic-info-card mt-2">
+            <template #header>
+              <div style="display: flex; align-items: center; justify-content: space-between">
+                <span class="basic-info-card__title">外部访问</span>
+                <div style="display: flex; align-items: center; gap: 12px">
+                  <ElSwitch
+                    :model-value="proxyEnabled"
+                    :loading="proxyLoading"
+                    :disabled="!ctx.id"
+                    @change="onProxyToggle"
+                  />
+                  <span class="info-dl__switch-text">{{
+                    proxyEnabled ? '已开启' : '未开启'
+                  }}</span>
+                  <ElButton
+                    v-if="proxyFull"
+                    link
+                    type="primary"
+                    class="kubeconfig-action"
+                    @click="downloadProxyKubeconfig"
+                  >
+                    下载
+                  </ElButton>
+                </div>
+              </div>
+            </template>
+            <div v-loading="proxyLoading" class="proxy-body">
+              <template v-if="proxyFull">
+                <dl class="info-dl">
+                  <div class="info-dl__row">
+                    <dt>代理地址</dt>
+                    <dd>
+                      <span>{{ proxyFull.server }}</span>
+                      <ElButton link class="info-dl__copy" @click="copyText(proxyFull.server)">
+                        <ArtSvgIcon icon="ri:file-copy-line" style="font-size: 13px" />
+                      </ElButton>
+                    </dd>
+                  </div>
+                  <div class="info-dl__row">
+                    <dt>名称</dt>
+                    <dd>{{ proxyFull.alias_name || '-' }}</dd>
+                  </div>
+                  <div class="info-dl__row">
+                    <dt>过期时间</dt>
+                    <dd>{{ proxyFull.expire_at || '-' }}</dd>
+                  </div>
+                </dl>
+              </template>
+              <ElEmpty v-else description="未开启，启用后可通过外网 kubectl 连接集群" :image-size="60" />
+            </div>
+          </ElCard>
         </div>
       </ElTabPane>
     </ElTabs>
+
+    <ElDialog v-model="proxyDialogVisible" title="启用外部访问" width="460px" destroy-on-close>
+      <ElForm label-width="120px">
+        <ElFormItem label="备注名称">
+          <ElInput v-model="proxyForm.name" placeholder="如：生产环境访问" clearable />
+        </ElFormItem>
+        <ElFormItem label="过期时间（小时）">
+          <ElInput
+            v-model="proxyForm.expireHours"
+            placeholder="留空则使用默认配置"
+          />
+        </ElFormItem>
+      </ElForm>
+      <template #footer>
+        <ElButton @click="proxyDialogVisible = false">取消</ElButton>
+        <ElButton type="primary" :loading="proxyFormLoading" @click="submitProxyCreate">确定</ElButton>
+      </template>
+    </ElDialog>
   </div>
 </template>
 
 <script setup lang="ts">
-  import { ElMessage } from 'element-plus'
+  import { ElMessage, ElMessageBox } from 'element-plus'
   import { inject, computed, onActivated, onDeactivated, onUnmounted, ref, watch } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import {
@@ -424,8 +494,12 @@
     fetchUpdateClusterAlias,
     fetchClusterByName,
     fetchGetClusterKubeconfig,
+    fetchGetProxyKubeconfig,
+    fetchCreateProxyKubeconfig,
+    fetchRevokeAccessToken,
     PixiuApiError,
-    type KubeconfigResponse
+    type KubeconfigResponse,
+    type ProxyKubeconfigResponse
   } from '@/api/container'
   import { fetchPlanWithResources, type PlanResourcesDetail } from '@/api/plan'
   import {
@@ -585,6 +659,16 @@
   const kubeconfigData = ref<KubeconfigResponse | null>(null)
   const loadedKubeconfigCluster = ref('')
 
+  // 外网代理相关状态
+  const proxyLoading = ref(false)
+  const proxyFull = ref<ProxyKubeconfigResponse | null>(null)
+  const proxyEnabled = computed(() => proxyFull.value !== null)
+  const loadedProxyCluster = ref('')
+
+  const proxyDialogVisible = ref(false)
+  const proxyFormLoading = ref(false)
+  const proxyForm = ref({ name: '', expireHours: '' })
+
   async function resolveClusterId(): Promise<number> {
     if (ctx.value.id) return ctx.value.id
     const name = ctx.value.name
@@ -652,6 +736,93 @@
     a.download = fileName
     a.click()
     URL.revokeObjectURL(url)
+  }
+
+  // 外网代理
+  async function loadProxyKubeconfig() {
+    const clusterId = ctx.value.id
+    if (!clusterId) return
+    const clusterKey = `${ctx.value.name}:${clusterId}`
+    if (!proxyLoading.value && loadedProxyCluster.value === clusterKey) return
+
+    proxyLoading.value = true
+    try {
+      const data = await fetchGetProxyKubeconfig(clusterId)
+      proxyFull.value = data
+      loadedProxyCluster.value = clusterKey
+    } catch {
+      proxyFull.value = null
+    } finally {
+      proxyLoading.value = false
+    }
+  }
+
+  async function onProxyToggle(val: string | number | boolean) {
+    if (val) {
+      proxyForm.value = { name: '', expireHours: '' }
+      proxyDialogVisible.value = true
+    } else {
+      // 关闭：确认后吊销 token
+      if (!proxyFull.value?.jti) return
+      try {
+        await ElMessageBox.confirm(
+          '关闭后该代理 KubeConfig 将立即失效。',
+          '确认关闭',
+          { confirmButtonText: '确认', cancelButtonText: '取消', type: 'warning' }
+        )
+      } catch {
+        return
+      }
+      proxyLoading.value = true
+      try {
+        await fetchRevokeAccessToken(ctx.value.id, proxyFull.value.jti)
+        proxyFull.value = null
+        ElMessage.success('已关闭外部访问')
+      } catch (e: unknown) {
+        if (e instanceof PixiuApiError && e.notified) return
+        ElMessage.error(e instanceof Error ? e.message : '关闭失败')
+      } finally {
+        proxyLoading.value = false
+      }
+    }
+  }
+
+  function downloadProxyKubeconfig() {
+    if (!proxyFull.value?.kubeconfig) {
+      ElMessage.warning('暂无代理 KubeConfig 内容')
+      return
+    }
+    const name = proxyFull.value.cluster_name || 'kubeconfig'
+    const blob = new Blob([proxyFull.value.kubeconfig], { type: 'text/yaml' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${name}.yaml`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  async function submitProxyCreate() {
+    const hours = parseInt(proxyForm.value.expireHours, 10)
+    if (proxyForm.value.expireHours && (isNaN(hours) || hours <= 0)) {
+      ElMessage.warning('请输入有效的过期时间')
+      return
+    }
+    proxyFormLoading.value = true
+    try {
+      await fetchCreateProxyKubeconfig(ctx.value.id, {
+        name: proxyForm.value.name || '外部访问',
+        expire_hours: hours || undefined
+      })
+      ElMessage.success('已开启外部访问')
+      proxyDialogVisible.value = false
+      await loadProxyKubeconfig()
+    } catch (e: unknown) {
+      if (e instanceof PixiuApiError && e.notified) return
+      ElMessage.error(e instanceof Error ? e.message : '开启失败')
+    } finally {
+      proxyFormLoading.value = false
+    }
   }
 
   const STATUS_MAP = {
@@ -818,7 +989,10 @@
       stopOverviewBackgroundLoads()
     }
     if (tab === 'basic') void loadBasicInfo()
-    if (tab === 'api') void loadKubeconfig()
+    if (tab === 'api') {
+      void loadKubeconfig()
+      void loadProxyKubeconfig()
+    }
   }
 
   watch(
@@ -1199,5 +1373,9 @@
     white-space: pre-wrap;
     word-wrap: break-word;
     min-height: 440px;
+  }
+
+  .proxy-body {
+    min-height: 120px;
   }
 </style>

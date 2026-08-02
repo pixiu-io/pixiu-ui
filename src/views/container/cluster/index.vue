@@ -202,45 +202,6 @@
       </template>
     </ElDialog>
 
-    <!-- 下载代理 KubeConfig -->
-    <ElDialog
-      v-model="proxyKubeconfigVisible"
-      title="下载代理 KubeConfig"
-      width="640px"
-      align-center
-      destroy-on-close
-      append-to-body
-      @closed="onProxyKubeconfigClosed"
-    >
-      <div class="token-dialog-body">
-        <ElInput
-          v-model="proxyKubeconfigValue"
-          type="textarea"
-          :rows="14"
-          readonly
-          resize="none"
-          class="proxy-kubeconfig-input"
-        />
-        <div class="token-dialog-tip">
-          供 kubectl / client-go 使用：请求经 Pixiu 鉴权后转发到目标集群（直连或隧道）。
-          <span v-if="proxyKubeconfigExpire">有效期至 {{ proxyKubeconfigExpire }}。</span>
-          Token 仅展示一次，请妥善保存。
-        </div>
-      </div>
-      <template #footer>
-        <ElButton @click="proxyKubeconfigVisible = false">关闭</ElButton>
-        <ElButton :disabled="!proxyKubeconfigActionsReady" @click.stop="copyProxyKubeconfig">
-          复制
-        </ElButton>
-        <ElButton
-          type="primary"
-          :disabled="!proxyKubeconfigActionsReady"
-          @click.stop="downloadProxyKubeconfig"
-        >
-          下载文件
-        </ElButton>
-      </template>
-    </ElDialog>
 
     <!-- 编辑集群名称对话框 -->
     <ElDialog
@@ -304,7 +265,6 @@
     fetchClusterList,
     fetchDeleteCluster,
     fetchGetCluster,
-    fetchCreateProxyKubeconfig,
     fetchUpdateClusterAlias,
     fetchProtectCluster,
     PixiuApiError
@@ -900,8 +860,6 @@
                     disabled: true
                   },
                   {
-                    key: 'proxyKubeconfig',
-                    label: '下载代理KubeConfig',
                     icon: 'ri:file-download-line',
                     disabled: isCustomClusterNotRunning(row) || !!row.permissionId
                   },
@@ -927,15 +885,18 @@
 
   const agentTokenVisible = ref(false)
   const agentTokenValue = ref('')
-  const proxyKubeconfigVisible = ref(false)
-  const proxyKubeconfigValue = ref('')
-  const proxyKubeconfigExpire = ref('')
-  const proxyKubeconfigFileName = ref('pixiu.kubeconfig')
-  const proxyKubeconfigLoading = ref(false)
-  /** 本次弹窗会话是否已发起签发（关闭前只允许一次，防止菜单连点/穿透重复写库） */
-  const proxyKubeconfigSessionActive = ref(false)
-  const proxyKubeconfigActionsReady = ref(false)
-  let proxyKubeconfigReadyTimer: ReturnType<typeof setTimeout> | null = null
+
+  function copyAgentToken() {
+    if (
+      agentTokenValue.value &&
+      agentTokenValue.value !== '获取失败' &&
+      agentTokenValue.value !== '无' &&
+      agentTokenValue.value !== '加载中...'
+    ) {
+      navigator.clipboard.writeText(agentTokenValue.value)
+      ElMessage.success('已复制')
+    }
+  }
 
   async function showAgentToken(row: ClusterItem) {
     if (row.connectMode !== 1) return
@@ -953,103 +914,6 @@
     }
   }
 
-  function copyAgentToken() {
-    if (
-      agentTokenValue.value &&
-      agentTokenValue.value !== '获取失败' &&
-      agentTokenValue.value !== '无' &&
-      agentTokenValue.value !== '加载中...'
-    ) {
-      navigator.clipboard.writeText(agentTokenValue.value)
-      ElMessage.success('已复制')
-    }
-  }
-
-  function isProxyKubeconfigContentReady() {
-    return (
-      !!proxyKubeconfigValue.value &&
-      proxyKubeconfigValue.value !== '加载中...' &&
-      proxyKubeconfigValue.value !== '获取失败' &&
-      proxyKubeconfigValue.value !== '无'
-    )
-  }
-
-  function onProxyKubeconfigClosed() {
-    proxyKubeconfigActionsReady.value = false
-    proxyKubeconfigSessionActive.value = false
-    proxyKubeconfigLoading.value = false
-    proxyKubeconfigValue.value = ''
-    proxyKubeconfigExpire.value = ''
-    if (proxyKubeconfigReadyTimer) {
-      clearTimeout(proxyKubeconfigReadyTimer)
-      proxyKubeconfigReadyTimer = null
-    }
-  }
-
-  async function showProxyKubeconfig(row: ClusterItem) {
-    if (isCustomClusterNotRunning(row) || row.permissionId) return
-    // 整个弹窗会话只签发一次；请求结束后也不放开，避免连点在 finally 后再次写库
-    if (proxyKubeconfigSessionActive.value || proxyKubeconfigLoading.value) return
-    proxyKubeconfigSessionActive.value = true
-    proxyKubeconfigLoading.value = true
-    proxyKubeconfigActionsReady.value = false
-    if (proxyKubeconfigReadyTimer) {
-      clearTimeout(proxyKubeconfigReadyTimer)
-      proxyKubeconfigReadyTimer = null
-    }
-
-    proxyKubeconfigVisible.value = true
-    proxyKubeconfigValue.value = '加载中...'
-    proxyKubeconfigExpire.value = ''
-    proxyKubeconfigFileName.value = `${row.aliasName || row.name || 'pixiu'}.kubeconfig`
-    try {
-      const res = await fetchCreateProxyKubeconfig(row.id, {
-        name: `ui-${row.aliasName || row.name}`
-      })
-      proxyKubeconfigValue.value = res.kubeconfig || '无'
-      proxyKubeconfigExpire.value = res.expire_at || ''
-      if (res.cluster_name) {
-        proxyKubeconfigFileName.value = `${res.alias_name || res.cluster_name}.kubeconfig`
-      }
-      // 延迟启用按钮，避免打开弹窗的同一次点击穿透到「下载文件」
-      if (isProxyKubeconfigContentReady()) {
-        proxyKubeconfigReadyTimer = setTimeout(() => {
-          proxyKubeconfigActionsReady.value = true
-          proxyKubeconfigReadyTimer = null
-        }, 300)
-      }
-    } catch (e: unknown) {
-      if (e instanceof PixiuApiError && e.notified) {
-        proxyKubeconfigValue.value = '获取失败'
-        return
-      }
-      const msg = e instanceof Error ? e.message : '获取失败'
-      proxyKubeconfigValue.value = msg
-      ElMessage.error(msg)
-    } finally {
-      proxyKubeconfigLoading.value = false
-    }
-  }
-
-  function copyProxyKubeconfig() {
-    if (!proxyKubeconfigActionsReady.value || !isProxyKubeconfigContentReady()) return
-    navigator.clipboard.writeText(proxyKubeconfigValue.value)
-    ElMessage.success('已复制')
-  }
-
-  function downloadProxyKubeconfig() {
-    if (!proxyKubeconfigActionsReady.value || !isProxyKubeconfigContentReady()) return
-    const blob = new Blob([proxyKubeconfigValue.value], { type: 'text/yaml;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = proxyKubeconfigFileName.value || 'pixiu.kubeconfig'
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    URL.revokeObjectURL(url)
-    ElMessage.success('已开始下载')
-  }
 
   function clusterMoreClick(item: ButtonMoreItem, row: ClusterItem) {
     switch (item.key) {
@@ -1070,9 +934,6 @@
       }
       case 'agentToken':
         void showAgentToken(row)
-        break
-      case 'proxyKubeconfig':
-        void showProxyKubeconfig(row)
         break
       case 'alert':
         if (isCustomClusterNotRunning(row) || row.permissionId) return
