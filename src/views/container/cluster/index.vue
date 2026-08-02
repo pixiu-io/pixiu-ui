@@ -202,6 +202,7 @@
       </template>
     </ElDialog>
 
+
     <!-- 编辑集群名称对话框 -->
     <ElDialog
       v-model="renameVisible"
@@ -859,6 +860,10 @@
                     disabled: true
                   },
                   {
+                    icon: 'ri:file-download-line',
+                    disabled: isCustomClusterNotRunning(row) || !!row.permissionId
+                  },
+                  {
                     key: 'agentToken',
                     label: '查看代理凭证',
                     icon: 'ri:key-2-line',
@@ -881,6 +886,18 @@
   const agentTokenVisible = ref(false)
   const agentTokenValue = ref('')
 
+  function copyAgentToken() {
+    if (
+      agentTokenValue.value &&
+      agentTokenValue.value !== '获取失败' &&
+      agentTokenValue.value !== '无' &&
+      agentTokenValue.value !== '加载中...'
+    ) {
+      navigator.clipboard.writeText(agentTokenValue.value)
+      ElMessage.success('已复制')
+    }
+  }
+
   async function showAgentToken(row: ClusterItem) {
     if (row.connectMode !== 1) return
     agentTokenVisible.value = true
@@ -897,17 +914,6 @@
     }
   }
 
-  function copyAgentToken() {
-    if (
-      agentTokenValue.value &&
-      agentTokenValue.value !== '获取失败' &&
-      agentTokenValue.value !== '无' &&
-      agentTokenValue.value !== '加载中...'
-    ) {
-      navigator.clipboard.writeText(agentTokenValue.value)
-      ElMessage.success('已复制')
-    }
-  }
 
   function clusterMoreClick(item: ButtonMoreItem, row: ClusterItem) {
     switch (item.key) {
@@ -1446,6 +1452,12 @@
     font-size: 12px;
     color: var(--el-text-color-secondary);
     line-height: 1.5;
+  }
+
+  .proxy-kubeconfig-input :deep(textarea) {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.45;
   }
 
   @keyframes blink {

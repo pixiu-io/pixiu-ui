@@ -1,15 +1,15 @@
 <!-- 更多按钮 -->
 <template>
   <div>
-    <ElDropdown v-if="hasAnyAuthItem">
+    <ElDropdown v-if="hasAnyAuthItem" trigger="click" @command="handleCommand">
       <ArtIconButton icon="ri:more-2-fill" class="!size-6 bg-g-200 dark:bg-g-300/45 !text-[12px]" />
       <template #dropdown>
         <ElDropdownMenu>
           <template v-for="item in list" :key="item.key">
             <ElDropdownItem
               v-if="!item.auth || hasAuth(item.auth)"
+              :command="item"
               :disabled="item.disabled"
-              @click="handleClick(item)"
             >
               <div class="flex-c" :style="{ color: item.color }">
                 <span>{{ item.label }}</span>
@@ -64,7 +64,9 @@
     (e: 'click', item: ButtonMoreItem): void
   }>()
 
-  const handleClick = (item: ButtonMoreItem) => {
+  /** 使用 ElDropdown command，避免 item @click 在部分环境下连发两次 */
+  const handleCommand = (item: ButtonMoreItem) => {
+    if (!item || item.disabled) return
     emit('click', item)
   }
 </script>
