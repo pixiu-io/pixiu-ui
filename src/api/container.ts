@@ -52,6 +52,7 @@ interface BackendCluster {
   description: string
   kube_config?: string
   connect_mode?: number
+  agent_token?: string
   gmt_create: string
   gmt_modified: string
 }
@@ -76,6 +77,7 @@ export interface ClusterItem {
   permissionId: number
   createTime: string
   connectMode: number
+  agentToken?: string
 }
 
 /** pixiu 接口错误（notified 为 true 表示拦截器已弹出提示，业务层无需重复提示） */
@@ -232,7 +234,8 @@ function toClusterItem(c: BackendCluster): ClusterItem {
     isProtected: c.protected,
     permissionId: c.permission_id ?? 0,
     createTime: formatDate(c.gmt_create),
-    connectMode: c.connect_mode ?? 0
+    connectMode: c.connect_mode ?? 0,
+    agentToken: c.agent_token || ''
   }
 }
 
@@ -322,6 +325,45 @@ export interface KubeconfigResponse {
 export async function fetchGetClusterKubeconfig(clusterId: number): Promise<KubeconfigResponse> {
   const res = await pixiuAxios.get(`/pixiu/clusters/${clusterId}/kubeconfig`)
   return res.data.result as KubeconfigResponse
+}
+
+/** POST /pixiu/clusters/:id/proxy-kubeconfig — 经 Pixiu 转发的标准 kubeconfig */
+export interface ProxyKubeconfigResponse {
+  cluster_id: number
+  cluster_name: string
+  alias_name: string
+  jti: string
+  expire_at: string
+  server: string
+  token: string
+  kubeconfig: string
+  kubeconfig_encoding: string
+}
+
+export async function fetchCreateProxyKubeconfig(
+  clusterId: number,
+  params?: { expires_at?: string }
+): Promise<void> {
+  await pixiuAxios.post(`/pixiu/clusters/${clusterId}/proxy-kubeconfig`, params ?? {})
+}
+
+/** GET /pixiu/clusters/:id/proxy-kubeconfig */
+export interface ProxyKubeconfigInfo {
+  jti: string
+  name: string
+  server: string
+  expire_at: string
+  created_at: string
+  is_active: boolean
+}
+
+export async function fetchGetProxyKubeconfig(clusterId: number): Promise<ProxyKubeconfigResponse | null> {
+  const res = await pixiuAxios.get(`/pixiu/clusters/${clusterId}/proxy-kubeconfig`)
+  return (res.data.result ?? null) as ProxyKubeconfigResponse | null
+}
+
+export async function fetchRevokeAccessToken(clusterId: number, jti: string): Promise<void> {
+  await pixiuAxios.delete(`/pixiu/clusters/${clusterId}/access-tokens/${jti}`)
 }
 
 /** 导入集群（标准集群，cluster_type = 0） */
