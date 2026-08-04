@@ -246,6 +246,7 @@
     if (image.startsWith('debian')) return 'Debian'
     if (image.startsWith('openeuler')) return 'OpenEuler'
     if (image.startsWith('rocky')) return 'RockyLinux'
+    if (image.startsWith('kylin') || image === 'v10') return 'Kylin'
     return ''
   }
 

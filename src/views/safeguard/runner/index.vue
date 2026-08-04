@@ -129,7 +129,14 @@
           >
             <template #family="{ row }">
               <div class="runner-os-family">
+                <img
+                  v-if="osLogoSrc(row.family)"
+                  :src="osLogoSrc(row.family)"
+                  class="os-icon os-icon--img"
+                  alt=""
+                />
                 <ArtSvgIcon
+                  v-else
                   :icon="osIcon(row.family)"
                   class="os-icon"
                   :style="{ color: osBrandColors[row.family] }"
@@ -198,6 +205,7 @@
   import { PixiuApiError } from '@/api/container'
   import RunnerDrawer from './modules/runner-drawer.vue'
   import DistributionDrawer from '../distribution/modules/distribution-drawer.vue'
+  import { osLogoSrc } from '@/utils/os-brand'
 
   defineOptions({ name: 'RunnerManage' })
 
@@ -232,8 +240,9 @@
     CentOS: '#932279',
     Ubuntu: '#E95420',
     Debian: '#A81D33',
-    OpenEuler: '#0067C0',
-    RockyLinux: '#10B981'
+    OpenEuler: '#002FA7',
+    RockyLinux: '#10B981',
+    Kylin: '#2B6DE5'
   }
 
   function osIcon(os: string) {
@@ -647,6 +656,14 @@
 
   .os-icon {
     font-size: 18px;
+  }
+
+  .os-icon--img {
+    width: 18px;
+    height: 18px;
+    display: block;
+    object-fit: contain;
+    flex-shrink: 0;
   }
 
   .os-name {
