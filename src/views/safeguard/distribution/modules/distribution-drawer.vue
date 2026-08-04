@@ -20,16 +20,44 @@
     <div v-loading="editLoading" class="distribution-drawer-body">
       <ElForm :model="formData" :rules="rules" ref="formRef" label-width="120px" class="distribution-form">
         <ElFormItem label="系统家族" prop="family">
-          <ElSelect v-model="formData.family" placeholder="请选择系统家族" style="width: 100%" filterable>
+          <ElSelect
+            v-model="formData.family"
+            placeholder="请选择系统家族"
+            style="width: 100%"
+            filterable
+            popper-class="distribution-os-family-dropdown"
+          >
             <template #label>
               <div v-if="formData.family" class="os-option">
-                <ArtSvgIcon :icon="osIcon(formData.family)" class="os-option__logo" :style="{ color: osBrandColors[formData.family] || '#606266' }" />
+                <img
+                  v-if="osLogoSrc(formData.family)"
+                  :src="osLogoSrc(formData.family)"
+                  class="os-option__logo os-option__logo--img"
+                  alt=""
+                />
+                <ArtSvgIcon
+                  v-else
+                  :icon="osIcon(formData.family)"
+                  class="os-option__logo"
+                  :style="{ color: osBrandColors[formData.family] || '#606266' }"
+                />
                 <span class="os-option__name">{{ osFamilies.find(f => f.value === formData.family)?.label ?? formData.family }}</span>
               </div>
             </template>
             <ElOption v-for="item in osFamilies" :key="item.value" :label="item.label" :value="item.value">
               <div class="os-option">
-                <ArtSvgIcon :icon="osIcon(item.value)" class="os-option__logo" :style="{ color: osBrandColors[item.value] || '#606266' }" />
+                <img
+                  v-if="osLogoSrc(item.value)"
+                  :src="osLogoSrc(item.value)"
+                  class="os-option__logo os-option__logo--img"
+                  alt=""
+                />
+                <ArtSvgIcon
+                  v-else
+                  :icon="osIcon(item.value)"
+                  class="os-option__logo"
+                  :style="{ color: osBrandColors[item.value] || '#606266' }"
+                />
                 <span class="os-option__name">{{ item.label }}</span>
               </div>
             </ElOption>
@@ -72,6 +100,7 @@
     type UpdateDistributionParams
   } from '@/api/distribution'
   import { fetchAllRunners, type RunnerItem } from '@/api/runner'
+  import { osLogoSrc } from '@/utils/os-brand'
 
   defineOptions({ name: 'DistributionDrawer' })
 
@@ -109,10 +138,11 @@
     { value: 'Ubuntu', label: 'Ubuntu' },
     { value: 'Debian', label: 'Debian' },
     { value: 'OpenEuler', label: 'OpenEuler' },
-    { value: 'RockyLinux', label: 'RockyLinux' }
+    { value: 'RockyLinux', label: 'RockyLinux' },
+    { value: 'Kylin', label: 'Kylin' }
   ]
 
-  // 系统家族图标映射
+  // 系统家族图标映射（有本地 logo 的家族走 osLogoSrc）
   const osIconMap: Record<string, string> = {
     CentOS: 'ri:centos-fill',
     Ubuntu: 'simple-icons:ubuntu',
@@ -126,8 +156,9 @@
     CentOS: '#932279',
     Ubuntu: '#E95420',
     Debian: '#A81D33',
-    OpenEuler: '#0067C0',
-    RockyLinux: '#10B981'
+    OpenEuler: '#002FA7',
+    RockyLinux: '#10B981',
+    Kylin: '#2B6DE5'
   }
 
   function osIcon(os: string) {
@@ -271,19 +302,30 @@
     align-items: center;
     gap: 8px;
     width: 100%;
+    height: 100%;
     min-height: 22px;
-    line-height: 22px;
+    line-height: 1;
   }
 
   .os-option__logo {
     flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     width: 16px;
     height: 16px;
     font-size: 16px;
+    line-height: 1;
+  }
+
+  .os-option__logo--img {
+    display: block;
+    object-fit: contain;
   }
 
   .os-option__logo :deep(svg) {
     color: inherit;
+    display: block;
   }
 
   .os-option__name {
@@ -293,15 +335,27 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     font-size: 12px;
+    line-height: 16px;
   }
 
   .distribution-form :deep(.el-select__selected-item) {
     display: flex;
     align-items: center;
   }
+</style>
 
-  .distribution-form :deep(.el-select-dropdown__item) {
-    height: auto;
-    padding: 8px 12px;
+<style>
+  .distribution-os-family-dropdown .el-select-dropdown__item {
+    display: flex;
+    align-items: center;
+    height: 34px;
+    line-height: 34px;
+    padding: 0 20px;
+    box-sizing: border-box;
+  }
+
+  .distribution-os-family-dropdown .el-select-dropdown__item .os-option {
+    height: 100%;
+    line-height: 1;
   }
 </style>

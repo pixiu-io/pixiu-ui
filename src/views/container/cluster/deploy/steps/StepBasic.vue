@@ -101,6 +101,7 @@
           :model-value="form.osType"
           placeholder="选择OS类型"
           class="os-type-select"
+          popper-class="os-type-select-dropdown"
           style="width: 220px"
           :loading="osLoading"
           :disabled="readOnly"
@@ -108,7 +109,14 @@
         >
           <template v-if="form.osType" #label>
             <div class="os-option os-option--selected">
+              <img
+                v-if="osLogoSrc(form.osType)"
+                :src="osLogoSrc(form.osType)"
+                class="os-option__logo os-option__logo--img"
+                alt=""
+              />
               <ArtSvgIcon
+                v-else
                 :icon="osIcon(form.osType)"
                 class="os-option__logo"
                 :style="{ color: osBrandColor(form.osType) }"
@@ -119,7 +127,14 @@
           </template>
           <ElOption v-for="os in osTypes" :key="os" :label="osLabels[os] ?? os" :value="os">
             <div class="os-option">
+              <img
+                v-if="osLogoSrc(os)"
+                :src="osLogoSrc(os)"
+                class="os-option__logo os-option__logo--img"
+                alt=""
+              />
               <ArtSvgIcon
+                v-else
                 :icon="osIcon(os)"
                 class="os-option__logo"
                 :style="{ color: osBrandColor(os) }"
@@ -373,6 +388,7 @@
   import { WarningFilled } from '@element-plus/icons-vue'
   import { fetchAllDistributions } from '@/api/distribution'
   import type { DistributionItem } from '@/api/distribution'
+  import { osLogoSrc } from '@/utils/os-brand'
   import { fetchAgentList, type AgentItem } from '@/api/agent'
 
   export interface NodeConfig {
@@ -468,7 +484,8 @@
     Ubuntu: 'Ubuntu',
     Debian: 'Debian',
     OpenEuler: 'OpenEuler',
-    RockyLinux: 'RockyLinux'
+    RockyLinux: 'RockyLinux',
+    Kylin: 'Kylin'
   }
 
   const osIconMap: Record<string, string> = {
@@ -488,8 +505,9 @@
     CentOS: '#932279',
     Ubuntu: '#E95420',
     Debian: '#A81D33',
-    OpenEuler: '#0067C0',
-    RockyLinux: '#10B981'
+    OpenEuler: '#002FA7',
+    RockyLinux: '#10B981',
+    Kylin: '#2B6DE5'
   }
 
   function osBrandColor(os: string) {
@@ -525,7 +543,8 @@
         { id: 5, resourceVersion: 1, family: 'OpenEuler', name: 'openEuler22.03', runner: 'runner-agent-v3' },
         { id: 6, resourceVersion: 1, family: 'OpenEuler', name: 'openEuler24.03', runner: 'runner-agent-v3' },
         { id: 7, resourceVersion: 1, family: 'RockyLinux', name: 'rocky9.2', runner: 'runner-agent-v3' },
-        { id: 8, resourceVersion: 1, family: 'RockyLinux', name: 'rocky9.3', runner: 'runner-agent-v3' }
+        { id: 8, resourceVersion: 1, family: 'RockyLinux', name: 'rocky9.3', runner: 'runner-agent-v3' },
+        { id: 9, resourceVersion: 1, family: 'Kylin', name: 'V10', runner: 'runner-agent-v3' }
       ]
     } finally {
       osLoading.value = false
@@ -807,19 +826,30 @@
     align-items: center;
     gap: 8px;
     width: 100%;
+    height: 100%;
     min-height: 22px;
-    line-height: 22px;
+    line-height: 1;
   }
 
   .os-option__logo {
     flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     width: 16px;
     height: 16px;
     font-size: 16px;
+    line-height: 1;
+  }
+
+  .os-option__logo--img {
+    display: block;
+    object-fit: contain;
   }
 
   .os-option__logo :deep(svg) {
     color: inherit;
+    display: block;
   }
 
   .os-option__name {
@@ -829,6 +859,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     font-size: 12px;
+    line-height: 16px;
   }
 
   .os-option__tag {
@@ -845,11 +876,6 @@
   .os-type-select :deep(.el-select__selected-item) {
     display: flex;
     align-items: center;
-  }
-
-  .os-type-select :deep(.el-select-dropdown__item) {
-    height: auto;
-    padding: 8px 12px;
   }
 
   .runtime-label {
@@ -1094,5 +1120,22 @@
     background-color: var(--el-bg-color-overlay) !important; color: var(--el-color-primary) !important;
     font-weight: 500 !important; border-color: var(--el-color-primary) !important;
     box-shadow: none !important; position: relative; z-index: 1;
+  }
+</style>
+
+<!-- 下拉挂到 body，需非 scoped 才能垂直居中选项 -->
+<style>
+  .os-type-select-dropdown .el-select-dropdown__item {
+    display: flex;
+    align-items: center;
+    height: 34px;
+    line-height: 34px;
+    padding: 0 20px;
+    box-sizing: border-box;
+  }
+
+  .os-type-select-dropdown .el-select-dropdown__item .os-option {
+    height: 100%;
+    line-height: 1;
   }
 </style>
