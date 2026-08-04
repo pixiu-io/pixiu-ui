@@ -1018,7 +1018,7 @@
 
   .datasource-dialog {
     :deep(.el-dialog__header) {
-      padding-top: 16px;
+      padding-top: 8px;
       padding-bottom: 8px;
       margin-bottom: 0;
     }

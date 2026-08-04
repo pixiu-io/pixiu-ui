@@ -1213,7 +1213,8 @@ onMounted(() => {
 }
 
 .rq-ds-select {
-  width: 320px;
+  width: 220px;
+  max-width: 100%;
 }
 
 .rq-ds-option {
