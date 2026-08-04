@@ -294,6 +294,7 @@
 
     <template #footer>
       <div class="datasource-dialog__footer">
+        <ElButton :loading="testing" @click="handleTest">测试</ElButton>
         <div class="datasource-dialog__footer-actions">
           <ElButton @click="closeDialog">取消</ElButton>
           <ElButton type="primary" :loading="submitting" @click="handleSubmit">
@@ -365,6 +366,7 @@
   const isEdit = computed(() => props.editId != null && props.editId > 0)
   const editLoading = ref(false)
   const submitting = ref(false)
+  const testing = ref(false)
   const formRef = ref<FormInstance>()
   const advancedPanels = ref<string[]>([])
   const editResourceVersion = ref(0)
@@ -807,6 +809,25 @@
     }
   }
 
+  async function handleTest() {
+    if (!formRef.value) return
+    const valid = await formRef.value.validate().catch(() => false)
+    if (!valid) return
+
+    if (!isInternalLogDatasource.value && !formData.external) {
+      ElMessage.warning('当前配置暂不支持连通性测试，请改为内部日志数据源或外部数据源后再试')
+      return
+    }
+
+    testing.value = true
+    try {
+      const ok = await testDatasource()
+      if (ok) ElMessage.success('连接测试成功')
+    } finally {
+      testing.value = false
+    }
+  }
+
   async function handleSubmit() {
     if (!formRef.value) return
     const valid = await formRef.value.validate().catch(() => false)
@@ -814,11 +835,6 @@
 
     submitting.value = true
     try {
-      if (isInternalLogDatasource.value || formData.external) {
-        const tested = await testDatasource()
-        if (!tested) return
-      }
-
       const url = formData.url.trim()
       const config = buildConfig()
 
@@ -1041,7 +1057,7 @@
   .datasource-dialog__footer {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: space-between;
     gap: 12px;
   }
 
