@@ -249,9 +249,6 @@ export async function fetchClusterList(params: {
   const query: Record<string, unknown> = { page: params.page, limit: params.limit }
   if (params.nameSelector) query.nameSelector = params.nameSelector
   if (params.status !== undefined && params.status !== '') query.status = Number(params.status)
-  const userStore = useUserStore()
-  const userId = userStore.getUserInfo?.userId
-  if (userId) query.user_id = Number(userId)
   const res = await pixiuGet<{ total: number; items: BackendCluster[] }>(
     '/pixiu/clusters',
     query
@@ -376,8 +373,6 @@ export async function fetchCreateCluster(params: {
   connect_mode?: number
   agent_token?: string
 }): Promise<void> {
-  const userStore = useUserStore()
-  const userId = userStore.getUserInfo?.userId
   await pixiuAxios.post('/pixiu/clusters', {
     alias_name: params.alias_name,
     kube_config: params.kube_config,
@@ -385,8 +380,7 @@ export async function fetchCreateCluster(params: {
     protected: params.protected ?? true,
     cluster_type: params.cluster_type ?? 0,
     connect_mode: params.connect_mode ?? 0,
-    agent_token: params.agent_token ?? '',
-    user_id: userId ?? 0
+    agent_token: params.agent_token ?? ''
   })
 }
 
