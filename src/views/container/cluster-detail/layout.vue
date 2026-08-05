@@ -192,7 +192,7 @@
 </template>
 
 <script setup lang="ts">
-  import { ElMessage, type InputInstance } from 'element-plus'
+  import { type InputInstance } from 'element-plus'
   import { ArrowLeft, Search } from '@element-plus/icons-vue'
   import { computed, nextTick, provide, ref, watch } from 'vue'
   import { useRoute, useRouter, type RouteLocationNormalizedLoaded } from 'vue-router'
@@ -203,7 +203,6 @@
   import ClusterYamlCreateDialog from './modules/cluster-yaml-create-dialog.vue'
   import ClusterCloudShell from '@/views/container/cluster/modules/cluster-cloud-shell.vue'
   import ClusterAIFloat from './components/cluster-ai-float.vue'
-  import { useUserStore } from '@/store/modules/user'
   import {
     clusterDetailActiveMenuKey,
     clusterDetailContextKey,
@@ -220,7 +219,6 @@
 
   const route = useRoute()
   const router = useRouter()
-  const userStore = useUserStore()
   const settingStore = useSettingStore()
   const { getMenuTheme } = storeToRefs(settingStore)
 
@@ -628,16 +626,10 @@
 
   function openCloudShell() {
     if (cloudShellDisabled.value) return
-    const userId = Number(userStore.getUserInfo?.userId || 0)
-    if (!userId) {
-      ElMessage.warning('未获取到当前用户信息，请重新登录后重试')
-      return
-    }
     cloudShellRef.value?.open({
       clusterName: ctx.value.name,
       clusterAlias: ctx.value.aliasName || ctx.value.name,
-      clusterId: ctx.value.id,
-      userId
+      clusterId: ctx.value.id
     })
   }
 

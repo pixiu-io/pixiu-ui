@@ -26,15 +26,6 @@
               <ElOption label="异常" :value="3" />
             </ElSelect>
           </ElFormItem>
-          <ElFormItem label="用户ID">
-            <ElInput
-              v-model="searchForm.userId"
-              placeholder="请输入用户ID"
-              clearable
-              style="width: 140px"
-              @keyup.enter="handleSearch"
-            />
-          </ElFormItem>
         </div>
         <ElFormItem class="search-form-actions">
           <ElButton type="primary" @click="handleSearch" v-ripple>查询</ElButton>
@@ -86,9 +77,6 @@
             <ElOption label="离线" :value="2" />
             <ElOption label="异常" :value="3" />
           </ElSelect>
-        </ElFormItem>
-        <ElFormItem label="用户ID" prop="userId">
-          <ElInput v-model="dialogForm.userId" placeholder="请输入用户ID" />
         </ElFormItem>
         <ElFormItem label="描述" prop="description">
           <ElInput
@@ -143,7 +131,6 @@
     // @ts-ignore
       nameSelector: '',
     status: '' as string | number,
-    userId: '',
   })
 
   // 弹窗
@@ -154,7 +141,6 @@
   const dialogForm = ref({
     name: '',
     status: 0,
-    userId: '',
     description: '',
     id: 0,
     resourceVersion: 0,
@@ -162,7 +148,6 @@
 
   const dialogRules: FormRules = {
     name: [{ required: true, message: '请输入名称', trigger: 'blur' }],
-    userId: [{ required: true, message: '请输入用户ID', trigger: 'blur' }],
   }
 
   const {
@@ -184,7 +169,6 @@
           limit: params.size,
           // @ts-ignore
       nameSelector: searchForm.value.nameSelector || undefined,
-          userId: searchForm.value.userId ? Number(searchForm.value.userId) : undefined,
           status: searchForm.value.status !== '' ? Number(searchForm.value.status) : undefined,
         })
         return {
@@ -211,18 +195,11 @@
           },
         },
         {
-          prop: 'userId',
-          label: '用户ID',
-          width: 100,
-          formatter: (row: AgentItem) =>
-            h('span', { style: 'font-size:12px' }, String(row.userId)),
-        },
-        {
-          prop: 'lastReportTime',
+          prop: 'lastHeartbeat',
           label: '上次上报时间',
           width: 170,
           formatter: (row: AgentItem) =>
-            h('span', { style: 'font-size:12px' }, formatDate(row.lastReportTime)),
+            h('span', { style: 'font-size:12px' }, formatDate(row.lastHeartbeat)),
         },
         {
           prop: 'description',
@@ -259,7 +236,6 @@
     replaceSearchParams({
       // @ts-ignore
       nameSelector: searchForm.value.nameSelector.trim() || undefined,
-      userId: searchForm.value.userId ? Number(searchForm.value.userId) : undefined,
       status: searchForm.value.status !== '' ? Number(searchForm.value.status) : undefined,
     })
     getData()
@@ -267,7 +243,7 @@
 
   function handleReset() {
     searchForm.value = { // @ts-ignore
-      nameSelector: '', status: '', userId: '' }
+      nameSelector: '', status: '' }
     resetSearchParams()
   }
 
@@ -277,7 +253,6 @@
       dialogForm.value = {
         name: row.name,
         status: row.status,
-        userId: String(row.userId),
         description: row.description,
         id: row.id,
         resourceVersion: row.resourceVersion,
@@ -286,7 +261,6 @@
       dialogForm.value = {
         name: '',
         status: 0,
-        userId: '',
         description: '',
         id: 0,
         resourceVersion: 0,
@@ -303,19 +277,13 @@
     submitting.value = true
     try {
       if (dialogType.value === 'add') {
-        await fetchCreateAgent({
-          name: dialogForm.value.name,
-          status: dialogForm.value.status,
-          userId: Number(dialogForm.value.userId),
-          description: dialogForm.value.description,
-        })
+        await fetchCreateAgent(dialogForm.value.name, 0, dialogForm.value.description)
         ElMessage.success('创建成功')
       } else {
-        await fetchUpdateAgent(dialogForm.value.id, {
+        await fetchUpdateAgent(dialogForm.value.id, dialogForm.value.resourceVersion, {
           name: dialogForm.value.name,
           status: dialogForm.value.status,
           description: dialogForm.value.description,
-          resourceVersion: dialogForm.value.resourceVersion,
         })
         ElMessage.success('更新成功')
       }

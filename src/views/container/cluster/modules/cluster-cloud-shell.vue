@@ -120,7 +120,6 @@
     clusterName: string
     clusterAlias?: string
     clusterId: number
-    userId: number
   }
 
   interface CloudShellTab {
@@ -128,7 +127,6 @@
     clusterName: string
     clusterAlias: string
     clusterId: number
-    userId: number
     connecting: boolean
     connected: boolean
   }
@@ -372,8 +370,7 @@
     return (
       `${base}/pixiu/kubeproxy/clusters/ws` +
       `?cluster_name=${encodeURIComponent(tab.clusterName)}` +
-      `&cluster_id=${encodeURIComponent(String(tab.clusterId))}` +
-      `&user_id=${encodeURIComponent(String(tab.userId))}`
+      `&cluster_id=${encodeURIComponent(String(tab.clusterId))}`
     )
   }
 
@@ -528,14 +525,13 @@
 
   function createTab(opts: CloudShellOpenOpts): CloudShellTab {
     if (!opts) {
-      opts = { clusterName: '', clusterId: 0, userId: 0 }
+      opts = { clusterName: '', clusterId: 0 }
     }
     return {
       id: `cs-${++tabSeq}`,
       clusterName: opts.clusterName || '',
       clusterAlias: opts.clusterAlias || opts.clusterName || '',
       clusterId: opts.clusterId || 0,
-      userId: opts.userId || 0,
       connecting: true,
       connected: false
     }
