@@ -100,13 +100,11 @@
 
   // 事件
   function handleReset() {
-    console.log('重置表单')
     emit('reset')
   }
 
   async function handleSearch(params: Api.SystemManage.UserSearchParams) {
     await searchBarRef.value.validate()
     emit('search', params)
-    console.log('表单数据', params)
   }
 </script>

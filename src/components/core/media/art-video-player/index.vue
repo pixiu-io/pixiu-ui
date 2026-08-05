@@ -87,14 +87,10 @@
     })
 
     // 播放事件监听器
-    playerInstance.value.on('play', () => {
-      console.log('Video is playing')
-    })
+    playerInstance.value.on('play', () => {})
 
     // 暂停事件监听器
-    playerInstance.value.on('pause', () => {
-      console.log('Video is paused')
-    })
+    playerInstance.value.on('pause', () => {})
 
     // 错误事件监听器
     playerInstance.value.on('error', (error) => {

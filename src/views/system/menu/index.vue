@@ -413,8 +413,7 @@
    * 提交表单数据
    * @param formData 表单数据
    */
-  const handleSubmit = (formData: MenuFormData): void => {
-    console.log('提交数据:', formData)
+  const handleSubmit = (_formData: MenuFormData): void => {
     // TODO: 调用API保存数据
     getMenuList()
   }

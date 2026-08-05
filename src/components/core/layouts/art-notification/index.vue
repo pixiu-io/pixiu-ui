@@ -376,17 +376,14 @@
   const useBusinessLogic = () => {
     const handleNoticeAll = () => {
       // 处理查看全部通知
-      console.log('查看全部通知')
     }
 
     const handleMsgAll = () => {
       // 处理查看全部消息
-      console.log('查看全部消息')
     }
 
     const handlePendingAll = () => {
       // 处理查看全部待办
-      console.log('查看全部待办')
     }
 
     return {

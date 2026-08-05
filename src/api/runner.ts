@@ -119,14 +119,10 @@ export async function fetchAllRunners(): Promise<RunnerItem[]> {
 export async function fetchGetRunner(id: number): Promise<RunnerItem> {
   const res = await pixiuAxios.get(`/pixiu/runners/${id}`)
   const { code, result, message } = res.data
-  console.log('fetchGetRunner - 完整响应:', res.data)
-  console.log('fetchGetRunner - result:', result)
   if (code !== 200) {
     throw new Error(message || '获取 Runner 详情失败')
   }
-  const item = mapPixiuRunnerItem((result || {}) as PixiuRunnerItem)
-  console.log('fetchGetRunner - 转换后的数据:', item)
-  return item
+  return mapPixiuRunnerItem((result || {}) as PixiuRunnerItem)
 }
 
 export interface CreateRunnerParams {
@@ -161,7 +157,6 @@ export interface UpdateRunnerParams {
 
 // 更新 Runner
 export async function fetchUpdateRunner(id: number, params: UpdateRunnerParams): Promise<void> {
-  console.log('fetchUpdateRunner 被调用, params:', params)
   const data: Record<string, unknown> = {
     resource_version: params.resourceVersion
   }
@@ -170,7 +165,6 @@ export async function fetchUpdateRunner(id: number, params: UpdateRunnerParams):
   if (params.status !== undefined) data.status = params.status
   if (params.description !== undefined) data.description = params.description
 
-  console.log('fetchUpdateRunner 准备发送的数据:', data)
   const res = await pixiuAxios.put(`/pixiu/runners/${id}`, data)
   const { code, message } = res.data
   if (code !== 200) throw new Error(message || '更新 Runner 失败')

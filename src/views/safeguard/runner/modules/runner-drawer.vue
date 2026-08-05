@@ -108,14 +108,12 @@
     editLoading.value = true
     try {
       const data = await fetchGetRunner(id)
-      console.log('loadEditData 成功获取数据:', data)
       formData.value = {
         name: data.name,
         engineImage: data.engineImage,
         description: data.description
       }
       editResourceVersion.value = data.resourceVersion
-      console.log('loadEditData 设置 editResourceVersion 为:', editResourceVersion.value)
     } catch (error) {
       ElMessage.error(error instanceof Error ? error.message : '获取数据失败')
       closeDrawer()
@@ -135,8 +133,6 @@
         submitting.value = true
         try {
           if (isEdit.value && props.editId) {
-            console.log('准备编辑 Runner, editId:', props.editId)
-            console.log('editResourceVersion 的值:', editResourceVersion.value)
             const params: UpdateRunnerParams = {
               id: props.editId,
               resourceVersion: editResourceVersion.value,
@@ -144,7 +140,6 @@
               engineImage: formData.value.engineImage,
               description: formData.value.description
             }
-            console.log('准备调用 fetchUpdateRunner, params:', params)
             await fetchUpdateRunner(params.id, params)
             ElMessage.success('修改成功')
           } else {
@@ -159,7 +154,6 @@
           emit('success')
           closeDrawer()
         } catch (error) {
-          console.log('handleSubmit 捕获到错误:', error)
           if (!(error instanceof PixiuApiError) || !error.notified) {
             ElMessage.error(error instanceof Error ? error.message : '操作失败')
           }
