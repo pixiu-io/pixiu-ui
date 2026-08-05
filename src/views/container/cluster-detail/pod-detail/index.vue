@@ -227,6 +227,17 @@
           />
         </el-tab-pane>
 
+        <!-- 文件浏览 -->
+        <el-tab-pane label="文件浏览" name="files">
+          <K8sPodFilesPane
+            :cluster="cluster"
+            :namespace="namespace"
+            :pod-name="podName"
+            :phase="pod?.status?.phase || ''"
+            :active="activeTab === 'files'"
+          />
+        </el-tab-pane>
+
       </el-tabs>
     </ElCard>
     </div>
@@ -255,6 +266,7 @@
   import ArtButtonMore, { type ButtonMoreItem } from '@/components/core/forms/art-button-more/index.vue'
   import PodRemoteWebshell from '../components/pod-remote-webshell.vue'
   import K8sPodLogsPane from '../components/k8s-pod-logs-pane.vue'
+  import K8sPodFilesPane from '../components/k8s-pod-files-pane.vue'
   import K8sResourceEventsPane from '../components/k8s-resource-events-pane.vue'
   import WorkloadMetricsPane from '../components/workload-metrics-pane.vue'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
@@ -288,7 +300,7 @@
   // ── Data ──
   const loading = ref(true)
   const pod = ref<any>(null)
-  const POD_DETAIL_TABS = new Set(['workloadMetrics', 'containers', 'events', 'logs'])
+  const POD_DETAIL_TABS = new Set(['workloadMetrics', 'containers', 'events', 'logs', 'files'])
   const tabFromRoute = String(route.query.tab ?? '')
   const activeTab = ref(POD_DETAIL_TABS.has(tabFromRoute) ? tabFromRoute : 'containers')
 
