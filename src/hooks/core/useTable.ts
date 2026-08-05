@@ -35,6 +35,7 @@ import {
   createErrorHandler
 } from '../../utils/table/tableUtils'
 import { tableConfig } from '../../utils/table/tableConfig'
+import { logger as sysLogger } from '@/utils/sys/logger'
 
 // 类型推导工具类型
 type InferApiParams<T> = T extends (params: infer P) => any ? P : never
@@ -165,7 +166,7 @@ function useTableImpl<TApiFn extends (params: any) => Promise<any>>(
   const logger = {
     log: (message: string, ...args: unknown[]) => {
       if (enableLog) {
-        console.log(`[useTable] ${message}`, ...args)
+        sysLogger.log(`[useTable] ${message}`, ...args)
       }
     },
     warn: (message: string, ...args: unknown[]) => {

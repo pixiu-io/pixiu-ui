@@ -83,10 +83,9 @@ export default ({ mode }: { mode: string }) => {
       minify: 'terser',
       terserOptions: {
         compress: {
-          // 生产环境去除 console
-          drop_console: true,
-          // 生产环境去除 debugger
-          drop_debugger: true
+          // 保留 warn/error 便于线上排障；剥离调试类输出
+          drop_debugger: true,
+          pure_funcs: ['console.log', 'console.info', 'console.debug']
         }
       },
       dynamicImportVarsOptions: {
