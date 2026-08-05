@@ -90,6 +90,19 @@ export async function resolveClusterNamespaces(
   }
 
   const { items } = await fetchK8sNamespaceList(cluster, { page: 1, limit: 500 })
+  // 叠加角色 API 作用域：若配置了 scopes，仅展示授权命名空间
+  try {
+    const { usePermissionStore } = await import('@/store/modules/permission')
+    const allowed = usePermissionStore().allowedNamespaces(cluster)
+    if (allowed !== null) {
+      const set = new Set(allowed)
+      const filtered = items.filter((n) => set.has(n.metadata?.name || ''))
+      const names = filtered.map((n) => n.metadata.name).filter(Boolean).sort()
+      return { items: filtered, names, permissionDetail: null, scoped: true }
+    }
+  } catch {
+    // ignore store errors
+  }
   const names = items.map((n) => n.metadata.name).sort()
   return { items, names, permissionDetail: null, scoped: false }
 }

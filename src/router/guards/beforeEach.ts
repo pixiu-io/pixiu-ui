@@ -417,9 +417,24 @@ async function handleDynamicRoutes(
  */
 async function fetchUserInfo(): Promise<void> {
   const userStore = useUserStore()
-  // 登录时已设置用户信息，无需再次请求后端
+  // 登录时已设置用户信息；刷新页面时需重新拉取权限作用域
   if (userStore.info?.userId) {
     userStore.checkAndClearWorktabs()
+    const { usePermissionStore } = await import('@/store/modules/permission')
+    const permissionStore = usePermissionStore()
+    if (!permissionStore.loaded) {
+      try {
+        await permissionStore.loadPermissions()
+        if (userStore.info) {
+          userStore.setUserInfo({
+            ...(userStore.info as Api.Auth.UserInfo),
+            buttons: permissionStore.buttons
+          })
+        }
+      } catch (e) {
+        console.warn('[RouteGuard] 加载用户权限失败:', e)
+      }
+    }
     return
   }
 }

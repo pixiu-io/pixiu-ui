@@ -579,9 +579,24 @@
           limit: params.size,
           nameSelector: params.name
         })
+        // 角色 API 作用域：仅展示被授权的集群（超管 / 无 scopes 时不限制）
+        const { usePermissionStore } = await import('@/store/modules/permission')
+        const permissionStore = usePermissionStore()
+        const filtered = permissionStore.scopes.length
+          ? items.filter(
+              (row) =>
+                permissionStore.canAccessCluster(row.name) ||
+                permissionStore.canAccessCluster(row.aliasName || '')
+            )
+          : items
         return {
           code: 200,
-          data: { records: items, total, current: params.current, size: params.size }
+          data: {
+            records: filtered,
+            total: permissionStore.scopes.length ? filtered.length : total,
+            current: params.current,
+            size: params.size
+          }
         }
       },
       apiParams: { current: 1, size: 10 },

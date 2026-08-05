@@ -10,6 +10,7 @@
 import type { AppRouteRecord } from '@/types/router'
 import { useAppMode } from '@/hooks/core/useAppMode'
 import { fetchGetMenuList } from '@/api/system-manage'
+import { useUserStore } from '@/store/modules/user'
 import { asyncRoutes } from '../routes/asyncRoutes'
 import { RoutesAlias } from '../routesAlias'
 import { formatMenuTitle } from '@/utils'
@@ -40,8 +41,7 @@ export class MenuProcessor {
    */
   private async processFrontendMenu(): Promise<AppRouteRecord[]> {
     let menuList = [...asyncRoutes]
-
-    // 菜单展示不做角色过滤，普通用户可见全部菜单
+    menuList = this.filterByRoles(menuList)
     return this.filterEmptyMenus(menuList)
   }
 
@@ -50,9 +50,29 @@ export class MenuProcessor {
    */
   private async processBackendMenu(): Promise<AppRouteRecord[]> {
     const list = await fetchGetMenuList()
+    return this.filterEmptyMenus(this.filterByRoles(list))
+  }
 
-    // 菜单展示不做角色过滤，普通用户可见全部菜单
-    return this.filterEmptyMenus(list)
+  /**
+   * 按 meta.roles 过滤菜单：无 roles 配置则可见；有配置则需命中用户角色。
+   */
+  private filterByRoles(menuList: AppRouteRecord[]): AppRouteRecord[] {
+    const roles = useUserStore().info?.roles ?? []
+    const roleSet = new Set(roles)
+
+    const walk = (list: AppRouteRecord[]): AppRouteRecord[] =>
+      list
+        .map((item) => {
+          const children = item.children?.length ? walk(item.children) : item.children
+          return { ...item, children }
+        })
+        .filter((item) => {
+          const need = item.meta?.roles
+          if (!need || need.length === 0) return true
+          return need.some((r) => roleSet.has(r))
+        })
+
+    return walk(menuList)
   }
 
   /**
