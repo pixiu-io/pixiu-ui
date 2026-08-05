@@ -169,7 +169,7 @@
                   <template #default="{ row }">
                     <ElLink
                       type="primary"
-                      :underline="false"
+                      underline="never"
                       style="font-size:12px"
                       @click="handleToggleReadOnly(row)"
                     >
@@ -177,7 +177,7 @@
                     </ElLink>
                     <ElLink
                       type="primary"
-                      :underline="false"
+                      underline="never"
                       style="font-size:12px;margin-left:8px"
                       @click="handleDeleteIndex(row)"
                     >

@@ -161,7 +161,7 @@
               <div class="col-action">
                 <ElLink
                   type="primary"
-                  :underline="false"
+                  underline="never"
                   class="permission-grant-delete-link"
                   :disabled="rows.length <= 1"
                   @click="removeRow(index)"

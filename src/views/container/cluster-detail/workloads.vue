@@ -1,6 +1,7 @@
 <template>
   <div class="workloads-page">
     <div v-if="kind === 'deploy'" class="cluster-toolbar">
+      <ElButton v-if="deployDataMode === 'deployment'" v-ripple @click="goCreateDeployment">新建 Deployment</ElButton>
       <div class="cluster-toolbar__right">
         <ElInput v-model="deplSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runDeplSearch" @clear="runDeplSearch" />
         <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceDeplSearch" @keyup.enter="forceDeplSearch">
@@ -40,6 +41,7 @@
       </div>
     </div>
     <div v-else-if="kind === 'job'" class="cluster-toolbar">
+      <ElButton v-if="jobDataMode === 'job'" v-ripple @click="goCreateJob">新建 Job</ElButton>
       <div class="cluster-toolbar__right">
         <ElInput v-model="jobSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runJobSearch" @clear="runJobSearch" />
         <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceJobSearch" @keyup.enter="forceJobSearch">
@@ -3463,6 +3465,22 @@
   }
 
   // ── Create ──
+  function goCreateDeployment() {
+    const cluster = String(route.query.cluster ?? '')
+    if (!cluster) {
+      ElMessage.warning('缺少集群参数')
+      return
+    }
+    const namespace = globalNamespace.value || nsOptions.value[0] || ''
+    router.push({
+      path: '/container/deployment-create',
+      query: buildClusterRouteQuery(route, {
+        ...(namespace ? { namespace } : {}),
+        tab: 'deploy'
+      })
+    })
+  }
+
   function goCreateSts() {
     const cluster = String(route.query.cluster ?? '')
     if (!cluster) {
@@ -3524,6 +3542,22 @@
       query: buildClusterRouteQuery(route, {
         ...(namespace ? { namespace } : {}),
         tab: 'ds'
+      })
+    })
+  }
+
+  function goCreateJob() {
+    const cluster = String(route.query.cluster ?? '')
+    if (!cluster) {
+      ElMessage.warning('缺少集群参数')
+      return
+    }
+    const namespace = globalNamespace.value || nsOptions.value[0] || ''
+    router.push({
+      path: '/container/job-create',
+      query: buildClusterRouteQuery(route, {
+        ...(namespace ? { namespace } : {}),
+        tab: 'job'
       })
     })
   }

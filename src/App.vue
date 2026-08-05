@@ -6,6 +6,9 @@
     :card="{
       shadow: 'never'
     }"
+    :link="{
+      underline: 'hover'
+    }"
   >
     <RouterView></RouterView>
     <AppFeedback />

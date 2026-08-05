@@ -73,14 +73,14 @@
           </ElSelect>
           <ElLink
             type="primary"
-            :underline="false"
+            underline="never"
             style="font-size: 12px; cursor: pointer"
             @click="triggerImportRules"
             >导入</ElLink
           >
           <ElLink
             type="primary"
-            :underline="false"
+            underline="never"
             :disabled="!selectedRules.length"
             style="font-size: 12px; cursor: pointer"
             @click="handleExportRules"

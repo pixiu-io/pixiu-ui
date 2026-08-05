@@ -112,10 +112,14 @@
         isFullscreen.value = true
       }
     } else {
-      if (document.fullscreenElement === el) {
-        await document.exitFullscreen()
-      }
       isFullscreen.value = false
+      if (document.fullscreenElement === el) {
+        try {
+          await document.exitFullscreen()
+        } catch {
+          // document 非 active 时忽略
+        }
+      }
     }
   }
 
@@ -132,7 +136,9 @@
   onUnmounted(() => {
     document.removeEventListener('fullscreenchange', onFullscreenChange)
     if (document.fullscreenElement === rootRef.value) {
-      void document.exitFullscreen()
+      void document.exitFullscreen().catch(() => {
+        // 路由跳转/页面卸载时 document 可能已非 active，忽略即可
+      })
     }
   })
 

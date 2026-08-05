@@ -243,7 +243,6 @@
 
   // 下载图片
   function downloadImg() {
-    console.log('下载图片')
     const a = document.createElement('a')
     a.href = temImgPath.value
     a.download = 'image.png'

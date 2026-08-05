@@ -33,6 +33,7 @@
  * @author Pixiu Cloud Team
  */
 import { hash } from 'ohash'
+import { logger } from '@/utils/sys/logger'
 
 // 缓存失效策略枚举
 export enum CacheInvalidationStrategy {
@@ -87,7 +88,7 @@ export class TableCache<T> {
   // 内部日志工具
   private log(message: string, ...args: any[]) {
     if (this.enableLog) {
-      console.log(`[TableCache] ${message}`, ...args)
+      logger.log(`[TableCache] ${message}`, ...args)
     }
   }
 

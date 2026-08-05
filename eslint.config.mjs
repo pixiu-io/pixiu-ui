@@ -57,7 +57,9 @@ export default [
       '@typescript-eslint/no-explicit-any': 'off', // 禁用 any 检查
       'vue/multi-word-component-names': 'off', // 禁用对 Vue 组件名称的多词要求检查
       'no-multiple-empty-lines': ['warn', { max: 1 }], // 不允许多个空行
-      'no-unexpected-multiline': 'error' // 禁止空余的多行
+      'no-unexpected-multiline': 'error', // 禁止空余的多行
+      // 生产风险：禁止调试输出回潮；warn/error 仍可用于排障
+      'no-console': ['error', { allow: ['warn', 'error'] }]
     }
   },
   // vue 规则
@@ -75,7 +77,8 @@ export default [
       'public',
       '.vscode/**',
       'src/assets/**',
-      'src/utils/console.ts'
+      'src/utils/sys/console.ts',
+      'src/utils/sys/logger.ts'
     ]
   },
   // prettier 配置

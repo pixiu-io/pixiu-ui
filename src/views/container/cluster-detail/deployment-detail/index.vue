@@ -203,7 +203,7 @@
           >
             <el-table-column label="名称" min-width="200">
               <template #default="{ row }">
-                <el-link type="primary" :underline="false" class="mono" @click="goToPodDetail(row)">{{ row.metadata?.name }}</el-link>
+                <el-link type="primary" underline="never" class="mono" @click="goToPodDetail(row)">{{ row.metadata?.name }}</el-link>
               </template>
             </el-table-column>
             <el-table-column label="状态" width="100">

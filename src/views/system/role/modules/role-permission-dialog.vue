@@ -144,7 +144,6 @@
     (newVal) => {
       if (newVal && props.roleData) {
         // TODO: 根据角色加载对应的权限数据
-        console.log('设置权限:', props.roleData)
       }
     }
   )
@@ -232,23 +231,13 @@
   }
 
   /**
-   * 输出选中的权限数据到控制台
-   * 用于调试和查看当前选中的权限配置
+   * 汇总当前选中的权限数据
    */
   const outputSelectedData = () => {
     const tree = treeRef.value
     if (!tree) return
 
-    const selectedData = {
-      checkedKeys: tree.getCheckedKeys(),
-      halfCheckedKeys: tree.getHalfCheckedKeys(),
-      checkedNodes: tree.getCheckedNodes(),
-      halfCheckedNodes: tree.getHalfCheckedNodes(),
-      totalChecked: tree.getCheckedKeys().length,
-      totalHalfChecked: tree.getHalfCheckedKeys().length
-    }
-
-    console.log('=== 选中的权限数据 ===', selectedData)
-    ElMessage.success(`已输出选中数据到控制台，共选中 ${selectedData.totalChecked} 个节点`)
+    const totalChecked = tree.getCheckedKeys().length
+    ElMessage.success(`当前共选中 ${totalChecked} 个权限节点`)
   }
 </script>
