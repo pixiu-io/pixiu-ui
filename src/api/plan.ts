@@ -1,5 +1,4 @@
 import { pixiuAxios } from './container'
-import { useUserStore } from '@/store/modules/user'
 
 /** 节点认证信息 */
 export interface PlanNodeAuth {
@@ -264,14 +263,8 @@ export async function fetchPlanList(params?: {
   limit?: number
   nameSelector?: string
   step?: string
-  user_id?: number
 }): Promise<{ list: PlanItemFormatted[]; total: number }> {
-  const userStore = useUserStore()
   const query: Record<string, unknown> = { ...params }
-  if (!query.user_id) {
-    const uid = userStore.getUserInfo?.userId
-    if (uid) query.user_id = Number(uid)
-  }
   const res = await pixiuAxios.get('/pixiu/plans', { params: query })
   const { code, result, message } = res.data
   if (code !== 200) throw new Error(message || '获取部署计划列表失败')
@@ -376,11 +369,7 @@ export async function fetchPlanWithResources(id: number): Promise<PlanResourcesD
  * 一次性创建完整部署计划（含 config + nodes）
  */
 export async function fetchCreatePlan(params: CreatePlanParams): Promise<void> {
-  const userStore = useUserStore()
-  const res = await pixiuAxios.post('/pixiu/plans', {
-    ...params,
-    user_id: userStore.getUserInfo?.userId ?? 0
-  }, { skipErrorNotification: true } as any)
+  const res = await pixiuAxios.post('/pixiu/plans', params, { skipErrorNotification: true } as any)
   const { code, message } = res.data
   if (code !== 200) throw new Error(message || '创建部署计划失败')
 }

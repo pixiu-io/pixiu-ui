@@ -175,12 +175,10 @@
     type PixiuNodeItem
   } from '@/api/node'
   import { PixiuApiError } from '@/api/container'
-  import { useUserStore } from '@/store/modules/user'
   import HostRemoteSsh from './modules/host-remote-ssh.vue'
 
   defineOptions({ name: 'SafeguardHost' })
 
-  const userStore = useUserStore()
   const hostRemoteSshRef = ref<InstanceType<typeof HostRemoteSsh> | null>(null)
 
   const searchForm = ref<{ hostName?: string }>({})
@@ -315,7 +313,6 @@
 
       await fetchCreatePixiuNode({
         name: addNodeForm.name.trim(),
-        user_id: userStore.getUserInfo?.userId,
         ip: addNodeForm.ip.trim(),
         auth
       })
@@ -476,7 +473,6 @@
         const { list, total } = await fetchPixiuNodeList({
           page: params.current,
           limit: params.size,
-          user_id: userStore.getUserInfo?.userId,
           nameSelector: params.hostName?.trim() || undefined,
           plan_id: undefined
         })

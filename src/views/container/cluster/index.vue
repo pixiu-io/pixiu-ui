@@ -274,12 +274,10 @@
   import type { ClusterItem } from '@/api/container'
   import type { PlanTask } from '@/api/plan'
   import { setClusterAliasCache } from '@/utils/navigation/cluster-query'
-  import { useUserStore } from '@/store/modules/user'
 
   defineOptions({ name: 'Cluster' })
 
   const router = useRouter()
-  const userStore = useUserStore()
   const cloudShellRef = ref<InstanceType<typeof ClusterCloudShell> | null>(null)
 
   /** 集群详情 URL：cluster + aliasName */
@@ -827,6 +825,7 @@
                   type: 'primary',
                   underline: 'never',
                   style: `font-size:12px;${row.permissionId ? 'cursor:not-allowed;color:var(--el-text-color-disabled)' : ''}`,
+                  title: row.permissionId ? '授权集群请通过撤销授权删除' : '',
                   onClick: () => {
                     if (!row.permissionId) deleteCluster(row)
                   }
@@ -919,16 +918,10 @@
     switch (item.key) {
       case 'cloudShell': {
         if (isCustomClusterNotRunning(row)) return
-        const userId = Number(userStore.getUserInfo?.userId || 0)
-        if (!userId) {
-          ElMessage.warning('未获取到当前用户信息，请重新登录后重试')
-          return
-        }
         cloudShellRef.value?.open({
           clusterName: row.name,
           clusterAlias: row.aliasName || row.name,
-          clusterId: row.id,
-          userId
+          clusterId: row.id
         })
         break
       }
