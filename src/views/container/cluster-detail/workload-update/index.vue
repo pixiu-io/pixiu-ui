@@ -44,7 +44,7 @@
                     @click.stop="removeContainer(idx)"
                   ><ElIcon><Close /></ElIcon></ElButton>
                 </div>
-                <ElLink type="primary" :underline="false" class="add-container-btn" @click="addContainer">
+                <ElLink type="primary" underline="never" class="add-container-btn" @click="addContainer">
                   <ElIcon><Plus /></ElIcon>添加容器
                 </ElLink>
               </div>

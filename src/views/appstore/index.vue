@@ -49,14 +49,14 @@
         <div class="app-card__footer">
           <ElLink
             type="primary"
-            :underline="false"
+            underline="never"
             :disabled="app.installed"
             style="font-size: 12px"
             @click="onInstall(app)"
           >
             {{ app.installed ? '已安装' : '安装' }}
           </ElLink>
-          <ElLink type="primary" :underline="false" style="font-size: 12px" @click="onDetail(app)">详情</ElLink>
+          <ElLink type="primary" underline="never" style="font-size: 12px" @click="onDetail(app)">详情</ElLink>
         </div>
       </ElCard>
     </div>

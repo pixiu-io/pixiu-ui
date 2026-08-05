@@ -201,10 +201,13 @@
   }
 
   async function exitEditorFullscreenIfNeeded() {
-    if (document.fullscreenElement === editorShellRef.value) {
-      await document.exitFullscreen()
-    }
     editorFullscreen.value = false
+    if (document.fullscreenElement !== editorShellRef.value) return
+    try {
+      await document.exitFullscreen()
+    } catch {
+      // 路由跳转/页面卸载时 document 可能已非 active，忽略即可
+    }
   }
 
   async function toggleEditorFullscreen() {

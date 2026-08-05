@@ -32,7 +32,7 @@
             >暂无节点，请点击
             <ElLink
               type="primary"
-              :underline="false"
+              underline="never"
               style="font-size: 12px; vertical-align: baseline"
               @click="openAddDialog"
               >添加节点</ElLink
@@ -43,7 +43,7 @@
       </template>
       <ElTableColumn label="节点名称" min-width="140">
         <template #default="{ row }">
-          <ElLink type="primary" :underline="false" style="font-size: 12px" @click="openEditDialog(row, pageOffset + 0)">{{ row.name }}</ElLink>
+          <ElLink type="primary" underline="never" style="font-size: 12px" @click="openEditDialog(row, pageOffset + 0)">{{ row.name }}</ElLink>
         </template>
       </ElTableColumn>
       <ElTableColumn label="角色" min-width="140">
@@ -68,7 +68,7 @@
         <template #default="{ row, $index }">
           <ElLink
             type="primary"
-            :underline="false"
+            underline="never"
             :disabled="readOnly"
             style="font-size: 12px; margin-right: 12px"
             @click="openEditDialog(row, pageOffset + 0)"
@@ -76,7 +76,7 @@
           >
           <ElLink
             type="primary"
-            :underline="false"
+            underline="never"
             :disabled="readOnly"
             style="font-size: 12px"
             @click="removeNode(pageOffset + 0)"
