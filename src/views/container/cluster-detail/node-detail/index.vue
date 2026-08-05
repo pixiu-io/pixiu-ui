@@ -115,7 +115,6 @@
         deploy-tab-label="容器组"
         deploy-data-mode="pod"
         :deploy-node-name="name"
-        :show-deploy-create="false"
         sts-tab-label="访问方式"
         ds-tab-label="日志"
         job-tab-label="事件"

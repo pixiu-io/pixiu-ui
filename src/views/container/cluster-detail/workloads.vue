@@ -1,7 +1,6 @@
 <template>
   <div class="workloads-page">
     <div v-if="kind === 'deploy'" class="cluster-toolbar">
-      <ElButton v-ripple @click="openCreateDialog">新建 Deployment</ElButton>
       <div class="cluster-toolbar__right">
         <ElInput v-model="deplSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runDeplSearch" @clear="runDeplSearch" />
         <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceDeplSearch" @keyup.enter="forceDeplSearch">
@@ -11,7 +10,7 @@
       </div>
     </div>
     <div v-else-if="kind === 'sts'" class="cluster-toolbar">
-      <ElButton v-ripple @click="goCreateSts">新建 StatefulSet</ElButton>
+      <ElButton v-if="stsDataMode === 'statefulset'" v-ripple @click="goCreateSts">新建 StatefulSet</ElButton>
       <div class="cluster-toolbar__right">
         <ElInput v-model="stsSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runStsSearch" @clear="runStsSearch" />
         <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceStsSearch" @keyup.enter="forceStsSearch">
@@ -21,7 +20,7 @@
       </div>
     </div>
     <div v-else-if="kind === 'ds'" class="cluster-toolbar">
-      <ElButton v-ripple @click="goCreateDs">新建 DaemonSet</ElButton>
+      <ElButton v-if="dsDataMode === 'daemonset'" v-ripple @click="goCreateDs">新建 DaemonSet</ElButton>
       <div class="cluster-toolbar__right">
         <ElInput v-model="dsSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runDsSearch" @clear="runDsSearch" />
         <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceDsSearch" @keyup.enter="forceDsSearch">
@@ -31,7 +30,7 @@
       </div>
     </div>
     <div v-else-if="kind === 'cj'" class="cluster-toolbar">
-      <ElButton v-ripple @click="goCreateCronJob">新建 CronJob</ElButton>
+      <ElButton v-if="cjDataMode === 'cronjob'" v-ripple @click="goCreateCronJob">新建 CronJob</ElButton>
       <div class="cluster-toolbar__right">
         <ElInput v-model="cjSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runCjSearch" @clear="runCjSearch" />
         <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceCjSearch" @keyup.enter="forceCjSearch">
@@ -40,8 +39,7 @@
         <ArtTableHeader v-model:columns="cjColumnChecks" :loading="cjLoading" layout="size,columns,settings" @refresh="onCjRefresh" />
       </div>
     </div>
-    <div v-else class="cluster-toolbar">
-      <ElButton v-ripple @click="goCreateJob">新建 Job</ElButton>
+    <div v-else-if="kind === 'job'" class="cluster-toolbar">
       <div class="cluster-toolbar__right">
         <ElInput v-model="jobSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runJobSearch" @clear="runJobSearch" />
         <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceJobSearch" @keyup.enter="forceJobSearch">
@@ -302,40 +300,6 @@
       </ElTabs>
     </ElCard>
 
-    <!-- Create Dialog -->
-    <ElDialog v-model="createVisible" title="新建 Deployment" width="480px" destroy-on-close>
-      <ElForm :model="createForm" label-width="80px" style="padding: 0 8px">
-        <ElFormItem label="命名空间">
-          <ElSelect
-            v-model="createForm.namespace"
-            placeholder="选择命名空间"
-            style="width: 100%"
-            filterable
-          >
-            <ElOption v-for="ns in nsOptions" :key="ns" :value="ns" :label="ns" />
-          </ElSelect>
-        </ElFormItem>
-        <ElFormItem label="名称">
-          <ElInput v-model="createForm.name" placeholder="请输入 Deployment 名称" clearable />
-        </ElFormItem>
-        <ElFormItem label="镜像">
-          <ElInput v-model="createForm.image" placeholder="例如 nginx:latest" clearable />
-        </ElFormItem>
-        <ElFormItem label="副本数">
-          <ElInputNumber
-            v-model="createForm.replicas"
-            :min="0"
-            :precision="0"
-            controls-position="right"
-          />
-        </ElFormItem>
-      </ElForm>
-      <template #footer>
-        <ElButton @click="createVisible = false">取消</ElButton>
-        <ElButton type="primary" :loading="createSubmitting" @click="submitCreate">确定</ElButton>
-      </template>
-    </ElDialog>
-
     <!-- Scale Dialog -->
     <ElDialog
       v-model="scaleVisible"
@@ -474,7 +438,6 @@
   import {
     fetchK8sDeploymentList,
     fetchK8sDeployment,
-    createK8sDeployment,
     deleteK8sDeployment,
     patchK8sDeployment,
     type K8sDeployment
@@ -538,7 +501,6 @@
       deployNamespace?: string
       deployLabelSelector?: string
       deployNodeName?: string
-      showDeployCreate?: boolean
       stsTabLabel?: string
       dsTabLabel?: string
       jobTabLabel?: string
@@ -603,7 +565,6 @@
       deployNamespace: '',
       deployLabelSelector: '',
       deployNodeName: '',
-      showDeployCreate: true,
       stsTabLabel: 'StatefulSet',
       dsTabLabel: 'DaemonSet',
       jobTabLabel: 'Job',
@@ -3502,26 +3463,6 @@
   }
 
   // ── Create ──
-  const createVisible = ref(false)
-  const createSubmitting = ref(false)
-  const createForm = ref({ namespace: '', name: '', image: '', replicas: 1 })
-
-  function openCreateDialog() {
-    const cluster = String(route.query.cluster ?? '')
-    if (!cluster) {
-      ElMessage.warning('缺少集群参数')
-      return
-    }
-    const namespace = globalNamespace.value || nsOptions.value[0] || ''
-    router.push({
-      path: '/container/deployment-create',
-      query: buildClusterRouteQuery(route, {
-        ...(namespace ? { namespace } : {}),
-        tab: 'deploy'
-      })
-    })
-  }
-
   function goCreateSts() {
     const cluster = String(route.query.cluster ?? '')
     if (!cluster) {
@@ -3587,22 +3528,6 @@
     })
   }
 
-  function goCreateJob() {
-    const cluster = String(route.query.cluster ?? '')
-    if (!cluster) {
-      ElMessage.warning('缺少集群参数')
-      return
-    }
-    const namespace = globalNamespace.value || nsOptions.value[0] || ''
-    router.push({
-      path: '/container/job-create',
-      query: buildClusterRouteQuery(route, {
-        ...(namespace ? { namespace } : {}),
-        tab: 'job'
-      })
-    })
-  }
-
   function goCreateCronJob() {
     const cluster = String(route.query.cluster ?? '')
     if (!cluster) {
@@ -3617,46 +3542,6 @@
         tab: 'cj'
       })
     })
-  }
-
-  async function submitCreate() {
-    const cluster = String(route.query.cluster ?? '')
-    const { namespace, name, image, replicas } = createForm.value
-    if (!namespace) {
-      ElMessage.warning('请选择命名空间')
-      return
-    }
-    if (!name.trim()) {
-      ElMessage.warning('请输入名称')
-      return
-    }
-    if (!image.trim()) {
-      ElMessage.warning('请输入镜像')
-      return
-    }
-    createSubmitting.value = true
-    try {
-      await createK8sDeployment(cluster, namespace, {
-        apiVersion: 'apps/v1',
-        kind: 'Deployment',
-        metadata: { name: name.trim(), namespace },
-        spec: {
-          replicas,
-          selector: { matchLabels: { app: name.trim() } },
-          template: {
-            metadata: { labels: { app: name.trim() } },
-            spec: { containers: [{ name: name.trim(), image: image.trim() }] }
-          }
-        }
-      })
-      ElMessage.success(`Deployment(${name.trim()}) 创建成功`)
-      createVisible.value = false
-      onDeplRefresh()
-    } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '创建失败')
-    } finally {
-      createSubmitting.value = false
-    }
   }
 
   // ── Scale（Deployment / StatefulSet） ──
@@ -4340,6 +4225,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    margin-left: auto;
   }
 
   .cluster-toolbar__search {

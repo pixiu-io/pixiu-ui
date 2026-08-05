@@ -519,7 +519,7 @@
         show-workload-metrics-tab
         :metrics-namespace="namespace"
         :metrics-label-selector="podSelector"
-        :show-deploy-create="false"
+        :metrics-pod-names="[]"
         sts-tab-label="访问方式"
         ds-tab-label="日志"
         job-tab-label="事件"
