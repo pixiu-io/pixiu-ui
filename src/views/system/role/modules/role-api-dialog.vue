@@ -204,13 +204,6 @@
           <ElTabPane label="数据权限" name="scope">
         <!-- scope 模式：pixiu 资源作用域（左右穿梭框选择资源实例） -->
         <div v-loading="loading || scopeResourcesPending" class="scope-config">
-          <ElAlert
-            type="info"
-            :closable="false"
-            show-icon
-            style="margin-bottom: 12px"
-            title="数据权限：控制功能内能看哪些资源实例，不会决定侧栏菜单是否出现。"
-          />
           <div class="role-api-picker">
             <!-- 左侧：未选资源 -->
             <div class="role-api-picker__panel">
@@ -1792,12 +1785,38 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
-    max-height: 420px;
+    /* 与 API / 按钮权限穿梭框总高度一致：header40 + filter50 + body240 */
+    height: 330px;
     overflow: auto;
     width: 100%;
     /* 仅保留少量顶距，避免首组标题贴线被裁切 */
     padding: 8px 0 6px;
     box-sizing: border-box;
+    /* 默认隐藏滑动块，悬停时显示 */
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+
+    &:hover {
+      scrollbar-color: rgba(144, 147, 153, 0.45) transparent;
+    }
+
+    &::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: transparent;
+      border-radius: 3px;
+    }
+
+    &:hover::-webkit-scrollbar-thumb {
+      background: rgba(144, 147, 153, 0.45);
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
 
     :deep(.el-checkbox) {
       height: 24px;
