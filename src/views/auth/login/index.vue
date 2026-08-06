@@ -160,6 +160,19 @@
         email: ''
       })
 
+      // 拉取当前用户 API / 资源作用域，驱动菜单与资源可见性
+      const { usePermissionStore } = await import('@/store/modules/permission')
+      const permissionStore = usePermissionStore()
+      await permissionStore.loadPermissions()
+      userStore.setUserInfo({
+        ...userStore.info,
+        userId: user_id,
+        userName: user_name,
+        roles: [roleMap[role] ?? 'R_USER'],
+        buttons: permissionStore.buttons,
+        email: ''
+      } as Api.Auth.UserInfo)
+
       userStore.setLoginStatus(true)
 
       // 重置动态路由状态，避免沿用上次的失败标记；跳转首页或合法 redirect

@@ -1,4 +1,5 @@
 import { AppRouteRecord } from '@/types/router'
+import { MenuCodes } from '@/constants/menus'
 
 /** 集群详情各子页（与 dashboard 一致：/container/<页面>?cluster=<name>） */
 const CLUSTER_DETAIL_LAYOUT = '/container/cluster-detail/layout'
@@ -54,7 +55,8 @@ const clusterDetailChildren: AppRouteRecord[] = [
     title: 'menus.container.clusterDetail',
     isHide: true,
     keepAlive: false,
-    tabGroup: 'clusterDetail'
+    tabGroup: 'clusterDetail',
+    menu: MenuCodes.ContainerCluster
   },
   children: [
     {
@@ -64,7 +66,8 @@ const clusterDetailChildren: AppRouteRecord[] = [
       meta: {
         title: 'menus.container.clusterDetail',
         tabGroup: 'clusterDetail',
-        keepAlive: true
+        keepAlive: true,
+        menu: MenuCodes.ContainerCluster
       }
     }
   ]
@@ -76,7 +79,8 @@ export const containerRoutes: AppRouteRecord = {
   component: '/index/index',
   meta: {
     title: 'menus.container.title',
-    icon: 'ri:cloud-line'
+    icon: 'ri:cloud-line',
+    menu: MenuCodes.Container
   },
   children: [
     {
@@ -86,7 +90,8 @@ export const containerRoutes: AppRouteRecord = {
       meta: {
         title: 'menus.container.cluster',
         icon: 'ri:cloudy-2-line',
-        keepAlive: true
+        keepAlive: true,
+        menu: MenuCodes.ContainerCluster
       }
     },
     {
@@ -96,7 +101,8 @@ export const containerRoutes: AppRouteRecord = {
       meta: {
         title: 'menus.container.plan',
         icon: 'ri:rocket-line',
-        keepAlive: true
+        keepAlive: true,
+        menu: MenuCodes.ContainerPlan
       }
     },
     {
@@ -106,7 +112,8 @@ export const containerRoutes: AppRouteRecord = {
       meta: {
         title: 'menus.container.agent',
         icon: 'ri:robot-2-line',
-        keepAlive: true
+        keepAlive: true,
+        menu: MenuCodes.ContainerAgent
       }
     },
     {
@@ -116,7 +123,8 @@ export const containerRoutes: AppRouteRecord = {
       meta: {
         title: '工作负载详情',
         isHide: true,
-        keepAlive: false
+        keepAlive: false,
+        menu: MenuCodes.ContainerCluster
       }
     },
     {
@@ -126,7 +134,8 @@ export const containerRoutes: AppRouteRecord = {
       meta: {
         title: '创建 Secret',
         isHide: true,
-        keepAlive: false
+        keepAlive: false,
+        menu: MenuCodes.ContainerCluster
       }
     },
     {
@@ -136,7 +145,8 @@ export const containerRoutes: AppRouteRecord = {
       meta: {
         title: '创建 ConfigMap',
         isHide: true,
-        keepAlive: false
+        keepAlive: false,
+        menu: MenuCodes.ContainerCluster
       }
     },
     {
@@ -146,7 +156,8 @@ export const containerRoutes: AppRouteRecord = {
       meta: {
         title: '创建 Service',
         isHide: true,
-        keepAlive: false
+        keepAlive: false,
+        menu: MenuCodes.ContainerCluster
       }
     },
     {
@@ -156,7 +167,8 @@ export const containerRoutes: AppRouteRecord = {
       meta: {
         title: '创建 Ingress',
         isHide: true,
-        keepAlive: false
+        keepAlive: false,
+        menu: MenuCodes.ContainerCluster
       }
     },
     {
@@ -166,7 +178,8 @@ export const containerRoutes: AppRouteRecord = {
       meta: {
         title: '创建 StorageClass',
         isHide: true,
-        keepAlive: false
+        keepAlive: false,
+        menu: MenuCodes.ContainerCluster
       }
     },
     {
@@ -176,7 +189,8 @@ export const containerRoutes: AppRouteRecord = {
       meta: {
         title: '创建 PersistentVolume',
         isHide: true,
-        keepAlive: false
+        keepAlive: false,
+        menu: MenuCodes.ContainerCluster
       }
     },
     {
@@ -186,7 +200,8 @@ export const containerRoutes: AppRouteRecord = {
       meta: {
         title: '创建 PersistentVolumeClaim',
         isHide: true,
-        keepAlive: false
+        keepAlive: false,
+        menu: MenuCodes.ContainerCluster
       }
     },
     {
@@ -196,7 +211,8 @@ export const containerRoutes: AppRouteRecord = {
       meta: {
         title: '更新Pod设置',
         isHide: true,
-        keepAlive: false
+        keepAlive: false,
+        menu: MenuCodes.ContainerCluster
       }
     },
     {
@@ -206,7 +222,8 @@ export const containerRoutes: AppRouteRecord = {
       meta: {
         title: '创建 Job',
         isHide: true,
-        keepAlive: false
+        keepAlive: false,
+        menu: MenuCodes.ContainerCluster
       }
     },
     {
@@ -216,7 +233,8 @@ export const containerRoutes: AppRouteRecord = {
       meta: {
         title: '创建 CronJob',
         isHide: true,
-        keepAlive: false
+        keepAlive: false,
+        menu: MenuCodes.ContainerCluster
       }
     },
     {
@@ -226,7 +244,8 @@ export const containerRoutes: AppRouteRecord = {
       meta: {
         title: '创建 StatefulSet',
         isHide: true,
-        keepAlive: false
+        keepAlive: false,
+        menu: MenuCodes.ContainerCluster
       }
     },
     {
@@ -236,7 +255,8 @@ export const containerRoutes: AppRouteRecord = {
       meta: {
         title: '创建 DaemonSet',
         isHide: true,
-        keepAlive: false
+        keepAlive: false,
+        menu: MenuCodes.ContainerCluster
       }
     },
     {
@@ -246,7 +266,8 @@ export const containerRoutes: AppRouteRecord = {
       meta: {
         title: '创建 Deployment',
         isHide: true,
-        keepAlive: false
+        keepAlive: false,
+        menu: MenuCodes.ContainerCluster
       }
     },
     {
@@ -256,7 +277,8 @@ export const containerRoutes: AppRouteRecord = {
       meta: {
         title: '节点详情',
         isHide: true,
-        keepAlive: false
+        keepAlive: false,
+        menu: MenuCodes.ContainerCluster
       }
     },
     {
@@ -266,7 +288,8 @@ export const containerRoutes: AppRouteRecord = {
       meta: {
         title: 'Pod 详情',
         isHide: true,
-        keepAlive: false
+        keepAlive: false,
+        menu: MenuCodes.ContainerCluster
       }
     },
     {
@@ -276,7 +299,8 @@ export const containerRoutes: AppRouteRecord = {
       meta: {
         title: '工作负载详情',
         isHide: true,
-        keepAlive: false
+        keepAlive: false,
+        menu: MenuCodes.ContainerCluster
       }
     },
     {
@@ -286,7 +310,8 @@ export const containerRoutes: AppRouteRecord = {
       meta: {
         title: '工作负载详情',
         isHide: true,
-        keepAlive: false
+        keepAlive: false,
+        menu: MenuCodes.ContainerCluster
       }
     },
     {
@@ -296,7 +321,8 @@ export const containerRoutes: AppRouteRecord = {
       meta: {
         title: '工作负载详情',
         isHide: true,
-        keepAlive: false
+        keepAlive: false,
+        menu: MenuCodes.ContainerCluster
       }
     },
     {
@@ -306,7 +332,8 @@ export const containerRoutes: AppRouteRecord = {
       meta: {
         title: '工作负载详情',
         isHide: true,
-        keepAlive: false
+        keepAlive: false,
+        menu: MenuCodes.ContainerCluster
       }
     },
     {
@@ -316,7 +343,8 @@ export const containerRoutes: AppRouteRecord = {
       meta: {
         title: '新建部署集群',
         isHide: true,
-        keepAlive: false
+        keepAlive: false,
+        menu: MenuCodes.ContainerCluster
       }
     },
     ...clusterDetailChildren

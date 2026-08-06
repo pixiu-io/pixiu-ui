@@ -1,6 +1,7 @@
 <!-- 工作台页面 -->
 <template>
-  <div>
+  <!-- 增加顶部间距，避免工作台内容紧贴/被顶部栏遮挡 -->
+  <div style="padding-top: 20px">
     <CardList></CardList>
 
     <ElRow :gutter="20">

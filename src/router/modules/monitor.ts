@@ -1,4 +1,5 @@
 import { AppRouteRecord } from '@/types/router'
+import { MenuCodes } from '@/constants/menus'
 
 export const monitorRoutes: AppRouteRecord = {
   path: '/monitor',
@@ -7,7 +8,8 @@ export const monitorRoutes: AppRouteRecord = {
   meta: {
     title: 'menus.safeguard.monitor',
     icon: 'ri:alarm-warning-line',
-    keepAlive: false
+    keepAlive: false,
+    menu: MenuCodes.Monitor
   },
   children: [
     {
@@ -16,7 +18,8 @@ export const monitorRoutes: AppRouteRecord = {
       component: '/safeguard/realtime-query',
       meta: {
         title: 'menus.safeguard.realtimeQuery',
-        icon: 'ri:line-chart-line'
+        icon: 'ri:line-chart-line',
+        menu: MenuCodes.MonitorRealtime
       }
     },
     {
@@ -25,7 +28,8 @@ export const monitorRoutes: AppRouteRecord = {
       component: '/safeguard/logs',
       meta: {
         title: 'menus.safeguard.logs',
-        icon: 'ri:file-text-line'
+        icon: 'ri:file-text-line',
+        menu: MenuCodes.MonitorLogs
       }
     },
     {
@@ -34,7 +38,8 @@ export const monitorRoutes: AppRouteRecord = {
       component: '/safeguard/alert-config',
       meta: {
         title: '配置告警',
-        icon: 'ri:alarm-line'
+        icon: 'ri:alarm-line',
+        menu: MenuCodes.MonitorAlert
       }
     },
     {
@@ -43,7 +48,8 @@ export const monitorRoutes: AppRouteRecord = {
       component: '/safeguard/datasource',
       meta: {
         title: 'menus.safeguard.datasource',
-        icon: 'ri:database-2-line'
+        icon: 'ri:database-2-line',
+        menu: MenuCodes.MonitorDatasource
       }
     }
   ]

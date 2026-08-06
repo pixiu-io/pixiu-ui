@@ -1,4 +1,5 @@
 import { kubeProxyAxios } from '@/api/kubeProxy'
+import { filterKubeItemsByScope } from './scope-filter'
 
 type KubeListResponse<T> = {
   items?: T[]
@@ -113,11 +114,12 @@ export async function fetchKubeListPage<T>(
     continueToken = data.metadata?.continue || undefined
   } while (continueToken)
 
+  const filtered = await filterKubeItemsByScope(params.path, allItems)
   const start = (page - 1) * limit
   const end = start + limit
   return {
-    items: allItems.slice(start, end),
-    total: allItems.length
+    items: filtered.slice(start, end),
+    total: filtered.length
   }
 }
 
@@ -147,7 +149,8 @@ export async function fetchKubeListAll<T = any>(
         silence403,
         skipErrorNotification: silence403
       } as any)
-      return data
+      const items = await filterKubeItemsByScope(path, data.items ?? [])
+      return { ...data, items }
     } finally {
       setTimeout(() => {
         if (listAllPromiseMap.get(cacheKey) === promise) {

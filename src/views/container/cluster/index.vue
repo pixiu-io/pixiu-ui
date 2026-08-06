@@ -579,9 +579,15 @@
           limit: params.size,
           nameSelector: params.name
         })
+        // 集群列表不再由角色 scope 过滤，k8s 集群内授权由后端 Permission 机制负责
         return {
           code: 200,
-          data: { records: items, total, current: params.current, size: params.size }
+          data: {
+            records: items,
+            total,
+            current: params.current,
+            size: params.size
+          }
         }
       },
       apiParams: { current: 1, size: 10 },

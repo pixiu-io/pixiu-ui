@@ -41,6 +41,7 @@ import { AppRouteRecord } from '@/types/router'
 import { setPageTitle } from '@/utils/router'
 import { resetRouterState } from '@/router/guards/beforeEach'
 import { useMenuStore } from './menu'
+import { usePermissionStore } from './permission'
 import { StorageConfig } from '@/utils/storage/storage-config'
 
 const TOKEN_STORAGE_KEY = 'pixiu-access-token'
@@ -158,6 +159,8 @@ export const useUserStore = defineStore(
       info.value = {}
       // 重置登录状态
       isLogin.value = false
+      // 清空权限作用域
+      usePermissionStore().clear()
       // 重置锁屏状态
       isLock.value = false
       // 清空锁屏密码

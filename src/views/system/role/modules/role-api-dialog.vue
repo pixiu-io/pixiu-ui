@@ -2,7 +2,7 @@
   <ElDialog
     v-model="dialogVisible"
     :title="dialogTitle"
-    width="600px"
+    width="760px"
     class="role-api-dialog"
     header-class="role-api-dialog-header"
     body-class="role-api-dialog-body"
@@ -11,26 +11,60 @@
     destroy-on-close
     @close="handleClose"
   >
-    <ElForm label-width="90px" class="role-api-form">
-      <ElFormItem label="关联资源" label-position="top" class="role-api-transfer-item">
-        <div v-loading="loading" class="role-api-picker">
+    <ElForm label-width="0" class="role-api-form">
+      <ElFormItem class="role-api-transfer-item" label-width="0">
+        <ElTabs v-model="activeMode" class="role-api-tabs">
+          <ElTabPane label="菜单权限" name="menu">
+            <div v-loading="menuLoading" class="menu-perm-pane">
+              <ElCheckboxGroup v-model="selectedMenuCodes" class="menu-perm-groups">
+                <div
+                  v-for="group in menuGroups"
+                  :key="group.code"
+                  class="menu-perm-group"
+                >
+                  <div class="menu-perm-group__title">{{ group.title }}</div>
+                  <div class="menu-perm-group__items">
+                    <ElCheckbox
+                      v-for="item in group.items"
+                      :key="item.code"
+                      :label="item.code"
+                      :disabled="item.public"
+                    >
+                      {{ item.title }}
+                    </ElCheckbox>
+                  </div>
+                </div>
+              </ElCheckboxGroup>
+            </div>
+          </ElTabPane>
+          <ElTabPane label="API / 按钮权限" name="api">
+        <!-- api 模式：双栏穿梭框绑定 API 权限点 -->
+        <div v-loading="loading" class="api-perm-pane">
+          <div class="role-api-picker">
           <div class="role-api-picker__panel">
             <div class="role-api-picker__header">
               <ElCheckbox
                 :model-value="isLeftPanelAllChecked"
                 :indeterminate="isLeftPanelIndeterminate"
-                @change="toggleLeftPanelAll"
+                @change="(val) => toggleLeftPanelAll(Boolean(val))"
               />
               <span class="role-api-picker__title">
                 未选资源
                 <span class="role-api-picker__count">
-                  {{ mode === 'kubernetes' ? leftTransferScopeKeys.length : `${leftCheckedIds.length}/${leftApiIds.length}` }}
+                  {{ leftCheckedIds.length }}/{{ leftApiIds.length }}
                 </span>
               </span>
               <button
                 type="button"
                 class="role-api-picker__expand-btn"
-                :disabled="mode === 'kubernetes' ? clusterListLoading || !clusterList.length : !filteredLeftGroups.length"
+                @click="selectReadonlyApis"
+              >
+                只读
+              </button>
+              <button
+                type="button"
+                class="role-api-picker__expand-btn"
+                :disabled="!filteredLeftGroups.length"
                 @click="togglePanelExpandAll('left')"
               >
                 {{ isLeftAllExpanded ? '收起' : '展开' }}
@@ -44,33 +78,7 @@
               placeholder="请输入"
             />
             <ElScrollbar class="role-api-picker__body">
-              <RoleApiGroupBody
-                v-if="mode === 'kubernetes'"
-                :group="k8sPickerGroup"
-                clusters-only
-                use-scope-mode
-                scope-panel="available"
-                :selected-scope-keys="selectedScopeKeys"
-                :transfer-checked-scope-keys="leftTransferScopeKeys"
-                :filter-text="leftFilter"
-                :checked-ids="leftCheckedIds"
-                :cluster-expanded-keys="leftK8sClusterExpandedKeys"
-                :cluster-list="clusterList"
-                :cluster-list-loading="clusterListLoading"
-                :namespace-map="namespaceMap"
-                :namespace-loading-map="namespaceLoadingMap"
-                :namespace-expanded-by-cluster="leftK8sNsExpandedByCluster"
-                :subgroup-expanded-by-namespace="leftK8sSubGroupExpandedByNamespace"
-                @toggle-scope="(payload) => toggleScopeTransfer(payload, 'left')"
-                @toggle-cluster="(cluster, checked) => toggleK8sCluster(cluster, 'left', checked)"
-                @toggle-namespace="(clusterName, ns, checked) => toggleK8sNamespace(clusterName, ns, 'left', checked)"
-                @toggle-sub-group="(clusterName, namespaceName, subgroup, checked) => toggleK8sSubGroup(clusterName, namespaceName, subgroup, 'left', checked)"
-                @load-namespaces="ensureNamespacesLoaded"
-                @update:cluster-expanded-keys="leftK8sClusterExpandedKeys = $event"
-                @update:namespace-expanded-by-cluster="leftK8sNsExpandedByCluster = $event"
-                @update:subgroup-expanded-by-namespace="leftK8sSubGroupExpandedByNamespace = $event"
-              />
-              <ElCollapse v-else v-model="leftExpandedKeys" class="role-api-picker__collapse">
+              <ElCollapse v-model="leftExpandedKeys" class="role-api-picker__collapse">
                 <ElCollapseItem
                   v-for="group in filteredLeftGroups"
                   :key="group.key"
@@ -81,7 +89,7 @@
                       <ElCheckbox
                         :model-value="isGroupFullyChecked(group, 'left')"
                         :indeterminate="isGroupIndeterminate(group, 'left')"
-                        @change="(val: boolean) => toggleGroup(group, 'left', val)"
+                        @change="(val) => toggleGroup(group, 'left', Boolean(val))"
                         @click.stop
                       />
                       <span
@@ -98,30 +106,11 @@
                     :group="group"
                     :filter-text="leftFilter"
                     :checked-ids="leftCheckedIds"
-                    :cluster-expanded-keys="leftK8sClusterExpandedKeys"
-                    :cluster-list="clusterList"
-                    :cluster-list-loading="clusterListLoading"
-                    :namespace-map="namespaceMap"
-                    :namespace-loading-map="namespaceLoadingMap"
-                    :namespace-expanded-by-cluster="leftK8sNsExpandedByCluster"
-                    :subgroup-expanded-by-namespace="leftK8sSubGroupExpandedByNamespace"
                     @toggle-api="(id, checked) => toggleApiCheck(id, 'left', checked)"
-                    @toggle-cluster="(cluster, checked) => toggleK8sCluster(cluster, 'left', checked)"
-                    @toggle-namespace="(clusterName, ns, checked) => toggleK8sNamespace(clusterName, ns, 'left', checked)"
-                    @toggle-sub-group="(clusterName, namespaceName, subgroup, checked) => toggleK8sSubGroup(clusterName, namespaceName, subgroup, 'left', checked)"
-                    @load-namespaces="ensureNamespacesLoaded"
-                    @update:cluster-expanded-keys="leftK8sClusterExpandedKeys = $event"
-                    @update:namespace-expanded-by-cluster="leftK8sNsExpandedByCluster = $event"
-                    @update:subgroup-expanded-by-namespace="leftK8sSubGroupExpandedByNamespace = $event"
                   />
                 </ElCollapseItem>
               </ElCollapse>
-              <div
-                v-if="mode === 'kubernetes' ? !clusterListLoading && !clusterList.length : !filteredLeftGroups.length"
-                class="role-api-picker__empty"
-              >
-                暂无数据
-              </div>
+              <div v-if="!filteredLeftGroups.length" class="role-api-picker__empty">暂无数据</div>
             </ElScrollbar>
           </div>
 
@@ -129,7 +118,7 @@
             <ElButton
               type="primary"
               class="role-api-picker__action-btn"
-              :disabled="mode === 'kubernetes' ? !leftTransferScopeKeys.length : !leftCheckedIds.length"
+              :disabled="!leftCheckedIds.length"
               @click="moveToRight"
             >
               <ElIcon><ArrowRight /></ElIcon>
@@ -137,7 +126,7 @@
             <ElButton
               type="primary"
               class="role-api-picker__action-btn"
-              :disabled="mode === 'kubernetes' ? !rightTransferScopeKeys.length : !rightCheckedIds.length"
+              :disabled="!rightCheckedIds.length"
               @click="moveToLeft"
             >
               <ElIcon><ArrowLeft /></ElIcon>
@@ -149,18 +138,18 @@
               <ElCheckbox
                 :model-value="isRightPanelAllChecked"
                 :indeterminate="isRightPanelIndeterminate"
-                @change="toggleRightPanelAll"
+                @change="(val) => toggleRightPanelAll(Boolean(val))"
               />
               <span class="role-api-picker__title">
                 已选资源
                 <span class="role-api-picker__count">
-                  {{ mode === 'kubernetes' ? rightTransferScopeKeys.length : `${rightCheckedIds.length}/${rightApiIds.length}` }}
+                  {{ rightCheckedIds.length }}/{{ rightApiIds.length }}
                 </span>
               </span>
               <button
                 type="button"
                 class="role-api-picker__expand-btn"
-                :disabled="mode === 'kubernetes' ? clusterListLoading || !clusterList.length : !filteredRightGroups.length"
+                :disabled="!filteredRightGroups.length"
                 @click="togglePanelExpandAll('right')"
               >
                 {{ isRightAllExpanded ? '收起' : '展开' }}
@@ -174,33 +163,7 @@
               placeholder="请输入"
             />
             <ElScrollbar class="role-api-picker__body">
-              <RoleApiGroupBody
-                v-if="mode === 'kubernetes'"
-                :group="k8sPickerGroup"
-                clusters-only
-                use-scope-mode
-                scope-panel="assigned"
-                :selected-scope-keys="selectedScopeKeys"
-                :transfer-checked-scope-keys="rightTransferScopeKeys"
-                :filter-text="rightFilter"
-                :checked-ids="rightCheckedIds"
-                :cluster-expanded-keys="rightK8sClusterExpandedKeys"
-                :cluster-list="clusterList"
-                :cluster-list-loading="clusterListLoading"
-                :namespace-map="namespaceMap"
-                :namespace-loading-map="namespaceLoadingMap"
-                :namespace-expanded-by-cluster="rightK8sNsExpandedByCluster"
-                :subgroup-expanded-by-namespace="rightK8sSubGroupExpandedByNamespace"
-                @toggle-scope="(payload) => toggleScopeTransfer(payload, 'right')"
-                @toggle-cluster="(cluster, checked) => toggleK8sCluster(cluster, 'right', checked)"
-                @toggle-namespace="(clusterName, ns, checked) => toggleK8sNamespace(clusterName, ns, 'right', checked)"
-                @toggle-sub-group="(clusterName, namespaceName, subgroup, checked) => toggleK8sSubGroup(clusterName, namespaceName, subgroup, 'right', checked)"
-                @load-namespaces="ensureNamespacesLoaded"
-                @update:cluster-expanded-keys="rightK8sClusterExpandedKeys = $event"
-                @update:namespace-expanded-by-cluster="rightK8sNsExpandedByCluster = $event"
-                @update:subgroup-expanded-by-namespace="rightK8sSubGroupExpandedByNamespace = $event"
-              />
-              <ElCollapse v-else v-model="rightExpandedKeys" class="role-api-picker__collapse">
+              <ElCollapse v-model="rightExpandedKeys" class="role-api-picker__collapse">
                 <ElCollapseItem
                   v-for="group in filteredRightGroups"
                   :key="group.key"
@@ -211,7 +174,7 @@
                       <ElCheckbox
                         :model-value="isGroupFullyChecked(group, 'right')"
                         :indeterminate="isGroupIndeterminate(group, 'right')"
-                        @change="(val: boolean) => toggleGroup(group, 'right', val)"
+                        @change="(val) => toggleGroup(group, 'right', Boolean(val))"
                         @click.stop
                       />
                       <span
@@ -228,33 +191,197 @@
                     :group="group"
                     :filter-text="rightFilter"
                     :checked-ids="rightCheckedIds"
-                    :cluster-expanded-keys="rightK8sClusterExpandedKeys"
-                    :cluster-list="clusterList"
-                    :cluster-list-loading="clusterListLoading"
-                    :namespace-map="namespaceMap"
-                    :namespace-loading-map="namespaceLoadingMap"
-                    :namespace-expanded-by-cluster="rightK8sNsExpandedByCluster"
-                    :subgroup-expanded-by-namespace="rightK8sSubGroupExpandedByNamespace"
                     @toggle-api="(id, checked) => toggleApiCheck(id, 'right', checked)"
-                    @toggle-cluster="(cluster, checked) => toggleK8sCluster(cluster, 'right', checked)"
-                    @toggle-namespace="(clusterName, ns, checked) => toggleK8sNamespace(clusterName, ns, 'right', checked)"
-                    @toggle-sub-group="(clusterName, namespaceName, subgroup, checked) => toggleK8sSubGroup(clusterName, namespaceName, subgroup, 'right', checked)"
-                    @load-namespaces="ensureNamespacesLoaded"
-                    @update:cluster-expanded-keys="rightK8sClusterExpandedKeys = $event"
-                    @update:namespace-expanded-by-cluster="rightK8sNsExpandedByCluster = $event"
-                    @update:subgroup-expanded-by-namespace="rightK8sSubGroupExpandedByNamespace = $event"
                   />
                 </ElCollapseItem>
               </ElCollapse>
-              <div
-                v-if="mode === 'kubernetes' ? !clusterListLoading && !clusterList.length : !filteredRightGroups.length"
-                class="role-api-picker__empty"
-              >
-                暂无数据
-              </div>
+              <div v-if="!filteredRightGroups.length" class="role-api-picker__empty">暂无数据</div>
             </ElScrollbar>
           </div>
+          </div>
         </div>
+          </ElTabPane>
+          <ElTabPane label="数据权限" name="scope">
+        <!-- scope 模式：pixiu 资源作用域（左右穿梭框选择资源实例） -->
+        <div v-loading="loading || scopeResourcesPending" class="scope-config">
+          <div class="role-api-picker">
+            <!-- 左侧：未选资源 -->
+            <div class="role-api-picker__panel">
+              <div class="role-api-picker__header">
+                <ElCheckbox
+                  :model-value="isScopeLeftAllChecked"
+                  :indeterminate="isScopeLeftIndeterminate"
+                  @change="(val) => toggleScopePanelAll('left', Boolean(val))"
+                />
+                <span class="role-api-picker__title">
+                  未选资源
+                  <span class="role-api-picker__count">
+                    {{ scopeLeftCheckedKeys.length }}/{{ scopeLeftVisibleKeys.length }}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  class="role-api-picker__expand-btn"
+                  :disabled="!filteredScopeLeftGroups.length"
+                  @click="toggleScopePanelExpandAll('left')"
+                >
+                  {{ isScopeLeftAllExpanded ? '收起' : '展开' }}
+                </button>
+              </div>
+              <ElInput
+                v-model="scopeLeftFilter"
+                class="role-api-picker__filter"
+                size="small"
+                clearable
+                placeholder="请输入"
+              />
+              <ElScrollbar class="role-api-picker__body">
+                <ElCollapse v-model="scopeLeftExpandedKeys" class="role-api-picker__collapse">
+                  <ElCollapseItem
+                    v-for="group in filteredScopeLeftGroups"
+                    :key="group.resource_type"
+                    :name="group.resource_type"
+                  >
+                    <template #title>
+                      <div class="role-api-picker__group-title">
+                        <ElCheckbox
+                          :model-value="isScopeGroupFullyChecked(group, 'left')"
+                          :indeterminate="isScopeGroupIndeterminate(group, 'left')"
+                          @change="(val) => toggleScopeGroup(group, 'left', Boolean(val))"
+                          @click.stop
+                        />
+                        <span
+                          class="role-api-picker__group-name"
+                          @click.stop="toggleScopeGroupExpand(group.resource_type, 'left')"
+                        >{{ group.label }}</span>
+                        <span
+                          class="role-api-picker__group-count"
+                          @click.stop="toggleScopeGroupExpand(group.resource_type, 'left')"
+                        >({{ group.items.length }})</span>
+                      </div>
+                    </template>
+                    <div class="role-api-picker__items">
+                      <ElCheckbox
+                        v-for="item in group.items"
+                        :key="scopeResourceKey(item)"
+                        :model-value="scopeLeftCheckedKeys.includes(scopeResourceKey(item))"
+                        class="role-api-picker__item"
+                        @change="(val) => toggleScopeItem(item, 'left', Boolean(val))"
+                      >
+                        <span class="scope-item-label">
+                          <span class="scope-item-name">{{ item.label }}</span>
+                        </span>
+                      </ElCheckbox>
+                    </div>
+                  </ElCollapseItem>
+                </ElCollapse>
+                <div v-if="!filteredScopeLeftGroups.length" class="role-api-picker__empty">
+                  暂无数据
+                </div>
+              </ElScrollbar>
+            </div>
+
+            <!-- 中间移动按钮 -->
+            <div class="role-api-picker__actions">
+              <ElButton
+                type="primary"
+                class="role-api-picker__action-btn"
+                :disabled="!scopeLeftCheckedKeys.length"
+                @click="moveScopeToRight"
+              >
+                <ElIcon><DArrowRight /></ElIcon>
+              </ElButton>
+              <ElButton
+                type="primary"
+                class="role-api-picker__action-btn"
+                :disabled="!scopeRightCheckedKeys.length"
+                @click="moveScopeToLeft"
+              >
+                <ElIcon><DArrowLeft /></ElIcon>
+              </ElButton>
+            </div>
+
+            <!-- 右侧：已选资源 -->
+            <div class="role-api-picker__panel">
+              <div class="role-api-picker__header">
+                <ElCheckbox
+                  :model-value="isScopeRightAllChecked"
+                  :indeterminate="isScopeRightIndeterminate"
+                  @change="(val) => toggleScopePanelAll('right', Boolean(val))"
+                />
+                <span class="role-api-picker__title">
+                  已选资源
+                  <span class="role-api-picker__count">
+                    {{ scopeRightCheckedKeys.length }}/{{ scopeRightVisibleKeys.length }}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  class="role-api-picker__expand-btn"
+                  :disabled="!filteredScopeRightGroups.length"
+                  @click="toggleScopePanelExpandAll('right')"
+                >
+                  {{ isScopeRightAllExpanded ? '收起' : '展开' }}
+                </button>
+              </div>
+              <ElInput
+                v-model="scopeRightFilter"
+                class="role-api-picker__filter"
+                size="small"
+                clearable
+                placeholder="请输入"
+              />
+              <ElScrollbar class="role-api-picker__body">
+                <ElCollapse v-model="scopeRightExpandedKeys" class="role-api-picker__collapse">
+                  <ElCollapseItem
+                    v-for="group in filteredScopeRightGroups"
+                    :key="group.resource_type"
+                    :name="group.resource_type"
+                  >
+                    <template #title>
+                      <div class="role-api-picker__group-title">
+                        <ElCheckbox
+                          :model-value="isScopeGroupFullyChecked(group, 'right')"
+                          :indeterminate="isScopeGroupIndeterminate(group, 'right')"
+                          @change="(val) => toggleScopeGroup(group, 'right', Boolean(val))"
+                          @click.stop
+                        />
+                        <span
+                          class="role-api-picker__group-name"
+                          @click.stop="toggleScopeGroupExpand(group.resource_type, 'right')"
+                        >{{ group.label }}</span>
+                        <span
+                          class="role-api-picker__group-count"
+                          @click.stop="toggleScopeGroupExpand(group.resource_type, 'right')"
+                        >({{ group.items.length }})</span>
+                      </div>
+                    </template>
+                    <div class="role-api-picker__items">
+                      <ElCheckbox
+                        v-for="item in group.items"
+                        :key="scopeResourceKey(item)"
+                        :model-value="scopeRightCheckedKeys.includes(scopeResourceKey(item))"
+                        class="role-api-picker__item"
+                        @change="(val) => toggleScopeItem(item, 'right', Boolean(val))"
+                      >
+                        <span class="scope-item-label">
+                          <span class="scope-item-tag">{{ resourceTypeLabel(item.resource_type) }}</span>
+                          <span class="scope-item-name">{{ item.label }}</span>
+                        </span>
+                      </ElCheckbox>
+                    </div>
+                  </ElCollapseItem>
+                </ElCollapse>
+                <div v-if="!filteredScopeRightGroups.length" class="role-api-picker__empty">
+                  暂无数据
+                </div>
+              </ElScrollbar>
+            </div>
+          </div>
+        </div>
+
+          </ElTabPane>
+        </ElTabs>
       </ElFormItem>
     </ElForm>
     <template #footer>
@@ -265,34 +392,57 @@
 </template>
 
 <script setup lang="ts">
-  import { ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
-  import { fetchClusterList, type ClusterItem } from '@/api/container'
-  import { fetchK8sNamespaceList } from '@/api/kubernetes/namespace'
+  import { ArrowLeft, ArrowRight, DArrowLeft, DArrowRight } from '@element-plus/icons-vue'
+  import { fetchClusterList } from '@/api/container'
+  import { fetchPlanList } from '@/api/plan'
+  import { fetchPixiuNodeList } from '@/api/node'
+  import { fetchAgentList } from '@/api/agent'
+  import { fetchGetAIAccountList } from '@/api/ai-account'
+  import { fetchDatasourceList } from '@/api/datasource'
+  import { fetchGetDistributionList } from '@/api/distribution'
+  import { fetchGetRunnerList } from '@/api/runner'
   import {
     fetchGetRoleAPIs,
     fetchGetRoleAPIScopes,
+    fetchGetRoleMenus,
     fetchUpdateRoleAPIs,
-    fetchUpdateRoleAPIScopes
+    fetchUpdateRoleAPIScopes,
+    fetchUpdateRoleMenus,
+    type MenuResource,
+    type RoleAPIScopeRecord
   } from '@/api/system-manage'
   import { ElMessage } from 'element-plus'
-  import RoleApiGroupBody, {
-    type ClusterPickerNode,
-    type NamespacePickerNode
-  } from './role-api-group-body.vue'
-  import {
-    keyToScopeItem,
-    makeScopeKey,
-    normalizeResourceName,
-    scopeItemToKey,
-    scopeKeysFromItems,
-    type RoleAPIScopeItem
-  } from './role-api-scope-utils'
+  import RoleApiGroupBody from './role-api-group-body.vue'
+  import { scopeItemToKey, type RoleAPIScopeItem } from './role-api-scope-utils'
 
   type RoleListItem = Api.SystemManage.RoleListItem
 
   const UNGROUPED_KEY = '__ungrouped__'
   const UNGROUPED_LABEL = '未分类'
-  const KUBERNETES_GROUP_KEY = 'Kubernetes 资源'
+
+  /** pixiu 自有资源类型常量（与后端 role_api_scopes.resource_type 对齐） */
+  const RESOURCE_TYPES: Array<{ value: string; label: string }> = [
+    { value: 'plan', label: '部署计划' },
+    { value: 'cluster', label: '集群' },
+    { value: 'node', label: '节点' },
+    { value: 'agent', label: 'Agent' },
+    { value: 'account', label: '账号' },
+    { value: 'datasource', label: '数据源' },
+    { value: 'distribution', label: '操作系统' },
+    { value: 'runner', label: 'Runner' }
+  ]
+
+  /** 资源类型 -> 列表查看 API（method:path）。scope 记录的 api_id 归属到该类型列表 API */
+  const RESOURCE_TYPE_LIST_API: Record<string, string> = {
+    plan: 'GET:/pixiu/plans',
+    cluster: 'GET:/pixiu/clusters',
+    node: 'GET:/pixiu/nodes',
+    agent: 'GET:/pixiu/agents',
+    account: 'GET:/pixiu/assistant/accounts',
+    datasource: 'GET:/pixiu/datasources',
+    distribution: 'GET:/pixiu/distributions',
+    runner: 'GET:/pixiu/runners'
+  }
 
   interface ApiItem {
     id: number
@@ -309,15 +459,32 @@
     apis: ApiItem[]
   }
 
+  interface ScopeResourceOption {
+    id: number
+    label: string
+  }
+
+  interface ScopeResourceItem {
+    resource_type: string
+    resource_id: number
+    label: string
+  }
+
+  interface ScopeResourceGroup {
+    resource_type: string
+    label: string
+    items: ScopeResourceItem[]
+  }
+
   type PanelSide = 'left' | 'right'
 
-  type RoleApiDialogMode = 'api' | 'kubernetes'
+  type ScopeSide = 'left' | 'right'
+
+  type RoleApiDialogMode = 'api' | 'scope' | 'menu'
 
   interface Props {
     visible: boolean
     roleData?: Partial<RoleListItem>
-    /** api：平台 API 权限；kubernetes：Kubernetes 权限 */
-    mode?: RoleApiDialogMode
   }
 
   interface Emits {
@@ -325,10 +492,25 @@
     (e: 'success'): void
   }
 
-  const props = withDefaults(defineProps<Props>(), {
-    mode: 'api'
-  })
+  const props = defineProps<Props>()
   const emit = defineEmits<Emits>()
+
+  /** 当前激活的 tab 模式（默认 API 权限） */
+  const activeMode = ref<RoleApiDialogMode>('menu')
+  /** api 模式是否已加载完成（已加载则切回时不重复请求） */
+  const apiLoaded = ref(false)
+  /** scope 模式是否已加载完成 */
+  const scopeLoaded = ref(false)
+  /** scope 模式是否加载中（防止重复触发） */
+  const scopeLoading = ref(false)
+  /** menu 模式是否已加载 */
+  const menuLoaded = ref(false)
+  const menuLoading = ref(false)
+  const menuCatalog = ref<MenuResource[]>([])
+  const selectedMenuCodes = ref<string[]>([])
+  /** api 模式数据快照（scope 加载会覆盖共享的 allApis，切回 api 时据此恢复） */
+  const apiModeApis = ref<ApiItem[]>([])
+  const apiModeSelectedIds = ref<number[]>([])
 
   const dialogVisible = computed({
     get: () => props.visible,
@@ -339,53 +521,67 @@
   const submitting = ref(false)
   const allApis = ref<ApiItem[]>([])
   const selectedApiIds = ref<number[]>([])
-  const selectedScopes = ref<RoleAPIScopeItem[]>([])
   const initialScopes = ref<RoleAPIScopeItem[]>([])
-  const leftTransferScopeKeys = ref<string[]>([])
-  const rightTransferScopeKeys = ref<string[]>([])
   const leftCheckedIds = ref<number[]>([])
   const rightCheckedIds = ref<number[]>([])
   const leftFilter = ref('')
   const rightFilter = ref('')
   const leftExpandedKeys = ref<string[]>([])
   const rightExpandedKeys = ref<string[]>([])
-  const leftK8sClusterExpandedKeys = ref<string[]>([])
-  const rightK8sClusterExpandedKeys = ref<string[]>([])
-  const leftK8sNsExpandedByCluster = ref<Record<string, string[]>>({})
-  const rightK8sNsExpandedByCluster = ref<Record<string, string[]>>({})
-  const leftK8sSubGroupExpandedByNamespace = ref<Record<string, string[]>>({})
-  const rightK8sSubGroupExpandedByNamespace = ref<Record<string, string[]>>({})
-  const clusterList = ref<ClusterPickerNode[]>([])
-  const clusterListLoading = ref(false)
-  const namespaceMap = ref<Record<string, NamespacePickerNode[]>>({})
-  const namespaceLoadingMap = ref<Record<string, boolean>>({})
-  let clusterListLoaded = false
-  const namespaceLoadedSet = new Set<string>()
+
+  /** scope 模式：已选资源集合（key 为 resource_type|resource_id） */
+  const selectedResourceKeys = ref<string[]>([])
+  /** scope 模式：左/右侧面板勾选与筛选状态 */
+  const scopeLeftCheckedKeys = ref<string[]>([])
+  const scopeRightCheckedKeys = ref<string[]>([])
+  const scopeLeftFilter = ref('')
+  const scopeRightFilter = ref('')
+  const scopeLeftExpandedKeys = ref<string[]>([])
+  const scopeRightExpandedKeys = ref<string[]>([])
+
+  /** scope 模式：resource_type -> 已加载资源实例 */
+  const resourceMap = ref<Record<string, ScopeResourceOption[]>>({})
+  /** scope 模式：resource_type -> 加载中标记 */
+  const resourceLoading = ref<Record<string, boolean>>({})
 
   const roleName = computed(() => props.roleData?.roleName || '')
 
   const dialogTitle = computed(() => {
     const name = roleName.value
-    if (props.mode === 'kubernetes') {
-      return '修改 kubernetes 权限'
+    if (activeMode.value === 'scope') {
+      return name ? `修改数据权限 - ${name}` : '修改数据权限'
     }
-    return name ? `修改权限 - ${name}` : '修改权限'
+    if (activeMode.value === 'menu') {
+      return name ? `修改菜单权限 - ${name}` : '修改菜单权限'
+    }
+    return name ? `修改 API 权限 - ${name}` : '修改 API 权限'
   })
+
+  const menuGroups = computed(() => {
+    const catalog = menuCatalog.value
+    const dirs = catalog.filter((m) => m.kind === 'directory')
+    const leaves = catalog.filter((m) => m.kind !== 'directory')
+    const groups = dirs.map((dir) => ({
+      code: dir.code,
+      title: dir.title,
+      items: leaves.filter((m) => m.parent_code === dir.code)
+    }))
+    const orphans = leaves.filter((m) => !m.parent_code)
+    if (orphans.length) {
+      groups.push({ code: '_root', title: '其他', items: orphans })
+    }
+    return groups.filter((g) => g.items.length > 0)
+  })
+
+  /** scope 模式：任一资源类型仍在加载中 */
+  const scopeResourcesPending = computed(() =>
+    RESOURCE_TYPES.some((t) => Boolean(resourceLoading.value[t.value]))
+  )
 
   const selectedIdSet = computed(() => new Set(selectedApiIds.value))
 
-  function isKubernetesApi(api: ApiItem): boolean {
-    const { key } = normalizeGroup(api.group)
-    return key === KUBERNETES_GROUP_KEY
-  }
-
-  /** 当前对话框模式下可见的 API（修改权限不含 K8s；修改 kubernetes 权限仅含 K8s） */
-  const dialogApis = computed(() => {
-    if (props.mode === 'kubernetes') {
-      return allApis.value.filter(isKubernetesApi)
-    }
-    return allApis.value.filter((api) => !isKubernetesApi(api))
-  })
+  /** 当前对话框模式下可见的 API（scope 与 api 模式均展示全部 API） */
+  const dialogApis = computed(() => allApis.value)
 
   const leftApiIds = computed(() =>
     dialogApis.value.filter((api) => !selectedIdSet.value.has(api.id)).map((api) => api.id)
@@ -406,14 +602,6 @@
   const filteredLeftGroups = computed(() => filterGroups(leftGroups.value, leftFilter.value))
 
   const filteredRightGroups = computed(() => filterGroups(rightGroups.value, rightFilter.value))
-
-  const selectedScopeKeys = computed(() => scopeKeysFromItems(selectedScopes.value))
-
-  const k8sPickerGroup = computed((): ApiGroup => ({
-    key: KUBERNETES_GROUP_KEY,
-    label: KUBERNETES_GROUP_KEY,
-    apis: dialogApis.value
-  }))
 
   const visibleLeftApiIds = computed(() =>
     filteredLeftGroups.value.flatMap((group) => group.apis.map((api) => api.id))
@@ -450,22 +638,12 @@
   })
 
   const isLeftAllExpanded = computed(() => {
-    if (props.mode === 'kubernetes') {
-      const clusterKeys = clusterList.value.map((cluster) => cluster.name)
-      if (!clusterKeys.length) return false
-      return clusterKeys.every((key) => leftK8sClusterExpandedKeys.value.includes(key))
-    }
     const keys = filteredLeftGroups.value.map((group) => group.key)
     if (!keys.length) return false
     return keys.every((key) => leftExpandedKeys.value.includes(key))
   })
 
   const isRightAllExpanded = computed(() => {
-    if (props.mode === 'kubernetes') {
-      const clusterKeys = clusterList.value.map((cluster) => cluster.name)
-      if (!clusterKeys.length) return false
-      return clusterKeys.every((key) => rightK8sClusterExpandedKeys.value.includes(key))
-    }
     const keys = filteredRightGroups.value.map((group) => group.key)
     if (!keys.length) return false
     return keys.every((key) => rightExpandedKeys.value.includes(key))
@@ -475,207 +653,6 @@
     return side === 'left' ? leftExpandedKeys : rightExpandedKeys
   }
 
-  function isKubernetesGroup(group: ApiGroup): boolean {
-    return group.key === KUBERNETES_GROUP_KEY || group.label === KUBERNETES_GROUP_KEY
-  }
-
-  function getK8sClusterExpandedRef(side: PanelSide) {
-    return side === 'left' ? leftK8sClusterExpandedKeys : rightK8sClusterExpandedKeys
-  }
-
-  async function ensureClusterListLoaded() {
-    if (clusterListLoaded || clusterListLoading.value) return
-    clusterListLoading.value = true
-    try {
-      const { items } = await fetchClusterList({ page: 1, limit: 500 })
-      clusterList.value = items.map((cluster: ClusterItem) => ({
-        name: cluster.name,
-        label: cluster.aliasName?.trim() || cluster.name,
-        apis: []
-      }))
-      clusterListLoaded = true
-    } catch (e: unknown) {
-      const err = e as { message?: string }
-      ElMessage.error(err?.message || '获取集群列表失败')
-      clusterList.value = []
-    } finally {
-      clusterListLoading.value = false
-    }
-  }
-
-  async function ensureNamespacesLoaded(clusterName: string) {
-    if (namespaceLoadedSet.has(clusterName) || namespaceLoadingMap.value[clusterName]) return
-    namespaceLoadingMap.value = { ...namespaceLoadingMap.value, [clusterName]: true }
-    try {
-      const { items } = await fetchK8sNamespaceList(clusterName, { page: 1, limit: 500 })
-      const namespaces = items
-        .map((item) => item.metadata?.name?.trim())
-        .filter((name): name is string => Boolean(name))
-        .sort((a, b) => a.localeCompare(b, 'zh-CN'))
-        .map((name) => ({
-          name,
-          label: name,
-          apis: []
-        }))
-      namespaceMap.value = { ...namespaceMap.value, [clusterName]: namespaces }
-      namespaceLoadedSet.add(clusterName)
-    } catch (e: unknown) {
-      const err = e as { message?: string }
-      ElMessage.error(err?.message || `获取集群 ${clusterName} 命名空间失败`)
-      namespaceMap.value = { ...namespaceMap.value, [clusterName]: [] }
-      namespaceLoadedSet.add(clusterName)
-    } finally {
-      const next = { ...namespaceLoadingMap.value }
-      delete next[clusterName]
-      namespaceLoadingMap.value = next
-    }
-  }
-
-  function toggleScopeTransferBatch(keys: string[], side: PanelSide, checked: boolean) {
-    const target = side === 'left' ? leftTransferScopeKeys : rightTransferScopeKeys
-    const current = new Set(target.value)
-    keys.forEach((key) => {
-      if (checked) {
-        current.add(key)
-      } else {
-        current.delete(key)
-      }
-    })
-    target.value = Array.from(current)
-  }
-
-  function toggleScopeTransfer(
-    payload: {
-      apiId: number
-      cluster: string
-      namespace: string
-      resourceName: string
-      checked: boolean
-    },
-    side: PanelSide
-  ) {
-    const key = makeScopeKey(payload.apiId, payload.cluster, payload.namespace, payload.resourceName)
-    toggleScopeTransferBatch([key], side, payload.checked)
-  }
-
-  function collectScopeKeysForCluster(
-    cluster: ClusterPickerNode,
-    panel: 'available' | 'assigned'
-  ): string[] {
-    const selectedSet = new Set(selectedScopeKeys.value)
-    const keys: string[] = []
-    const namespaces = namespaceMap.value[cluster.name] ?? []
-    const apiList = dialogApis.value
-
-    if (namespaces.length) {
-      namespaces.forEach((ns) => {
-        apiList.forEach((api) => {
-          const key = makeScopeKey(api.id, cluster.name, ns.name)
-          const assigned = selectedSet.has(key)
-          if (panel === 'assigned' ? assigned : !assigned) {
-            keys.push(key)
-          }
-        })
-      })
-      return keys
-    }
-
-    apiList.forEach((api) => {
-      const key = makeScopeKey(api.id, cluster.name, '*')
-      const assigned = selectedSet.has(key)
-      if (panel === 'assigned' ? assigned : !assigned) {
-        keys.push(key)
-      }
-    })
-    return keys
-  }
-
-  function collectScopeKeysForNamespace(
-    clusterName: string,
-    ns: NamespacePickerNode,
-    panel: 'available' | 'assigned'
-  ): string[] {
-    const selectedSet = new Set(selectedScopeKeys.value)
-    const apiList = ns.apis.length ? ns.apis : dialogApis.value
-    return apiList
-      .filter((api) => {
-        const key = makeScopeKey(api.id, clusterName, ns.name)
-        const assigned = selectedSet.has(key)
-        return panel === 'assigned' ? assigned : !assigned
-      })
-      .map((api) => makeScopeKey(api.id, clusterName, ns.name))
-  }
-
-  function toggleK8sCluster(cluster: ClusterPickerNode, side: PanelSide, checked: boolean) {
-    if (props.mode === 'kubernetes') {
-      const panel = side === 'left' ? 'available' : 'assigned'
-      toggleScopeTransferBatch(collectScopeKeysForCluster(cluster, panel), side, checked)
-      return
-    }
-    const current = new Set(getCheckedIds(side).value)
-    cluster.apis.forEach((api) => {
-      if (checked) {
-        current.add(api.id)
-      } else {
-        current.delete(api.id)
-      }
-    })
-    setCheckedIds(side, Array.from(current))
-  }
-
-  function toggleK8sNamespace(
-    clusterName: string,
-    ns: NamespacePickerNode,
-    side: PanelSide,
-    checked: boolean
-  ) {
-    if (props.mode === 'kubernetes') {
-      const panel = side === 'left' ? 'available' : 'assigned'
-      toggleScopeTransferBatch(collectScopeKeysForNamespace(clusterName, ns, panel), side, checked)
-      return
-    }
-    const current = new Set(getCheckedIds(side).value)
-    ns.apis.forEach((api) => {
-      if (checked) {
-        current.add(api.id)
-      } else {
-        current.delete(api.id)
-      }
-    })
-    setCheckedIds(side, Array.from(current))
-  }
-
-  function toggleK8sSubGroup(
-    clusterName: string,
-    namespaceName: string,
-    subgroup: { apis: Array<{ id: number }> },
-    side: PanelSide,
-    checked: boolean
-  ) {
-    if (props.mode === 'kubernetes') {
-      const panel = side === 'left' ? 'available' : 'assigned'
-      const selectedSet = new Set(selectedScopeKeys.value)
-      const keys = subgroup.apis
-        .filter((api) => {
-          const key = makeScopeKey(api.id, clusterName, namespaceName)
-          const assigned = selectedSet.has(key)
-          return panel === 'assigned' ? assigned : !assigned
-        })
-        .map((api) => makeScopeKey(api.id, clusterName, namespaceName))
-      toggleScopeTransferBatch(keys, side, checked)
-      return
-    }
-    const current = new Set(getCheckedIds(side).value)
-    subgroup.apis.forEach((api) => {
-      if (checked) {
-        current.add(api.id)
-      } else {
-        current.delete(api.id)
-      }
-    })
-    setCheckedIds(side, Array.from(current))
-  }
-
   function toggleGroupExpand(groupKey: string, side: PanelSide) {
     const expanded = getExpandedKeysRef(side)
     const index = expanded.value.indexOf(groupKey)
@@ -683,41 +660,10 @@
       expanded.value = expanded.value.filter((key) => key !== groupKey)
     } else {
       expanded.value = [...expanded.value, groupKey]
-      if (props.mode === 'kubernetes' && groupKey === KUBERNETES_GROUP_KEY) {
-        void ensureClusterListLoaded()
-      }
     }
   }
 
   function togglePanelExpandAll(side: PanelSide) {
-    if (props.mode === 'kubernetes') {
-      const k8sExpanded = getK8sClusterExpandedRef(side)
-      const clusterKeys = clusterList.value.map((cluster) => cluster.name)
-      const isAllExpanded =
-        clusterKeys.length > 0 && clusterKeys.every((key) => k8sExpanded.value.includes(key))
-
-      if (isAllExpanded) {
-        k8sExpanded.value = []
-        if (side === 'left') {
-          leftK8sNsExpandedByCluster.value = {}
-          leftK8sSubGroupExpandedByNamespace.value = {}
-        } else {
-          rightK8sNsExpandedByCluster.value = {}
-          rightK8sSubGroupExpandedByNamespace.value = {}
-        }
-        return
-      }
-
-      void ensureClusterListLoaded().then(() => {
-        const keys = clusterList.value.map((cluster) => cluster.name)
-        k8sExpanded.value = [...keys]
-        keys.forEach((clusterName) => {
-          void ensureNamespacesLoaded(clusterName)
-        })
-      })
-      return
-    }
-
     const groups = side === 'left' ? filteredLeftGroups.value : filteredRightGroups.value
     const expanded = getExpandedKeysRef(side)
     const allKeys = groups.map((group) => group.key)
@@ -726,28 +672,9 @@
 
     if (isAllExpanded) {
       expanded.value = []
-      if (side === 'left') {
-        leftK8sClusterExpandedKeys.value = []
-        leftK8sNsExpandedByCluster.value = {}
-        leftK8sSubGroupExpandedByNamespace.value = {}
-      } else {
-        rightK8sClusterExpandedKeys.value = []
-        rightK8sNsExpandedByCluster.value = {}
-        rightK8sSubGroupExpandedByNamespace.value = {}
-      }
       return
     }
     expanded.value = [...allKeys]
-    const hasK8s = groups.some((group) => isKubernetesGroup(group))
-    if (hasK8s) {
-      void ensureClusterListLoaded().then(() => {
-        const clusterKeys = clusterList.value.map((cluster) => cluster.name)
-        getK8sClusterExpandedRef(side).value = [...clusterKeys]
-        clusterKeys.forEach((clusterName) => {
-          void ensureNamespacesLoaded(clusterName)
-        })
-      })
-    }
   }
 
   function normalizeGroup(group?: string): { key: string; label: string } {
@@ -786,17 +713,6 @@
         const groupMatched =
           group.label.toLowerCase().includes(text) || group.key.toLowerCase().includes(text)
         if (groupMatched) return group
-        if (props.mode === 'kubernetes' && isKubernetesGroup(group) && clusterList.value.length) {
-          const clusterMatched = clusterList.value.some(
-            (cluster) =>
-              cluster.label.toLowerCase().includes(text) || cluster.name.toLowerCase().includes(text)
-          )
-          if (clusterMatched) return group
-          const namespaceMatched = Object.values(namespaceMap.value).some((namespaces) =>
-            namespaces.some((ns) => ns.name.toLowerCase().includes(text))
-          )
-          if (namespaceMatched) return group
-        }
         const apis = group.apis.filter((api) => {
           return (
             api.sub_group.toLowerCase().includes(text) ||
@@ -842,15 +758,16 @@
     for (const item of items) {
       if (!item) continue
       const apiId = Number(item.api_id)
-      const cluster = String(item.cluster || '').trim()
-      const namespace = String(item.namespace || '').trim()
-      if (!Number.isFinite(apiId) || apiId <= 0 || !cluster || !namespace) continue
+      const resourceType = String(item.resource_type || '').trim()
+      const resourceId = Number(item.resource_id)
+      if (!Number.isFinite(apiId) || apiId <= 0) continue
+      if (!resourceType) continue
+      if (!Number.isFinite(resourceId) || resourceId <= 0) continue
 
       const normalized: RoleAPIScopeItem = {
         api_id: apiId,
-        cluster,
-        namespace,
-        resource_name: normalizeResourceName(item.resource_name)
+        resource_type: resourceType,
+        resource_id: resourceId
       }
       const key = scopeItemToKey(normalized)
       if (seen.has(key)) continue
@@ -860,6 +777,284 @@
 
     return result
   }
+
+  /** ----- scope 模式：资源加载 ----- */
+
+  async function loadScopeResources(resourceType: string): Promise<ScopeResourceOption[]> {
+    switch (resourceType) {
+      case 'plan': {
+        const { list } = await fetchPlanList({ page: 1, limit: 500 })
+        return list.map((item) => ({ id: item.id, label: item.name }))
+      }
+      case 'cluster': {
+        const { items } = await fetchClusterList({ page: 1, limit: 500 })
+        return items.map((item) => ({
+          id: item.id,
+          label: item.aliasName?.trim() || item.name
+        }))
+      }
+      case 'node': {
+        const { list } = await fetchPixiuNodeList({ page: 1, limit: 500 })
+        return list.map((item) => ({ id: item.id, label: item.name || item.ip }))
+      }
+      case 'agent': {
+        const { items } = await fetchAgentList({ page: 1, limit: 500 })
+        return items.map((item) => ({ id: item.id, label: item.name }))
+      }
+      case 'account': {
+        const { records } = await fetchGetAIAccountList({ current: 1, size: 500 })
+        return records.map((item) => ({ id: item.id, label: item.name }))
+      }
+      case 'datasource': {
+        const { items } = await fetchDatasourceList({ page: 1, limit: 500 })
+        return items.map((item) => ({ id: item.id, label: item.name }))
+      }
+      case 'distribution': {
+        const { records } = await fetchGetDistributionList({ current: 1, size: 500 })
+        return records.map((item) => ({ id: item.id, label: item.name }))
+      }
+      case 'runner': {
+        const { records } = await fetchGetRunnerList({ current: 1, size: 500 })
+        return records.map((item) => ({ id: item.id, label: item.name }))
+      }
+      default:
+        return []
+    }
+  }
+
+  async function ensureResourcesLoaded(resourceType: string) {
+    if (resourceMap.value[resourceType] || resourceLoading.value[resourceType]) return
+    // 按 key 写入，避免并行加载时整对象替换互相覆盖
+    resourceLoading.value[resourceType] = true
+    try {
+      const list = await loadScopeResources(resourceType)
+      resourceMap.value[resourceType] = list
+    } catch (e: unknown) {
+      const err = e as { message?: string }
+      ElMessage.error(err?.message || `获取${resourceTypeLabel(resourceType)}列表失败`)
+      resourceMap.value[resourceType] = []
+    } finally {
+      delete resourceLoading.value[resourceType]
+    }
+  }
+
+  /** ----- scope 模式：穿梭勾选 ----- */
+
+  function scopeResourceKey(item: { resource_type: string; resource_id: number }): string {
+    return `${item.resource_type}|${item.resource_id}`
+  }
+
+  function splitScopeKey(key: string): { resource_type: string; resource_id: number } {
+    const idx = key.indexOf('|')
+    return { resource_type: key.slice(0, idx), resource_id: Number(key.slice(idx + 1)) }
+  }
+
+  function resourceTypeLabel(resourceType: string): string {
+    return RESOURCE_TYPES.find((t) => t.value === resourceType)?.label || resourceType
+  }
+
+  function resourceLabelFor(resourceType: string, resourceId: number): string {
+    const opt = resourceMap.value[resourceType]?.find((o) => o.id === resourceId)
+    return opt?.label || `${resourceType}:${resourceId}`
+  }
+
+  function getScopeExpandedRef(side: ScopeSide) {
+    return side === 'left' ? scopeLeftExpandedKeys : scopeRightExpandedKeys
+  }
+
+  function getScopeCheckedRef(side: ScopeSide) {
+    return side === 'left' ? scopeLeftCheckedKeys : scopeRightCheckedKeys
+  }
+
+  function getScopeVisibleKeys(side: ScopeSide): string[] {
+    return side === 'left' ? scopeLeftVisibleKeys.value : scopeRightVisibleKeys.value
+  }
+
+  const selectedResourceKeySet = computed(() => new Set(selectedResourceKeys.value))
+
+  /** 左侧分组：全部已加载资源实例，剔除已授权（右侧）资源 */
+  const scopeLeftGroups = computed<ScopeResourceGroup[]>(() => {
+    const selected = selectedResourceKeySet.value
+    return RESOURCE_TYPES.map((t) => ({
+      resource_type: t.value,
+      label: t.label,
+      items: (resourceMap.value[t.value] || [])
+        .filter((opt) => !selected.has(`${t.value}|${opt.id}`))
+        .map((opt) => ({ resource_type: t.value, resource_id: opt.id, label: opt.label }))
+    })).filter((group) => group.items.length > 0)
+  })
+
+  /** 右侧分组：已授权资源实例，按资源类型归组 */
+  const scopeRightGroups = computed<ScopeResourceGroup[]>(() => {
+    const byType = new Map<string, ScopeResourceItem[]>()
+    for (const key of selectedResourceKeys.value) {
+      const { resource_type, resource_id } = splitScopeKey(key)
+      const list = byType.get(resource_type) || []
+      list.push({
+        resource_type,
+        resource_id,
+        label: resourceLabelFor(resource_type, resource_id)
+      })
+      byType.set(resource_type, list)
+    }
+    return Array.from(byType.entries()).map(([resource_type, items]) => ({
+      resource_type,
+      label: resourceTypeLabel(resource_type),
+      items
+    }))
+  })
+
+  function filterScopeGroups(groups: ScopeResourceGroup[], keyword: string): ScopeResourceGroup[] {
+    const text = keyword.trim().toLowerCase()
+    if (!text) return groups
+    return groups
+      .map((group) => ({
+        ...group,
+        items: group.items.filter(
+          (item) =>
+            item.label.toLowerCase().includes(text) || group.label.toLowerCase().includes(text)
+        )
+      }))
+      .filter((group) => group.items.length > 0)
+  }
+
+  const filteredScopeLeftGroups = computed(() =>
+    filterScopeGroups(scopeLeftGroups.value, scopeLeftFilter.value)
+  )
+
+  const filteredScopeRightGroups = computed(() =>
+    filterScopeGroups(scopeRightGroups.value, scopeRightFilter.value)
+  )
+
+  const scopeLeftVisibleKeys = computed(() =>
+    filteredScopeLeftGroups.value.flatMap((group) => group.items.map(scopeResourceKey))
+  )
+
+  const scopeRightVisibleKeys = computed(() =>
+    filteredScopeRightGroups.value.flatMap((group) => group.items.map(scopeResourceKey))
+  )
+
+  const isScopeLeftAllChecked = computed(
+    () =>
+      scopeLeftVisibleKeys.value.length > 0 &&
+      scopeLeftVisibleKeys.value.every((key) => scopeLeftCheckedKeys.value.includes(key))
+  )
+
+  const isScopeLeftIndeterminate = computed(() => {
+    const count = scopeLeftVisibleKeys.value.filter((key) =>
+      scopeLeftCheckedKeys.value.includes(key)
+    ).length
+    return count > 0 && count < scopeLeftVisibleKeys.value.length
+  })
+
+  const isScopeRightAllChecked = computed(
+    () =>
+      scopeRightVisibleKeys.value.length > 0 &&
+      scopeRightVisibleKeys.value.every((key) => scopeRightCheckedKeys.value.includes(key))
+  )
+
+  const isScopeRightIndeterminate = computed(() => {
+    const count = scopeRightVisibleKeys.value.filter((key) =>
+      scopeRightCheckedKeys.value.includes(key)
+    ).length
+    return count > 0 && count < scopeRightVisibleKeys.value.length
+  })
+
+  const isScopeLeftAllExpanded = computed(() => {
+    const keys = filteredScopeLeftGroups.value.map((group) => group.resource_type)
+    if (!keys.length) return false
+    return keys.every((key) => scopeLeftExpandedKeys.value.includes(key))
+  })
+
+  const isScopeRightAllExpanded = computed(() => {
+    const keys = filteredScopeRightGroups.value.map((group) => group.resource_type)
+    if (!keys.length) return false
+    return keys.every((key) => scopeRightExpandedKeys.value.includes(key))
+  })
+
+  function toggleScopeGroupExpand(groupKey: string, side: ScopeSide) {
+    const expanded = getScopeExpandedRef(side)
+    const index = expanded.value.indexOf(groupKey)
+    if (index >= 0) {
+      expanded.value = expanded.value.filter((key) => key !== groupKey)
+    } else {
+      expanded.value = [...expanded.value, groupKey]
+    }
+  }
+
+  function toggleScopePanelExpandAll(side: ScopeSide) {
+    const groups = side === 'left' ? filteredScopeLeftGroups.value : filteredScopeRightGroups.value
+    const expanded = getScopeExpandedRef(side)
+    const allKeys = groups.map((group) => group.resource_type)
+    const isAllExpanded = allKeys.length > 0 && allKeys.every((key) => expanded.value.includes(key))
+    expanded.value = isAllExpanded ? [] : [...allKeys]
+  }
+
+  function isScopeGroupFullyChecked(group: ScopeResourceGroup, side: ScopeSide): boolean {
+    const keys = group.items.map(scopeResourceKey)
+    if (!keys.length) return false
+    const checked = getScopeCheckedRef(side).value
+    return keys.every((key) => checked.includes(key))
+  }
+
+  function isScopeGroupIndeterminate(group: ScopeResourceGroup, side: ScopeSide): boolean {
+    const keys = group.items.map(scopeResourceKey)
+    const count = keys.filter((key) => getScopeCheckedRef(side).value.includes(key)).length
+    return count > 0 && count < keys.length
+  }
+
+  function toggleScopeGroup(group: ScopeResourceGroup, side: ScopeSide, checked: boolean) {
+    const current = new Set(getScopeCheckedRef(side).value)
+    group.items.forEach((item) => {
+      const key = scopeResourceKey(item)
+      if (checked) current.add(key)
+      else current.delete(key)
+    })
+    getScopeCheckedRef(side).value = Array.from(current)
+  }
+
+  function toggleScopePanelAll(side: ScopeSide, checked: boolean) {
+    const visibleKeys = getScopeVisibleKeys(side)
+    const current = new Set(getScopeCheckedRef(side).value)
+    visibleKeys.forEach((key) => {
+      if (checked) current.add(key)
+      else current.delete(key)
+    })
+    getScopeCheckedRef(side).value = Array.from(current)
+  }
+
+  function toggleScopeItem(item: ScopeResourceItem, side: ScopeSide, checked: boolean) {
+    const current = new Set(getScopeCheckedRef(side).value)
+    const key = scopeResourceKey(item)
+    if (checked) current.add(key)
+    else current.delete(key)
+    getScopeCheckedRef(side).value = Array.from(current)
+  }
+
+  function moveScopeToRight() {
+    const current = new Set(selectedResourceKeys.value)
+    scopeLeftCheckedKeys.value.forEach((key) => current.add(key))
+    selectedResourceKeys.value = Array.from(current)
+    scopeLeftCheckedKeys.value = []
+  }
+
+  function moveScopeToLeft() {
+    const remove = new Set(scopeRightCheckedKeys.value)
+    selectedResourceKeys.value = selectedResourceKeys.value.filter((key) => !remove.has(key))
+    scopeRightCheckedKeys.value = []
+  }
+
+  /** 资源类型 -> 列表 API 的 api_id（按 method:path 在 allApis 中匹配） */
+  function computeListApiIdByType(): Record<string, number> {
+    const result: Record<string, number> = {}
+    for (const [resourceType, apiPath] of Object.entries(RESOURCE_TYPE_LIST_API)) {
+      const api = allApis.value.find((a) => `${a.method}:${a.path}` === apiPath)
+      if (api) result[resourceType] = api.id
+    }
+    return result
+  }
+
+  /** ----- api 模式：穿梭勾选 ----- */
 
   function getCheckedIds(side: PanelSide) {
     return side === 'left' ? leftCheckedIds : rightCheckedIds
@@ -930,20 +1125,6 @@
   }
 
   function moveToRight() {
-    if (props.mode === 'kubernetes') {
-      const existing = new Set(selectedScopeKeys.value)
-      const next = sanitizeScopes(selectedScopes.value)
-      leftTransferScopeKeys.value.forEach((key) => {
-        if (existing.has(key)) return
-        const item = keyToScopeItem(key)
-        if (!item) return
-        next.push(item)
-        existing.add(key)
-      })
-      selectedScopes.value = next
-      leftTransferScopeKeys.value = []
-      return
-    }
     const next = new Set(selectedApiIds.value)
     leftCheckedIds.value.forEach((id) => next.add(id))
     selectedApiIds.value = Array.from(next)
@@ -951,44 +1132,56 @@
   }
 
   function moveToLeft() {
-    if (props.mode === 'kubernetes') {
-      const remove = new Set(rightTransferScopeKeys.value)
-      selectedScopes.value = selectedScopes.value.filter((item) => !remove.has(scopeItemToKey(item)))
-      rightTransferScopeKeys.value = []
-      return
-    }
     const remove = new Set(rightCheckedIds.value)
     selectedApiIds.value = selectedApiIds.value.filter((id) => !remove.has(id))
     rightCheckedIds.value = []
   }
 
-  async function loadK8sScopes(roleId: number) {
+  /** 勾选左侧所有 GET 请求（只读权限），仅勾选不移到已选 */
+  function selectReadonlyApis() {
+    const getIds = filteredLeftGroups.value
+      .flatMap((group) => group.apis)
+      .filter((api) => (api.method || '').toUpperCase() === 'GET')
+      .map((api) => api.id)
+    const current = new Set(leftCheckedIds.value)
+    getIds.forEach((id) => current.add(id))
+    leftCheckedIds.value = Array.from(current)
+  }
+
+  /** ----- 数据加载 ----- */
+
+  async function loadRoleScopes(roleId: number) {
     const { scopes, apis } = await fetchGetRoleAPIScopes(roleId)
-    allApis.value = apis.map(mapApiResource)
-    selectedScopes.value = sanitizeScopes(
-      (scopes || []).map((scope) => ({
-        api_id: scope.api_id,
-        cluster: scope.cluster,
-        namespace: scope.namespace,
-        resource_name: normalizeResourceName(scope.resource_name)
-      }))
-    )
-    initialScopes.value = sanitizeScopes(selectedScopes.value)
+    allApis.value = (apis || []).map(mapApiResource)
+    initialScopes.value = sanitizeScopes(scopes || [])
+
+    // 右侧初始集合：后端 scopes 按 (resource_type, resource_id) 去重还原
+    const seen = new Set<string>()
+    const keys: string[] = []
+    for (const scope of initialScopes.value) {
+      const key = `${scope.resource_type}|${scope.resource_id}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      keys.push(key)
+    }
+    selectedResourceKeys.value = keys
+
+    // 加载全部资源类型的实例，供左侧分组展示
+    RESOURCE_TYPES.forEach((t) => void ensureResourcesLoaded(t.value))
+
     selectedApiIds.value = []
-    leftTransferScopeKeys.value = []
-    rightTransferScopeKeys.value = []
     leftCheckedIds.value = []
     rightCheckedIds.value = []
     leftFilter.value = ''
     rightFilter.value = ''
     leftExpandedKeys.value = []
     rightExpandedKeys.value = []
-    leftK8sClusterExpandedKeys.value = []
-    rightK8sClusterExpandedKeys.value = []
-    leftK8sNsExpandedByCluster.value = {}
-    rightK8sNsExpandedByCluster.value = {}
-    leftK8sSubGroupExpandedByNamespace.value = {}
-    rightK8sSubGroupExpandedByNamespace.value = {}
+    scopeLeftFilter.value = ''
+    scopeRightFilter.value = ''
+    scopeLeftCheckedKeys.value = []
+    scopeRightCheckedKeys.value = []
+    scopeLeftExpandedKeys.value = []
+    scopeRightExpandedKeys.value = []
   }
 
   async function loadRoleAPIs() {
@@ -997,11 +1190,6 @@
 
     loading.value = true
     try {
-      if (props.mode === 'kubernetes') {
-        await loadK8sScopes(roleId)
-        return
-      }
-
       const { associated, unassociated } = await fetchGetRoleAPIs(roleId)
       const merged = [...associated, ...unassociated]
       const seen = new Set<number>()
@@ -1013,22 +1201,17 @@
           return true
         })
         .map(mapApiResource)
+      apiModeApis.value = allApis.value
 
-      selectedApiIds.value = associated
-        .filter((api) => (api.group || '').trim() !== KUBERNETES_GROUP_KEY)
-        .map((api) => api.id)
+      selectedApiIds.value = associated.map((api) => api.id)
+      apiModeSelectedIds.value = selectedApiIds.value
+      apiLoaded.value = true
       leftCheckedIds.value = []
       rightCheckedIds.value = []
       leftFilter.value = ''
       rightFilter.value = ''
       leftExpandedKeys.value = []
       rightExpandedKeys.value = []
-      leftK8sClusterExpandedKeys.value = []
-      rightK8sClusterExpandedKeys.value = []
-      leftK8sNsExpandedByCluster.value = {}
-      rightK8sNsExpandedByCluster.value = {}
-      leftK8sSubGroupExpandedByNamespace.value = {}
-      rightK8sSubGroupExpandedByNamespace.value = {}
     } catch (e: unknown) {
       const err = e as { message?: string }
       ElMessage.error(err?.message || '获取角色权限失败')
@@ -1038,69 +1221,35 @@
     }
   }
 
-  function handleClose() {
+  /** 清空穿梭框全部数据（打开弹窗与关闭时调用） */
+  function resetDialogData() {
     allApis.value = []
     selectedApiIds.value = []
-    selectedScopes.value = []
     initialScopes.value = []
-    leftTransferScopeKeys.value = []
-    rightTransferScopeKeys.value = []
+    selectedResourceKeys.value = []
     leftCheckedIds.value = []
     rightCheckedIds.value = []
     leftFilter.value = ''
     rightFilter.value = ''
     leftExpandedKeys.value = []
     rightExpandedKeys.value = []
-    leftK8sClusterExpandedKeys.value = []
-    rightK8sClusterExpandedKeys.value = []
-    leftK8sNsExpandedByCluster.value = {}
-    rightK8sNsExpandedByCluster.value = {}
-    leftK8sSubGroupExpandedByNamespace.value = {}
-    rightK8sSubGroupExpandedByNamespace.value = {}
-    clusterList.value = []
-    clusterListLoaded = false
-    namespaceMap.value = {}
-    namespaceLoadingMap.value = {}
-    namespaceLoadedSet.clear()
+    scopeLeftFilter.value = ''
+    scopeRightFilter.value = ''
+    scopeLeftCheckedKeys.value = []
+    scopeRightCheckedKeys.value = []
+    scopeLeftExpandedKeys.value = []
+    scopeRightExpandedKeys.value = []
+    resourceMap.value = {}
+    resourceLoading.value = {}
+    menuCatalog.value = []
+    selectedMenuCodes.value = []
   }
 
-  watch(leftExpandedKeys, (keys) => {
-    if (props.mode === 'kubernetes' && keys.includes(KUBERNETES_GROUP_KEY)) {
-      void ensureClusterListLoaded()
-    }
-  })
+  function handleClose() {
+    resetDialogData()
+  }
 
-  watch(rightExpandedKeys, (keys) => {
-    if (props.mode === 'kubernetes' && keys.includes(KUBERNETES_GROUP_KEY)) {
-      void ensureClusterListLoaded()
-    }
-  })
-
-  watch([leftFilter, rightFilter], ([left, right]) => {
-    if (props.mode !== 'kubernetes') return
-    const text = (left || right).trim()
-    if (!text) return
-    const groups = [...filteredLeftGroups.value, ...filteredRightGroups.value]
-    if (groups.some((group) => isKubernetesGroup(group))) {
-      void ensureClusterListLoaded().then(() => {
-        clusterList.value.forEach((cluster) => {
-          void ensureNamespacesLoaded(cluster.name)
-        })
-      })
-    }
-  })
-
-  watch(leftK8sClusterExpandedKeys, (keys, prev = []) => {
-    keys.filter((key) => !prev.includes(key)).forEach((clusterName) => {
-      void ensureNamespacesLoaded(clusterName)
-    })
-  })
-
-  watch(rightK8sClusterExpandedKeys, (keys, prev = []) => {
-    keys.filter((key) => !prev.includes(key)).forEach((clusterName) => {
-      void ensureNamespacesLoaded(clusterName)
-    })
-  })
+  /** ----- 提交 ----- */
 
   async function handleSubmit() {
     const roleId = props.roleData?.id
@@ -1108,29 +1257,48 @@
 
     submitting.value = true
     try {
-      if (props.mode === 'kubernetes') {
-        const current = sanitizeScopes(selectedScopes.value)
-        const initial = sanitizeScopes(initialScopes.value)
-        const initialMap = new Map(initial.map((item) => [scopeItemToKey(item), item]))
-        const currentMap = new Map(current.map((item) => [scopeItemToKey(item), item]))
+      if (activeMode.value === 'scope') {
+        const listApiIdByType = computeListApiIdByType()
+        const currentKeys = selectedResourceKeys.value
+        const initialKeySet = new Set(
+          initialScopes.value.map((s) => `${s.resource_type}|${s.resource_id}`)
+        )
 
-        const addScopes = current
-          .filter((item) => !initialMap.has(scopeItemToKey(item)))
-          .map((scope) => ({
-            api_id: scope.api_id,
-            cluster: scope.cluster,
-            namespace: scope.namespace,
-            resource_name: normalizeResourceName(scope.resource_name)
-          }))
+        const addScopes: RoleAPIScopeRecord[] = []
+        const removeScopes: RoleAPIScopeRecord[] = []
+        const skippedTypes = new Set<string>()
 
-        const removeScopes = initial
-          .filter((item) => !currentMap.has(scopeItemToKey(item)))
-          .map((scope) => ({
+        for (const key of currentKeys) {
+          const { resource_type, resource_id } = splitScopeKey(key)
+          const apiId = listApiIdByType[resource_type]
+          if (apiId == null) {
+            skippedTypes.add(resource_type)
+            continue
+          }
+          if (!initialKeySet.has(key)) {
+            addScopes.push({ api_id: apiId, resource_type, resource_id })
+          }
+        }
+
+        for (const scope of initialScopes.value) {
+          const key = `${scope.resource_type}|${scope.resource_id}`
+          if (currentKeys.includes(key)) continue
+          if (listApiIdByType[scope.resource_type] == null) {
+            skippedTypes.add(scope.resource_type)
+            continue
+          }
+          removeScopes.push({
             api_id: scope.api_id,
-            cluster: scope.cluster,
-            namespace: scope.namespace,
-            resource_name: normalizeResourceName(scope.resource_name)
-          }))
+            resource_type: scope.resource_type,
+            resource_id: scope.resource_id
+          })
+        }
+
+        skippedTypes.forEach((type) => {
+          console.warn(
+            `[role-api-dialog] 资源类型 ${type} 未在 API 列表匹配到列表 API，已跳过该类型资源的作用域同步`
+          )
+        })
 
         if (addScopes.length === 0 && removeScopes.length === 0) {
           ElMessage.success('权限更新成功')
@@ -1139,13 +1307,22 @@
           return
         }
 
-        await fetchUpdateRoleAPIScopes(
-          roleId,
-          {
-            add_scopes: addScopes,
-            remove_scopes: removeScopes
-          }
-        )
+        await fetchUpdateRoleAPIScopes(roleId, {
+          add_scopes: addScopes,
+          remove_scopes: removeScopes
+        })
+      } else if (activeMode.value === 'menu') {
+        const publicCodes = menuCatalog.value.filter((m) => m.public).map((m) => m.code)
+        const leafSelected = selectedMenuCodes.value.filter((code) => {
+          const def = menuCatalog.value.find((m) => m.code === code)
+          return Boolean(def && !def.public && def.kind !== 'directory')
+        })
+        // 仅公共菜单 / 全不选 → 清空显式绑定，回退 API 推导
+        const codes =
+          leafSelected.length === 0
+            ? []
+            : Array.from(new Set([...leafSelected, ...publicCodes]))
+        await fetchUpdateRoleMenus(roleId, codes)
       } else {
         await fetchUpdateRoleAPIs(roleId, selectedApiIds.value)
       }
@@ -1160,15 +1337,80 @@
     }
   }
 
+  /** 按当前 tab 模式加载对应数据：scope/menu 首次进入才加载；api 已加载则恢复快照不重复请求 */
+  function loadForMode(mode: RoleApiDialogMode) {
+    const roleId = props.roleData?.id
+    if (!roleId) return
+
+    if (mode === 'api') {
+      if (apiLoaded.value) {
+        // scope 加载会覆盖共享的 allApis，切回 api 时恢复 api 模式快照
+        allApis.value = apiModeApis.value
+        selectedApiIds.value = apiModeSelectedIds.value
+        return
+      }
+      if (!loading.value) {
+        void loadRoleAPIs()
+      }
+      return
+    }
+
+    if (mode === 'menu') {
+      if (menuLoaded.value || menuLoading.value) return
+      menuLoading.value = true
+      void fetchGetRoleMenus(roleId)
+        .then((data) => {
+          menuCatalog.value = data.catalog || []
+          selectedMenuCodes.value = (data.associated || []).filter((code) => {
+            const def = (data.catalog || []).find((m) => m.code === code)
+            return def && def.kind !== 'directory'
+          })
+          menuLoaded.value = true
+        })
+        .catch((e: unknown) => {
+          const err = e as { message?: string }
+          ElMessage.error(err?.message || '获取角色菜单权限失败')
+        })
+        .finally(() => {
+          menuLoading.value = false
+        })
+      return
+    }
+
+    if (!scopeLoaded.value && !scopeLoading.value) {
+      scopeLoading.value = true
+      void loadRoleScopes(roleId)
+        .then(() => {
+          scopeLoaded.value = true
+        })
+        .catch((e: unknown) => {
+          const err = e as { message?: string }
+          ElMessage.error(err?.message || '获取角色资源权限失败')
+        })
+        .finally(() => {
+          scopeLoading.value = false
+        })
+    }
+  }
+
+  watch(activeMode, (mode) => {
+    loadForMode(mode)
+  })
+
   watch(
     () => props.visible,
     (visible) => {
       if (visible && props.roleData?.id) {
-        void loadRoleAPIs().then(() => {
-          if (props.mode === 'kubernetes') {
-            void ensureClusterListLoaded()
-          }
-        })
+        resetDialogData()
+        apiLoaded.value = false
+        scopeLoaded.value = false
+        scopeLoading.value = false
+        menuLoaded.value = false
+        menuLoading.value = false
+        apiModeApis.value = []
+        apiModeSelectedIds.value = []
+        activeMode.value = 'menu'
+        loadForMode('menu')
       }
     }
   )
@@ -1193,7 +1435,7 @@
   }
 
   :global(.role-api-dialog-body) {
-    padding: 20px 16px 12px 20px !important;
+    padding: 16px 20px 12px !important;
     font-size: 12px;
   }
 
@@ -1207,57 +1449,141 @@
   .role-api-form {
     font-size: 12px;
     margin-top: 0;
+    width: 100%;
 
     :deep(.el-form-item) {
       margin-top: 0;
       margin-bottom: 0;
+      width: 100%;
     }
 
     :deep(.el-form-item__label) {
-      font-size: 12px;
-      height: auto !important;
-      line-height: 1.4 !important;
-    }
-
-    :deep(.el-form-item__content) {
-      max-width: none;
-    }
-  }
-
-  .role-api-transfer-item {
-    margin-top: 0 !important;
-
-    :deep(.el-form-item__label) {
-      display: block !important;
-      width: fit-content !important;
-      height: auto !important;
-      min-height: 0 !important;
-      padding: 0 !important;
-      margin-bottom: 10px !important;
-      text-align: left;
-      line-height: 1.4 !important;
-      box-sizing: border-box;
+      display: none;
     }
 
     :deep(.el-form-item__content) {
       margin-left: 0 !important;
-      width: 100%;
+      width: 100% !important;
+      max-width: 100% !important;
+      flex: 1 1 auto;
     }
   }
 
+  .role-api-tabs {
+    width: 100%;
+
+    :deep(.el-tabs__header) {
+      margin-bottom: 10px;
+    }
+
+    :deep(.el-tabs__content),
+    :deep(.el-tab-pane) {
+      width: 100%;
+    }
+
+    :deep(.el-tabs__item) {
+      height: 32px;
+      font-size: 12px;
+      line-height: 32px;
+    }
+
+    :deep(.el-tabs__nav-wrap::after) {
+      height: 1px;
+    }
+  }
+
+  .api-perm-pane {
+    width: 100%;
+  }
+
+  .role-api-transfer-item {
+    margin-top: 0 !important;
+    width: 100%;
+
+    :deep(.el-form-item__content) {
+      margin-left: 0 !important;
+      width: 100% !important;
+      max-width: 100% !important;
+    }
+  }
+
+  /* scope 配置 */
+  .scope-config {
+    font-size: 12px;
+    width: 100%;
+  }
+
+  /* scope 穿梭框条目（左侧/右侧通用） */
+  .role-api-picker__items {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .role-api-picker__item {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 28px;
+    margin-right: 0;
+
+    :deep(.el-checkbox__label) {
+      flex: 1;
+      min-width: 0;
+      padding-left: 8px;
+      font-size: 12px;
+      line-height: 28px;
+    }
+  }
+
+  .scope-item-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .scope-item-tag {
+    flex-shrink: 0;
+    max-width: 64px;
+    height: 18px;
+    padding: 0 6px;
+    line-height: 16px;
+    border: 1px solid var(--el-color-primary-light-7);
+    border-radius: 3px;
+    box-sizing: border-box;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+    color: var(--el-color-primary);
+    background: var(--el-color-primary-light-9);
+  }
+
+  .scope-item-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* api 穿梭框 */
   .role-api-picker {
     display: flex;
     flex-wrap: nowrap;
     align-items: stretch;
     gap: 0;
-    width: max-content;
-    max-width: 100%;
+    width: 100%;
+    max-width: none;
     font-size: 12px;
   }
 
   .role-api-picker__panel {
-    flex-shrink: 0;
-    width: 240px;
+    flex: 1 1 0;
+    min-width: 0;
     border: 1px solid var(--el-border-color-lighter);
     border-radius: var(--el-border-radius-base);
     background: var(--el-bg-color-overlay);
@@ -1410,37 +1736,6 @@
     user-select: none;
   }
 
-  .role-api-picker__items {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .role-api-picker__item {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    height: 28px;
-    margin-right: 0;
-
-    :deep(.el-checkbox__label) {
-      flex: 1;
-      min-width: 0;
-      padding-left: 8px;
-      font-size: 12px;
-      line-height: 28px;
-    }
-  }
-
-  .role-api-picker__item-label {
-    display: block;
-    width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    line-height: 28px;
-  }
-
   .role-api-picker__empty {
     padding: 24px 0;
     text-align: center;
@@ -1479,5 +1774,76 @@
       font-size: 14px;
       line-height: 1;
     }
+  }
+
+  .menu-perm-pane {
+    width: 100%;
+    font-size: 12px;
+  }
+
+  .menu-perm-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    /* 与 API / 按钮权限穿梭框总高度一致：header40 + filter50 + body240 */
+    height: 330px;
+    overflow: auto;
+    width: 100%;
+    /* 仅保留少量顶距，避免首组标题贴线被裁切 */
+    padding: 8px 0 6px;
+    box-sizing: border-box;
+    /* 默认隐藏滑动块，悬停时显示 */
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+
+    &:hover {
+      scrollbar-color: rgba(144, 147, 153, 0.45) transparent;
+    }
+
+    &::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: transparent;
+      border-radius: 3px;
+    }
+
+    &:hover::-webkit-scrollbar-thumb {
+      background: rgba(144, 147, 153, 0.45);
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    :deep(.el-checkbox) {
+      height: 24px;
+      margin-right: 14px;
+      margin-top: 0;
+      margin-bottom: 0;
+    }
+
+    :deep(.el-checkbox__label) {
+      font-size: 12px;
+      line-height: 24px;
+      padding-left: 6px;
+    }
+  }
+
+  .menu-perm-group__title {
+    margin-bottom: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.4;
+    color: var(--el-text-color-primary);
+  }
+
+  .menu-perm-group__items {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 10px;
   }
 </style>

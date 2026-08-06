@@ -90,7 +90,7 @@ export async function resolveClusterNamespaces(
   }
 
   const { items } = await fetchK8sNamespaceList(cluster, { page: 1, limit: 500 })
-  const names = items.map((n) => n.metadata.name).sort()
+  const names = items.map((n) => n.metadata.name).filter(Boolean).sort()
   return { items, names, permissionDetail: null, scoped: false }
 }
 

@@ -134,27 +134,39 @@
   }
 
   /**
+   * 判断是否为布局型目录（仅容器，自身不应在无可见子菜单时单独展示）
+   */
+  const isLayoutDirectory = (item: AppRouteRecord): boolean => {
+    const comp = String(item.component || '')
+    return (
+      comp === '/index/index' ||
+      comp.endsWith('/index/index') ||
+      comp === 'Layout' ||
+      item.component === undefined
+    )
+  }
+
+  /**
    * 递归过滤菜单路由，移除隐藏的菜单项
-   * 但如果父菜单本身就是可访问页面，则即使子菜单都被隐藏也应该保留
    * @param items 菜单项数组
    * @returns 过滤后的菜单项数组
    */
   const filterRoutes = (items: AppRouteRecord[]): AppRouteRecord[] => {
     return items
       .filter((item) => {
-        // 如果当前项被隐藏，直接过滤掉
         if (item.meta.isHide) {
           return false
         }
 
-        // 如果有子菜单，递归过滤子菜单
         if (item.children && item.children.length > 0) {
           const filteredChildren = filterRoutes(item.children)
-          // 目录菜单要求有可见子菜单；页面菜单则允许仅保留自身
-          return filteredChildren.length > 0 || isNavigableRoute(item)
+          if (filteredChildren.length > 0) {
+            return true
+          }
+          // 无可见子菜单时：布局目录隐藏；真正的页面路由可保留自身
+          return isNavigableRoute(item) && !isLayoutDirectory(item)
         }
 
-        // 叶子节点且未被隐藏，保留
         return isNavigableRoute(item)
       })
       .map((item) => ({

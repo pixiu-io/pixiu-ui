@@ -33,18 +33,35 @@
  */
 
 import { router } from '@/router'
+import { usePermissionStore } from '@/store/modules/permission'
 import { App, Directive, DirectiveBinding } from 'vue'
 
 export type AuthDirective = Directive<HTMLElement, string>
 
 function checkAuthPermission(el: HTMLElement, binding: DirectiveBinding<string>): void {
-  // 获取当前路由的权限列表
-  const authList = (router.currentRoute.value.meta.authList as Array<{ authMark: string }>) || []
+  const permissionStore = usePermissionStore()
 
-  // 检查是否有对应的权限标识
+  // 超管全部放行
+  if (permissionStore.isRoot) {
+    return
+  }
+
+  // 权限未加载时不放行，避免未授权按钮短暂可见
+  if (!permissionStore.loaded) {
+    removeElement(el)
+    return
+  }
+
+  // 优先按资源权限点（METHOD:path 或普通标记）判断，命中则保留
+  if (permissionStore.hasAPI(binding.value)) {
+    return
+  }
+
+  // 兼容旧用法：回退检查当前路由 meta.authList 是否包含该权限标识
+  const authList = (router.currentRoute.value.meta.authList as Array<{ authMark: string }>) || []
   const hasPermission = authList.some((item) => item.authMark === binding.value)
 
-  // 如果没有权限，移除元素
+  // 均未命中，移除元素
   if (!hasPermission) {
     removeElement(el)
   }

@@ -10,6 +10,7 @@
 import type { AppRouteRecord } from '@/types/router'
 import { useAppMode } from '@/hooks/core/useAppMode'
 import { fetchGetMenuList } from '@/api/system-manage'
+import { usePermissionStore } from '@/store/modules/permission'
 import { asyncRoutes } from '../routes/asyncRoutes'
 import { RoutesAlias } from '../routesAlias'
 import { formatMenuTitle } from '@/utils'
@@ -40,8 +41,7 @@ export class MenuProcessor {
    */
   private async processFrontendMenu(): Promise<AppRouteRecord[]> {
     let menuList = [...asyncRoutes]
-
-    // 菜单展示不做角色过滤，普通用户可见全部菜单
+    menuList = this.filterByMenus(menuList)
     return this.filterEmptyMenus(menuList)
   }
 
@@ -50,9 +50,65 @@ export class MenuProcessor {
    */
   private async processBackendMenu(): Promise<AppRouteRecord[]> {
     const list = await fetchGetMenuList()
+    return this.filterEmptyMenus(this.filterByMenus(list))
+  }
 
-    // 菜单展示不做角色过滤，普通用户可见全部菜单
-    return this.filterEmptyMenus(list)
+  /**
+   * 按后端下发的 menus[] + meta.menu 过滤。
+   * - 超管：全部可见
+   * - 权限未加载：不放行
+   * - meta.public：始终可见
+   * - 叶子：必须命中 meta.menu（或 public）
+   * - 目录：子节点过滤后仍有子项则保留
+   */
+  private filterByMenus(menuList: AppRouteRecord[]): AppRouteRecord[] {
+    const store = usePermissionStore()
+
+    if (store.isRoot) {
+      return menuList
+    }
+
+    if (!store.loaded) {
+      console.warn('[MenuProcessor] 用户权限未加载，拒绝展开业务菜单')
+      return []
+    }
+
+    const walk = (list: AppRouteRecord[]): AppRouteRecord[] =>
+      list
+        .map((item) => {
+          if (!item.children?.length) return item
+          return { ...item, children: walk(item.children) }
+        })
+        .filter((item) => {
+          if (item.children && item.children.length > 0) {
+            return true
+          }
+          if (item.meta?.public) {
+            return true
+          }
+          const code = item.meta?.menu
+          if (code) {
+            return store.hasMenu(code)
+          }
+          // 未配置 menu：默认隐藏（最小权限）
+          return false
+        })
+
+    return walk(menuList)
+  }
+
+  /**
+   * @deprecated 保留空实现以免外部引用；菜单过滤已切到 filterByMenus
+   */
+  private filterByRoles(menuList: AppRouteRecord[]): AppRouteRecord[] {
+    return menuList
+  }
+
+  /**
+   * @deprecated 保留空实现以免外部引用；菜单过滤已切到 filterByMenus
+   */
+  private filterByPermissions(menuList: AppRouteRecord[]): AppRouteRecord[] {
+    return menuList
   }
 
   /**
@@ -77,8 +133,8 @@ export class MenuProcessor {
           return true
         }
 
-        // 如果没有子菜单但定义了 children 属性，说明是空目录，过滤掉
-        if ('children' in item) {
+        // 如果没有子菜单但显式定义了空 children 数组，说明是空目录，过滤掉
+        if (Array.isArray(item.children) && item.children.length === 0) {
           return false
         }
 

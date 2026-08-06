@@ -1,6 +1,7 @@
 <!-- 分析页页面 -->
 <template>
-  <div>
+  <!-- 增加顶部间距，避免分析页内容紧贴/被顶部栏遮挡 -->
+  <div style="padding-top: 20px">
     <ElRow :gutter="20">
       <ElCol :xl="14" :lg="15" :xs="24">
         <TodaySales />
