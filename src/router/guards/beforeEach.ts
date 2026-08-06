@@ -52,6 +52,7 @@ import { ApiStatus } from '@/utils/http/status'
 import { isHttpError } from '@/utils/http/error'
 import { RouteRegistry, MenuProcessor, IframeRouteManager, RoutePermissionValidator } from '../core'
 import { getFirstMenuPath } from '@/utils'
+import { usePermissionStore } from '@/store/modules/permission'
 
 // 路由注册器实例
 let routeRegistry: RouteRegistry | null = null
@@ -198,6 +199,16 @@ async function handleRouteGuard(
       }
     }
 
+    // 已注册路由后仍按 meta.menu 二次校验，防止手输 URL / 权限变更残留
+    if (userStore.isLogin && !canAccessMatchedRoute(to)) {
+      const menuStore = useMenuStore()
+      const fallback =
+        menuStore.getHomePath() || getFirstMenuPath(menuStore.menuList) || '/'
+      console.warn(`[RouteGuard] 无菜单权限访问: ${to.path}，跳转 ${fallback}`)
+      next({ path: fallback, replace: true })
+      return
+    }
+
     setWorktab(to)
     setPageTitle(to)
     next()
@@ -206,6 +217,29 @@ async function handleRouteGuard(
 
   // 6. 未匹配到路由，跳转到 404
   next({ name: 'Exception404' })
+}
+
+/**
+ * 按匹配记录的 meta.menu / public 校验当前导航是否允许。
+ * 取匹配链上最深一层声明的 menu 码（叶子优先）。
+ */
+function canAccessMatchedRoute(to: RouteLocationNormalized): boolean {
+  const permissionStore = usePermissionStore()
+  if (permissionStore.isRoot) return true
+  if (!permissionStore.loaded) return false
+
+  // 静态页（登录、异常页等）不走菜单码
+  if (isStaticRoute(to.path)) return true
+
+  let requiredMenu: string | undefined
+  for (const record of to.matched) {
+    const meta = record.meta || {}
+    if (meta.public) return true
+    const code = meta.menu as string | undefined
+    if (code) requiredMenu = code
+  }
+  if (!requiredMenu) return true
+  return permissionStore.hasMenu(requiredMenu)
 }
 
 /**
@@ -433,6 +467,7 @@ async function fetchUserInfo(): Promise<void> {
         }
       } catch (e) {
         console.warn('[RouteGuard] 加载用户权限失败:', e)
+        throw e instanceof Error ? e : new Error('加载用户权限失败')
       }
     }
     return

@@ -1,4 +1,5 @@
 import { AppRouteRecord } from '@/types/router'
+import { MenuCodes } from '@/constants/menus'
 
 export const appstoreRoutes: AppRouteRecord = {
   path: '/appstore',
@@ -7,7 +8,8 @@ export const appstoreRoutes: AppRouteRecord = {
   meta: {
     title: 'menus.appstore.title',
     icon: 'ri:store-2-line',
-    keepAlive: true
+    keepAlive: true,
+    menu: MenuCodes.Appstore
   },
   children: []
 }

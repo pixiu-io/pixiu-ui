@@ -1,6 +1,8 @@
 /**
- * 权限状态：当前用户可用 API / 资源作用域
- * 用于菜单过滤、按钮鉴权、K8s 资源可见性
+ * 权限状态：菜单 / 按钮(API) / 数据(scope) 三层模型
+ * - menus: 侧栏与路由可见性
+ * - buttons: METHOD:path，对齐 ValidAccess / hasAuth
+ * - scopes: pixiu 资源实例可见性
  */
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
@@ -17,36 +19,60 @@ export const usePermissionStore = defineStore('permissionStore', () => {
   const apis = ref<MyPermissionsResult['apis']>([])
   const scopes = ref<RoleAPIScopeRecord[]>([])
   const buttons = ref<string[]>([])
+  const menus = ref<string[]>([])
 
   const apiSet = computed(() => new Set(buttons.value))
+  const menuSet = computed(() => new Set(menus.value))
 
-  async function loadPermissions() {
-    try {
-      const data = await fetchMyPermissions()
-      isRoot.value = !!data.is_root
-      role.value = data.role
-      apis.value = data.apis || []
-      scopes.value = data.scopes || []
-      buttons.value = data.buttons || []
-      loaded.value = true
-    } catch (e) {
-      // 权限接口失败时保持未加载，避免误放行
-      loaded.value = false
-      isRoot.value = false
-      apis.value = []
-      scopes.value = []
-      buttons.value = []
-      throw e
-    }
+  /** 并发去重：登录与路由守卫可能同时触发，避免重复请求被客户端取消导致 broken pipe */
+  let loadingPromise: Promise<void> | null = null
+
+  async function loadPermissions(force = false) {
+    if (!force && loaded.value) return
+    if (loadingPromise) return loadingPromise
+
+    loadingPromise = (async () => {
+      try {
+        const data = await fetchMyPermissions()
+        isRoot.value = !!data.is_root
+        role.value = data.role
+        apis.value = data.apis || []
+        scopes.value = data.scopes || []
+        buttons.value = data.buttons || []
+        menus.value = data.menus || []
+        loaded.value = true
+      } catch (e) {
+        loaded.value = false
+        isRoot.value = false
+        apis.value = []
+        scopes.value = []
+        buttons.value = []
+        menus.value = []
+        throw e
+      } finally {
+        loadingPromise = null
+      }
+    })()
+
+    return loadingPromise
   }
 
   function clear() {
+    loadingPromise = null
     loaded.value = false
     isRoot.value = false
     role.value = 2
     apis.value = []
     scopes.value = []
     buttons.value = []
+    menus.value = []
+  }
+
+  /** 是否拥有指定菜单码 */
+  function hasMenu(code: string): boolean {
+    if (isRoot.value) return true
+    if (!code) return true
+    return menuSet.value.has(code)
   }
 
   /** 是否拥有指定 METHOD:path 或简单按钮标记 */
@@ -60,63 +86,22 @@ export const usePermissionStore = defineStore('permissionStore', () => {
   }
 
   /**
-   * 是否可访问指定 K8s 资源作用域。
-   * - 超管：全部放行
-   * - 无任何 scopes：不按作用域限制（兼容仅绑定平台 API 的角色）
-   * - 有 scopes：必须命中 cluster/namespace/resource_name（支持 *）
+   * 是否可访问某 pixiu 资源（超管或 scope 命中）
+   * resource_type：plan / cluster / node / agent / account / datasource / distribution / runner
    */
-  function canAccessScope(opts: {
-    cluster?: string
-    namespace?: string
-    resourceName?: string
-  }): boolean {
+  function canAccessResource(resourceType: string, resourceId: number): boolean {
     if (isRoot.value) return true
-    if (!scopes.value.length) return true
-
-    const cluster = (opts.cluster || '').trim()
-    const namespace = (opts.namespace || '').trim()
-    const resourceName = (opts.resourceName || '*').trim() || '*'
-
-    return scopes.value.some((s) => {
-      const sc = (s.cluster || '').trim()
-      const sn = (s.namespace || '').trim()
-      const sr = (s.resource_name || '*').trim() || '*'
-      if (cluster && sc !== '*' && sc !== cluster) return false
-      if (namespace && sn !== '*' && sn !== namespace) return false
-      if (resourceName !== '*' && sr !== '*' && sr !== resourceName) return false
-      return true
-    })
+    if (!scopes.value.length) return false
+    return scopes.value.some(
+      (s) => s.resource_type === resourceType && s.resource_id === resourceId
+    )
   }
 
-  /** 某集群下允许的命名空间；null 表示不限制 */
-  function allowedNamespaces(cluster: string): string[] | null {
-    if (isRoot.value) return null
-    if (!scopes.value.length) return null
-    const names = new Set<string>()
-    let hasWildcard = false
-    for (const s of scopes.value) {
-      const sc = (s.cluster || '').trim()
-      if (sc !== '*' && sc !== cluster) continue
-      const sn = (s.namespace || '').trim()
-      if (!sn || sn === '*') {
-        hasWildcard = true
-        break
-      }
-      names.add(sn)
-    }
-    if (hasWildcard) return null
-    if (!names.size) return []
-    return Array.from(names)
-  }
-
-  /** 当前用户是否被授予访问该集群（scopes 或超管） */
-  function canAccessCluster(cluster: string): boolean {
-    if (isRoot.value) return true
-    if (!scopes.value.length) return true
-    return scopes.value.some((s) => {
-      const sc = (s.cluster || '').trim()
-      return sc === '*' || sc === cluster
-    })
+  /** 某资源类型下被授权访问的 resource_id 集合 */
+  function authorizedResourceIds(resourceType: string): number[] {
+    return scopes.value
+      .filter((s) => s.resource_type === resourceType)
+      .map((s) => s.resource_id)
   }
 
   return {
@@ -126,11 +111,12 @@ export const usePermissionStore = defineStore('permissionStore', () => {
     apis,
     scopes,
     buttons,
+    menus,
     loadPermissions,
     clear,
+    hasMenu,
     hasAPI,
-    canAccessScope,
-    allowedNamespaces,
-    canAccessCluster
+    canAccessResource,
+    authorizedResourceIds
   }
 })

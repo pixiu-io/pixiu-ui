@@ -52,8 +52,22 @@ export interface RouteMeta extends Record<string | number | symbol, unknown> {
   }>
   /** 是否为一级菜单 */
   isFirstLevel?: boolean
-  /** 角色权限 */
+  /**
+   * 角色权限（内置级别，如 R_SUPER / R_ADMIN）。菜单可见性以 meta.menu + menus[] 为准。
+   */
   roles?: string[]
+  /**
+   * 菜单权限码（业务码，如 container.cluster）。
+   * 由后端 /pixiu/users/permissions 的 menus[] 控制侧栏与路由可见性。
+   */
+  menu?: string
+  /**
+   * @deprecated 菜单过滤已迁移到 meta.menu；保留字段仅兼容旧配置，不再用于侧栏过滤。
+   * 按钮/接口鉴权请使用 METHOD:path 与 hasAuth / v-auth。
+   */
+  permissions?: string[]
+  /** 无需菜单权限即可访问（如个人中心） */
+  public?: boolean
   /** 是否固定标签页 */
   fixedTab?: boolean
   /** 激活菜单路径 */

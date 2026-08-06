@@ -1,4 +1,5 @@
 import { AppRouteRecord } from '@/types/router'
+import { MenuCodes } from '@/constants/menus'
 
 export const dashboardRoutes: AppRouteRecord = {
   name: 'Dashboard',
@@ -6,7 +7,8 @@ export const dashboardRoutes: AppRouteRecord = {
   component: '/index/index',
   meta: {
     title: 'menus.dashboard.title',
-    icon: 'ri:pie-chart-line'
+    icon: 'ri:pie-chart-line',
+    menu: MenuCodes.Dashboard
   },
   children: [
     {
@@ -17,7 +19,8 @@ export const dashboardRoutes: AppRouteRecord = {
         title: 'menus.dashboard.console',
         icon: 'ri:home-smile-2-line',
         keepAlive: false,
-        fixedTab: true
+        fixedTab: true,
+        menu: MenuCodes.DashboardConsole
       }
     },
     {
@@ -27,7 +30,8 @@ export const dashboardRoutes: AppRouteRecord = {
       meta: {
         title: 'menus.dashboard.analysis',
         icon: 'ri:align-item-bottom-line',
-        keepAlive: false
+        keepAlive: false,
+        menu: MenuCodes.DashboardAnalysis
       }
     }
   ]

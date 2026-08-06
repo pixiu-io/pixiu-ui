@@ -1,6 +1,14 @@
 <!-- 角色管理页面 -->
 <template>
   <div class="role-page art-full-height" style="padding-top: 10px">
+    <ElAlert
+      type="info"
+      :closable="false"
+      show-icon
+      class="quota-alert"
+      style="margin: 5px 0 20px 0"
+      description="角色权限分三层：菜单权限（侧栏可见）、API 权限（接口/按钮）、资源权限（数据实例范围）。三者相互独立，勾选资源不会自动显示菜单。"
+    />
     <div
       class="role-toolbar"
       style="margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between"
@@ -41,7 +49,6 @@
       <RoleApiDialog
         v-model:visible="apiDialogVisible"
         :role-data="currentRoleData"
-        :mode="apiDialogMode"
         @success="refreshData"
       />
     </ElCard>
@@ -59,7 +66,7 @@
   } from '@/api/system-manage'
   import RoleDialog from './modules/role-dialog.vue'
   import RoleApiDialog from './modules/role-api-dialog.vue'
-  import { ElLink, ElMessage, ElMessageBox, ElTag } from 'element-plus'
+  import { ElAlert, ElLink, ElMessage, ElMessageBox } from 'element-plus'
   import { DialogType } from '@/types'
 
   defineOptions({ name: 'Role' })
@@ -69,7 +76,6 @@
   const dialogType = ref<DialogType>('add')
   const dialogVisible = ref(false)
   const apiDialogVisible = ref(false)
-	const apiDialogMode = ref<'api' | 'kubernetes'>('api')
   const currentRoleData = ref<Partial<RoleListItem>>({})
 
   const searchForm = ref({
@@ -95,11 +101,11 @@
   }
   onMounted(() => { void loadTenantMap() })
 
-  const getTenantTag = (tenantId?: number) => {
-    if (!tenantId) return { type: 'info' as const, text: '全局角色' }
+  const getTenantText = (tenantId?: number) => {
+    if (!tenantId) return '全局角色'
     const name = tenantNameMap.value[tenantId]
-    if (name) return { type: 'primary' as const, text: name }
-    return { type: 'primary' as const, text: `租户 ${tenantId}` }
+    if (name) return name
+    return `租户 ${tenantId}`
   }
 
   const {
@@ -133,10 +139,8 @@
         {
           prop: 'tenantId',
           label: '租户',
-          formatter: (row) => {
-            const tag = getTenantTag(row.tenantId)
-            return h(ElTag, { type: tag.type, size: 'small' }, () => tag.text)
-          }
+          formatter: (row) =>
+            h('span', { style: { fontSize: '12px' } }, getTenantText(row.tenantId))
         },
         {
           prop: 'createTime',
@@ -211,8 +215,7 @@
     })
   }
 
-  const showApiDialog = (row: RoleListItem, mode: 'api' | 'kubernetes' = 'api'): void => {
-    apiDialogMode.value = mode
+  const showApiDialog = (row: RoleListItem): void => {
     currentRoleData.value = row
     nextTick(() => {
       apiDialogVisible.value = true
@@ -314,6 +317,10 @@
   }
 
   .role-toolbar {
+    flex-shrink: 0;
+  }
+
+  .quota-alert {
     flex-shrink: 0;
   }
 </style>

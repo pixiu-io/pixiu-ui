@@ -579,21 +579,12 @@
           limit: params.size,
           nameSelector: params.name
         })
-        // 角色 API 作用域：仅展示被授权的集群（超管 / 无 scopes 时不限制）
-        const { usePermissionStore } = await import('@/store/modules/permission')
-        const permissionStore = usePermissionStore()
-        const filtered = permissionStore.scopes.length
-          ? items.filter(
-              (row) =>
-                permissionStore.canAccessCluster(row.name) ||
-                permissionStore.canAccessCluster(row.aliasName || '')
-            )
-          : items
+        // 集群列表不再由角色 scope 过滤，k8s 集群内授权由后端 Permission 机制负责
         return {
           code: 200,
           data: {
-            records: filtered,
-            total: permissionStore.scopes.length ? filtered.length : total,
+            records: items,
+            total,
             current: params.current,
             size: params.size
           }

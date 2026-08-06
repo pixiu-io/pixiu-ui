@@ -330,11 +330,45 @@ export async function fetchUpdateRoleAPIs(roleId: number, apiIds: number[]): Pro
   if (code !== 200) throw new Error(message || '更新角色 API 权限失败')
 }
 
+export interface MenuResource {
+  code: string
+  parent_code?: string
+  title: string
+  path?: string
+  kind: string
+  public?: boolean
+  admin_only?: boolean
+  required_apis?: string[]
+}
+
+export interface RoleMenusResult {
+  associated: string[]
+  catalog: MenuResource[]
+  derived: boolean
+}
+
+export async function fetchGetRoleMenus(roleId: number): Promise<RoleMenusResult> {
+  const res = await pixiuAxios.get(`/pixiu/roles/${roleId}/menus`)
+  const { code, result, message } = res.data
+  if (code !== 200) throw new Error(message || '获取角色菜单权限失败')
+  const payload = (result || {}) as RoleMenusResult
+  return {
+    associated: payload.associated || [],
+    catalog: payload.catalog || [],
+    derived: !!payload.derived
+  }
+}
+
+export async function fetchUpdateRoleMenus(roleId: number, menuCodes: string[]): Promise<void> {
+  const res = await pixiuAxios.put(`/pixiu/roles/${roleId}/menus`, { menu_codes: menuCodes })
+  const { code, message } = res.data
+  if (code !== 200) throw new Error(message || '更新角色菜单权限失败')
+}
+
 export interface RoleAPIScopeRecord {
   api_id: number
-  cluster: string
-  namespace: string
-  resource_name: string
+  resource_type: string
+  resource_id: number
 }
 
 export interface RoleAPIScopesResult {
@@ -351,7 +385,7 @@ export interface UpdateRoleAPIScopesPayload {
 export async function fetchGetRoleAPIScopes(roleId: number): Promise<RoleAPIScopesResult> {
   const res = await pixiuAxios.get(`/pixiu/roles/${roleId}/api-scopes`)
   const { code, result, message } = res.data
-  if (code !== 200) throw new Error(message || '获取角色 Kubernetes 权限失败')
+  if (code !== 200) throw new Error(message || '获取角色资源权限失败')
 
   const payload = (result || {}) as RoleAPIScopesResult
   return {
@@ -366,7 +400,7 @@ export async function fetchUpdateRoleAPIScopes(
 ): Promise<void> {
   const res = await pixiuAxios.put(`/pixiu/roles/${roleId}/api-scopes`, payload)
   const { code, message } = res.data
-  if (code !== 200) throw new Error(message || '更新角色 Kubernetes 权限失败')
+  if (code !== 200) throw new Error(message || '更新角色资源权限失败')
 }
 
 interface PixiuTenantItem {

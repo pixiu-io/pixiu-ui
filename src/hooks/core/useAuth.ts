@@ -44,17 +44,15 @@ export const useAuth = () => {
     return backendAuthList.some((item) => item?.authMark === auth)
   }
 
-  const canAccessScope = (opts: {
-    cluster?: string
-    namespace?: string
-    resourceName?: string
-  }) => permissionStore.canAccessScope(opts)
-
-  const canAccessCluster = (cluster: string) => permissionStore.canAccessCluster(cluster)
+  /**
+   * 是否可访问某 pixiu 资源（超管或 scope 命中）
+   * resource_type：plan / cluster / node / agent / account / datasource / distribution / runner
+   */
+  const canAccessResource = (resourceType: string, resourceId: number) =>
+    permissionStore.canAccessResource(resourceType, resourceId)
 
   return {
     hasAuth,
-    canAccessScope,
-    canAccessCluster
+    canAccessResource
   }
 }

@@ -1,4 +1,5 @@
 import { AppRouteRecord } from '@/types/router'
+import { MenuCodes } from '@/constants/menus'
 
 export const safeguardRoutes: AppRouteRecord = {
   path: '/safeguard',
@@ -7,7 +8,8 @@ export const safeguardRoutes: AppRouteRecord = {
   meta: {
     title: 'menus.safeguard.title',
     icon: 'ri:tools-fill',
-    keepAlive: false
+    keepAlive: false,
+    menu: MenuCodes.Safeguard
   },
   children: [
     {
@@ -17,7 +19,8 @@ export const safeguardRoutes: AppRouteRecord = {
       meta: {
         title: 'menus.safeguard.runner',
         icon: 'ri:terminal-box-line',
-        keepAlive: true
+        keepAlive: true,
+        menu: MenuCodes.SafeguardRunner
       }
     },
     {
@@ -28,7 +31,8 @@ export const safeguardRoutes: AppRouteRecord = {
         title: 'menus.safeguard.agent',
         icon: 'ri:robot-2-line',
         keepAlive: true,
-        isHide: true
+        isHide: true,
+        menu: MenuCodes.ContainerAgent
       }
     },
     {
@@ -38,21 +42,26 @@ export const safeguardRoutes: AppRouteRecord = {
       meta: {
         title: 'menus.safeguard.host',
         icon: 'ri:server-line',
-        keepAlive: true
+        keepAlive: true,
+        menu: MenuCodes.SafeguardHost
       }
     },
     {
       path: 'distribution',
       redirect: { name: 'SafeguardRunner', query: { tab: 'distribution' } },
       meta: {
-        isHide: true
+        title: 'menus.safeguard.runner',
+        isHide: true,
+        menu: MenuCodes.SafeguardRunner
       }
     },
     {
       path: 'runner-distribution',
       redirect: { name: 'SafeguardRunner' },
       meta: {
-        isHide: true
+        title: 'menus.safeguard.runner',
+        isHide: true,
+        menu: MenuCodes.SafeguardRunner
       }
     }
   ]

@@ -1,4 +1,5 @@
 import { AppRouteRecord } from '@/types/router'
+import { MenuCodes } from '@/constants/menus'
 
 export const middlewareRoutes: AppRouteRecord = {
   path: '/middleware',
@@ -7,7 +8,8 @@ export const middlewareRoutes: AppRouteRecord = {
   meta: {
     title: '中间件',
     icon: 'ri:stack-line',
-    keepAlive: false
+    keepAlive: false,
+    menu: MenuCodes.Middleware
   },
   children: [
     {
@@ -16,7 +18,8 @@ export const middlewareRoutes: AppRouteRecord = {
       component: '/middleware/elasticsearch',
       meta: {
         title: 'Elasticsearch',
-        icon: 'ri:search-line'
+        icon: 'ri:search-line',
+        menu: MenuCodes.MiddlewareElasticsearch
       }
     }
   ]

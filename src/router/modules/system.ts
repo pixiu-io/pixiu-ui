@@ -1,4 +1,5 @@
 import { AppRouteRecord } from '@/types/router'
+import { MenuCodes } from '@/constants/menus'
 
 export const systemRoutes: AppRouteRecord = {
   path: '/system',
@@ -6,7 +7,8 @@ export const systemRoutes: AppRouteRecord = {
   component: '/index/index',
   meta: {
     title: 'menus.system.title',
-    icon: 'ri:shield-user-line'
+    icon: 'ri:shield-user-line',
+    menu: MenuCodes.System
   },
   children: [
     {
@@ -17,7 +19,7 @@ export const systemRoutes: AppRouteRecord = {
         title: 'menus.system.role',
         icon: 'ri:admin-line',
         keepAlive: true,
-        roles: ['R_SUPER', 'R_ADMIN']
+        menu: MenuCodes.SystemRole
       }
     },
     {
@@ -28,7 +30,7 @@ export const systemRoutes: AppRouteRecord = {
         title: 'menus.system.permission',
         icon: 'ri:shield-keyhole-line',
         keepAlive: true,
-        roles: ['R_SUPER']
+        menu: MenuCodes.SystemPermission
       }
     },
     {
@@ -39,7 +41,7 @@ export const systemRoutes: AppRouteRecord = {
         title: 'menus.safeguard.audit',
         icon: 'ri:shield-check-line',
         keepAlive: true,
-        roles: ['R_SUPER', 'R_ADMIN']
+        menu: MenuCodes.SystemAudit
       }
     },
     {
@@ -51,7 +53,9 @@ export const systemRoutes: AppRouteRecord = {
         icon: 'ri:user-line',
         isHide: true,
         keepAlive: true,
-        isHideTab: true
+        isHideTab: true,
+        public: true,
+        menu: MenuCodes.SystemUserCenter
       }
     }
   ]
@@ -63,7 +67,8 @@ export const systemMgrRoutes: AppRouteRecord = {
   component: '/index/index',
   meta: {
     title: 'menus.system.sysMgr',
-    icon: 'ri:settings-3-line'
+    icon: 'ri:settings-3-line',
+    menu: MenuCodes.SystemMgr
   },
   children: [
     {
@@ -74,7 +79,7 @@ export const systemMgrRoutes: AppRouteRecord = {
         title: 'menus.system.user',
         icon: 'ri:user-line',
         keepAlive: true,
-        roles: ['R_SUPER', 'R_ADMIN']
+        menu: MenuCodes.SystemUser
       }
     },
     {
@@ -85,7 +90,7 @@ export const systemMgrRoutes: AppRouteRecord = {
         title: 'menus.system.tenant',
         icon: 'ri:building-line',
         keepAlive: true,
-        roles: ['R_SUPER']
+        menu: MenuCodes.SystemTenant
       }
     },
     {
@@ -96,7 +101,7 @@ export const systemMgrRoutes: AppRouteRecord = {
         title: 'menus.system.api',
         icon: 'ri:links-line',
         keepAlive: true,
-        roles: ['R_SUPER']
+        menu: MenuCodes.SystemApi
       }
     }
   ]

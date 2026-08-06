@@ -19,25 +19,13 @@ type NamedKubeItem = {
   metadata?: { name?: string; namespace?: string }
 }
 
-/** 按当前用户 role API scopes 过滤 K8s list items；无 scopes / 超管不限制 */
+/**
+ * 按角色 scope 过滤 K8s list items 的历史逻辑已移除。
+ * k8s 集群内授权由后端 Permission 机制负责，scope 不再控制 k8s 资源，此处直接透传。
+ */
 export async function filterKubeItemsByScope<T extends NamedKubeItem>(
-  path: string,
+  _path: string,
   items: T[]
 ): Promise<T[]> {
-  if (!items.length) return items
-  try {
-    const { usePermissionStore } = await import('@/store/modules/permission')
-    const store = usePermissionStore()
-    if (store.isRoot || !store.scopes.length) return items
-
-    const { cluster: pathCluster, namespace: pathNs } = parseKubeProxyPath(path)
-    return items.filter((item) => {
-      const cluster = pathCluster
-      const namespace = item.metadata?.namespace || pathNs || ''
-      const resourceName = item.metadata?.name || '*'
-      return store.canAccessScope({ cluster, namespace, resourceName })
-    })
-  } catch {
-    return items
-  }
+  return items
 }

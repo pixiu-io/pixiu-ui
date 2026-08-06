@@ -2,9 +2,8 @@ import { pixiuAxios } from './container'
 
 export interface RoleAPIScopeRecord {
   api_id: number
-  cluster: string
-  namespace: string
-  resource_name: string
+  resource_type: string
+  resource_id: number
 }
 
 export interface MyPermissionAPI {
@@ -21,6 +20,7 @@ export interface MyPermissionsResult {
   apis: MyPermissionAPI[]
   scopes: RoleAPIScopeRecord[]
   buttons: string[]
+  menus: string[]
 }
 
 export async function fetchMyPermissions(): Promise<MyPermissionsResult> {
@@ -35,6 +35,7 @@ export async function fetchMyPermissions(): Promise<MyPermissionsResult> {
     is_root: !!payload.is_root,
     apis: payload.apis || [],
     scopes: payload.scopes || [],
-    buttons: payload.buttons || []
+    buttons: payload.buttons || [],
+    menus: payload.menus || []
   }
 }
