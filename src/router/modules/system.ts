@@ -103,6 +103,17 @@ export const systemMgrRoutes: AppRouteRecord = {
         keepAlive: true,
         menu: MenuCodes.SystemApi
       }
+    },
+    {
+      path: 'email',
+      name: 'SystemEmail',
+      component: '/system/email',
+      meta: {
+        title: 'menus.system.email',
+        icon: 'ri:mail-send-line',
+        keepAlive: true,
+        menu: MenuCodes.SystemEmail
+      }
     }
   ]
 }

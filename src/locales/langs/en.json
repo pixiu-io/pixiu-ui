@@ -232,6 +232,7 @@
       "role": "Role",
       "tenant": "Tenant",
       "api": "API",
+      "email": "System Email",
       "aiAccount": "AI Config",
       "userCenter": "User Center",
       "menu": "Menu Manage"

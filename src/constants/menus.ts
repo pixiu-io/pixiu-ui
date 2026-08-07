@@ -39,7 +39,8 @@ export const MenuCodes = {
   SystemMgr: 'system-mgr',
   SystemUser: 'system.user',
   SystemTenant: 'system.tenant',
-  SystemApi: 'system.api'
+  SystemApi: 'system.api',
+  SystemEmail: 'system.email'
 } as const
 
 export type MenuCode = (typeof MenuCodes)[keyof typeof MenuCodes]
