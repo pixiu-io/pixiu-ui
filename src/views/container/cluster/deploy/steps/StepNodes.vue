@@ -42,8 +42,14 @@
         </div>
       </template>
       <ElTableColumn label="节点名称" min-width="140">
-        <template #default="{ row }">
-          <ElLink type="primary" :underline="'never'" style="font-size: 12px" @click="openEditDialog(row, pageOffset + 0)">{{ row.name }}</ElLink>
+        <template #default="{ row, $index }">
+          <ElLink
+            type="primary"
+            :underline="'never'"
+            style="font-size: 12px"
+            @click="openEditDialog(row, pageOffset + $index)"
+            >{{ row.name }}</ElLink
+          >
         </template>
       </ElTableColumn>
       <ElTableColumn label="角色" min-width="140">
@@ -71,7 +77,7 @@
             :underline="'never'"
             :disabled="readOnly"
             style="font-size: 12px; margin-right: 12px"
-            @click="openEditDialog(row, pageOffset + 0)"
+            @click="openEditDialog(row, pageOffset + $index)"
             >编辑</ElLink
           >
           <ElLink
@@ -79,7 +85,7 @@
             :underline="'never'"
             :disabled="readOnly"
             style="font-size: 12px"
-            @click="removeNode(pageOffset + 0)"
+            @click="removeNode(pageOffset + $index)"
             >删除</ElLink
           >
         </template>
