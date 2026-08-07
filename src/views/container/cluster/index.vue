@@ -274,6 +274,7 @@
   import type { ClusterItem } from '@/api/container'
   import type { PlanTask } from '@/api/plan'
   import { setClusterAliasCache } from '@/utils/navigation/cluster-query'
+  import { copyText } from '@/utils/clipboard'
 
   defineOptions({ name: 'Cluster' })
 
@@ -659,8 +660,10 @@
                       title: '复制',
                       onClick: (e: MouseEvent) => {
                         e.stopPropagation()
-                        navigator.clipboard.writeText(row.name)
-                        ElMessage.success('已复制')
+                        void copyText(row.name).then((ok) => {
+                          if (ok) ElMessage.success('已复制')
+                          else ElMessage.error('复制失败')
+                        })
                       }
                     },
                     [h(CopyDocument, { style: 'width:12px;height:12px' })]
@@ -891,15 +894,20 @@
   const agentTokenVisible = ref(false)
   const agentTokenValue = ref('')
 
-  function copyAgentToken() {
+  async function copyAgentToken() {
     if (
-      agentTokenValue.value &&
-      agentTokenValue.value !== '获取失败' &&
-      agentTokenValue.value !== '无' &&
-      agentTokenValue.value !== '加载中...'
+      !agentTokenValue.value ||
+      agentTokenValue.value === '获取失败' ||
+      agentTokenValue.value === '无' ||
+      agentTokenValue.value === '加载中...'
     ) {
-      navigator.clipboard.writeText(agentTokenValue.value)
+      return
+    }
+    const ok = await copyText(agentTokenValue.value)
+    if (ok) {
       ElMessage.success('已复制')
+    } else {
+      ElMessage.error('复制失败，请手动选择 Token 复制')
     }
   }
 
