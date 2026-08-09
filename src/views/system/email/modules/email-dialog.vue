@@ -2,10 +2,13 @@
   <ElDialog
     v-model="dialogVisible"
     :title="dialogType === 'add' ? '新建邮件配置' : '编辑邮件配置'"
-    width="620px"
+    width="720px"
     align-center
     destroy-on-close
     class="email-dialog"
+    body-class="email-dialog-body"
+    header-class="email-dialog-header"
+    footer-class="email-dialog-footer"
   >
     <ElForm ref="formRef" :model="formData" :rules="rules" label-width="100px">
       <div class="email-form-grid">
@@ -55,7 +58,7 @@
           <ElInput
             v-model="formData.description"
             type="textarea"
-            :rows="2"
+            :rows="3"
             placeholder="请输入描述（可选）"
           />
         </ElFormItem>
@@ -246,34 +249,59 @@
 </script>
 
 <style scoped>
-  :deep(.el-dialog__title) {
-    font-size: 14px;
-  }
-
-  :deep(.el-form-item__label) {
-    font-size: 13px;
-  }
-
-  :deep(.el-dialog__body) {
-    padding: 16px 24px 16px 16px;
-  }
-
-  :deep(.el-form-item__content) {
-    max-width: 380px;
-  }
-
-  :deep(.el-input__inner),
-  :deep(.el-textarea__inner) {
-    font-size: 12px;
-  }
-
   .email-form-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     column-gap: 12px;
+    /* 直接作用在表单内容上，保证右侧留白一定生效 */
+    padding-right: 35px;
+    box-sizing: border-box;
   }
 
   .email-description-item {
     grid-column: 1 / -1;
+  }
+
+  /* Dialog teleport 到 body：用 :global 命中 body-class / footer-class */
+  :global(.email-dialog-header) {
+    padding: 16px 24px 12px 16px !important;
+  }
+
+  :global(.email-dialog-header .el-dialog__title) {
+    font-size: 14px;
+  }
+
+  :global(.email-dialog-body) {
+    padding: 12px 8px 16px 8px !important;
+  }
+
+  :global(.email-dialog-footer) {
+    padding: 12px 35px 16px 16px !important;
+  }
+
+  :global(.email-dialog-body .el-form-item__label) {
+    font-size: 12px !important;
+    padding-right: 8px;
+  }
+
+  :global(.email-dialog-body .el-form-item__content) {
+    max-width: none;
+  }
+
+  :global(.email-dialog-body .el-input),
+  :global(.email-dialog-body .el-textarea),
+  :global(.email-dialog-body .el-select),
+  :global(.email-dialog-body .el-input-number),
+  :global(.email-dialog-body .el-input__inner),
+  :global(.email-dialog-body .el-textarea__inner),
+  :global(.email-dialog-body .el-select__wrapper),
+  :global(.email-dialog-body .el-input-number .el-input__inner) {
+    font-size: 12px !important;
+  }
+
+  :global(.email-dialog-body .el-input__inner::placeholder),
+  :global(.email-dialog-body .el-textarea__inner::placeholder),
+  :global(.email-dialog-body .el-select__placeholder) {
+    font-size: 12px !important;
   }
 </style>
