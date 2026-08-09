@@ -127,6 +127,28 @@
 
   type StepRef = { validate: () => Promise<boolean> } | null
 
+  /** 1 年按 365 天换算为小时（与 kubeadm 8760h 一致） */
+  const HOURS_PER_YEAR = 365 * 24
+
+  function yearsToHours(years: number): string {
+    const y = Number.isFinite(years) ? Math.max(1, Math.floor(years)) : 1
+    return String(y * HOURS_PER_YEAR)
+  }
+
+  /** 将持久化的小时（或历史 1y/10y）还原为表单「年」 */
+  function hoursToYears(raw: unknown, fallback: number): number {
+    const s = String(raw ?? '').trim()
+    if (!s) return fallback
+    const yearSuffix = s.match(/^(\d+)y$/i)
+    if (yearSuffix) return Math.max(1, Number(yearSuffix[1]))
+    const hourPrefix = s.match(/^(\d+)\s*h/i)
+    const hours = hourPrefix ? Number(hourPrefix[1]) : Number(s)
+    if (!Number.isFinite(hours) || hours <= 0) return fallback
+    // 小于约一个月的数值按「年」兼容旧数据
+    if (hours < 24 * 30) return Math.max(1, Math.round(hours))
+    return Math.max(1, Math.round(hours / HOURS_PER_YEAR))
+  }
+
   const route = useRoute()
   const router = useRouter()
 
@@ -228,8 +250,8 @@
     apiServerPort: 6443,
     kubeProxyMode: 'iptables',
     certificatePeriodEnabled: false,
-    certificateValidityPeriod: '1y',
-    caCertificateValidityPeriod: '10y',
+    certificateValidityPeriod: 1,
+    caCertificateValidityPeriod: 10,
     nfsEnabled: false,
     nfsStorageClassName: '',
     nfsStorageDataDir: '',
@@ -328,11 +350,13 @@
         apiServerPort,
         kubeProxyMode: 'iptables',
         certificatePeriodEnabled: Boolean((cfg.component as any)?.certificate_period?.enable),
-        certificateValidityPeriod: String(
-          (cfg.component as any)?.certificate_period?.certificate_validity_period || '1y'
+        certificateValidityPeriod: hoursToYears(
+          (cfg.component as any)?.certificate_period?.certificate_validity_period,
+          1
         ),
-        caCertificateValidityPeriod: String(
-          (cfg.component as any)?.certificate_period?.ca_certificate_validity_period || '10y'
+        caCertificateValidityPeriod: hoursToYears(
+          (cfg.component as any)?.certificate_period?.ca_certificate_validity_period,
+          10
         ),
         nfsEnabled: Boolean((cfg.component as any)?.nfs?.enable),
         nfsStorageClassName: (cfg.component as any)?.nfs?.storage_class_name ?? '',
@@ -524,10 +548,10 @@
           certificate_period: {
             enable: f.certificatePeriodEnabled,
             certificate_validity_period: f.certificatePeriodEnabled
-              ? f.certificateValidityPeriod.trim() || '1y'
+              ? yearsToHours(f.certificateValidityPeriod || 1)
               : '',
             ca_certificate_validity_period: f.certificatePeriodEnabled
-              ? f.caCertificateValidityPeriod.trim() || '10y'
+              ? yearsToHours(f.caCertificateValidityPeriod || 10)
               : ''
           }
         }
