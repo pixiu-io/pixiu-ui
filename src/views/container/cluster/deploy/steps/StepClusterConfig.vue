@@ -113,34 +113,48 @@
             size="small"
             @update:model-value="onCertificatePeriodEnabledChange"
           />
-          <span class="cert-period-enable-tip">开启后可自定义集群证书与根证书有效期</span>
+          <span class="cert-period-enable-tip"
+            >开启后可自定义集群证书与根证书有效期（仅 Kubernetes 1.31+ 支持）</span
+          >
         </div>
         <div v-if="form.certificatePeriodEnabled" class="cert-period-fields">
-          <div class="cert-period-field-row">
-            <span class="cert-period-field-label">证书有效期:</span>
-            <ElInput
-              :model-value="form.certificateValidityPeriod"
-              placeholder="默认 1y（1 年）"
-              class="cert-period-field-input"
-              clearable
-              :disabled="readOnly"
-              @update:model-value="
-                emit('update:form', { ...form, certificateValidityPeriod: $event })
-              "
-            />
+          <div class="cert-period-field-group">
+            <span class="cert-period-field-label">证书有效期</span>
+            <ElFormItem
+              prop="certificateValidityPeriod"
+              class="cert-period-field-form-item"
+              label-width="0"
+            >
+              <div class="cert-period-input-wrap">
+                <ElInputNumber
+                  :model-value="form.certificateValidityPeriod"
+                  :min="1"
+                  :precision="0"
+                  :disabled="readOnly"
+                  @update:model-value="onCertificateValidityPeriodChange"
+                />
+                <span class="cert-period-unit">年</span>
+              </div>
+            </ElFormItem>
           </div>
-          <div class="cert-period-field-row">
-            <span class="cert-period-field-label">根证书有效期:</span>
-            <ElInput
-              :model-value="form.caCertificateValidityPeriod"
-              placeholder="默认 10y（10 年）"
-              class="cert-period-field-input"
-              clearable
-              :disabled="readOnly"
-              @update:model-value="
-                emit('update:form', { ...form, caCertificateValidityPeriod: $event })
-              "
-            />
+          <div class="cert-period-field-group">
+            <span class="cert-period-field-label cert-period-field-label--ca">根证书有效期</span>
+            <ElFormItem
+              prop="caCertificateValidityPeriod"
+              class="cert-period-field-form-item"
+              label-width="0"
+            >
+              <div class="cert-period-input-wrap">
+                <ElInputNumber
+                  :model-value="form.caCertificateValidityPeriod"
+                  :min="1"
+                  :precision="0"
+                  :disabled="readOnly"
+                  @update:model-value="onCaCertificateValidityPeriodChange"
+                />
+                <span class="cert-period-unit">年</span>
+              </div>
+            </ElFormItem>
           </div>
         </div>
       </div>
@@ -249,18 +263,122 @@
     })
   }
 
+  /** 解析 Kubernetes 版本主/次版本号（兼容可选 v 前缀与缺失 patch） */
+  function parseK8sVersion(raw: string): { major: number; minor: number } | null {
+    const v = (raw ?? '').trim().replace(/^[vV]/, '')
+    const m = v.match(/^(\d+)\.(\d+)/)
+    if (!m) return null
+    return { major: Number(m[1]), minor: Number(m[2]) }
+  }
+
+  function isK8sVersionGte131(raw: string): boolean {
+    const p = parseK8sVersion(raw)
+    if (!p) return false
+    return p.major > 1 || (p.major === 1 && p.minor >= 31)
+  }
+
   function onCertificatePeriodEnabledChange(enabled: boolean | string | number) {
     const on = Boolean(enabled)
+    if (on && !isK8sVersionGte131(props.form.kubernetesVersion)) {
+      ElMessage.warning('Kubernetes 版本不符合要求，自定义证书有效期仅支持 1.31+')
+      return
+    }
     emit('update:form', {
       ...props.form,
       certificatePeriodEnabled: on,
       certificateValidityPeriod: on
-        ? props.form.certificateValidityPeriod || '1y'
+        ? props.form.certificateValidityPeriod || 1
         : props.form.certificateValidityPeriod,
       caCertificateValidityPeriod: on
-        ? props.form.caCertificateValidityPeriod || '10y'
+        ? props.form.caCertificateValidityPeriod || 10
         : props.form.caCertificateValidityPeriod
     })
+    nextTick(() => {
+      formRef.value?.clearValidate([
+        'certificateValidityPeriod',
+        'caCertificateValidityPeriod'
+      ])
+      if (on) {
+        void formRef.value?.validateField('certificateValidityPeriod')
+        void formRef.value?.validateField('caCertificateValidityPeriod')
+      }
+    })
+  }
+
+  // 部署环境切换到低于 1.31 的版本时，自动关闭自定义证书有效期
+  watch(
+    () => props.form.kubernetesVersion,
+    (ver) => {
+      if (!props.form.certificatePeriodEnabled) return
+      if (isK8sVersionGte131(ver)) return
+      emit('update:form', {
+        ...props.form,
+        certificatePeriodEnabled: false
+      })
+      nextTick(() => {
+        formRef.value?.clearValidate([
+          'certificateValidityPeriod',
+          'caCertificateValidityPeriod'
+        ])
+      })
+    }
+  )
+
+  function onCertificateValidityPeriodChange(value: number | undefined) {
+    emit('update:form', {
+      ...props.form,
+      certificateValidityPeriod: Number.isFinite(value) ? Math.floor(Number(value)) : 1
+    })
+    nextTick(() => {
+      void formRef.value?.validateField('certificateValidityPeriod')
+      void formRef.value?.validateField('caCertificateValidityPeriod')
+    })
+  }
+
+  function onCaCertificateValidityPeriodChange(value: number | undefined) {
+    emit('update:form', {
+      ...props.form,
+      caCertificateValidityPeriod: Number.isFinite(value) ? Math.floor(Number(value)) : 10
+    })
+    nextTick(() => {
+      void formRef.value?.validateField('caCertificateValidityPeriod')
+    })
+  }
+
+  function validateCertificateValidityPeriod(
+    _r: unknown,
+    value: number,
+    cb: (err?: Error) => void
+  ) {
+    if (!props.form.certificatePeriodEnabled) {
+      cb()
+      return
+    }
+    if (!Number.isInteger(value) || value < 1) {
+      cb(new Error('请输入大于 0 的整数'))
+      return
+    }
+    cb()
+  }
+
+  function validateCaCertificateValidityPeriod(
+    _r: unknown,
+    value: number,
+    cb: (err?: Error) => void
+  ) {
+    if (!props.form.certificatePeriodEnabled) {
+      cb()
+      return
+    }
+    if (!Number.isInteger(value) || value < 1) {
+      cb(new Error('请输入大于 0 的整数'))
+      return
+    }
+    if (value <= props.form.certificateValidityPeriod) {
+      cb(new Error('根证书有效期必须大于证书有效期'))
+      return
+    }
+    cb()
   }
 
   function validateNfsStorageDataDir(_r: unknown, value: string, cb: (err?: Error) => void) {
@@ -376,6 +494,12 @@
     apiServerPort: [{ required: true, message: '请输入监听端口', trigger: 'change' }],
     kubeProxyMode: [{ required: true, message: '请选择 Kube-proxy 模式', trigger: 'change' }],
     nfsStorageDataDir: [{ validator: validateNfsStorageDataDir, trigger: ['blur', 'change'] }],
+    certificateValidityPeriod: [
+      { validator: validateCertificateValidityPeriod, trigger: ['blur', 'change'] }
+    ],
+    caCertificateValidityPeriod: [
+      { validator: validateCaCertificateValidityPeriod, trigger: ['blur', 'change'] }
+    ],
     keepalivedVirtualRouterId: [
       { validator: validateKeepalivedVirtualRouterId, trigger: ['blur', 'change'] }
     ]
@@ -482,12 +606,14 @@
 
   .cert-period-fields {
     display: flex;
-    flex-direction: column;
-    gap: 10px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 16px 24px;
     margin-top: 10px;
   }
 
-  .cert-period-field-row {
+  .cert-period-field-group {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -496,20 +622,51 @@
 
   .cert-period-field-label {
     flex-shrink: 0;
-    width: 96px;
+    width: 72px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
     font-size: 12px;
     color: var(--el-text-color-regular);
-    line-height: 32px;
+    line-height: 1;
     white-space: nowrap;
   }
 
-  .cert-period-field-input {
-    width: 280px;
+  .cert-period-field-label--ca {
+    width: 96px;
   }
 
-  .cert-period-field-input :deep(.el-input__inner),
-  .cert-period-field-input :deep(.el-input__wrapper) {
+  .cert-period-field-form-item {
+    margin-bottom: 0 !important;
+  }
+
+  .cert-period-field-form-item :deep(.el-form-item__content) {
+    margin-left: 0 !important;
+    min-height: 32px;
+    line-height: 32px;
+    display: flex;
+    align-items: center;
+  }
+
+  .cert-period-field-form-item :deep(.el-form-item__error) {
+    position: static;
+    padding-top: 4px;
+    line-height: 1.2;
+  }
+
+  /* 与 workloads 更新副本数弹窗中「期望副本数」一致：默认左右 +/- */
+  .cert-period-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+  }
+
+  .cert-period-unit {
     font-size: 12px;
+    color: var(--el-text-color-regular);
+    line-height: 32px;
+    flex-shrink: 0;
   }
 
   .nfs-form-item :deep(.el-form-item__content) {

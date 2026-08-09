@@ -451,10 +451,10 @@
     apiServerAddress: string
     apiServerPort: number
     kubeProxyMode: 'iptables' | 'ipvs'
-    /** 自定义证书有效期（对应 component.certificate_period） */
+    /** 自定义证书有效期（对应 component.certificate_period；表单单位为年，持久化为小时） */
     certificatePeriodEnabled: boolean
-    certificateValidityPeriod: string
-    caCertificateValidityPeriod: string
+    certificateValidityPeriod: number
+    caCertificateValidityPeriod: number
     nfsEnabled: boolean
     nfsStorageClassName: string
     nfsStorageDataDir: string
