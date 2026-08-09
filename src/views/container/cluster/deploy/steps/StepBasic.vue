@@ -344,26 +344,19 @@
     </div>
 
     <template v-if="showAdvancedOptions">
-      <ElFormItem label="删除保护">
-        <ElSwitch
-          :model-value="form.protected"
-          :disabled="readOnly"
-          size="small"
-          @update:model-value="emit('update:form', { ...form, protected: $event as boolean })"
-        />
-        <div class="form-tip">开启后不允许删除该集群</div>
-      </ElFormItem>
-      <ElFormItem label="关闭 Selinux">
-        <ElSwitch
-          :model-value="form.changeSelinux"
-          :disabled="readOnly"
-          size="small"
-          @update:model-value="emit('update:form', { ...form, changeSelinux: $event as boolean })"
-        />
-        <div class="form-tip"
-          >开启后将关闭目标主机的 Selinux，推荐开启；如果主机未安装 Selinux（如
-          openEuler），则需要关闭该配置</div
-        >
+      <ElFormItem label="关闭 Selinux" class="switch-with-tip-item">
+        <div class="switch-with-tip-row">
+          <ElSwitch
+            :model-value="form.changeSelinux"
+            :disabled="readOnly"
+            size="small"
+            @update:model-value="emit('update:form', { ...form, changeSelinux: $event as boolean })"
+          />
+          <span class="form-tip form-tip--inline"
+            >开启后将关闭目标主机的 Selinux，推荐开启；如果主机未安装 Selinux（如
+            openEuler），则需要关闭该配置</span
+          >
+        </div>
       </ElFormItem>
       <ElFormItem label="Kubernetes 镜像仓库">
         <ElInput
@@ -378,6 +371,37 @@
           >Kubernetes
           镜像仓库地址，默认阿里云（registry.cn-hangzhou.aliyuncs.com/google_containers），用户可根据实际情况配置</div
         >
+      </ElFormItem>
+      <ElFormItem label="自定义源" class="switch-with-tip-item">
+        <div class="custom-repo-block">
+          <div class="switch-with-tip-row">
+            <ElSwitch
+              :model-value="form.customRepoEnabled"
+              :disabled="readOnly"
+              size="small"
+              @update:model-value="onCustomRepoEnabledChange"
+            />
+            <span class="form-tip form-tip--inline"
+              >开启后将使用下方自定义软件源配置，覆盖节点默认 apt/yum
+              源；关闭则使用官方/内置源</span
+            >
+          </div>
+          <ElFormItem
+            v-if="form.customRepoEnabled"
+            prop="customRepoContent"
+            class="custom-repo-content-item"
+            label-width="0"
+          >
+            <ElInput
+              :model-value="form.customRepoContent"
+              type="textarea"
+              :rows="6"
+              class="custom-repo-textarea"
+              :disabled="readOnly"
+              @update:model-value="emit('update:form', { ...form, customRepoContent: $event })"
+            />
+          </ElFormItem>
+        </div>
       </ElFormItem>
     </template>
   </ElForm>
@@ -412,6 +436,9 @@
     description: string
     protected: boolean
     changeSelinux: boolean
+    /** 自定义软件源（对应 component.custom_repo） */
+    customRepoEnabled: boolean
+    customRepoContent: string
     registryMirror: string
     nodeNamingMode: 'auto' | 'manual'
     networkInterface: string
@@ -424,6 +451,10 @@
     apiServerAddress: string
     apiServerPort: number
     kubeProxyMode: 'iptables' | 'ipvs'
+    /** 自定义证书有效期（对应 component.certificate_period） */
+    certificatePeriodEnabled: boolean
+    certificateValidityPeriod: string
+    caCertificateValidityPeriod: string
     nfsEnabled: boolean
     nfsStorageClassName: string
     nfsStorageDataDir: string
@@ -458,9 +489,10 @@
   const showAdvancedOptions = ref(false)
 
   watch(
-    () => [props.form.registryMirror, props.form.protected, props.form.changeSelinux] as const,
-    ([rm, pt, cs]) => {
-      if (rm || !pt || !cs) showAdvancedOptions.value = true
+    () =>
+      [props.form.registryMirror, props.form.changeSelinux, props.form.customRepoEnabled] as const,
+    ([rm, cs, cr]) => {
+      if (rm || !cs || cr) showAdvancedOptions.value = true
     },
     { immediate: true }
   )
@@ -766,6 +798,31 @@
     })
   }
 
+  function validateCustomRepoContent(_r: unknown, value: string, cb: (err?: Error) => void) {
+    if (!props.form.customRepoEnabled) {
+      cb()
+      return
+    }
+    if (!(value ?? '').trim()) {
+      cb(new Error('请输入自定义源配置内容'))
+      return
+    }
+    cb()
+  }
+
+  function onCustomRepoEnabledChange(enabled: boolean | string | number) {
+    const on = Boolean(enabled)
+    emit('update:form', {
+      ...props.form,
+      customRepoEnabled: on,
+      customRepoContent: on ? props.form.customRepoContent : ''
+    })
+    nextTick(() => {
+      formRef.value?.clearValidate('customRepoContent')
+      if (on) void formRef.value?.validateField('customRepoContent')
+    })
+  }
+
   const rules: FormRules = {
     name: [{ required: true, message: '请输入集群名称', trigger: 'blur' }],
     kubernetesVersion: [
@@ -778,7 +835,8 @@
     cni: [{ required: true, message: '请选择容器网络插件', trigger: 'change' }],
     podNetwork: [{ required: true, validator: validateCidr, trigger: 'blur' }],
     serviceNetwork: [{ required: true, validator: validateCidr, trigger: 'change' }],
-    deployAgentId: [{ validator: validateDeployAgentId, trigger: ['change', 'blur'] }]
+    deployAgentId: [{ validator: validateDeployAgentId, trigger: ['change', 'blur'] }],
+    customRepoContent: [{ validator: validateCustomRepoContent, trigger: ['blur', 'change'] }]
   }
 
   async function validate(): Promise<boolean> {
@@ -951,6 +1009,53 @@
     margin-top: 5px;
   }
 
+  .switch-with-tip-item :deep(.el-form-item__content) {
+    align-items: flex-start;
+  }
+
+  .switch-with-tip-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 8px;
+    min-height: 32px;
+    width: 100%;
+  }
+
+  .custom-repo-block {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    width: 100%;
+  }
+
+  .custom-repo-content-item {
+    width: 100%;
+    margin-bottom: 0;
+    margin-top: 4px;
+  }
+
+  .custom-repo-content-item :deep(.el-form-item__content) {
+    margin-left: 0 !important;
+  }
+
+  .custom-repo-content-item :deep(.el-form-item__error) {
+    position: static;
+    padding-top: 4px;
+  }
+
+  .custom-repo-textarea {
+    width: 520px;
+    max-width: 100%;
+  }
+
+  .custom-repo-textarea :deep(.el-textarea__inner) {
+    font-size: 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    line-height: 1.5;
+  }
+
   .form-tip {
     flex-basis: 100%;
     width: 100%;
@@ -959,6 +1064,16 @@
     font-size: 12px;
     color: var(--el-text-color-placeholder);
     line-height: 1.5;
+  }
+
+  .form-tip--inline {
+    flex: 1;
+    flex-basis: auto;
+    width: auto;
+    display: inline;
+    margin-top: 0;
+    line-height: 32px;
+    white-space: normal;
   }
 
   .form-tip--danger {

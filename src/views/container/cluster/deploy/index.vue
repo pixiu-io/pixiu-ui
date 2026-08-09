@@ -213,6 +213,8 @@
     description: '',
     protected: true,
     changeSelinux: true,
+    customRepoEnabled: false,
+    customRepoContent: '',
     registryMirror: '',
     nodeNamingMode: 'auto' as 'auto' | 'manual',
     networkInterface: 'eth0',
@@ -225,6 +227,9 @@
     apiServerAddress: '',
     apiServerPort: 6443,
     kubeProxyMode: 'iptables',
+    certificatePeriodEnabled: false,
+    certificateValidityPeriod: '1y',
+    caCertificateValidityPeriod: '10y',
     nfsEnabled: false,
     nfsStorageClassName: '',
     nfsStorageDataDir: '',
@@ -306,6 +311,8 @@
         description: detail.description ?? '',
         protected: k8s.protect ?? cfg.protect ?? true,
         changeSelinux: k8s.change_selinux ?? cfg.change_selinux ?? true,
+        customRepoEnabled: Boolean((cfg.component as any)?.custom_repo?.enable),
+        customRepoContent: String((cfg.component as any)?.custom_repo?.content ?? ''),
         registryMirror: k8s.image_repository ?? cfg.image_repository ?? '',
         nodeNamingMode: setHostname ? 'auto' : 'manual',
         networkInterface: cfg.network?.network_interface ?? 'eth0',
@@ -320,6 +327,13 @@
         ),
         apiServerPort,
         kubeProxyMode: 'iptables',
+        certificatePeriodEnabled: Boolean((cfg.component as any)?.certificate_period?.enable),
+        certificateValidityPeriod: String(
+          (cfg.component as any)?.certificate_period?.certificate_validity_period || '1y'
+        ),
+        caCertificateValidityPeriod: String(
+          (cfg.component as any)?.certificate_period?.ca_certificate_validity_period || '10y'
+        ),
         nfsEnabled: Boolean((cfg.component as any)?.nfs?.enable),
         nfsStorageClassName: (cfg.component as any)?.nfs?.storage_class_name ?? '',
         nfsStorageDataDir: (cfg.component as any)?.nfs?.storage_data_dir ?? '',
@@ -463,7 +477,8 @@
           enable_public_ip: Boolean(f.apiServerAddress),
           image_repository: f.registryMirror,
           set_hostname: f.nodeNamingMode === 'auto',
-          protect: f.protected,
+          // 创建时删除保护固定为 true；编辑时沿用已加载值（表单不再提供开关）
+          protect: isEditMode.value ? f.protected : true,
           change_selinux: f.changeSelinux
         },
         network: {
@@ -501,7 +516,20 @@
                   storage_data_dir: f.nfsStorageDataDir.trim()
                 }
               }
-            : {})
+            : {}),
+          custom_repo: {
+            enable: f.customRepoEnabled,
+            content: f.customRepoEnabled ? f.customRepoContent : ''
+          },
+          certificate_period: {
+            enable: f.certificatePeriodEnabled,
+            certificate_validity_period: f.certificatePeriodEnabled
+              ? f.certificateValidityPeriod.trim() || '1y'
+              : '',
+            ca_certificate_validity_period: f.certificatePeriodEnabled
+              ? f.caCertificateValidityPeriod.trim() || '10y'
+              : ''
+          }
         }
       },
       nodes

@@ -193,7 +193,7 @@ async function handleRouteGuard(
       const menuStore = useMenuStore()
       const fallback =
         menuStore.getHomePath() || getFirstMenuPath(menuStore.menuList) || RoutesAlias.Login
-      if (fallback && fallback !== to.path) {
+      if (fallback && fallback !== '/' && fallback !== to.path) {
         next({ path: fallback, replace: true })
         return
       }
@@ -203,7 +203,12 @@ async function handleRouteGuard(
     if (userStore.isLogin && !canAccessMatchedRoute(to)) {
       const menuStore = useMenuStore()
       const fallback =
-        menuStore.getHomePath() || getFirstMenuPath(menuStore.menuList) || '/'
+        menuStore.getHomePath() || getFirstMenuPath(menuStore.menuList) || RoutesAlias.Login
+      // 禁止回退到 /：会被 catch-all 打成 404，造成「返回首页」死循环
+      if (!fallback || fallback === '/' || fallback === to.path) {
+        next({ path: RoutesAlias.Login, replace: true })
+        return
+      }
       console.warn(`[RouteGuard] 无菜单权限访问: ${to.path}，跳转 ${fallback}`)
       next({ path: fallback, replace: true })
       return

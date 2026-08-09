@@ -490,6 +490,139 @@ export async function fetchDeleteTenant(tenantId: number): Promise<void> {
   if (code !== 200) throw new Error(message || '删除租户失败')
 }
 
+/**
+ * 系统邮件 SMTP 配置（与后端 types.EmailConfig 对齐）。
+ * 密码不回显，password_set 表示是否已配置密码。
+ */
+export interface EmailConfigItem {
+  id: number
+  resource_version: number
+  gmt_create?: string
+  gmt_modified?: string
+  name: string
+  smtp_host: string
+  smtp_port: number
+  username: string
+  password_set: boolean
+  from_email: string
+  from_name: string
+  encryption: string
+  enabled: boolean
+  is_default: boolean
+  description: string
+  created_by: number
+}
+
+/** 邮件配置列表查询参数 */
+export interface EmailListParams {
+  current: number
+  size: number
+  name?: string
+}
+
+/** 创建邮件配置请求体（对应 types.CreateEmailConfigRequest） */
+export interface EmailConfigCreateParams {
+  name: string
+  smtp_host: string
+  smtp_port: number
+  username?: string
+  password?: string
+  from_email: string
+  from_name?: string
+  encryption?: string
+  enabled?: boolean
+  is_default?: boolean
+  description?: string
+}
+
+/** 更新邮件配置请求体（对应 types.UpdateEmailConfigRequest，password 留空表示不修改密码） */
+export interface EmailConfigUpdateParams extends EmailConfigCreateParams {
+  id: number
+  resource_version: number
+}
+
+/** 构建创建/更新邮件配置的请求 JSON（snake_case） */
+function buildEmailConfigBody(params: EmailConfigCreateParams): Record<string, unknown> {
+  const body: Record<string, unknown> = {
+    name: params.name,
+    smtp_host: params.smtp_host,
+    smtp_port: params.smtp_port,
+    from_email: params.from_email
+  }
+  if (params.username !== undefined && params.username !== '') body.username = params.username
+  if (params.password) body.password = params.password
+  if (params.from_name) body.from_name = params.from_name
+  if (params.encryption) body.encryption = params.encryption
+  if (params.enabled !== undefined) body.enabled = params.enabled
+  if (params.is_default !== undefined) body.is_default = params.is_default
+  if (params.description !== undefined) body.description = params.description
+  return body
+}
+
+// 获取邮件配置列表（分页）
+export async function fetchGetEmailList(
+  params: EmailListParams
+): Promise<Api.Common.PaginatedResponse<EmailConfigItem>> {
+  const query: Record<string, unknown> = {
+    page: params.current || 1,
+    limit: params.size || 10
+  }
+  // 后端名称搜索绑定 nameSelector（form:"nameSelector"），与租户/角色列表一致
+  if (params.name) query.nameSelector = params.name
+
+  const res = await pixiuAxios.get('/pixiu/emails', { params: query })
+  const { code, result, message } = res.data
+  if (code !== 200) {
+    throw new Error(message || '获取邮件配置列表失败')
+  }
+
+  const payload = (result || {}) as { total?: number; items?: EmailConfigItem[] }
+  return {
+    records: payload.items || [],
+    total: payload.total || 0,
+    current: params.current || 1,
+    size: params.size || 10
+  }
+}
+
+// 获取邮件配置详情
+export async function fetchGetEmail(id: number): Promise<EmailConfigItem> {
+  const res = await pixiuAxios.get(`/pixiu/emails/${id}`)
+  const { code, result, message } = res.data
+  if (code !== 200) throw new Error(message || '获取邮件配置详情失败')
+  return (result || {}) as EmailConfigItem
+}
+
+// 创建邮件配置
+export async function fetchCreateEmail(params: EmailConfigCreateParams): Promise<void> {
+  const res = await pixiuAxios.post('/pixiu/emails', buildEmailConfigBody(params))
+  const { code, message } = res.data
+  if (code !== 200) throw new Error(message || '创建邮件配置失败')
+}
+
+// 更新邮件配置
+export async function fetchUpdateEmail(id: number, params: EmailConfigUpdateParams): Promise<void> {
+  const body = buildEmailConfigBody(params)
+  body.resource_version = params.resource_version
+  const res = await pixiuAxios.put(`/pixiu/emails/${id}`, body)
+  const { code, message } = res.data
+  if (code !== 200) throw new Error(message || '更新邮件配置失败')
+}
+
+// 删除邮件配置
+export async function fetchDeleteEmail(id: number): Promise<void> {
+  const res = await pixiuAxios.delete(`/pixiu/emails/${id}`)
+  const { code, message } = res.data
+  if (code !== 200) throw new Error(message || '删除邮件配置失败')
+}
+
+// 发送测试邮件
+export async function fetchTestSendEmail(id: number, to: string): Promise<void> {
+  const res = await pixiuAxios.post(`/pixiu/emails/${id}/test`, { to })
+  const { code, message } = res.data
+  if (code !== 200) throw new Error(message || '测试邮件发送失败')
+}
+
 interface PixiuAPIItem {
   id: number
   resource_version: number

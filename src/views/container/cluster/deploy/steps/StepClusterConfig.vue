@@ -104,6 +104,48 @@
       >
     </ElFormItem>
 
+    <ElFormItem label="自定义证书有效期" class="cert-period-form-item">
+      <div class="cert-period-block">
+        <div class="cert-period-enable-row">
+          <ElSwitch
+            :model-value="form.certificatePeriodEnabled"
+            :disabled="readOnly"
+            size="small"
+            @update:model-value="onCertificatePeriodEnabledChange"
+          />
+          <span class="cert-period-enable-tip">开启后可自定义集群证书与根证书有效期</span>
+        </div>
+        <div v-if="form.certificatePeriodEnabled" class="cert-period-fields">
+          <div class="cert-period-field-row">
+            <span class="cert-period-field-label">证书有效期:</span>
+            <ElInput
+              :model-value="form.certificateValidityPeriod"
+              placeholder="默认 1y（1 年）"
+              class="cert-period-field-input"
+              clearable
+              :disabled="readOnly"
+              @update:model-value="
+                emit('update:form', { ...form, certificateValidityPeriod: $event })
+              "
+            />
+          </div>
+          <div class="cert-period-field-row">
+            <span class="cert-period-field-label">根证书有效期:</span>
+            <ElInput
+              :model-value="form.caCertificateValidityPeriod"
+              placeholder="默认 10y（10 年）"
+              class="cert-period-field-input"
+              clearable
+              :disabled="readOnly"
+              @update:model-value="
+                emit('update:form', { ...form, caCertificateValidityPeriod: $event })
+              "
+            />
+          </div>
+        </div>
+      </div>
+    </ElFormItem>
+
     <ElFormItem label="自建 NFS" class="nfs-form-item">
       <div class="nfs-config-block">
         <div class="nfs-enable-row">
@@ -204,6 +246,20 @@
     })
     nextTick(() => {
       formRef.value?.clearValidate('nfsStorageDataDir')
+    })
+  }
+
+  function onCertificatePeriodEnabledChange(enabled: boolean | string | number) {
+    const on = Boolean(enabled)
+    emit('update:form', {
+      ...props.form,
+      certificatePeriodEnabled: on,
+      certificateValidityPeriod: on
+        ? props.form.certificateValidityPeriod || '1y'
+        : props.form.certificateValidityPeriod,
+      caCertificateValidityPeriod: on
+        ? props.form.caCertificateValidityPeriod || '10y'
+        : props.form.caCertificateValidityPeriod
     })
   }
 
@@ -396,6 +452,63 @@
     line-height: 1.5;
   }
   .step-cluster-config :deep(.el-checkbox__label) {
+    font-size: 12px;
+  }
+
+  .cert-period-form-item :deep(.el-form-item__content) {
+    align-items: flex-start;
+  }
+
+  .cert-period-block {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-height: 32px;
+  }
+
+  .cert-period-enable-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    min-height: 32px;
+    gap: 8px;
+  }
+
+  .cert-period-enable-tip {
+    font-size: 12px;
+    line-height: 32px;
+    color: var(--el-text-color-placeholder);
+  }
+
+  .cert-period-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 10px;
+  }
+
+  .cert-period-field-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 32px;
+  }
+
+  .cert-period-field-label {
+    flex-shrink: 0;
+    width: 96px;
+    font-size: 12px;
+    color: var(--el-text-color-regular);
+    line-height: 32px;
+    white-space: nowrap;
+  }
+
+  .cert-period-field-input {
+    width: 280px;
+  }
+
+  .cert-period-field-input :deep(.el-input__inner),
+  .cert-period-field-input :deep(.el-input__wrapper) {
     font-size: 12px;
   }
 

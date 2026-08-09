@@ -64,6 +64,17 @@ export interface CreatePlanParams {
         enable: boolean
         keepalived_virtual_router_id?: string
       }
+      /** 自定义软件源（对应后端 CustomRepo） */
+      custom_repo?: {
+        enable: boolean
+        content?: string
+      }
+      /** 自定义证书有效期（对应后端 CertificatePeriod） */
+      certificate_period?: {
+        enable: boolean
+        certificate_validity_period?: string
+        ca_certificate_validity_period?: string
+      }
     }
   }
   nodes: PlanNodeParams[]
