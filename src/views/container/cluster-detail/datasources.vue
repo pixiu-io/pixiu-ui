@@ -393,13 +393,15 @@
       { label: 'Loki', value: 'loki' },
       { label: 'Elasticsearch', value: 'es' }
     ],
-    1: [{ label: 'Prometheus', value: 'prometheus', disabled: true }]
+    1: [{ label: 'Prometheus', value: 'prometheus', disabled: true }],
+    2: [{ label: 'Redis', value: 'redis', disabled: true }]
   }
 
   const subTypeMeta: Record<DatasourceSubType, { label: string; icon: string }> = {
     loki: { label: 'Loki', icon: 'simple-icons:grafana' },
     es: { label: 'Elasticsearch', icon: 'simple-icons:elasticsearch' },
-    prometheus: { label: 'Prometheus', icon: 'simple-icons:prometheus' }
+    prometheus: { label: 'Prometheus', icon: 'simple-icons:prometheus' },
+    redis: { label: 'Redis', icon: 'simple-icons:redis' }
   }
 
   const createForm = ref({

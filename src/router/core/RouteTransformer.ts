@@ -48,12 +48,53 @@ export class RouteTransformer {
       this.handleNormalRoute(converted, component as string)
     }
 
-    // 递归处理子路由
+    // 递归处理子路由，并修正可能被 normalize 成绝对路径的子 path
+    // Vue Router 嵌套匹配：子路由 path 必须是「父 path 之后的剩余部分」，
+    // 若上游 MenuProcessor.normalizeMenuPaths 已将子 path 拼成绝对路径，
+    // 这里去掉父路径前缀还原为相对路径，避免 to.matched 为空导致「点击无反应」。
     if (children?.length) {
-      converted.children = children.map((child) => this.transform(child, depth + 1))
+      const parentPath = String(route.path || '')
+      converted.children = children.map((child) => {
+        const normalizedChild = this.normalizeChildPath(child, parentPath)
+        return this.transform(normalizedChild, depth + 1)
+      })
     }
 
     return converted
+  }
+
+  /**
+   * 将被 normalize 成绝对路径的子路由 path 还原为相对路径。
+   * - 如果子 path 以 / 开头并且以 `{parentPath}/...` 形式开头，则去掉父前缀
+   * - 否则保持原 path（外部链接、iframe、合法相对路径都不受影响）
+   */
+  private normalizeChildPath(child: AppRouteRecord, parentPath: string): AppRouteRecord {
+    const childPath = String(child.path || '')
+    if (!childPath.startsWith('/')) return child
+    if (childPath.startsWith('http://') || childPath.startsWith('https://')) return child
+
+    const cleanParent = parentPath.replace(/\/$/, '')
+    if (!cleanParent) return child
+
+    const prefix = `${cleanParent}/`
+    if (childPath.startsWith(prefix)) {
+      const newPath = childPath.slice(prefix.length)
+      console.debug(
+        `[RouteTransformer] 子路径还原绝对→相对: parent='${cleanParent}' before='${childPath}' after='${newPath}' name=${String(child.name ?? '')}`
+      )
+      return {
+        ...child,
+        path: newPath
+      }
+    }
+    // 恰好等于父路径（极端情况）：转成空串相对路径
+    if (childPath === cleanParent) {
+      console.debug(
+        `[RouteTransformer] 子路径恰好等于父路径→空串: parent='${cleanParent}' before='${childPath}' name=${String(child.name ?? '')}`
+      )
+      return { ...child, path: '' }
+    }
+    return child
   }
 
   /**

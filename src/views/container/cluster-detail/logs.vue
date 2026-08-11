@@ -792,7 +792,8 @@
   const subTypeMeta: Record<DatasourceSubType, { label: string; icon: string }> = {
     loki: { label: 'Loki', icon: 'simple-icons:grafana' },
     es: { label: 'Elasticsearch', icon: 'simple-icons:elasticsearch' },
-    prometheus: { label: 'Prometheus', icon: 'simple-icons:prometheus' }
+    prometheus: { label: 'Prometheus', icon: 'simple-icons:prometheus' },
+    redis: { label: 'Redis', icon: 'simple-icons:redis' }
   }
 
   const datasourceLoading = ref(false)

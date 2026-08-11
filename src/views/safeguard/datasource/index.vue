@@ -62,6 +62,7 @@
     fetchDeleteDatasource,
     resolveDatasourceUrl,
     type DatasourceItem,
+    type DatasourceRedisConfig,
     DatasourceTypeMap,
     DatasourceSubTypeMap
   } from '@/api/datasource'
@@ -74,11 +75,25 @@
   const subTypeIconMap: Record<string, { icon: string; color: string }> = {
     loki: { icon: 'simple-icons:grafana', color: '#F46800' },
     es: { icon: 'simple-icons:elasticsearch', color: '#005571' },
-    prometheus: { icon: 'simple-icons:prometheus', color: '#E6522C' }
+    prometheus: { icon: 'simple-icons:prometheus', color: '#E6522C' },
+    redis: { icon: 'simple-icons:redis', color: '#DC382D' }
   }
 
   function getSubTypeIcon(subType: string) {
     return subTypeIconMap[subType] ?? { icon: 'ri:database-2-line', color: '#606266' }
+  }
+
+  // Redis 无 url，按部署模式展示连接摘要
+  function formatRedisDisplay(redis?: DatasourceRedisConfig): string {
+    if (!redis) return '-'
+    const mode = redis.mode ?? 'standalone'
+    if (mode === 'sentinel') {
+      return `sentinel://${redis.masterName || ''}@${(redis.addresses ?? []).join(',')}`
+    }
+    if (mode === 'cluster') {
+      return `cluster://${(redis.addresses ?? []).join(',')}`
+    }
+    return redis.address || '-'
   }
 
   const clusterAliasMap = ref<Record<string, string>>({})
@@ -170,7 +185,9 @@
           formatter: (row: DatasourceItem) => {
             const iconMeta = getSubTypeIcon(row.subType)
             const subTypeLabel = DatasourceSubTypeMap[row.subType] || row.subType
-            const displayUrl = resolveDatasourceUrl(row)
+            // Redis 无 url，展示连接地址
+            const displayUrl =
+              row.subType === 'redis' ? formatRedisDisplay(row.config.redis) : resolveDatasourceUrl(row)
             const titleChildren = [
               h('span', { class: 'datasource-name-cell__title-text' }, row.name)
             ]

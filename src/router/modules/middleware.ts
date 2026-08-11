@@ -21,6 +21,16 @@ export const middlewareRoutes: AppRouteRecord = {
         icon: 'ri:search-line',
         menu: MenuCodes.MiddlewareElasticsearch
       }
+    },
+    {
+      path: 'redis',
+      name: 'MiddlewareRedis',
+      component: '/middleware/redis',
+      meta: {
+        title: 'Redis',
+        icon: 'ri:database-2-line',
+        menu: MenuCodes.MiddlewareRedis
+      }
     }
   ]
 }

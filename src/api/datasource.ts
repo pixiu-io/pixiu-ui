@@ -1,17 +1,19 @@
 import { pixiuAxios } from '@/api/container'
 
-export type DatasourceType = 0 | 1
-export type DatasourceSubType = 'loki' | 'es' | 'prometheus'
+export type DatasourceType = 0 | 1 | 2
+export type DatasourceSubType = 'loki' | 'es' | 'prometheus' | 'redis'
 
 export const DatasourceTypeMap = {
   0: { label: '日志', type: 'info' },
-  1: { label: '告警', type: 'warning' }
+  1: { label: '告警', type: 'warning' },
+  2: { label: '缓存', type: 'success' }
 } as const satisfies Record<number, { label: string; type: string }>
 
 export const DatasourceSubTypeMap: Record<DatasourceSubType, string> = {
   loki: 'Loki',
   es: 'Elasticsearch',
-  prometheus: 'Prometheus'
+  prometheus: 'Prometheus',
+  redis: 'Redis'
 }
 
 export interface DatasourceHeader {
@@ -31,10 +33,23 @@ export interface DatasourceAlertConfig {
   password?: string
 }
 
+export type RedisDeployMode = 'standalone' | 'sentinel' | 'cluster'
+
+export interface DatasourceRedisConfig {
+  mode?: RedisDeployMode
+  address?: string
+  addresses?: string[]
+  masterName?: string
+  password?: string
+  sentinelPassword?: string
+  db?: number
+}
+
 export interface DatasourceConfig {
   headers: DatasourceHeader[]
   log?: DatasourceLogConfig
   alert?: DatasourceAlertConfig
+  redis?: DatasourceRedisConfig
 }
 
 export interface DatasourceItem {
@@ -76,10 +91,21 @@ interface BackendDatasourceAlertConfig {
   password?: string
 }
 
+interface BackendDatasourceRedisConfig {
+  mode?: RedisDeployMode
+  address?: string
+  addresses?: string[]
+  master_name?: string
+  password?: string
+  sentinel_password?: string
+  db?: number
+}
+
 interface BackendDatasourceConfig {
   headers?: BackendDatasourceHeader[] | null
   log?: BackendDatasourceLogConfig | null
   alert?: BackendDatasourceAlertConfig | null
+  redis?: BackendDatasourceRedisConfig | null
 }
 
 interface BackendDatasourceItem {
@@ -142,6 +168,15 @@ export interface CreateDatasourcePayload {
       userName?: string
       password?: string
     }
+    redis?: {
+      mode?: RedisDeployMode
+      address?: string
+      addresses?: string[]
+      masterName?: string
+      password?: string
+      sentinelPassword?: string
+      db?: number
+    }
   }
   isDefault?: boolean
   description?: string
@@ -167,6 +202,15 @@ export interface UpdateDatasourcePayload {
       url?: string
       userName?: string
       password?: string
+    }
+    redis?: {
+      mode?: RedisDeployMode
+      address?: string
+      addresses?: string[]
+      masterName?: string
+      password?: string
+      sentinelPassword?: string
+      db?: number
     }
   }
   isDefault?: boolean
@@ -202,10 +246,23 @@ function normalizeConfig(
         }
       : undefined
 
+  const redis = config?.redis
+    ? {
+        mode: config.redis.mode ?? 'standalone',
+        address: config.redis.address ?? '',
+        addresses: config.redis.addresses ?? [],
+        masterName: config.redis.master_name ?? '',
+        password: config.redis.password ?? '',
+        sentinelPassword: config.redis.sentinel_password ?? '',
+        db: config.redis.db ?? 0
+      }
+    : undefined
+
   return {
     headers,
     log,
-    alert
+    alert,
+    redis
   }
 }
 
@@ -230,7 +287,18 @@ function toBackendConfig(
             user_name: config?.alert?.userName ?? '',
             password: config?.alert?.password ?? ''
           }
-        : undefined
+        : undefined,
+    redis: config?.redis
+      ? {
+          mode: config.redis.mode,
+          address: config.redis.address,
+          addresses: config.redis.addresses,
+          master_name: config.redis.masterName,
+          password: config.redis.password ?? '',
+          sentinel_password: config.redis.sentinelPassword,
+          db: config.redis.db ?? 0
+        }
+      : undefined
   }
 }
 
