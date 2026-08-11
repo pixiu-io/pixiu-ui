@@ -120,7 +120,7 @@
                 </div>
                 <div class="kv-item">
                   <span class="kv-label">Kube-proxy 模式</span>
-                  <span class="kv-value">{{ (detail as any).config?.network?.kube_proxy_mode || 'iptables' }}</span>
+                  <span class="kv-value">{{ (detail as any).config?.network?.kube_proxy || (detail as any).config?.network?.kube_proxy_mode || 'iptables' }}</span>
                 </div>
                 <div class="kv-item">
                   <span class="kv-label">Prometheus</span>
