@@ -97,7 +97,7 @@
         "
       >
         <ElRadio value="iptables">iptables</ElRadio>
-        <ElRadio value="ipvs" disabled>ipvs</ElRadio>
+        <ElRadio value="ipvs">ipvs</ElRadio>
       </ElRadioGroup>
       <div class="form-tip form-tip--block"
         >默认使用 iptables 模式，ipvs 的转发性能更高。选择之后无法修改</div

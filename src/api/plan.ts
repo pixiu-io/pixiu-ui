@@ -44,7 +44,7 @@ export interface CreatePlanParams {
       service_network: string
       api_server_address?: string
       api_server_port?: number
-      kube_proxy_mode?: 'iptables' | 'ipvs'
+      kube_proxy?: 'iptables' | 'ipvs'
     }
     runtime: {
       runtime: 'docker' | 'containerd'

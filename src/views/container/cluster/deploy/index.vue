@@ -348,7 +348,7 @@
           (cfg.network as any)?.api_server_address ?? (cfg.kubernetes as any)?.api_server ?? ''
         ),
         apiServerPort,
-        kubeProxyMode: 'iptables',
+        kubeProxyMode: (cfg.network as any)?.kube_proxy ?? (cfg.network as any)?.kube_proxy_mode ?? 'iptables',
         certificatePeriodEnabled: Boolean((cfg.component as any)?.certificate_period?.enable),
         certificateValidityPeriod: hoursToYears(
           (cfg.component as any)?.certificate_period?.certificate_validity_period,
@@ -512,8 +512,8 @@
           service_network: f.serviceNetwork,
           api_server_address: f.apiServerAddress || undefined,
           api_server_port: f.apiServerPort,
-          kube_proxy_mode: 'iptables',
-          kube_proxy: 'iptables'
+          // 与后端 NetworkSpec.kube_proxy 对齐；勿再传 kube_proxy_mode（后端无此字段）
+          kube_proxy: f.kubeProxyMode || 'iptables'
         },
         runtime: {
           runtime: f.runtime,

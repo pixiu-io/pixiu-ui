@@ -148,6 +148,7 @@
           :page-sizes="[10, 20, 50]"
           layout="total, sizes, prev, pager, next, jumper"
           background
+          :pager-count="5"
           @current-change="loadEventList"
           @size-change="loadEventList"
         />

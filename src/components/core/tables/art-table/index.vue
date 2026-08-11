@@ -183,7 +183,7 @@
     hideOnSinglePage: false,
     hideOnEmpty: true,
     size: 'default',
-    pagerCount: width.value > 1200 ? 7 : 5
+    pagerCount: 5
   }))
 
   // 合并分页配置

@@ -3,7 +3,7 @@
   <ElDrawer
     v-model="visible"
     direction="rtl"
-    size="40%"
+    size="45%"
     destroy-on-close
     :show-close="false"
     class="runner-drawer"
@@ -18,15 +18,15 @@
     </template>
 
     <div v-loading="editLoading" class="runner-drawer-body">
-      <ElForm :model="formData" :rules="rules" ref="formRef" label-width="120px" class="runner-form">
+      <ElForm :model="formData" :rules="rules" ref="formRef" label-width="100px" class="runner-form">
         <ElFormItem label="名称" prop="name">
-          <ElInput v-model="formData.name" placeholder="请输入名称" />
+          <ElInput v-model="formData.name" placeholder="请输入名称" style="width: 100%" />
         </ElFormItem>
         <ElFormItem label="镜像" prop="engineImage">
-          <ElInput v-model="formData.engineImage" placeholder="请输入镜像地址" />
+          <ElInput v-model="formData.engineImage" placeholder="请输入镜像地址" style="width: 100%" />
         </ElFormItem>
         <ElFormItem label="描述" prop="description">
-          <ElInput v-model="formData.description" type="textarea" :rows="3" placeholder="请输入描述" />
+          <ElInput v-model="formData.description" type="textarea" :rows="3" placeholder="请输入描述" style="width: 100%" />
         </ElFormItem>
       </ElForm>
     </div>
@@ -173,6 +173,15 @@
     }
   }
 
+  :deep(.el-form-item__label),
+  :deep(.el-input__wrapper),
+  :deep(.el-input__inner),
+  :deep(.el-input__inner::placeholder),
+  :deep(.el-textarea__inner),
+  :deep(.el-textarea__inner::placeholder) {
+    font-size: 12px;
+  }
+
   .runner-drawer-header {
     display: flex;
     align-items: center;
@@ -185,7 +194,8 @@
   }
 
   .runner-drawer-body {
-    padding: 0 24px;
+    font-size: 12px;
+    padding: 0 40px 0 20px;
   }
 
   .runner-form {
@@ -196,5 +206,11 @@
     display: flex;
     justify-content: flex-end;
     gap: 12px;
+  }
+</style>
+
+<style>
+  .runner-drawer.el-drawer .el-drawer__body {
+    padding: 0 !important;
   }
 </style>

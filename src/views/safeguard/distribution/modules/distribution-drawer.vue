@@ -3,7 +3,7 @@
   <ElDrawer
     v-model="visible"
     direction="rtl"
-    size="40%"
+    size="45%"
     destroy-on-close
     :show-close="false"
     class="distribution-drawer"
@@ -18,7 +18,7 @@
     </template>
 
     <div v-loading="editLoading" class="distribution-drawer-body">
-      <ElForm :model="formData" :rules="rules" ref="formRef" label-width="120px" class="distribution-form">
+      <ElForm :model="formData" :rules="rules" ref="formRef" label-width="100px" class="distribution-form">
         <ElFormItem label="系统家族" prop="family">
           <ElSelect
             v-model="formData.family"
@@ -64,10 +64,10 @@
           </ElSelect>
         </ElFormItem>
         <ElFormItem label="系统名称" prop="name">
-          <ElInput v-model="formData.name" placeholder="请输入系统名称" />
+          <ElInput v-model="formData.name" placeholder="请输入系统名称" style="width: 100%" />
         </ElFormItem>
         <ElFormItem label="Runner" prop="runner">
-          <ElSelect v-model="formData.runner" placeholder="请选择 Runner" style="width: 100%" filterable clearable :loading="runnerListLoading">
+          <ElSelect v-model="formData.runner" placeholder="请选择 Runner" style="width: 100%" filterable clearable :loading="runnerListLoading" popper-class="distribution-runner-dropdown">
             <ElOption
               v-for="item in runnerList"
               :key="item.id"
@@ -272,6 +272,16 @@
     }
   }
 
+  :deep(.el-form-item__label),
+  :deep(.el-input__wrapper),
+  :deep(.el-input__inner),
+  :deep(.el-input__inner::placeholder),
+  :deep(.el-select__wrapper),
+  :deep(.el-select__placeholder),
+  :deep(.el-select__selected-item) {
+    font-size: 12px;
+  }
+
   .distribution-drawer-header {
     display: flex;
     align-items: center;
@@ -284,7 +294,8 @@
   }
 
   .distribution-drawer-body {
-    padding: 0 24px;
+    font-size: 12px;
+    padding: 0 40px 0 20px;
   }
 
   .distribution-form {
@@ -357,5 +368,14 @@
   .distribution-os-family-dropdown .el-select-dropdown__item .os-option {
     height: 100%;
     line-height: 1;
+  }
+
+  .distribution-os-family-dropdown .el-select-dropdown__item,
+  .distribution-runner-dropdown .el-select-dropdown__item {
+    font-size: 12px;
+  }
+
+  .distribution-drawer.el-drawer .el-drawer__body {
+    padding: 0 !important;
   }
 </style>

@@ -64,9 +64,10 @@
       return
     }
 
+    // 动态路由初始化失败时没有可用菜单：清会话并回登录，允许重新拉取权限
     if (!targetHomePath) {
-      ElMessage.warning('暂无可用首页，请联系管理员配置菜单权限')
-      await router.replace(RoutesAlias.Login)
+      ElMessage.warning('暂无可用首页，请重新登录或联系管理员配置菜单权限')
+      userStore.logOut()
       return
     }
 
