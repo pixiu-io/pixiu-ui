@@ -34,7 +34,7 @@
         :data="filteredData"
         :columns="columns"
         :pagination="pagination"
-        :pagination-options="{ align: 'right' }"
+        :pagination-options="{ align: 'right', hideOnEmpty: false }"
         @selection-change="handleSelectionChange"
         @pagination:size-change="handleSizeChange"
         @pagination:current-change="handleCurrentChange"

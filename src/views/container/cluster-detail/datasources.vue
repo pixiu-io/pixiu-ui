@@ -112,6 +112,7 @@
         :page-sizes="[10, 20, 30]"
         :total="filteredItems.length"
         background
+        :pager-count="5"
       />
     </div>
 

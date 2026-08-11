@@ -49,7 +49,7 @@
         :data="data"
         :columns="columns"
         :pagination="pagination"
-        :pagination-options="{ align: 'right' }"
+        :pagination-options="{ align: 'right', hideOnEmpty: false }"
         @pagination:size-change="handleSizeChange"
         @pagination:current-change="handleCurrentChange"
       />

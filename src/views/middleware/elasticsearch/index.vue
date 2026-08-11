@@ -195,6 +195,7 @@
                 :page-sizes="[10, 20, 30, 50, 100]"
                 :total="indexData.length"
                 :background="true"
+                :pager-count="5"
                 layout="total, prev, pager, next, sizes, jumper"
               />
             </div>

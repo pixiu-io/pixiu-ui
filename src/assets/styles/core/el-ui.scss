@@ -69,6 +69,32 @@ html.dark .el-card {
   // border: 1px solid red !important;
 }
 
+// 统一分页文本（共 x 条 / 前往 / 页数输入框 / 页）为 12px
+.el-pagination__total,
+.el-pagination__jump,
+.el-pagination__sizes {
+  font-size: 12px !important;
+}
+
+.el-pagination__jump .el-input__inner,
+.el-pagination__editor .el-input__inner {
+  font-size: 12px !important;
+}
+
+// 全项目分页统一样式（对齐主机管理页面：卡片底部 7px + 分页自身 1px）
+.art-table-card > .el-card__body {
+  padding-bottom: 7px !important;
+}
+
+.custom-pagination {
+  padding-bottom: 1px !important;
+}
+
+// 集群详情所有页面分页距下边框（分页自身 8px）
+.cluster-detail-layout .custom-pagination {
+  padding-bottom: 8px !important;
+}
+
 // 优化菜单折叠展开动画（提升动画流畅度）
 .el-menu.el-menu--inline {
   transition: max-height 0.26s cubic-bezier(0.4, 0, 0.2, 1) !important;

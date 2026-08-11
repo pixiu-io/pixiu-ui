@@ -159,13 +159,12 @@ async function handleRouteGuard(
 
   // 2. 检查路由初始化是否已失败（防止死循环）
   if (routeInitFailed) {
-    // 已经失败过，直接放行到错误页面，不再重试
-    if (to.matched.length > 0) {
+    // 已在错误页则放行；catch-all(NotFound) 也会 matched.length>0，不能 next() 否则会伪装成 404
+    if (to.name === 'Exception500' || to.name === 'Exception404' || to.name === 'Exception401') {
       next()
-    } else {
-      // 未匹配到路由，跳转到 500 页面
-      next({ name: 'Exception500', replace: true })
+      return
     }
+    next({ name: 'Exception500', replace: true })
     return
   }
 
