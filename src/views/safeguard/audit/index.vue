@@ -214,13 +214,6 @@
           },
         },
         {
-          prop: 'cluster',
-          label: '集群',
-          width: 120,
-          formatter: (row: AuditItem) =>
-            h('span', { style: 'font-size:12px' }, row.cluster || '-'),
-        },
-        {
           prop: 'objectType',
           label: '资源类型',
           width: 100,
@@ -345,5 +338,40 @@
 
   .audit-page .art-table .el-table th.el-table__cell {
     font-size: 13px;
+  }
+
+  .audit-page :deep(.art-table-card > .el-card__body) {
+    padding-top: 12px;
+    padding-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .audit-page :deep(.art-table) {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    height: auto !important;
+    overflow: visible;
+  }
+
+  .audit-page :deep(.art-table .el-table) {
+    flex: 1 1 0;
+    min-height: 0;
+    height: 100% !important;
+  }
+
+  .audit-page :deep(.custom-pagination) {
+    flex: 0 0 auto;
+    margin-top: 10px;
+    margin-bottom: 0;
+    padding-bottom: 4px;
+    box-sizing: border-box;
+  }
+
+  .audit-page :deep(.el-pagination) {
+    padding: 0;
   }
 </style>
