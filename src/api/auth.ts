@@ -30,6 +30,7 @@ export function fetchGetUserInfo(userId: number) {
  */
 export function fetchLogout(userId: number) {
   return request.post<void>({
-    url: `/pixiu/users/${userId}/logout`
+    url: `/pixiu/users/${userId}/logout`,
+    showErrorMessage: false
   })
 }
