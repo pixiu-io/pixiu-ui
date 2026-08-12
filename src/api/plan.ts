@@ -167,34 +167,14 @@ export interface PlanNodeDetail {
   }
 }
 
-/** GET /pixiu/plans/:planId/nodes 列表项（与后端 types.PlanNode JSON 对齐） */
-export interface PlanNodeListItem {
-  id: number
-  resource_version?: number
-  plan_id: number
-  name: string
-  role: string[]
-  cri: string
-  ip: string
-  auth?: PlanNodeDetail['auth']
-}
-
-/** POST /pixiu/plans/:planId/nodes 请求体（与后端 CreatePlanNodeRequest 对齐） */
-export interface CreatePlanNodeBody {
-  name: string
-  role: string[]
-  cri: 'docker' | 'containerd'
-  ip: string
-  auth:
-    | { type: 'password'; password: { user: string; password: string } }
-    | { type: 'key'; key: { data: string } }
-}
-
 export interface PlanResourcesDetail {
   id: number
   resource_version?: number
+  step?: string
   name: string
   description: string
+  exec_mode?: string
+  deploy_agent_id?: number
   config?: {
     os_image?: string
     description?: string
@@ -285,17 +265,6 @@ export async function fetchPlanList(params?: {
 }
 
 /**
- * GET /pixiu/plans/:id
- * 获取单个部署计划基础信息（含 resource_version）
- */
-export async function fetchPlan(id: number): Promise<PlanItemFormatted> {
-  const res = await pixiuAxios.get(`/pixiu/plans/${id}`)
-  const { code, result, message } = res.data
-  if (code !== 200) throw new Error(message || '获取部署计划详情失败')
-  return toPlanItem(result as PlanItem)
-}
-
-/**
  * DELETE /pixiu/plans/:id
  * 删除部署计划
  */
@@ -344,32 +313,11 @@ export async function fetchPlanTasks(id: number): Promise<PlanTask[]> {
 }
 
 /**
- * POST /pixiu/plans/:planId/nodes
- * 向部署计划新增主机（节点）
- */
-export async function fetchCreatePlanNode(planId: number, body: CreatePlanNodeBody): Promise<void> {
-  const res = await pixiuAxios.post(`/pixiu/plans/${planId}/nodes`, body)
-  const { code, message } = res.data
-  if (code !== 200) throw new Error(message || '新增节点失败')
-}
-
-/**
- * GET /pixiu/plans/:planId/nodes
- * 获取部署计划下的主机（节点）列表
- */
-export async function fetchPlanNodes(planId: number): Promise<PlanNodeListItem[]> {
-  const res = await pixiuAxios.get(`/pixiu/plans/${planId}/nodes`)
-  const { code, result, message } = res.data
-  if (code !== 200) throw new Error(message || '获取主机列表失败')
-  return (result ?? []) as PlanNodeListItem[]
-}
-
-/**
- * GET /pixiu/plans/:id/resources
+ * GET /pixiu/plans/:id
  * 获取部署计划详情（含 config + nodes）
  */
 export async function fetchPlanWithResources(id: number): Promise<PlanResourcesDetail> {
-  const res = await pixiuAxios.get(`/pixiu/plans/${id}/resources`)
+  const res = await pixiuAxios.get(`/pixiu/plans/${id}`)
   const { code, result, message } = res.data
   if (code !== 200) throw new Error(message || '获取部署计划详情失败')
   return (result ?? {}) as PlanResourcesDetail

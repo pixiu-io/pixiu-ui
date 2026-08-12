@@ -334,7 +334,8 @@
       })
       await fetchDeletePermission(row.id)
       ElMessage.success('删除成功')
-      refreshData()
+      replaceSearchParams({ clusterName: searchForm.value.clusterName })
+      await getData()
     } catch (e: any) {
       if (e === 'cancel' || e === 'close') return
       if (e.notified) return

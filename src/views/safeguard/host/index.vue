@@ -525,7 +525,7 @@
             h('div', { style: 'display:flex;align-items:center;gap:4px' }, [
               h(
                 'span',
-                { style: 'font-size:12px;font-family:var(--el-font-family-mono,monospace)' },
+                { style: 'font-size:12px;color:var(--el-text-color-primary)' },
                 row.ip || '-'
               ),
               ...(row.ip
