@@ -557,8 +557,12 @@
   }
 
   function shouldShowDeployProgress(row: ClusterItem): boolean {
-    // 仅自建集群展示部署进度入口，标准集群不展示
-    return Number(row.clusterType) === 1
+    // 仅自建集群展示部署进度入口；部署完成（运行中 status=0 / 失联 status=4）不再展示
+    return (
+      Number(row.clusterType) === 1 &&
+      Number(row.status) !== 0 &&
+      Number(row.status) !== 4
+    )
   }
 
   const {
