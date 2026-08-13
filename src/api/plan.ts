@@ -3,6 +3,7 @@ import { pixiuAxios } from './container'
 /** 节点认证信息 */
 export interface PlanNodeAuth {
   type: 'password' | 'key'
+  port?: number
   password?: { user: string; password: string }
   key?: { data: string }
 }
@@ -162,6 +163,7 @@ export interface PlanNodeDetail {
   ip: string
   auth?: {
     type?: 'password' | 'key' | 'none' | string
+    port?: number
     password?: { user?: string; password?: string }
     key?: { data?: string }
   }

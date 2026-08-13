@@ -423,6 +423,7 @@
     ip: string
     authType: 'password' | 'key'
     user: string
+    port: number
     password: string
     privateKey: string
   }
