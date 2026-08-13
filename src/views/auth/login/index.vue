@@ -15,7 +15,7 @@
             :model="formData"
             :rules="rules"
             :key="formKey"
-            @keyup.enter="handleSubmit"
+            @submit.prevent="handleSubmit"
             style="margin-top: 25px"
           >
             <ElFormItem prop="username">
@@ -49,6 +49,7 @@
               <ElButton
                 class="w-full custom-height"
                 type="primary"
+                native-type="button"
                 @click="handleSubmit"
                 :loading="loading"
                 v-ripple
@@ -121,7 +122,7 @@
 
   // 登录
   const handleSubmit = async () => {
-    if (!formRef.value) return
+    if (!formRef.value || loading.value) return
 
     clearLoginSuccessNotice()
 

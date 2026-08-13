@@ -258,15 +258,17 @@
               />
             </ElFormItem>
           </template>
-          <div class="add-node-advanced-toggle">
-            <ElButton link type="primary" @click="addNodeAdvancedVisible = !addNodeAdvancedVisible">
-              高级选项
-              <ArtSvgIcon
-                :icon="addNodeAdvancedVisible ? 'ri:arrow-up-s-line' : 'ri:arrow-down-s-line'"
-                class="add-node-advanced-toggle__icon"
-              />
-            </ElButton>
-          </div>
+          <ElFormItem class="add-node-advanced-toggle-item">
+            <template #label>
+              <ElButton link type="primary" @click="addNodeAdvancedVisible = !addNodeAdvancedVisible">
+                高级选项
+                <ArtSvgIcon
+                  :icon="addNodeAdvancedVisible ? 'ri:arrow-up-s-line' : 'ri:arrow-down-s-line'"
+                  class="add-node-advanced-toggle__icon"
+                />
+              </ElButton>
+            </template>
+          </ElFormItem>
           <template v-if="addNodeAdvancedVisible">
             <ElFormItem label="SSH 端口" prop="port">
               <ElInputNumber
@@ -277,12 +279,15 @@
             </ElFormItem>
             <ElFormItem
               v-if="addNodeForm.authType === 'password' && addNodeForm.user.trim() !== 'root'"
+              label-width="0"
+              class="add-node-sudo-tip"
             >
               <ElAlert
                 type="info"
                 :closable="false"
                 show-icon
-                description="该用户必须具有 sudo 权限；支持免密 sudo，需要密码时 sudo 密码须与 SSH 密码相同。"
+                class="quota-alert"
+                description="非 root 用户须具备 sudo 权限（免密或密码与 SSH 密码相同）。"
               />
             </ElFormItem>
           </template>
@@ -1500,14 +1505,36 @@
     gap: 0;
   }
 
-  .add-node-advanced-toggle {
-    padding-left: 80px;
-    margin: -4px 0 12px;
+  .add-node-auth-group :deep(.el-radio-button__inner) {
+    font-size: 12px;
+  }
+
+  .add-node-advanced-toggle-item {
+    margin-bottom: 12px;
+  }
+
+  .add-node-advanced-toggle-item :deep(.el-form-item__content) {
+    display: none;
+  }
+
+  .add-node-advanced-toggle-item :deep(.el-button) {
+    font-size: 12px;
+    height: auto;
+    padding: 0;
   }
 
   .add-node-advanced-toggle__icon {
     margin-left: 2px;
-    font-size: 14px;
+    font-size: 12px;
+  }
+
+  .add-node-sudo-tip {
+    margin-bottom: 0;
+  }
+
+  .add-node-sudo-tip :deep(.quota-alert.el-alert) {
+    margin: 0;
+    width: 100%;
   }
 
   .add-node-body :deep(.el-input-number) {
