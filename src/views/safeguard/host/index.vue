@@ -113,7 +113,6 @@
               v-model="addNodeForm.port"
               :min="1"
               :max="65535"
-              controls-position="right"
             />
           </ElFormItem>
           <ElFormItem
@@ -203,7 +202,6 @@
               v-model="editNodeForm.port"
               :min="1"
               :max="65535"
-              controls-position="right"
             />
           </ElFormItem>
           <ElFormItem

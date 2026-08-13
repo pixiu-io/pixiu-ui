@@ -180,7 +180,6 @@
               v-model="nodeForm.port"
               :min="1"
               :max="65535"
-              controls-position="right"
             />
           </ElFormItem>
           <ElFormItem
