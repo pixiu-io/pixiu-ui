@@ -71,7 +71,7 @@
           <ElInput v-model="addNodeForm.ip" clearable />
         </ElFormItem>
         <ElFormItem label="认证方式" prop="authType">
-          <ElRadioGroup v-model="addNodeForm.authType">
+          <ElRadioGroup v-model="addNodeForm.authType" class="host-node-auth-group">
             <ElRadio value="password">密码</ElRadio>
             <ElRadio value="key">密钥</ElRadio>
           </ElRadioGroup>
@@ -98,15 +98,17 @@
             />
           </ElFormItem>
         </template>
-        <div class="host-node-advanced-toggle">
-          <ElButton link type="primary" @click="addNodeAdvancedVisible = !addNodeAdvancedVisible">
-            高级选项
-            <ArtSvgIcon
-              :icon="addNodeAdvancedVisible ? 'ri:arrow-up-s-line' : 'ri:arrow-down-s-line'"
-              class="host-node-advanced-toggle__icon"
-            />
-          </ElButton>
-        </div>
+        <ElFormItem class="host-node-advanced-toggle-item">
+          <template #label>
+            <ElButton link type="primary" @click="addNodeAdvancedVisible = !addNodeAdvancedVisible">
+              高级选项
+              <ArtSvgIcon
+                :icon="addNodeAdvancedVisible ? 'ri:arrow-up-s-line' : 'ri:arrow-down-s-line'"
+                class="host-node-advanced-toggle__icon"
+              />
+            </ElButton>
+          </template>
+        </ElFormItem>
         <template v-if="addNodeAdvancedVisible">
           <ElFormItem label="SSH 端口" prop="port">
             <ElInputNumber
@@ -117,13 +119,15 @@
           </ElFormItem>
           <ElFormItem
             v-if="addNodeForm.authType === 'password' && addNodeForm.user.trim() !== 'root'"
+            label-width="0"
             class="host-node-sudo-tip"
           >
             <ElAlert
               type="info"
               :closable="false"
               show-icon
-              description="该用户必须具有 sudo 权限；支持免密 sudo，需要密码时 sudo 密码须与 SSH 密码相同。"
+              class="quota-alert"
+              description="非 root 用户须具备 sudo 权限（免密或密码与 SSH 密码相同）。"
             />
           </ElFormItem>
         </template>
@@ -160,7 +164,7 @@
           <ElInput v-model="editNodeForm.ip" clearable />
         </ElFormItem>
         <ElFormItem label="认证方式" prop="authType">
-          <ElRadioGroup v-model="editNodeForm.authType">
+          <ElRadioGroup v-model="editNodeForm.authType" class="host-node-auth-group">
             <ElRadio value="password">密码</ElRadio>
             <ElRadio value="key">密钥</ElRadio>
           </ElRadioGroup>
@@ -187,15 +191,17 @@
             />
           </ElFormItem>
         </template>
-        <div class="host-node-advanced-toggle">
-          <ElButton link type="primary" @click="editNodeAdvancedVisible = !editNodeAdvancedVisible">
-            高级选项
-            <ArtSvgIcon
-              :icon="editNodeAdvancedVisible ? 'ri:arrow-up-s-line' : 'ri:arrow-down-s-line'"
-              class="host-node-advanced-toggle__icon"
-            />
-          </ElButton>
-        </div>
+        <ElFormItem class="host-node-advanced-toggle-item">
+          <template #label>
+            <ElButton link type="primary" @click="editNodeAdvancedVisible = !editNodeAdvancedVisible">
+              高级选项
+              <ArtSvgIcon
+                :icon="editNodeAdvancedVisible ? 'ri:arrow-up-s-line' : 'ri:arrow-down-s-line'"
+                class="host-node-advanced-toggle__icon"
+              />
+            </ElButton>
+          </template>
+        </ElFormItem>
         <template v-if="editNodeAdvancedVisible">
           <ElFormItem label="SSH 端口" prop="port">
             <ElInputNumber
@@ -206,13 +212,15 @@
           </ElFormItem>
           <ElFormItem
             v-if="editNodeForm.authType === 'password' && editNodeForm.user.trim() !== 'root'"
+            label-width="0"
             class="host-node-sudo-tip"
           >
             <ElAlert
               type="info"
               :closable="false"
               show-icon
-              description="该用户必须具有 sudo 权限；支持免密 sudo，需要密码时 sudo 密码须与 SSH 密码相同。"
+              class="quota-alert"
+              description="非 root 用户须具备 sudo 权限（免密或密码与 SSH 密码相同）。"
             />
           </ElFormItem>
         </template>
@@ -794,22 +802,33 @@
   .host-add-node-fixed-user {
     color: var(--el-text-color-regular);
   }
-  .host-node-advanced-toggle {
-    padding-left: 100px;
-    margin: -4px 0 12px;
+  .host-node-auth-group :deep(.el-radio__label) {
+    font-size: 12px;
+  }
+  .host-node-advanced-toggle-item {
+    margin-bottom: 12px;
+  }
+  .host-node-advanced-toggle-item :deep(.el-form-item__content) {
+    display: none;
+  }
+  .host-node-advanced-toggle-item :deep(.el-button) {
+    font-size: 12px;
+    height: auto;
+    padding: 0;
   }
   .host-node-advanced-toggle__icon {
     margin-left: 2px;
-    font-size: 14px;
+    font-size: 12px;
   }
   .host-node-form .el-input-number {
     width: 100%;
   }
-  .host-node-sudo-tip .el-alert {
-    padding: 8px 12px;
+  .host-node-sudo-tip {
+    margin-bottom: 0;
   }
-  .host-node-sudo-tip .el-alert__description {
-    line-height: 1.5;
+  .host-node-sudo-tip :deep(.quota-alert.el-alert) {
+    margin: 0;
+    width: 100%;
   }
 </style>
 

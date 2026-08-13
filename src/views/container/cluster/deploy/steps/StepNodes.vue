@@ -165,15 +165,17 @@
             />
           </ElFormItem>
         </template>
-        <div class="node-advanced-toggle">
-          <ElButton link type="primary" @click="advancedVisible = !advancedVisible">
-            高级选项
-            <ArtSvgIcon
-              :icon="advancedVisible ? 'ri:arrow-up-s-line' : 'ri:arrow-down-s-line'"
-              class="node-advanced-toggle__icon"
-            />
-          </ElButton>
-        </div>
+        <ElFormItem class="node-advanced-toggle-item">
+          <template #label>
+            <ElButton link type="primary" @click="advancedVisible = !advancedVisible">
+              高级选项
+              <ArtSvgIcon
+                :icon="advancedVisible ? 'ri:arrow-up-s-line' : 'ri:arrow-down-s-line'"
+                class="node-advanced-toggle__icon"
+              />
+            </ElButton>
+          </template>
+        </ElFormItem>
         <template v-if="advancedVisible">
           <ElFormItem label="SSH 端口" prop="port">
             <ElInputNumber
@@ -184,13 +186,15 @@
           </ElFormItem>
           <ElFormItem
             v-if="nodeForm.authType === 'password' && nodeForm.user.trim() !== 'root'"
+            label-width="0"
             class="node-sudo-tip"
           >
             <ElAlert
               type="info"
               :closable="false"
               show-icon
-              description="该用户必须具有 sudo 权限；支持免密 sudo，需要密码时 sudo 密码须与 SSH 密码相同。"
+              class="quota-alert"
+              description="非 root 用户须具备 sudo 权限（免密或密码与 SSH 密码相同）。"
             />
           </ElFormItem>
         </template>
@@ -510,22 +514,32 @@
     line-height: 1.5;
   }
 
-  .node-sudo-tip :deep(.el-alert) {
-    padding: 8px 12px;
+  .node-sudo-tip {
+    margin-bottom: 0;
   }
 
-  .node-sudo-tip :deep(.el-alert__description) {
-    line-height: 1.5;
+  .node-sudo-tip :deep(.quota-alert.el-alert) {
+    margin: 0;
+    width: 100%;
   }
 
-  .node-advanced-toggle {
-    padding-left: 88px;
-    margin: -4px 0 12px;
+  .node-advanced-toggle-item {
+    margin-bottom: 12px;
+  }
+
+  .node-advanced-toggle-item :deep(.el-form-item__content) {
+    display: none;
+  }
+
+  .node-advanced-toggle-item :deep(.el-button) {
+    font-size: 12px;
+    height: auto;
+    padding: 0;
   }
 
   .node-advanced-toggle__icon {
     margin-left: 2px;
-    font-size: 14px;
+    font-size: 12px;
   }
 
   .node-form :deep(.el-input-number) {
@@ -551,6 +565,10 @@
     align-items: center;
     min-height: 34px;
     line-height: 34px;
+  }
+
+  .node-auth-group :deep(.el-radio__label) {
+    font-size: 12px;
   }
 
   .node-form-dialog :deep(.el-dialog__header) {
