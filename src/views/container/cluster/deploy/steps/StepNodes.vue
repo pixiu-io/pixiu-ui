@@ -142,11 +142,11 @@
             <ElRadio value="key">密钥</ElRadio>
           </ElRadioGroup>
         </ElFormItem>
-        <ElFormItem label="用户名">
-          <span style="color: var(--el-text-color-regular)">root</span>
-        </ElFormItem>
         <template v-if="nodeForm.authType === 'password'">
-          <ElFormItem label="密码" prop="password">
+          <ElFormItem label="SSH 用户" prop="user">
+            <ElInput v-model="nodeForm.user" clearable placeholder="请输入 SSH 登录用户" />
+          </ElFormItem>
+          <ElFormItem label="SSH 密码" prop="password">
             <ElInput v-model="nodeForm.password" type="password" show-password />
           </ElFormItem>
         </template>
@@ -159,6 +159,36 @@
               placeholder="请粘贴 SSH 私钥内容（PEM 格式）"
               spellcheck="false"
               class="key-textarea"
+            />
+          </ElFormItem>
+        </template>
+        <div class="node-advanced-toggle">
+          <ElButton link type="primary" @click="advancedVisible = !advancedVisible">
+            高级选项
+            <ArtSvgIcon
+              :icon="advancedVisible ? 'ri:arrow-up-s-line' : 'ri:arrow-down-s-line'"
+              class="node-advanced-toggle__icon"
+            />
+          </ElButton>
+        </div>
+        <template v-if="advancedVisible">
+          <ElFormItem label="SSH 端口" prop="port">
+            <ElInputNumber
+              v-model="nodeForm.port"
+              :min="1"
+              :max="65535"
+              controls-position="right"
+            />
+          </ElFormItem>
+          <ElFormItem
+            v-if="nodeForm.authType === 'password' && nodeForm.user.trim() !== 'root'"
+            class="node-sudo-tip"
+          >
+            <ElAlert
+              type="info"
+              :closable="false"
+              show-icon
+              description="该用户必须具有 sudo 权限；支持免密 sudo，需要密码时 sudo 密码须与 SSH 密码相同。"
             />
           </ElFormItem>
         </template>
@@ -192,6 +222,7 @@
   const dialogVisible = ref(false)
   const editIndex = ref(-1)
   const nodeFormRef = ref<FormInstance>()
+  const advancedVisible = ref(false)
 
   const emptyNode = (): NodeConfig => ({
     name: '',
@@ -199,6 +230,7 @@
     ip: '',
     authType: 'password',
     user: 'root',
+    port: 22,
     password: '',
     privateKey: ''
   })
@@ -269,6 +301,24 @@
         trigger: 'blur'
       }
     ],
+    user: [
+      {
+        validator: (_r, value: string, cb) => {
+          if (String(value ?? '').trim()) cb()
+          else cb(new Error('请输入 SSH 登录用户'))
+        },
+        trigger: 'blur'
+      }
+    ],
+    port: [
+      {
+        validator: (_r, value: number, cb) => {
+          if (Number.isInteger(value) && value >= 1 && value <= 65535) cb()
+          else cb(new Error('请输入 1-65535 之间的 SSH 端口'))
+        },
+        trigger: 'change'
+      }
+    ],
     password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
     privateKey: [{ required: true, message: '请粘贴私钥内容', trigger: 'blur' }]
   }
@@ -277,14 +327,16 @@
     if (readOnly.value) return
     Object.assign(nodeForm, emptyNode())
     editIndex.value = -1
+    advancedVisible.value = false
     dialogVisible.value = true
     nextTick(() => nodeFormRef.value?.clearValidate())
   }
 
   function openEditDialog(row: NodeConfig, idx: number) {
     if (readOnly.value) return
-    Object.assign(nodeForm, { ...row })
+    Object.assign(nodeForm, { ...row, port: row.port || 22 })
     editIndex.value = idx
+    advancedVisible.value = (row.port || 22) !== 22
     dialogVisible.value = true
     nextTick(() => nodeFormRef.value?.clearValidate())
   }
@@ -322,12 +374,20 @@
       return
     }
 
-    if (nodeForm.role.includes('storage') && countStorageNodes(nodes, isEdit ? editIndex.value : -1) >= 1) {
+    if (
+      nodeForm.role.includes('storage') &&
+      countStorageNodes(nodes, isEdit ? editIndex.value : -1) >= 1
+    ) {
       ElMessage.warning('带有 storage 角色的节点最多只能有一个')
       return
     }
 
-    const node: NodeConfig = { ...nodeForm, role: [...nodeForm.role] }
+    const node: NodeConfig = {
+      ...nodeForm,
+      role: [...nodeForm.role],
+      user: nodeForm.authType === 'password' ? nodeForm.user.trim() || 'root' : 'root',
+      port: nodeForm.port || 22
+    }
     const updated = [...nodes]
     if (isEdit) {
       updated[editIndex.value] = node
@@ -341,6 +401,7 @@
   function handleDialogClosed() {
     Object.assign(nodeForm, emptyNode())
     editIndex.value = -1
+    advancedVisible.value = false
     nodeFormRef.value?.clearValidate()
   }
 
@@ -445,6 +506,28 @@
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-size: 12px;
     line-height: 1.5;
+  }
+
+  .node-sudo-tip :deep(.el-alert) {
+    padding: 8px 12px;
+  }
+
+  .node-sudo-tip :deep(.el-alert__description) {
+    line-height: 1.5;
+  }
+
+  .node-advanced-toggle {
+    padding-left: 88px;
+    margin: -4px 0 12px;
+  }
+
+  .node-advanced-toggle__icon {
+    margin-left: 2px;
+    font-size: 14px;
+  }
+
+  .node-form :deep(.el-input-number) {
+    width: 100%;
   }
 
   .node-form :deep(.el-form-item) {

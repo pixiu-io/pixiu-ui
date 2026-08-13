@@ -152,7 +152,9 @@
       />
       <div class="event-toolbar">
         <ElButton type="primary" @click="loadEventList">查询</ElButton>
-        <ElButton v-ripple :disabled="!eventSelection.length" @click="batchDeleteEvents">批量删除</ElButton>
+        <ElButton v-ripple :disabled="!eventSelection.length" @click="batchDeleteEvents"
+          >批量删除</ElButton
+        >
       </div>
       <ElTable
         v-loading="eventLoading"
@@ -230,11 +232,11 @@
               <ElRadioButton value="key">密钥登陆</ElRadioButton>
             </ElRadioGroup>
           </ElFormItem>
-          <ElFormItem label="用户名">
-            <span style="color: var(--el-text-color-regular)">root</span>
-          </ElFormItem>
           <template v-if="addNodeForm.authType === 'password'">
-            <ElFormItem label="密码" prop="password">
+            <ElFormItem label="SSH 用户" prop="user">
+              <ElInput v-model="addNodeForm.user" placeholder="请输入 SSH 登录用户" clearable />
+            </ElFormItem>
+            <ElFormItem label="SSH 密码" prop="password">
               <ElInput
                 v-model="addNodeForm.password"
                 type="password"
@@ -250,6 +252,35 @@
                 type="textarea"
                 :rows="5"
                 placeholder="请粘贴 SSH 私钥内容（PEM 格式）"
+              />
+            </ElFormItem>
+          </template>
+          <div class="add-node-advanced-toggle">
+            <ElButton link type="primary" @click="addNodeAdvancedVisible = !addNodeAdvancedVisible">
+              高级选项
+              <ArtSvgIcon
+                :icon="addNodeAdvancedVisible ? 'ri:arrow-up-s-line' : 'ri:arrow-down-s-line'"
+                class="add-node-advanced-toggle__icon"
+              />
+            </ElButton>
+          </div>
+          <template v-if="addNodeAdvancedVisible">
+            <ElFormItem label="SSH 端口" prop="port">
+              <ElInputNumber
+                v-model="addNodeForm.port"
+                :min="1"
+                :max="65535"
+                controls-position="right"
+              />
+            </ElFormItem>
+            <ElFormItem
+              v-if="addNodeForm.authType === 'password' && addNodeForm.user.trim() !== 'root'"
+            >
+              <ElAlert
+                type="info"
+                :closable="false"
+                show-icon
+                description="该用户必须具有 sudo 权限；支持免密 sudo，需要密码时 sudo 密码须与 SSH 密码相同。"
               />
             </ElFormItem>
           </template>
@@ -821,6 +852,7 @@
     ip: string
     authType: string
     user: string
+    port: number
     password: string
     privateKey: string
   }
@@ -844,12 +876,14 @@
   ])
 
   const addNodeFormRef = ref<FormInstance>()
+  const addNodeAdvancedVisible = ref(false)
   const addNodeForm = ref<LocalNode>({
     name: '',
     roles: ['master'],
     ip: '',
     authType: 'password',
     user: 'root',
+    port: 22,
     password: '',
     privateKey: ''
   })
@@ -872,6 +906,24 @@
           ipPattern.test(val) ? cb() : cb(new Error('请输入有效的 IP 地址'))
         },
         trigger: 'blur'
+      }
+    ],
+    user: [
+      {
+        validator: (_r: any, val: string, cb: any) => {
+          if (String(val ?? '').trim()) cb()
+          else cb(new Error('请输入 SSH 登录用户'))
+        },
+        trigger: 'blur'
+      }
+    ],
+    port: [
+      {
+        validator: (_r: any, val: number, cb: any) => {
+          if (Number.isInteger(val) && val >= 1 && val <= 65535) cb()
+          else cb(new Error('请输入 1-65535 之间的 SSH 端口'))
+        },
+        trigger: 'change'
       }
     ],
     password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
@@ -910,6 +962,7 @@
     editNodeIndex.value = index
     const node = localNodes.value[index]
     addNodeForm.value = { ...node }
+    addNodeAdvancedVisible.value = node.port !== 22
     addNodeDialogVisible.value = true
   }
 
@@ -924,9 +977,11 @@
       ip: '',
       authType: 'password',
       user: 'root',
+      port: 22,
       password: '',
       privateKey: ''
     }
+    addNodeAdvancedVisible.value = false
     addNodeFormRef.value?.clearValidate()
   }
 
@@ -936,7 +991,14 @@
       .then(() => true)
       .catch(() => false)
     if (!valid) return
-    const node: LocalNode = { ...addNodeForm.value }
+    const node: LocalNode = {
+      ...addNodeForm.value,
+      user:
+        addNodeForm.value.authType === 'password'
+          ? addNodeForm.value.user.trim() || 'root'
+          : 'root',
+      port: addNodeForm.value.port || 22
+    }
     if (editNodeIndex.value >= 0) {
       localNodes.value.splice(editNodeIndex.value, 1, node)
     } else {
@@ -1520,5 +1582,19 @@
   .add-node-auth-group {
     display: flex;
     gap: 0;
+  }
+
+  .add-node-advanced-toggle {
+    padding-left: 80px;
+    margin: -4px 0 12px;
+  }
+
+  .add-node-advanced-toggle__icon {
+    margin-left: 2px;
+    font-size: 14px;
+  }
+
+  .add-node-body :deep(.el-input-number) {
+    width: 100%;
   }
 </style>

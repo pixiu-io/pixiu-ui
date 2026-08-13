@@ -158,6 +158,9 @@
                 <ElTableColumn label="用户名" min-width="100">
                   <template #default="{ row }">{{ row.auth?.password?.user || 'root' }}</template>
                 </ElTableColumn>
+                <ElTableColumn label="SSH 端口" min-width="100">
+                  <template #default="{ row }">{{ row.auth?.port || 22 }}</template>
+                </ElTableColumn>
               </ElTable>
               <div v-if="!detail.nodes?.length" class="empty-nodes">暂无已添加节点</div>
             </ElCard>

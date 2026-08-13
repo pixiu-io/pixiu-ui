@@ -283,7 +283,8 @@
       role: (node?.role ?? []) as ('master' | 'node' | 'storage')[],
       ip: node?.ip ?? '',
       authType,
-      user: node?.auth?.password?.user ?? 'root',
+      user: node?.auth?.password?.user?.trim() || 'root',
+      port: Number(node?.auth?.port) || 22,
       password: node?.auth?.password?.password ?? '',
       privateKey: node?.auth?.key?.data ?? ''
     }
@@ -475,8 +476,16 @@
       ip: n.ip,
       auth:
         n.authType === 'password'
-          ? { type: 'password' as const, password: { user: n.user, password: n.password } }
-          : { type: 'key' as const, key: { data: n.privateKey } }
+          ? {
+              type: 'password' as const,
+              ...(n.port !== 22 ? { port: n.port } : {}),
+              password: { user: (n.user || 'root').trim(), password: n.password }
+            }
+          : {
+              type: 'key' as const,
+              ...(n.port !== 22 ? { port: n.port } : {}),
+              key: { data: n.privateKey }
+            }
     }))
 
     return {
