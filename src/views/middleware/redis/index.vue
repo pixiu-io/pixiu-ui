@@ -113,6 +113,16 @@
         >
           新增 Key
         </ElButton>
+        <ElButton
+          v-ripple
+          type="danger"
+          plain
+          :loading="batchDeleteLoading"
+          :disabled="!isConnected || keysLoading || selectedRows.length === 0"
+          @click="handleBatchDelete"
+        >
+          批量删除{{ selectedRows.length ? `（${selectedRows.length}）` : '' }}
+        </ElButton>
       </div>
       <div class="redis-keys-toolbar__right">
         <ArtTableHeader
@@ -128,6 +138,7 @@
       <div class="redis-keys-table-wrap">
         <div class="redis-keys-table-scroll">
           <ElTable
+            ref="keysTableRef"
             :data="keyList"
             class="redis-keys-table"
             style="width: 100%"
@@ -137,8 +148,10 @@
             :header-cell-style="headerCellStyle"
             empty-text="请先选择 Redis 数据源"
             v-loading="keysLoading"
+            @selection-change="onSelectionChange"
             @row-click="handleViewKey"
           >
+            <ElTableColumn type="selection" width="42" />
             <ElTableColumn
               v-if="isKeyColVisible('key')"
               prop="key"
@@ -146,6 +159,17 @@
               min-width="320"
               show-overflow-tooltip
             />
+            <ElTableColumn v-if="isKeyColVisible('value')" label="Value" min-width="260">
+              <template #default="{ row }">
+                <span v-if="(row as RedisKeyItem).type === 'string'" class="redis-preview-mono">
+                  {{ (row as RedisKeyItem).valuePreview }}{{ (row as RedisKeyItem).previewTruncated ? '…' : '' }}
+                </span>
+                <span v-else-if="(row as RedisKeyItem).length" class="redis-preview-count">
+                  {{ (row as RedisKeyItem).length }} 个元素
+                </span>
+                <span v-else class="redis-preview-empty">-</span>
+              </template>
+            </ElTableColumn>
             <ElTableColumn v-if="isKeyColVisible('type')" prop="type" label="类型" width="110">
               <template #default="{ row }">
                 <ElTag size="small" :type="typeTagMap[row.type] ?? 'info'" effect="plain">
@@ -156,10 +180,19 @@
             <ElTableColumn v-if="isKeyColVisible('ttl')" label="TTL" width="140">
               <template #default="{ row }">{{ formatTTL(row.ttl) }}</template>
             </ElTableColumn>
-            <ElTableColumn label="操作" width="150" fixed="right">
+            <ElTableColumn label="操作" width="200" fixed="right">
               <template #default="{ row }">
                 <ElLink type="primary" underline="never" style="font-size:12px" @click.stop="handleViewKey(row as RedisKeyItem)">
                   查看
+                </ElLink>
+                <ElLink
+                  v-if="(row as RedisKeyItem).type === 'string'"
+                  type="primary"
+                  underline="never"
+                  style="font-size:12px; margin-left:12px"
+                  @click.stop="openEditDialog(row as RedisKeyItem)"
+                >
+                  编辑
                 </ElLink>
                 <ElLink
                   type="primary"
@@ -252,7 +285,19 @@
             description="值过大，已截断展示（字符串最多 4096 字符 / 集合最多 100 个元素）"
           />
 
-          <div class="redis-detail__value-title">值</div>
+          <div class="redis-detail__value-title">
+            值
+            <ElButton
+              v-if="keyDetail.type === 'string'"
+              type="primary"
+              link
+              size="small"
+              class="redis-detail__value-edit"
+              @click="openEditFromDetail"
+            >
+              编辑
+            </ElButton>
+          </div>
           <!-- string -->
           <ElInput
             v-if="keyDetail.type === 'string'"
@@ -298,7 +343,7 @@
 
     <!-- 新增 Key 弹窗 -->
     <ElDialog v-model="createVisible" title="新增 Key" width="480px" destroy-on-close>
-      <ElForm label-width="90px">
+      <ElForm label-width="90px" label-position="left">
         <ElFormItem label="Key" required>
           <ElInput
             v-model="createForm.key"
@@ -357,6 +402,27 @@
         <ElButton type="primary" :loading="ttlLoading" @click="submitTtl">确定</ElButton>
       </template>
     </ElDialog>
+
+    <!-- 编辑 Key 值弹窗（仅 string，保持原 TTL） -->
+    <ElDialog v-model="editVisible" title="编辑 Key 值" width="520px" destroy-on-close>
+      <ElForm label-width="90px" label-position="left">
+        <ElFormItem label="Key">
+          <ElInput :model-value="editForm.key" disabled />
+        </ElFormItem>
+        <ElFormItem label="Value">
+          <ElInput
+            v-model="editForm.value"
+            type="textarea"
+            :rows="8"
+            placeholder="string 类型的值"
+          />
+        </ElFormItem>
+      </ElForm>
+      <template #footer>
+        <ElButton @click="editVisible = false">取消</ElButton>
+        <ElButton type="primary" :loading="editLoading" @click="submitEditValue">保存</ElButton>
+      </template>
+    </ElDialog>
   </div>
 </template>
 
@@ -371,6 +437,8 @@ import {
   fetchRedisKeyDetail,
   fetchRedisCreateKey,
   fetchRedisDeleteKey,
+  fetchRedisDeleteKeys,
+  fetchRedisUpdateKeyValue,
   fetchRedisSetKeyTTL,
   type RedisPingResult,
   type RedisInfoResult,
@@ -537,6 +605,7 @@ const typeTagMap: Record<string, 'primary' | 'success' | 'warning' | 'danger' | 
 
 const keyColumnChecks = ref<ColumnOption[]>([
   { prop: 'key', label: 'Key', checked: true },
+  { prop: 'value', label: 'Value', checked: true },
   { prop: 'type', label: '类型', checked: true },
   { prop: 'ttl', label: 'TTL', checked: true }
 ])
@@ -592,6 +661,8 @@ function resetScan() {
   currentPage.value = 1
   jumpPage.value = 1
   hasMore.value = false
+  selectedRows.value = []
+  keysTableRef.value?.clearSelection()
   if (selectedDatasource.value) loadPage(1, true)
 }
 
@@ -661,7 +732,9 @@ const collectionEntries = computed(() => {
   }))
 })
 
-async function handleViewKey(row: RedisKeyItem) {
+async function handleViewKey(row: RedisKeyItem, column?: any) {
+  // 点击多选列时不打开详情，避免与勾选操作冲突
+  if (column?.type === 'selection') return
   const ds = selectedDatasource.value
   if (!ds) return
 
@@ -742,6 +815,104 @@ async function handleDeleteKey(row: RedisKeyItem) {
     refreshAfterWrite()
   } catch (e: any) {
     ElMessage.error(e?.message || '删除 Key 失败')
+  }
+}
+
+// 批量删除 Key
+const keysTableRef = ref<any>(null)
+const selectedRows = ref<RedisKeyItem[]>([])
+const batchDeleteLoading = ref(false)
+
+function onSelectionChange(rows: RedisKeyItem[]) {
+  selectedRows.value = rows
+}
+
+async function handleBatchDelete() {
+  const ds = selectedDatasource.value
+  if (!ds || selectedRows.value.length === 0) return
+  const keys = selectedRows.value.map((row) => row.key)
+  try {
+    await ElMessageBox.confirm(
+      `确定批量删除选中的 ${keys.length} 个 Key 吗？该操作不可恢复。`,
+      '批量删除 Key',
+      {
+        type: 'warning',
+        confirmButtonText: '删除',
+        cancelButtonText: '取消',
+        confirmButtonClass: 'el-button--danger'
+      }
+    )
+  } catch {
+    return
+  }
+  batchDeleteLoading.value = true
+  try {
+    const deleted = await fetchRedisDeleteKeys(ds.id, keys, currentDb.value)
+    ElMessage.success(`已删除 ${deleted} 个 Key`)
+    keysTableRef.value?.clearSelection()
+    refreshAfterWrite()
+  } catch (e: any) {
+    ElMessage.error(e?.message || '批量删除 Key 失败')
+  } finally {
+    batchDeleteLoading.value = false
+  }
+}
+
+// 编辑 Key 值（仅 string，保持原 TTL）
+const editVisible = ref(false)
+const editLoading = ref(false)
+const editForm = ref({ key: '', value: '' })
+
+async function openEditDialog(row: RedisKeyItem) {
+  const ds = selectedDatasource.value
+  if (!ds) return
+  editForm.value = { key: row.key, value: '' }
+  editVisible.value = true
+  editLoading.value = true
+  try {
+    const detail = await fetchRedisKeyDetail(ds.id, row.key, currentDb.value)
+    editForm.value.value = typeof detail.value === 'string' ? detail.value : String(detail.value ?? '')
+    if (detail.truncated) {
+      ElMessage.warning('值过大已截断，保存将丢失截断部分，请谨慎')
+    }
+  } catch (e: any) {
+    ElMessage.error(e?.message || '获取 Key 值失败')
+    editVisible.value = false
+  } finally {
+    editLoading.value = false
+  }
+}
+
+function openEditFromDetail() {
+  const detail = keyDetail.value
+  if (!detail || detail.type !== 'string') return
+  editForm.value = {
+    key: detail.key,
+    value: typeof detail.value === 'string' ? detail.value : String(detail.value ?? '')
+  }
+  if (detail.truncated) {
+    ElMessage.warning('值过大已截断，保存将丢失截断部分，请谨慎')
+  }
+  editVisible.value = true
+}
+
+async function submitEditValue() {
+  const ds = selectedDatasource.value
+  if (!ds) return
+  editLoading.value = true
+  try {
+    await fetchRedisUpdateKeyValue(ds.id, {
+      key: editForm.value.key,
+      value: editForm.value.value,
+      db: currentDb.value
+    })
+    ElMessage.success('Key 值修改成功')
+    editVisible.value = false
+    refreshAfterWrite()
+  } catch (e: any) {
+    ElMessage.error(e?.message || '修改 Key 值失败')
+  } finally {
+    editLoading.value = false
   }
 }
 
@@ -1112,9 +1283,16 @@ async function submitTtl() {
 }
 
 .redis-detail__value-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 13px;
   font-weight: 600;
   color: var(--el-text-color-primary);
+}
+
+.redis-detail__value-edit {
+  font-weight: 400;
 }
 
 .redis-detail__value-mono :deep(textarea) {
@@ -1149,5 +1327,26 @@ async function submitTtl() {
   :deep(.el-input__inner) {
     text-align: left;
   }
+}
+
+/* ---- 值预览列 ---- */
+.redis-preview-mono {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-family: 'JetBrains Mono', Consolas, Menlo, monospace;
+  font-size: 12px;
+  color: var(--el-text-color-regular);
+  word-break: break-all;
+}
+
+.redis-preview-count {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.redis-preview-empty {
+  color: var(--el-text-color-placeholder);
 }
 </style>

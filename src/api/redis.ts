@@ -29,6 +29,12 @@ export interface RedisKeyItem {
   key: string
   type: string
   ttl: number
+  /** 值预览：string 为截断后的值文本，集合类为空 */
+  valuePreview?: string
+  /** 预览是否被截断 */
+  previewTruncated?: boolean
+  /** string 为字节长度，集合类为元素数量 */
+  length?: number
 }
 
 /** SCAN 分页结果 */
@@ -84,6 +90,9 @@ interface BackendRedisKeyItem {
   key?: string
   type?: string
   ttl?: number
+  value_preview?: string
+  preview_truncated?: boolean
+  length?: number
 }
 
 interface BackendRedisScan {
@@ -192,7 +201,10 @@ export async function fetchRedisKeys(
     keys: (data?.keys ?? []).map((item) => ({
       key: item.key ?? '',
       type: item.type ?? 'unknown',
-      ttl: item.ttl ?? -1
+      ttl: item.ttl ?? -1,
+      valuePreview: item.value_preview ?? '',
+      previewTruncated: Boolean(item.preview_truncated),
+      length: item.length ?? 0
     }))
   }
 }
@@ -234,6 +246,33 @@ export async function fetchRedisDeleteKey(datasourceId: number, key: string, db?
     params: { key, db }
   })
   unwrap(res, '删除 Key 失败')
+}
+
+/** 批量删除 Key，返回实际删除数量 */
+export async function fetchRedisDeleteKeys(
+  datasourceId: number,
+  keys: string[],
+  db?: number
+): Promise<number> {
+  const res = await pixiuAxios.delete(`/pixiu/redis/${datasourceId}/keys`, {
+    params: { db },
+    data: { keys }
+  })
+  const data = unwrap<{ deleted?: number }>(res, '批量删除 Key 失败')
+  return data?.deleted ?? 0
+}
+
+/** 修改 string 类型 Key 的值（保持原 TTL） */
+export async function fetchRedisUpdateKeyValue(
+  datasourceId: number,
+  payload: { key: string; value: string; db?: number }
+): Promise<void> {
+  const res = await pixiuAxios.put(`/pixiu/redis/${datasourceId}/key`, {
+    key: payload.key,
+    value: payload.value,
+    db: payload.db
+  })
+  unwrap(res, '修改 Key 值失败')
 }
 
 /** 修改 Key TTL（>=0 设置过期，-1 永久化） */
