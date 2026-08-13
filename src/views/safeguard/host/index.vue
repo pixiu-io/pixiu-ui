@@ -85,6 +85,9 @@
           </ElFormItem>
         </template>
         <template v-else>
+          <ElFormItem label="SSH 用户">
+            <ElInput model-value="root" disabled />
+          </ElFormItem>
           <ElFormItem label="私钥" prop="privateKey">
             <ElInput
               v-model="addNodeForm.privateKey"
@@ -172,6 +175,9 @@
           </ElFormItem>
         </template>
         <template v-else>
+          <ElFormItem label="SSH 用户">
+            <ElInput model-value="root" disabled />
+          </ElFormItem>
           <ElFormItem label="私钥" prop="privateKey">
             <ElInput
               v-model="editNodeForm.privateKey"
