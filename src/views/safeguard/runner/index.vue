@@ -38,7 +38,11 @@
             <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
           </div>
         </div>
-        <ArtTableHeader v-model:columns="runnerColumnChecks" :loading="runnerLoading" @refresh="refreshRunnerData" />
+        <ArtTableHeader
+          v-model:columns="runnerColumnChecks"
+          :loading="runnerLoading"
+          @refresh="refreshRunnerData"
+        />
       </div>
     </div>
     <div
@@ -68,7 +72,11 @@
             <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
           </div>
         </div>
-        <ArtTableHeader v-model:columns="distributionColumnChecks" :loading="distributionLoading" @refresh="refreshDistributionData" />
+        <ArtTableHeader
+          v-model:columns="distributionColumnChecks"
+          :loading="distributionLoading"
+          @refresh="refreshDistributionData"
+        />
       </div>
     </div>
 
@@ -105,8 +113,12 @@
                   </ElLink>
                   <template #dropdown>
                     <ElDropdownMenu>
-                      <ElDropdownItem command="install" :disabled="row.status === 3">安装</ElDropdownItem>
-                      <ElDropdownItem command="uninstall" :disabled="row.status !== 3">卸载</ElDropdownItem>
+                      <ElDropdownItem command="install" :disabled="row.status === 3"
+                        >安装</ElDropdownItem
+                      >
+                      <ElDropdownItem command="uninstall" :disabled="row.status !== 3"
+                        >卸载</ElDropdownItem
+                      >
                     </ElDropdownMenu>
                   </template>
                 </ElDropdown>
@@ -152,8 +164,12 @@
             </template>
             <template #operation="{ row }">
               <div class="runner-table-actions">
-                <ElLink type="primary" underline="never" @click="editDistribution(row)">编辑</ElLink>
-                <ElLink type="primary" underline="never" @click="deleteDistribution(row)">删除</ElLink>
+                <ElLink type="primary" underline="never" @click="editDistribution(row)"
+                  >编辑</ElLink
+                >
+                <ElLink type="primary" underline="never" @click="deleteDistribution(row)"
+                  >删除</ElLink
+                >
               </div>
             </template>
           </ArtTable>
@@ -161,7 +177,11 @@
       </ElTabs>
     </ElCard>
 
-    <RunnerDrawer v-model="runnerDrawerVisible" :edit-id="runnerEditId" @success="refreshRunnerData" />
+    <RunnerDrawer
+      v-model="runnerDrawerVisible"
+      :edit-id="runnerEditId"
+      @success="refreshRunnerData"
+    />
     <DistributionDrawer
       v-model="distributionDrawerVisible"
       :edit-id="distributionEditId"
@@ -189,6 +209,7 @@
     ElTabs,
     ElTag
   } from 'element-plus'
+  import { notifyError } from '@/utils/sys/notify'
   import {
     fetchGetRunnerList,
     fetchDeleteRunner,
@@ -353,7 +374,7 @@
       refreshRunnerData()
     } catch (error) {
       if (error !== 'cancel' && (!(error instanceof PixiuApiError) || !error.notified)) {
-        ElMessage.error(error instanceof Error ? error.message : '删除失败')
+        notifyError(error, '删除失败')
       }
     }
   }
@@ -381,7 +402,7 @@
     } catch (error) {
       if (error !== 'cancel' && (!(error instanceof PixiuApiError) || !error.notified)) {
         const action = cmd === 'install' ? '安装' : '卸载'
-        ElMessage.error(error instanceof Error ? error.message : `${action}失败`)
+        notifyError(error, `${action}失败`)
       }
     }
   }
@@ -460,7 +481,7 @@
       refreshDistributionData()
     } catch (error) {
       if (error !== 'cancel') {
-        ElMessage.error(error instanceof Error ? error.message : '删除失败')
+        notifyError(error, '删除失败')
       }
     }
   }

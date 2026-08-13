@@ -2,10 +2,12 @@ import { fetchClusterByName } from '@/api/container'
 import { getClusterAliasCache, setClusterAliasCache } from '@/utils/navigation/cluster-query'
 
 /** 数据源标签展示：优先别名，回退集群 ID */
-export function resolveDatasourceClusterLabel(ds?: {
-  clusterName?: string
-  clusterAliasName?: string
-} | null): string {
+export function resolveDatasourceClusterLabel(
+  ds?: {
+    clusterName?: string
+    clusterAliasName?: string
+  } | null
+): string {
   if (!ds?.clusterName) return '-'
   const fromApi = ds.clusterAliasName?.trim()
   if (fromApi) return fromApi

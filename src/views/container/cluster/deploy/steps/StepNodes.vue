@@ -322,7 +322,10 @@
       return
     }
 
-    if (nodeForm.role.includes('storage') && countStorageNodes(nodes, isEdit ? editIndex.value : -1) >= 1) {
+    if (
+      nodeForm.role.includes('storage') &&
+      countStorageNodes(nodes, isEdit ? editIndex.value : -1) >= 1
+    ) {
       ElMessage.warning('带有 storage 角色的节点最多只能有一个')
       return
     }

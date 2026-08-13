@@ -18,15 +18,31 @@
     </template>
 
     <div v-loading="editLoading" class="runner-drawer-body">
-      <ElForm :model="formData" :rules="rules" ref="formRef" label-width="100px" class="runner-form">
+      <ElForm
+        :model="formData"
+        :rules="rules"
+        ref="formRef"
+        label-width="100px"
+        class="runner-form"
+      >
         <ElFormItem label="名称" prop="name">
           <ElInput v-model="formData.name" placeholder="请输入名称" style="width: 100%" />
         </ElFormItem>
         <ElFormItem label="镜像" prop="engineImage">
-          <ElInput v-model="formData.engineImage" placeholder="请输入镜像地址" style="width: 100%" />
+          <ElInput
+            v-model="formData.engineImage"
+            placeholder="请输入镜像地址"
+            style="width: 100%"
+          />
         </ElFormItem>
         <ElFormItem label="描述" prop="description">
-          <ElInput v-model="formData.description" type="textarea" :rows="3" placeholder="请输入描述" style="width: 100%" />
+          <ElInput
+            v-model="formData.description"
+            type="textarea"
+            :rows="3"
+            placeholder="请输入描述"
+            style="width: 100%"
+          />
         </ElFormItem>
       </ElForm>
     </div>
@@ -43,6 +59,7 @@
 <script setup lang="ts">
   import { Close } from '@element-plus/icons-vue'
   import { ElIcon, ElMessage, type FormInstance, type FormRules } from 'element-plus'
+  import { notifyError } from '@/utils/sys/notify'
   import { computed, ref, watch } from 'vue'
   import {
     fetchCreateRunner,
@@ -115,7 +132,7 @@
       }
       editResourceVersion.value = data.resourceVersion
     } catch (error) {
-      ElMessage.error(error instanceof Error ? error.message : '获取数据失败')
+      notifyError(error, '获取数据失败')
       closeDrawer()
     } finally {
       editLoading.value = false
@@ -155,7 +172,7 @@
           closeDrawer()
         } catch (error) {
           if (!(error instanceof PixiuApiError) || !error.notified) {
-            ElMessage.error(error instanceof Error ? error.message : '操作失败')
+            notifyError(error, '操作失败')
           }
         } finally {
           submitting.value = false

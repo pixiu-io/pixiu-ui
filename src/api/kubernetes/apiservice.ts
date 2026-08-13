@@ -54,10 +54,7 @@ export async function fetchK8sAPIServiceList(
   return { items, total: totalFiltered }
 }
 
-export async function fetchK8sAPIService(
-  cluster: string,
-  name: string
-): Promise<K8sAPIService> {
+export async function fetchK8sAPIService(cluster: string, name: string): Promise<K8sAPIService> {
   const c = encodeURIComponent(cluster)
   const { data } = await kubeProxyAxios.get<K8sAPIService>(
     `/pixiu/proxy/${c}/apis/apiregistration.k8s.io/v1/apiservices/${encodeURIComponent(name)}`

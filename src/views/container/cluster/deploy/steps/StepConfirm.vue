@@ -205,7 +205,7 @@
     if (props.form.execMode !== 'agent' || !props.form.deployAgentId) return
     try {
       const { items } = await fetchAgentList({ limit: 200 })
-      const agent = items.find(a => a.id === props.form.deployAgentId)
+      const agent = items.find((a) => a.id === props.form.deployAgentId)
       if (agent) {
         agentName.value = agent.name
       }
@@ -214,11 +214,14 @@
     }
   }
 
-  watch(() => props.form.deployAgentId, () => {
-    if (props.form.execMode === 'agent' && props.form.deployAgentId) {
-      loadAgentName()
+  watch(
+    () => props.form.deployAgentId,
+    () => {
+      if (props.form.execMode === 'agent' && props.form.deployAgentId) {
+        loadAgentName()
+      }
     }
-  })
+  )
 
   onMounted(() => {
     loadAgentName()

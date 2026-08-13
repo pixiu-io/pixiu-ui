@@ -786,7 +786,9 @@
                           active-text="只读"
                           inactive-text="读写"
                         />
-                        <ElButton link type="primary" @click="removeVolumeMount(idx)">删除</ElButton>
+                        <ElButton link type="primary" @click="removeVolumeMount(idx)"
+                          >删除</ElButton
+                        >
                       </div>
                     </div>
                   </ElFormItem>
@@ -1156,6 +1158,7 @@
   import { fetchK8sSecretList } from '@/api/kubernetes/secret'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
   import ClusterResourceBreadcrumb from '../components/cluster-resource-breadcrumb.vue'
+  import { notifyError } from '@/utils/sys/notify'
 
   defineOptions({ name: 'StatefulSetCreatePage' })
 
@@ -1491,42 +1494,44 @@
   }
 
   function buildEnv(c: ContainerConfig) {
-    return c.envs
-      .map((item) => {
-        const name = item.name.trim()
-        if (!name) return null
-        if (item.mode === 'value') {
-          return { name, value: item.value }
-        }
-        const sourceName = item.sourceName.trim()
-        const sourceKey = item.sourceKey.trim()
-        if (!sourceName || !sourceKey) return null
-        if (item.mode === 'configMap') {
+    return (
+      c.envs
+        .map((item) => {
+          const name = item.name.trim()
+          if (!name) return null
+          if (item.mode === 'value') {
+            return { name, value: item.value }
+          }
+          const sourceName = item.sourceName.trim()
+          const sourceKey = item.sourceKey.trim()
+          if (!sourceName || !sourceKey) return null
+          if (item.mode === 'configMap') {
+            return {
+              name,
+              valueFrom: {
+                configMapKeyRef: { name: sourceName, key: sourceKey }
+              }
+            }
+          }
           return {
             name,
             valueFrom: {
-              configMapKeyRef: { name: sourceName, key: sourceKey }
+              secretKeyRef: { name: sourceName, key: sourceKey }
             }
           }
-        }
-        return {
-          name,
-          valueFrom: {
-            secretKeyRef: { name: sourceName, key: sourceKey }
-          }
-        }
-      })
+        })
         // @ts-ignore
-      .filter(
-        (
-          item
-        // @ts-ignore
-        ): item is {
-          name: string
-          value?: string
-          valueFrom?: Record<string, { name: string; key: string }>
-        } => item !== null
-      )
+        .filter(
+          (
+            item
+            // @ts-ignore
+          ): item is {
+            name: string
+            value?: string
+            valueFrom?: Record<string, { name: string; key: string }>
+          } => item !== null
+        )
+    )
   }
 
   function parseCommandLines(text: string): string[] {
@@ -1608,7 +1613,7 @@
 
   function validateContainerSemantics(): boolean {
     for (const c of form.value.containers) {
-        // @ts-ignore
+      // @ts-ignore
       const validPorts = c.ports.filter(
         (p) => Number.isFinite(Number(p.containerPort)) && Number(p.containerPort) > 0
       )
@@ -1730,13 +1735,8 @@
         }
         return { name, emptyDir: {} }
       })
-        // @ts-ignore
-      .filter(
-        (
-          v
-        ): v is any =>
-          v !== null
-      )
+      // @ts-ignore
+      .filter((v): v is any => v !== null)
 
     const containers = form.value.containers.map((c) => {
       const env = buildEnv(c)
@@ -1792,7 +1792,7 @@
               }
             : { type: 'OnDelete' },
         template: {
-          metadata: { labels: { app: appLabel, ...finalLabels as any } },
+          metadata: { labels: { app: appLabel, ...(finalLabels as any) } },
           spec: {
             containers,
             ...(volumes.length ? { volumes } : {})
@@ -1898,7 +1898,7 @@
       ElMessage.success(`StatefulSet(${form.value.name}) 创建成功`)
       goBack()
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '创建失败')
+      notifyError(e, '创建失败')
     } finally {
       submitting.value = false
     }
@@ -1998,7 +1998,7 @@
       form.value.imagePullSecret = f.name.trim()
       showPullSecretSelect.value = true
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '创建失败')
+      notifyError(e, '创建失败')
     } finally {
       newSecretSubmitting.value = false
     }
@@ -2630,8 +2630,12 @@
     color: var(--el-text-color-regular);
     white-space: nowrap;
   }
-  .health-check-panel .probe-input-unit :deep(.el-input) { width: 70px !important; }
-  .health-check-panel .probe-input-unit :deep(.el-input__inner) { font-size: 11px !important; }
+  .health-check-panel .probe-input-unit :deep(.el-input) {
+    width: 70px !important;
+  }
+  .health-check-panel .probe-input-unit :deep(.el-input__inner) {
+    font-size: 11px !important;
+  }
 
   .health-check-panel :deep(.el-input__inner),
   .health-check-panel :deep(.el-textarea__inner),
@@ -2639,8 +2643,13 @@
     font-size: 12px;
   }
 
-  .health-check-panel :deep(.el-input__wrapper) { height: 28px; }
-  .health-check-panel :deep(.el-select__wrapper) { height: 28px !important; min-height: 28px !important; }
+  .health-check-panel :deep(.el-input__wrapper) {
+    height: 28px;
+  }
+  .health-check-panel :deep(.el-select__wrapper) {
+    height: 28px !important;
+    min-height: 28px !important;
+  }
 
   .health-check-panel .dc-field-tip {
     font-size: 12px;

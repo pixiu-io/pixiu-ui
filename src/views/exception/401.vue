@@ -12,4 +12,3 @@
     imgUrl: '/src/assets/images/svg/403.svg'
   }
 </script>
-

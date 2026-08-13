@@ -142,8 +142,26 @@
           fixed: 'right',
           formatter: (row) =>
             h('div', { class: 'flex items-center gap-2' }, [
-              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => showDialog('edit', row) }, () => '编辑'),
-              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => deleteUser(row) }, () => '删除')
+              h(
+                ElLink,
+                {
+                  type: 'primary',
+                  underline: 'never',
+                  style: 'font-size:12px',
+                  onClick: () => showDialog('edit', row)
+                },
+                () => '编辑'
+              ),
+              h(
+                ElLink,
+                {
+                  type: 'primary',
+                  underline: 'never',
+                  style: 'font-size:12px',
+                  onClick: () => deleteUser(row)
+                },
+                () => '删除'
+              )
             ])
         }
       ]
@@ -168,9 +186,13 @@
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'error'
-    }).then(() => {
-      ElMessage.success('注销成功')
     })
+      .then(() => {
+        ElMessage.success('注销成功')
+      })
+      .catch(() => {
+        /* 用户取消或关闭，忽略 */
+      })
   }
 
   const handleDialogSubmit = async () => {

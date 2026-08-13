@@ -279,7 +279,10 @@
   }))
 
   // 是否显示分页器
-  const showPagination = computed(() => props.pagination && (!isEmpty.value || !(mergedPaginationOptions.value?.hideOnEmpty ?? true)))
+  const showPagination = computed(
+    () =>
+      props.pagination && (!isEmpty.value || !(mergedPaginationOptions.value?.hideOnEmpty ?? true))
+  )
 
   // Element Plus 在部分场景会先用 $index = -1 进行预渲染。
   // 这对普通展示无影响，但会让 ElForm 错误注册出 lineList.-1.xxx 这类字段。

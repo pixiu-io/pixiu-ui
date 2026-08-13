@@ -375,6 +375,7 @@
   import { updateK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
   import { resolvePixiuWsOrigin } from '@/utils/pixiu-ws-origin'
   import yaml from 'js-yaml'
+  import { notifyError } from '@/utils/sys/notify'
 
   defineOptions({ name: 'ClusterDetailPods' })
 
@@ -1025,7 +1026,7 @@
       onRefresh()
     } catch (e: unknown) {
       if (e === 'cancel') return
-      ElMessage.error(e instanceof Error ? e.message : '删除失败')
+      notifyError(e, '删除失败')
     }
   }
 
@@ -1049,7 +1050,7 @@
       yamlText.value = yaml.dump(pod, { quotingType: '"' })
       yamlVisible.value = true
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '加载失败')
+      notifyError(e, '加载失败')
     }
   }
 
@@ -1067,7 +1068,7 @@
       yamlVisible.value = false
       refreshData()
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '保存失败')
+      notifyError(e, '保存失败')
     } finally {
       yamlSaving.value = false
     }
@@ -1090,7 +1091,7 @@
     } catch (e: unknown) {
       if (e === 'cancel') return
       if (e instanceof PixiuApiError && e.notified) return
-      ElMessage.error(e instanceof Error ? e.message : '删除失败')
+      notifyError(e, '删除失败')
     }
   }
 
@@ -1264,7 +1265,7 @@
       eventRows.value = items as K8sEventRow[]
       eventTotal.value = total
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '加载事件失败')
+      notifyError(e, '加载事件失败')
       eventRows.value = []
       eventTotal.value = 0
     } finally {
@@ -1289,7 +1290,7 @@
       await loadEventList()
     } catch (e: any) {
       if (e instanceof PixiuApiError && e.notified) return
-      ElMessage.error(e instanceof Error ? e.message : '删除失败')
+      notifyError(e, '删除失败')
     }
   }
 

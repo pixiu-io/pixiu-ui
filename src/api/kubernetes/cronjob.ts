@@ -13,7 +13,22 @@ export interface K8sCronJob {
   spec?: {
     schedule?: string
     suspend?: boolean
-    jobTemplate?: { spec?: { template?: { spec?: { containers?: Array<{ name?: string; image?: string; resources?: { requests?: { cpu?: string; memory?: string }; limits?: { cpu?: string; memory?: string } } }> } } } }
+    jobTemplate?: {
+      spec?: {
+        template?: {
+          spec?: {
+            containers?: Array<{
+              name?: string
+              image?: string
+              resources?: {
+                requests?: { cpu?: string; memory?: string }
+                limits?: { cpu?: string; memory?: string }
+              }
+            }>
+          }
+        }
+      }
+    }
     successfulJobsHistoryLimit?: number
     failedJobsHistoryLimit?: number
   }
@@ -71,7 +86,9 @@ export async function deleteK8sCronJob(
   cronJobApiVersion?: string
 ): Promise<void> {
   const apiVersion = resolveApiVersion(cronJobApiVersion)
-  await kubeProxyAxios.delete(`${cjBase(cluster, namespace, apiVersion)}/${encodeURIComponent(name)}`)
+  await kubeProxyAxios.delete(
+    `${cjBase(cluster, namespace, apiVersion)}/${encodeURIComponent(name)}`
+  )
 }
 
 export async function patchK8sCronJob(
@@ -97,6 +114,9 @@ export async function createK8sCronJob(
   cronJobApiVersion?: string
 ): Promise<K8sCronJob> {
   const apiVersion = resolveApiVersion(cronJobApiVersion)
-  const { data } = await kubeProxyAxios.post<K8sCronJob>(cjBase(cluster, namespace, apiVersion), body)
+  const { data } = await kubeProxyAxios.post<K8sCronJob>(
+    cjBase(cluster, namespace, apiVersion),
+    body
+  )
   return data
 }

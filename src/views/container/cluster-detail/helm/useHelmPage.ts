@@ -17,6 +17,7 @@ import {
   type HelmRepository
 } from '@/api/helm'
 import { useClusterDetailNamespaceRefresh } from '@/hooks/core/useClusterDetailNamespaceRefresh'
+import { notifyError } from '@/utils/sys/notify'
 import { clusterDetailNamespaceKey } from '../context'
 import { filterByName, summarizeReleases, type HelmPageView } from './shared'
 
@@ -50,7 +51,10 @@ export function useHelmPage() {
   const filteredReleases = computed(() => filterByName(allReleases.value, releaseSearch.value))
   const filteredRepos = computed(() => filterByName(allRepos.value, repoSearch.value))
   const selectedRepo = computed(
-    () => filteredRepos.value.find((item) => item.id === selectedRepoId.value) ?? filteredRepos.value[0] ?? null
+    () =>
+      filteredRepos.value.find((item) => item.id === selectedRepoId.value) ??
+      filteredRepos.value[0] ??
+      null
   )
 
   const releaseFormVisible = ref(false)
@@ -129,7 +133,7 @@ export function useHelmPage() {
       if (requestSeq !== releaseRequestSeq) return
       allReleases.value = []
       loadedReleaseKey = ''
-      ElMessage.error(e instanceof Error ? e.message : '获取 Release 列表失败')
+      notifyError(e, '获取 Release 列表失败')
     } finally {
       if (requestSeq === releaseRequestSeq) {
         releaseLoading.value = false
@@ -149,7 +153,7 @@ export function useHelmPage() {
       }
     } catch (e: unknown) {
       allRepos.value = []
-      ElMessage.error(e instanceof Error ? e.message : '获取仓库列表失败')
+      notifyError(e, '获取仓库列表失败')
     } finally {
       repoLoading.value = false
     }
@@ -221,7 +225,7 @@ export function useHelmPage() {
       loadedReleaseKey = ''
       await loadReleases()
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '操作失败')
+      notifyError(e, '操作失败')
     } finally {
       releaseFormSubmitting.value = false
     }
@@ -237,7 +241,7 @@ export function useHelmPage() {
       await loadReleases()
     } catch (e: unknown) {
       if (e === 'cancel') return
-      ElMessage.error(e instanceof Error ? e.message : '卸载失败')
+      notifyError(e, '卸载失败')
     }
   }
 
@@ -254,7 +258,7 @@ export function useHelmPage() {
       )
     } catch (e: unknown) {
       historyRows.value = []
-      ElMessage.error(e instanceof Error ? e.message : '获取修订历史失败')
+      notifyError(e, '获取修订历史失败')
     } finally {
       historyLoading.value = false
     }
@@ -272,7 +276,7 @@ export function useHelmPage() {
       )
     } catch (e: unknown) {
       historyRows.value = []
-      ElMessage.error(e instanceof Error ? e.message : '获取修订历史失败')
+      notifyError(e, '获取修订历史失败')
     } finally {
       historyLoading.value = false
     }
@@ -299,7 +303,7 @@ export function useHelmPage() {
       await loadReleases()
     } catch (e: unknown) {
       if (e === 'cancel') return
-      ElMessage.error(e instanceof Error ? e.message : '回滚失败')
+      notifyError(e, '回滚失败')
     }
   }
 
@@ -352,7 +356,7 @@ export function useHelmPage() {
       repoFormVisible.value = false
       await loadRepos()
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '操作失败')
+      notifyError(e, '操作失败')
     } finally {
       repoFormSubmitting.value = false
     }
@@ -369,7 +373,7 @@ export function useHelmPage() {
       await loadRepos()
     } catch (e: unknown) {
       if (e === 'cancel') return
-      ElMessage.error(e instanceof Error ? e.message : '删除失败')
+      notifyError(e, '删除失败')
     }
   }
 

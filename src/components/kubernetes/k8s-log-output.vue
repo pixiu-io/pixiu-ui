@@ -16,11 +16,7 @@
       </ElButton>
     </div>
 
-    <div
-      v-if="loading"
-      class="k8s-log-output__body k8s-log-output__body--empty"
-      :style="bodyStyle"
-    >
+    <div v-if="loading" class="k8s-log-output__body k8s-log-output__body--empty" :style="bodyStyle">
       <ElIcon class="is-loading"><Loading /></ElIcon>
       <span>加载日志…</span>
     </div>

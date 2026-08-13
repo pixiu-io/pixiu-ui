@@ -72,7 +72,9 @@ export async function resolveClusterNamespaces(
   const pid = Number(permissionId) || 0
   if (pid > 0) {
     const detail = await fetchGetPermission(pid)
-    const targetNames = [...new Set((detail.targetNamespaces ?? []).map((n) => n.trim()).filter(Boolean))]
+    const targetNames = [
+      ...new Set((detail.targetNamespaces ?? []).map((n) => n.trim()).filter(Boolean))
+    ]
     const pType = Number(detail.pType)
 
     if (pType === 1 || targetNames.length > 0) {
@@ -90,7 +92,10 @@ export async function resolveClusterNamespaces(
   }
 
   const { items } = await fetchK8sNamespaceList(cluster, { page: 1, limit: 500 })
-  const names = items.map((n) => n.metadata.name).filter(Boolean).sort()
+  const names = items
+    .map((n) => n.metadata.name)
+    .filter(Boolean)
+    .sort()
   return { items, names, permissionDetail: null, scoped: false }
 }
 

@@ -29,8 +29,13 @@ interface UsePromqlAutocompleteOptions {
 }
 
 export function usePromqlAutocomplete(options: UsePromqlAutocompleteOptions) {
-  const { promql, autocompleteEnabled, selectedDatasource, resolveTimeRange, getExternalProxyHeaders } =
-    options
+  const {
+    promql,
+    autocompleteEnabled,
+    selectedDatasource,
+    resolveTimeRange,
+    getExternalProxyHeaders
+  } = options
 
   const promqlAutocompleteRef = ref<{
     inputRef?: { ref?: HTMLInputElement }
@@ -75,7 +80,8 @@ export function usePromqlAutocomplete(options: UsePromqlAutocompleteOptions) {
 
   async function prefetchMetricNameOptions(ds: DatasourceItem) {
     if (metricNamesLoading.value) return
-    if (metricNamesLoadedForDatasourceId.value === ds.id && metricNameOptions.value.length > 0) return
+    if (metricNamesLoadedForDatasourceId.value === ds.id && metricNameOptions.value.length > 0)
+      return
 
     metricNamesLoading.value = true
     try {
@@ -461,7 +467,16 @@ export function usePromqlAutocomplete(options: UsePromqlAutocompleteOptions) {
       void (async () => {
         const ds = selectedDatasource.value
         if (ds) await prefetchMetricNameOptions(ds)
-        cb(filterSuggestions(metricNameOptions.value, ctx.token, 'metric', ctx, queryString, cursorPos))
+        cb(
+          filterSuggestions(
+            metricNameOptions.value,
+            ctx.token,
+            'metric',
+            ctx,
+            queryString,
+            cursorPos
+          )
+        )
       })()
       return
     }

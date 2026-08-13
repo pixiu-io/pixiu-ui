@@ -16,10 +16,7 @@
       </div>
       <div class="pod-files-toolbar__right">
         <div
-          :class="[
-            'pod-files-icon-btn',
-            { 'is-spinning': loading, 'is-disabled': !canBrowse }
-          ]"
+          :class="['pod-files-icon-btn', { 'is-spinning': loading, 'is-disabled': !canBrowse }]"
           role="button"
           tabindex="0"
           title="刷新"
@@ -107,11 +104,7 @@
         </ElTree>
       </div>
 
-      <div
-        class="pod-files-resizer"
-        title="拖动调整宽度"
-        @mousedown="onResizeStart"
-      />
+      <div class="pod-files-resizer" title="拖动调整宽度" @mousedown="onResizeStart" />
 
       <div class="pod-files-table-pane">
         <ElTable
@@ -140,7 +133,11 @@
                 :class="{ 'is-dir': row.isParent || row.type === 'dir' }"
                 @click.stop="onNameClick(row)"
               >
-                <ArtSvgIcon :icon="rowIcon(row)" class="pod-files-name__icon" :class="rowIconClass(row)" />
+                <ArtSvgIcon
+                  :icon="rowIcon(row)"
+                  class="pod-files-name__icon"
+                  :class="rowIconClass(row)"
+                />
                 <span>{{ row.name }}</span>
               </div>
             </template>
@@ -173,6 +170,7 @@
 
 <script setup lang="ts">
   import { ElMessage } from 'element-plus'
+  import { notifyError } from '@/utils/sys/notify'
   import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
   import { fetchK8sPod, type K8sPod } from '@/api/kubernetes/pod'
@@ -381,7 +379,10 @@
     }
   }
 
-  async function loadTreeNode(node: { level: number; data: TreeNode }, resolve: (data: TreeNode[]) => void) {
+  async function loadTreeNode(
+    node: { level: number; data: TreeNode },
+    resolve: (data: TreeNode[]) => void
+  ) {
     if (!canBrowse.value) {
       resolve([])
       return
@@ -456,7 +457,7 @@
       })
       ElMessage.success(row.type === 'dir' ? '开始下载文件夹' : '开始下载')
     } catch (e) {
-      ElMessage.error(e instanceof Error ? e.message : '下载失败')
+      notifyError(e, '下载失败')
     } finally {
       downloadingPath.value = ''
     }
@@ -491,7 +492,7 @@
       ElMessage.success(`已上传 ${file.name}`)
       refreshCurrent()
     } catch (e) {
-      ElMessage.error(e instanceof Error ? e.message : '上传失败')
+      notifyError(e, '上传失败')
     } finally {
       uploading.value = false
     }

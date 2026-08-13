@@ -70,7 +70,7 @@
     id,
     clusterName: `pixiu-cls-${String(id).padStart(2, '0')}`,
     version: ['v1.28.0', 'v1.27.3', 'v1.26.5'][id % 3],
-    status: (['running', 'running', 'error', 'stopped'][id % 4] as keyof typeof STATUS_CONFIG),
+    status: ['running', 'running', 'error', 'stopped'][id % 4] as keyof typeof STATUS_CONFIG,
     nodeCount: (id % 5) + 1,
     region: ['华北-北京', '华东-上海', '华南-广州'][id % 3],
     createTime: '2026-04-18 13:26:04'

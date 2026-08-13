@@ -11,7 +11,12 @@
     />
     <div
       class="role-toolbar"
-      style="margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between"
+      style="
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      "
     >
       <ElButton @click="showDialog('add')" v-ripple>创建角色</ElButton>
       <div style="display: flex; align-items: center; gap: 8px">
@@ -67,6 +72,7 @@
   import RoleDialog from './modules/role-dialog.vue'
   import RoleApiDialog from './modules/role-api-dialog.vue'
   import { ElAlert, ElLink, ElMessage, ElMessageBox } from 'element-plus'
+  import { notifyError } from '@/utils/sys/notify'
   import { DialogType } from '@/types'
 
   defineOptions({ name: 'Role' })
@@ -99,7 +105,9 @@
       // ignore
     }
   }
-  onMounted(() => { void loadTenantMap() })
+  onMounted(() => {
+    void loadTenantMap()
+  })
 
   const getTenantText = (tenantId?: number) => {
     if (!tenantId) return '全局角色'
@@ -156,8 +164,7 @@
           label: '描述',
           minWidth: 160,
           showOverflowTooltip: true,
-          formatter: (row) =>
-            h('span', { style: { fontSize: '12px' } }, row.description || '-')
+          formatter: (row) => h('span', { style: { fontSize: '12px' } }, row.description || '-')
         },
         {
           prop: 'operation',
@@ -227,15 +234,19 @@
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'error'
-    }).then(async () => {
-      try {
-        await fetchDeleteRole(row.id)
-        ElMessage.success('删除成功')
-        await refreshData()
-      } catch (e: any) {
-        ElMessage.error(e?.message || '删除失败')
-      }
     })
+      .then(async () => {
+        try {
+          await fetchDeleteRole(row.id)
+          ElMessage.success('删除成功')
+          await refreshData()
+        } catch (e: any) {
+          notifyError(e, '删除失败')
+        }
+      })
+      .catch(() => {
+        /* 用户取消或关闭，忽略 */
+      })
   }
 
   const handleDialogSubmit = async (data: {
@@ -269,7 +280,7 @@
       currentRoleData.value = {}
       await refreshData()
     } catch (e: any) {
-      ElMessage.error(e?.message || '操作失败')
+      notifyError(e, '操作失败')
     }
   }
 </script>
@@ -287,7 +298,6 @@
     flex-direction: column;
     overflow: hidden;
   }
-
 
   .role-page :deep(.art-table) {
     display: flex;

@@ -1,9 +1,6 @@
 <template>
   <Teleport to="#app-main" v-if="visible">
-    <div
-      class="cluster-cloud-shell-anchor"
-      :style="anchorStyle"
-    >
+    <div class="cluster-cloud-shell-anchor" :style="anchorStyle">
       <section class="cluster-cloud-shell-sheet" :style="sheetStyle">
         <div
           v-if="!isMaximized"

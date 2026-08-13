@@ -53,7 +53,9 @@
                 </div>
                 <div class="kv-item">
                   <span class="kv-label">Kubernetes 版本</span>
-                  <span class="kv-value">{{ detail.config?.kubernetes?.kubernetes_version || '-' }}</span>
+                  <span class="kv-value">{{
+                    detail.config?.kubernetes?.kubernetes_version || '-'
+                  }}</span>
                 </div>
                 <div class="kv-item">
                   <span class="kv-label">容器运行时</span>
@@ -75,7 +77,9 @@
               <div class="kv-grid">
                 <div class="kv-item">
                   <span class="kv-label">节点网口</span>
-                  <span class="kv-value">{{ detail.config?.network?.network_interface || '-' }}</span>
+                  <span class="kv-value">{{
+                    detail.config?.network?.network_interface || '-'
+                  }}</span>
                 </div>
                 <div class="kv-item">
                   <span class="kv-label">CNI 插件</span>
@@ -91,11 +95,15 @@
                 </div>
                 <div class="kv-item">
                   <span class="kv-label">ApiServer 地址</span>
-                  <span class="kv-value">{{ (detail as any).config?.network?.api_server_address || '-' }}</span>
+                  <span class="kv-value">{{
+                    (detail as any).config?.network?.api_server_address || '-'
+                  }}</span>
                 </div>
                 <div class="kv-item">
                   <span class="kv-label">ApiServer 端口</span>
-                  <span class="kv-value">{{ (detail as any).config?.network?.api_server_port ?? '-' }}</span>
+                  <span class="kv-value">{{
+                    (detail as any).config?.network?.api_server_port ?? '-'
+                  }}</span>
                 </div>
               </div>
             </ElCard>
@@ -105,30 +113,50 @@
               <div class="kv-grid">
                 <div class="kv-item">
                   <span class="kv-label">高可用 Kubernetes</span>
-                  <span class="kv-value">{{ (detail as any).config?.kubernetes?.high_availability ? '启用' : '关闭' }}</span>
+                  <span class="kv-value">{{
+                    (detail as any).config?.kubernetes?.high_availability ? '启用' : '关闭'
+                  }}</span>
                 </div>
                 <div class="kv-item">
                   <span class="kv-label">自建 LoadBalance</span>
-                  <span class="kv-value">{{ (detail as any).config?.component?.haproxy?.enable || (detail as any).config?.network?.self_load_balance ? '启用' : '关闭' }}</span>
+                  <span class="kv-value">{{
+                    (detail as any).config?.component?.haproxy?.enable ||
+                    (detail as any).config?.network?.self_load_balance
+                      ? '启用'
+                      : '关闭'
+                  }}</span>
                 </div>
                 <div
-                  v-if="(detail as any).config?.component?.haproxy?.enable || (detail as any).config?.network?.self_load_balance"
+                  v-if="
+                    (detail as any).config?.component?.haproxy?.enable ||
+                    (detail as any).config?.network?.self_load_balance
+                  "
                   class="kv-item"
                 >
                   <span class="kv-label">Keepalived Virtual Router ID</span>
-                  <span class="kv-value">{{ (detail as any).config?.component?.haproxy?.keepalived_virtual_router_id || '-' }}</span>
+                  <span class="kv-value">{{
+                    (detail as any).config?.component?.haproxy?.keepalived_virtual_router_id || '-'
+                  }}</span>
                 </div>
                 <div class="kv-item">
                   <span class="kv-label">Kube-proxy 模式</span>
-                  <span class="kv-value">{{ (detail as any).config?.network?.kube_proxy || (detail as any).config?.network?.kube_proxy_mode || 'iptables' }}</span>
+                  <span class="kv-value">{{
+                    (detail as any).config?.network?.kube_proxy ||
+                    (detail as any).config?.network?.kube_proxy_mode ||
+                    'iptables'
+                  }}</span>
                 </div>
                 <div class="kv-item">
                   <span class="kv-label">Prometheus</span>
-                  <span class="kv-value">{{ detail.config?.component?.prometheus?.enabled ? '启用' : '关闭' }}</span>
+                  <span class="kv-value">{{
+                    detail.config?.component?.prometheus?.enabled ? '启用' : '关闭'
+                  }}</span>
                 </div>
                 <div class="kv-item">
                   <span class="kv-label">日志组件</span>
-                  <span class="kv-value">{{ detail.config?.component?.logging?.enabled ? '启用' : '关闭' }}</span>
+                  <span class="kv-value">{{
+                    detail.config?.component?.logging?.enabled ? '启用' : '关闭'
+                  }}</span>
                 </div>
               </div>
             </ElCard>
@@ -153,7 +181,9 @@
                 <ElTableColumn label="IP 地址" prop="ip" min-width="180" />
                 <ElTableColumn label="容器运行时" prop="cri" min-width="120" />
                 <ElTableColumn label="认证方式" min-width="110">
-                  <template #default="{ row }">{{ row.auth?.type === 'key' ? '密钥' : '密码' }}</template>
+                  <template #default="{ row }">{{
+                    row.auth?.type === 'key' ? '密钥' : '密码'
+                  }}</template>
                 </ElTableColumn>
                 <ElTableColumn label="用户名" min-width="100">
                   <template #default="{ row }">{{ row.auth?.password?.user || 'root' }}</template>
@@ -171,7 +201,13 @@
 <script setup lang="ts">
   import { ArrowLeft } from '@element-plus/icons-vue'
   import { useRoute, useRouter } from 'vue-router'
-  import { fetchPlanList, fetchPlanWithResources, type PlanItemFormatted, type PlanResourcesDetail } from '@/api/plan'
+  import {
+    fetchPlanList,
+    fetchPlanWithResources,
+    type PlanItemFormatted,
+    type PlanResourcesDetail
+  } from '@/api/plan'
+  import { notifyError } from '@/utils/sys/notify'
 
   defineOptions({ name: 'PlanDetail' })
 
@@ -222,11 +258,14 @@
     }
     loading.value = true
     try {
-      const [planDetail] = await Promise.all([fetchPlanWithResources(planId.value), loadPlanStatus(planId.value)])
+      const [planDetail] = await Promise.all([
+        fetchPlanWithResources(planId.value),
+        loadPlanStatus(planId.value)
+      ])
       detail.value = planDetail
     } catch (e: unknown) {
       const err = e as Error
-      ElMessage.error(err.message || '加载部署详情失败')
+      notifyError(err, '加载部署详情失败')
       router.push('/container/plan')
     } finally {
       loading.value = false

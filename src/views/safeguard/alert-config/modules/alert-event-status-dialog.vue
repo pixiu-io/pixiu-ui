@@ -1,5 +1,11 @@
 <template>
-  <ElDialog v-model="dialogVisible" :title="dialogTitle" width="420px" align-center destroy-on-close>
+  <ElDialog
+    v-model="dialogVisible"
+    :title="dialogTitle"
+    width="420px"
+    align-center
+    destroy-on-close
+  >
     <ElForm ref="formRef" :model="formData" :rules="rules" label-width="88px">
       <ElFormItem v-if="isBatch" label="已选事件">
         <span class="event-id-text">共 {{ events.length }} 条</span>
@@ -33,6 +39,7 @@
 <script setup lang="ts">
   import { computed, ref, watch } from 'vue'
   import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+  import { notifyError } from '@/utils/sys/notify'
   import {
     AlertEventStatusMap,
     fetchUpdateAlertEventStatus,
@@ -120,7 +127,7 @@
       }
     } catch (error) {
       if (!(error instanceof PixiuApiError) || !error.notified) {
-        ElMessage.error(error instanceof Error ? error.message : '更新失败')
+        notifyError(error, '更新失败')
       }
     } finally {
       submitting.value = false

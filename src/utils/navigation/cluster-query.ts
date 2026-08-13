@@ -66,8 +66,7 @@ export function buildClusterRouteQuery(
   }
 
   const aliasName =
-    extra?.aliasName ??
-    (String(route.query.aliasName ?? '') || getClusterAliasCache(cluster) || '')
+    extra?.aliasName ?? (String(route.query.aliasName ?? '') || getClusterAliasCache(cluster) || '')
 
   const q: Record<string, string> = { cluster }
   if (aliasName) q.aliasName = aliasName

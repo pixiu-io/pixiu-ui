@@ -131,8 +131,8 @@
   } from '@/components/core/forms/art-button-more/index.vue'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
   import { h, inject, ref, watch } from 'vue'
-import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
-import ClusterTableEmpty from './components/cluster-table-empty.vue'
+  import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
+  import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
   import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
@@ -151,6 +151,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { fetchK8sPodList } from '@/api/kubernetes/pod'
   import { updateK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
   import { formatNodeCreationTime } from '@/utils/kubernetes/nodeDisplay'
+  import { notifyError } from '@/utils/sys/notify'
 
   defineOptions({ name: 'ClusterDetailNamespaces' })
 
@@ -237,8 +238,13 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
         // 本地分页
         const start = (params.current - 1) * params.size
         const end = start + params.size
-        const records = filtered.slice(start, end).map((row, i) => ({ ...row, rowKey: row.metadata?.name ?? `ns-${i}` }))
-        return { code: 200, data: { records, total: filtered.length, current: params.current, size: params.size } }
+        const records = filtered
+          .slice(start, end)
+          .map((row, i) => ({ ...row, rowKey: row.metadata?.name ?? `ns-${i}` }))
+        return {
+          code: 200,
+          data: { records, total: filtered.length, current: params.current, size: params.size }
+        }
       },
       apiParams: { current: 1, size: 10, name: undefined },
       columnsFactory: () => [
@@ -404,7 +410,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       createForm.value.name = ''
       onRefresh()
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '创建失败')
+      notifyError(e, '创建失败')
     } finally {
       createSubmitting.value = false
     }
@@ -446,7 +452,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       yamlText.value = yaml.dump(ns, { quotingType: '"' })
       yamlVisible.value = true
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '加载失败')
+      notifyError(e, '加载失败')
     }
   }
 
@@ -460,7 +466,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       yamlVisible.value = false
       onRefresh()
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '更新失败')
+      notifyError(e, '更新失败')
     } finally {
       yamlSubmitting.value = false
     }
@@ -530,7 +536,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       }
       quotaVisible.value = true
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '加载配额失败')
+      notifyError(e, '加载配额失败')
     }
   }
 
@@ -573,7 +579,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       ElMessage.success('命名空间配额设置成功')
       quotaVisible.value = false
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '配额设置失败')
+      notifyError(e, '配额设置失败')
     } finally {
       quotaSubmitting.value = false
     }
@@ -603,7 +609,6 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     flex-direction: column;
     min-height: 0;
   }
-
 
   .namespaces-page :deep(.art-table-card) {
     flex: 1;

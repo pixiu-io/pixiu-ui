@@ -195,7 +195,8 @@ pixiuAxios.interceptors.response.use(
     const message =
       (data && typeof data === 'object' ? (data as { message?: string }).message : undefined) ||
       error.message
-    const skipNotify = !!(error.config as Record<string, unknown> | undefined)?.skipErrorNotification
+    const skipNotify = !!(error.config as Record<string, unknown> | undefined)
+      ?.skipErrorNotification
     return rejectPixiuBusinessError(message, error.response?.status, skipNotify)
   }
 )
@@ -249,10 +250,7 @@ export async function fetchClusterList(params: {
   const query: Record<string, unknown> = { page: params.page, limit: params.limit }
   if (params.nameSelector) query.nameSelector = params.nameSelector
   if (params.status !== undefined && params.status !== '') query.status = Number(params.status)
-  const res = await pixiuGet<{ total: number; items: BackendCluster[] }>(
-    '/pixiu/clusters',
-    query
-  )
+  const res = await pixiuGet<{ total: number; items: BackendCluster[] }>('/pixiu/clusters', query)
   return {
     total: res.total,
     items: (res.items ?? []).map(toClusterItem)
@@ -277,7 +275,11 @@ export async function fetchClusterByName(name: string): Promise<ClusterItem | nu
 }
 
 /** 更新集群别名 */
-export async function fetchUpdateClusterAlias(id: number, resourceVersion: number, aliasName: string): Promise<void> {
+export async function fetchUpdateClusterAlias(
+  id: number,
+  resourceVersion: number,
+  aliasName: string
+): Promise<void> {
   await pixiuAxios.put(`/pixiu/clusters/${id}`, {
     alias_name: aliasName,
     resource_version: resourceVersion
@@ -290,7 +292,11 @@ export async function fetchGetCluster(id: number): Promise<BackendCluster> {
 }
 
 /** 设置集群保护状态 */
-export async function fetchProtectCluster(id: number, resourceVersion: number, isProtected: boolean): Promise<void> {
+export async function fetchProtectCluster(
+  id: number,
+  resourceVersion: number,
+  isProtected: boolean
+): Promise<void> {
   await pixiuAxios.post(`/pixiu/clusters/protect/${id}`, {
     resource_version: resourceVersion,
     protected: isProtected
@@ -354,7 +360,9 @@ export interface ProxyKubeconfigInfo {
   is_active: boolean
 }
 
-export async function fetchGetProxyKubeconfig(clusterId: number): Promise<ProxyKubeconfigResponse | null> {
+export async function fetchGetProxyKubeconfig(
+  clusterId: number
+): Promise<ProxyKubeconfigResponse | null> {
   const res = await pixiuAxios.get(`/pixiu/clusters/${clusterId}/proxy-kubeconfig`)
   return (res.data.result ?? null) as ProxyKubeconfigResponse | null
 }

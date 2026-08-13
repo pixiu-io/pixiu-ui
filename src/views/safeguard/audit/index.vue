@@ -14,12 +14,7 @@
             />
           </ElFormItem>
           <ElFormItem label="请求方式">
-            <ElSelect
-              v-model="searchForm.action"
-              placeholder="全部"
-              clearable
-              style="width: 140px"
-            >
+            <ElSelect v-model="searchForm.action" placeholder="全部" clearable style="width: 140px">
               <ElOption label="创建 (POST)" value="POST" />
               <ElOption label="删除 (DELETE)" value="DELETE" />
               <ElOption label="更新 (PUT)" value="PUT" />
@@ -99,18 +94,21 @@
   defineOptions({ name: 'Audit' })
 
   // 请求方式 → 显示配置
-  const ACTION_CONFIG: Record<string, { label: string; type: 'primary' | 'danger' | 'warning' | 'info' }> = {
+  const ACTION_CONFIG: Record<
+    string,
+    { label: string; type: 'primary' | 'danger' | 'warning' | 'info' }
+  > = {
     POST: { label: '创建', type: 'primary' },
     DELETE: { label: '删除', type: 'danger' },
     PUT: { label: '更新', type: 'warning' },
-    PATCH: { label: '更新', type: 'warning' },
+    PATCH: { label: '更新', type: 'warning' }
   }
 
   // 操作状态 → 显示配置
   const STATUS_CONFIG: Record<number, { label: string; type: 'success' | 'danger' | 'info' }> = {
     0: { label: '失败', type: 'danger' },
     1: { label: '成功', type: 'success' },
-    2: { label: '未知', type: 'info' },
+    2: { label: '未知', type: 'info' }
   }
 
   // 资源类型 → 中文显示
@@ -120,7 +118,7 @@
     tenants: '租户',
     plans: '版本计划',
     auth: '认证',
-    '*': '-',
+    '*': '-'
   }
 
   /** 格式化 ISO 日期为 yyyy-MM-dd HH:mm:ss */
@@ -135,7 +133,7 @@
     operator: '',
     action: '',
     object_type: '',
-    cluster: '',
+    cluster: ''
   })
   const showAdvanced = ref(false)
 
@@ -164,7 +162,7 @@
     resetSearchParams,
     handleSizeChange,
     handleCurrentChange,
-    refreshData,
+    refreshData
   } = useTable({
     core: {
       apiFn: async (params: {
@@ -181,11 +179,11 @@
           operator: params.operator || undefined,
           action: params.action || undefined,
           object_type: params.object_type || undefined,
-          cluster: params.cluster || undefined,
+          cluster: params.cluster || undefined
         })
         return {
           code: 200,
-          data: { records: items, total, current: params.current, size: params.size },
+          data: { records: items, total, current: params.current, size: params.size }
         }
       },
       apiParams: { current: 1, size: 20 },
@@ -193,7 +191,7 @@
         {
           label: '操作人',
           width: 120,
-          formatter: (row: AuditItem) => h('span', { style: 'font-size:12px' }, row.operator || '-'),
+          formatter: (row: AuditItem) => h('span', { style: 'font-size:12px' }, row.operator || '-')
         },
         {
           prop: 'status',
@@ -202,23 +200,30 @@
           formatter: (row: AuditItem) => {
             const cfg = STATUS_CONFIG[row.status] ?? { label: '未知', type: 'info' as const }
             return h(ElTag, { type: cfg.type, size: 'small' }, () => cfg.label)
-          },
+          }
         },
         {
           prop: 'action',
           label: '请求方式',
           width: 90,
           formatter: (row: AuditItem) => {
-            const cfg = ACTION_CONFIG[row.action] ?? { label: row.action || '-', type: 'info' as const }
+            const cfg = ACTION_CONFIG[row.action] ?? {
+              label: row.action || '-',
+              type: 'info' as const
+            }
             return h(ElTag, { type: cfg.type, size: 'small' }, () => cfg.label)
-          },
+          }
         },
         {
           prop: 'objectType',
           label: '资源类型',
           width: 100,
           formatter: (row: AuditItem) =>
-            h('span', { style: 'font-size:12px' }, OBJECT_TYPE_LABEL[row.objectType] ?? (row.objectType || '-')),
+            h(
+              'span',
+              { style: 'font-size:12px' },
+              OBJECT_TYPE_LABEL[row.objectType] ?? (row.objectType || '-')
+            )
         },
         {
           prop: 'path',
@@ -226,25 +231,23 @@
           minWidth: 220,
           showOverflowTooltip: true,
           formatter: (row: AuditItem) =>
-            h(
-              ElTooltip,
-              { content: row.path, placement: 'top', showAfter: 300 },
-              () => h('span', { style: 'font-size:12px;font-family:monospace' }, row.path || '-')
-            ),
+            h(ElTooltip, { content: row.path, placement: 'top', showAfter: 300 }, () =>
+              h('span', { style: 'font-size:12px;font-family:monospace' }, row.path || '-')
+            )
         },
         {
           prop: 'ip',
           label: 'IP 地址',
           width: 140,
           formatter: (row: AuditItem) =>
-            h('span', { style: 'font-size:12px;font-family:monospace' }, row.ip || '-'),
+            h('span', { style: 'font-size:12px;font-family:monospace' }, row.ip || '-')
         },
         {
           prop: 'duration',
           label: '耗时',
           width: 90,
           formatter: (row: AuditItem) =>
-            h('span', { style: 'font-size:12px' }, `${row.duration} ms`),
+            h('span', { style: 'font-size:12px' }, `${row.duration} ms`)
         },
         {
           prop: 'gmtCreate',
@@ -253,24 +256,18 @@
           sortable: true,
           showOverflowTooltip: true,
           formatter: (row: AuditItem) =>
-            h('span', { style: 'font-size:12px' }, formatDate(row.gmtCreate)),
-        },
-      ],
-    },
+            h('span', { style: 'font-size:12px' }, formatDate(row.gmtCreate))
+        }
+      ]
+    }
   })
-
-  const selectedRows = ref<AuditItem[]>([])
-
-  function handleSelectionChange(rows: AuditItem[]) {
-    selectedRows.value = rows
-  }
 
   function handleSearch() {
     replaceSearchParams({
       operator: searchForm.value.operator.trim() || undefined,
       action: searchForm.value.action || undefined,
       object_type: searchForm.value.object_type || undefined,
-      cluster: searchForm.value.cluster || undefined,
+      cluster: searchForm.value.cluster || undefined
     })
     getData()
   }

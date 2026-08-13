@@ -152,7 +152,9 @@
       />
       <div class="event-toolbar">
         <ElButton type="primary" @click="loadEventList">查询</ElButton>
-        <ElButton v-ripple :disabled="!eventSelection.length" @click="batchDeleteEvents">批量删除</ElButton>
+        <ElButton v-ripple :disabled="!eventSelection.length" @click="batchDeleteEvents"
+          >批量删除</ElButton
+        >
       </div>
       <ElTable
         v-loading="eventLoading"
@@ -279,12 +281,10 @@
     ElLink,
     ElMessage,
     ElMessageBox,
-    ElOption,
     ElPagination,
     ElPopover,
     ElRadioButton,
     ElRadioGroup,
-    ElSelect,
     ElTable,
     ElTableColumn,
     ElTag
@@ -311,20 +311,16 @@
   } from '@/api/kubernetes/node'
   import { fetchClusterByName } from '@/api/container'
   import { deleteK8sEvent, fetchKubeRawEventList } from '@/api/kubernetes/events'
-  import { fetchNodeUsageMetrics } from '@/api/kubernetes/metrics'
   import {
     formatContainerRuntime,
-    formatKubeletVersion,
     formatNodeCreationTime,
-    formatNodeInternalIp,
-    formatNodeLabelLines,
-    formatNodeTypeText,
-    nodeStatusTagType
+    formatNodeLabelLines
   } from '@/utils/kubernetes/nodeDisplay'
   import { K8S_EVENT_MESSAGE_CELL_CLASS } from '@/utils/kubernetes/eventDisplay'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
   import { updateK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
   import yaml from 'js-yaml'
+  import { notifyError } from '@/utils/sys/notify'
 
   defineOptions({ name: 'ClusterDetailNodes' })
   const props = withDefaults(
@@ -860,7 +856,8 @@
     roles: [
       {
         validator: (_r: any, val: string[], cb: any) => {
-          val && val.length > 0 ? cb() : cb(new Error('请至少选择一个角色'))
+          if (val && val.length > 0) cb()
+          else cb(new Error('请至少选择一个角色'))
         },
         trigger: 'change'
       }
@@ -869,7 +866,8 @@
       { required: true, message: '请输入 IP 地址', trigger: 'blur' },
       {
         validator: (_r: any, val: string, cb: any) => {
-          ipPattern.test(val) ? cb() : cb(new Error('请输入有效的 IP 地址'))
+          if (ipPattern.test(val)) cb()
+          else cb(new Error('请输入有效的 IP 地址'))
         },
         trigger: 'blur'
       }
@@ -956,7 +954,7 @@
       yamlText.value = yaml.dump(node, { quotingType: '"' })
       yamlVisible.value = true
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '加载失败')
+      notifyError(e, '加载失败')
     }
   }
 
@@ -974,7 +972,7 @@
       yamlVisible.value = false
       refreshData()
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '保存失败')
+      notifyError(e, '保存失败')
     } finally {
       yamlSaving.value = false
     }
@@ -1002,7 +1000,7 @@
       if (labelRows.value.length === 0) labelRows.value.push({ key: '', value: '' })
       labelVisible.value = true
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '加载失败')
+      notifyError(e, '加载失败')
     }
   }
 
@@ -1025,7 +1023,7 @@
       labelVisible.value = false
       onRefresh()
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '更新失败')
+      notifyError(e, '更新失败')
     } finally {
       labelSubmitting.value = false
     }
@@ -1042,7 +1040,7 @@
       ElMessage.success('已更新')
       onRefresh()
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '操作失败')
+      notifyError(e, '操作失败')
     }
   }
 
@@ -1065,7 +1063,7 @@
       drainVisible.value = false
       onRefresh()
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '操作失败')
+      notifyError(e, '操作失败')
     } finally {
       drainLoading.value = false
     }
@@ -1086,7 +1084,7 @@
       onRefresh()
     } catch (e: unknown) {
       if (e === 'cancel') return
-      ElMessage.error(e instanceof Error ? e.message : '删除失败')
+      notifyError(e, '删除失败')
     }
   }
 
@@ -1113,84 +1111,10 @@
   // -- 监控 --
   const monitorVisible = ref(false)
   let monitorTimer: ReturnType<typeof setInterval> | null = null
-  const monitorNode = ref<K8sNode | null>(null)
   const cpuChartData = ref<number[]>([])
   const cpuChartLabels = ref<string[]>([])
   const memChartData = ref<number[]>([])
   const memChartLabels = ref<string[]>([])
-
-  function parseCpuPoints(
-    points: Array<{ timestamp: string; value: number }> | undefined,
-    totalMillicores: number
-  ) {
-    if (!points?.length || !totalMillicores) return { labels: [] as string[], data: [] as number[] }
-    const labels: string[] = []
-    const data: number[] = []
-    for (const p of points) {
-      const d = new Date(p.timestamp)
-      labels.push(
-        `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`
-      )
-      data.push(Number(((p.value / totalMillicores) * 100).toFixed(2)))
-    }
-    return { labels, data }
-  }
-
-  function parseMemPoints(points: Array<{ timestamp: string; value: number }> | undefined) {
-    if (!points?.length) return { labels: [] as string[], data: [] as number[] }
-    const labels: string[] = []
-    const data: number[] = []
-    for (const p of points) {
-      const d = new Date(p.timestamp)
-      labels.push(
-        `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`
-      )
-      data.push(p.value)
-    }
-    return { labels, data }
-  }
-
-  async function loadMonitorCharts(row: K8sNode) {
-    const cluster = String(route.query.cluster ?? '')
-    const nodeName = row.metadata!.name
-    const cpuStr = row.status?.capacity?.cpu ?? '1'
-    const totalCpuMillic = cpuStr.endsWith('m') ? parseInt(cpuStr, 10) : parseInt(cpuStr, 10) * 1000
-    const memStr = row.status?.capacity?.memory ?? '0'
-    const totalMemKi = parseInt(String(memStr).replace(/[^0-9]/g, ''), 10) || 1
-
-    try {
-      const cpuRes = await fetchNodeUsageMetrics(cluster, nodeName, 'cpu', 'usage')
-      const pts = cpuRes.items?.[0]?.metricPoints
-      const c = parseCpuPoints(pts, totalCpuMillic || 1000)
-      cpuChartLabels.value = c.labels
-      cpuChartData.value = c.data
-    } catch {
-      cpuChartLabels.value = []
-      cpuChartData.value = []
-    }
-
-    try {
-      const memRes = await fetchNodeUsageMetrics(cluster, nodeName, 'memory', 'usage')
-      const pts = memRes.items?.[0]?.metricPoints
-      const m = parseMemPoints(pts)
-      memChartLabels.value = m.labels
-      memChartData.value = m.data.map((v) => v / 1024 / 1024)
-    } catch {
-      memChartLabels.value = []
-      memChartData.value = []
-    }
-    void totalMemKi
-  }
-
-  async function openMonitor(row: K8sNode) {
-    monitorNode.value = row
-    monitorVisible.value = true
-    await loadMonitorCharts(row)
-    stopMonitorTimer()
-    monitorTimer = setInterval(() => {
-      if (monitorNode.value) void loadMonitorCharts(monitorNode.value)
-    }, 3000)
-  }
 
   function stopMonitorTimer() {
     if (monitorTimer) {
@@ -1229,14 +1153,6 @@
     return eventAll.value.slice(start, start + eventPageSize.value)
   })
 
-  async function openEvents(row: K8sNode) {
-    eventNode.value = row
-    eventVisible.value = true
-    eventPage.value = 1
-    eventAll.value = []
-    await loadEventList()
-  }
-
   async function loadEventList() {
     const cluster = String(route.query.cluster ?? '')
     const row = eventNode.value
@@ -1253,7 +1169,7 @@
       })
       eventAll.value = items as unknown as K8sEventRow[]
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '加载事件失败')
+      notifyError(e, '加载事件失败')
       eventAll.value = []
     } finally {
       eventLoading.value = false
@@ -1276,7 +1192,7 @@
       ElMessage.success('已删除')
       await loadEventList()
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '删除失败')
+      notifyError(e, '删除失败')
     }
   }
 </script>

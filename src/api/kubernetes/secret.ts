@@ -34,16 +34,30 @@ export async function fetchK8sSecretList(
   })
 }
 
-export async function fetchK8sSecret(cluster: string, namespace: string, name: string): Promise<K8sSecret> {
-  const { data } = await kubeProxyAxios.get<K8sSecret>(`${secretBase(cluster, namespace)}/${encodeURIComponent(name)}`)
+export async function fetchK8sSecret(
+  cluster: string,
+  namespace: string,
+  name: string
+): Promise<K8sSecret> {
+  const { data } = await kubeProxyAxios.get<K8sSecret>(
+    `${secretBase(cluster, namespace)}/${encodeURIComponent(name)}`
+  )
   return data
 }
 
-export async function deleteK8sSecret(cluster: string, namespace: string, name: string): Promise<void> {
+export async function deleteK8sSecret(
+  cluster: string,
+  namespace: string,
+  name: string
+): Promise<void> {
   await kubeProxyAxios.delete(`${secretBase(cluster, namespace)}/${encodeURIComponent(name)}`)
 }
 
-export async function createK8sSecret(cluster: string, namespace: string, body: object): Promise<K8sSecret> {
+export async function createK8sSecret(
+  cluster: string,
+  namespace: string,
+  body: object
+): Promise<K8sSecret> {
   const { data } = await kubeProxyAxios.post<K8sSecret>(secretBase(cluster, namespace), body)
   return data
 }

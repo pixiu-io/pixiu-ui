@@ -4,7 +4,8 @@
       <div class="component-info">
         <div class="component-name">Prometheus 监控</div>
         <div class="component-desc">
-          安装 Prometheus 监控服务，自动收集集群、节点和容器的指标数据，配合 Grafana 可视化大盘使用。
+          安装 Prometheus 监控服务，自动收集集群、节点和容器的指标数据，配合 Grafana
+          可视化大盘使用。
         </div>
       </div>
       <ElSwitch
@@ -43,10 +44,9 @@
 
   defineOptions({ name: 'StepComponents' })
 
-  const props = withDefaults(
-    defineProps<{ form: DeployClusterForm; readOnly?: boolean }>(),
-    { readOnly: false }
-  )
+  const props = withDefaults(defineProps<{ form: DeployClusterForm; readOnly?: boolean }>(), {
+    readOnly: false
+  })
   const emit = defineEmits<{ 'update:form': [DeployClusterForm] }>()
   const readOnly = computed(() => props.readOnly)
 

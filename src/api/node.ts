@@ -68,7 +68,9 @@ export async function fetchPixiuNodeList(params: PixiuNodeListParams): Promise<{
 /**
  * POST /pixiu/nodes
  */
-export async function fetchCreatePixiuNode(body: CreatePixiuNodeBody): Promise<PixiuNodeItem | undefined> {
+export async function fetchCreatePixiuNode(
+  body: CreatePixiuNodeBody
+): Promise<PixiuNodeItem | undefined> {
   const res = await pixiuAxios.post('/pixiu/nodes', body)
   const { code, result, message } = res.data
   if (code !== 200) throw new Error(message || '新增节点失败')
@@ -78,7 +80,10 @@ export async function fetchCreatePixiuNode(body: CreatePixiuNodeBody): Promise<P
 /**
  * PUT /pixiu/nodes/:nodeId
  */
-export async function fetchUpdatePixiuNode(nodeId: number, body: UpdatePixiuNodeBody): Promise<void> {
+export async function fetchUpdatePixiuNode(
+  nodeId: number,
+  body: UpdatePixiuNodeBody
+): Promise<void> {
   const res = await pixiuAxios.put(`/pixiu/nodes/${nodeId}`, body)
   const { code, message } = res.data
   if (code !== 200) throw new Error(message || '更新节点失败')

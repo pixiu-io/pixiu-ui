@@ -84,7 +84,9 @@
           style="width: 260px"
           @keyup.enter="handleTestSend"
         />
-        <ElButton type="primary" plain :loading="testing" @click="handleTestSend">发送测试</ElButton>
+        <ElButton type="primary" plain :loading="testing" @click="handleTestSend"
+          >发送测试</ElButton
+        >
       </div>
     </template>
 

@@ -49,7 +49,9 @@ export function formatNodeTypeText(node: K8sNode): '控制节点' | '普通节�
   return '普通节点'
 }
 
-export function nodeRoleTagType(role: string): 'primary' | 'success' | 'warning' | 'info' | 'danger' {
+export function nodeRoleTagType(
+  role: string
+): 'primary' | 'success' | 'warning' | 'info' | 'danger' {
   const r = role.toLowerCase()
   if (r === 'node') return 'warning'
   if (r === 'control-plane' || r === 'master') return 'danger'
@@ -111,9 +113,7 @@ export function formatNodeLabelLines(node: K8sNode): string[] {
     .map((k) => `${k}: ${String(labels[k] ?? '')}`)
 }
 
-export function nodeStatusTagType(
-  text: string
-): 'success' | 'warning' | 'info' | 'danger' {
+export function nodeStatusTagType(text: string): 'success' | 'warning' | 'info' | 'danger' {
   if (text === '运行中') return 'success'
   if (text === '禁止调度') return 'warning'
   if (text === '已停止') return 'danger'

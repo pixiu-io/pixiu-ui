@@ -28,7 +28,12 @@
             </button>
           </div>
           <div class="pod-shell-window-actions">
-            <button type="button" class="pod-shell-window-btn" title="最小化" @click.stop="minimizePodShell">
+            <button
+              type="button"
+              class="pod-shell-window-btn"
+              title="最小化"
+              @click.stop="minimizePodShell"
+            >
               <ElIcon :size="14"><Minus /></ElIcon>
             </button>
             <button
@@ -83,7 +88,8 @@
               'is-connected': activeTab?.connected && !activeTab?.connecting,
               'is-connecting': activeTab?.connecting
             }"
-          >{{ footerStatusText }}</span>
+            >{{ footerStatusText }}</span
+          >
         </footer>
       </section>
     </div>
@@ -631,9 +637,7 @@
 
   function open(opts: PodWebshellOpenOpts) {
     const key = buildTabKey(opts)
-    const existing = tabs.value.find(
-      (t) => buildTabKey(t) === key
-    )
+    const existing = tabs.value.find((t) => buildTabKey(t) === key)
     if (existing) {
       activeTabId.value = existing.id
       visible.value = true

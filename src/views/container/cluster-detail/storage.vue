@@ -3,39 +3,95 @@
     <div v-if="kind === 'pv'" class="cluster-toolbar">
       <ElButton v-ripple @click="goCreatePV">新建 PV</ElButton>
       <div class="cluster-toolbar__right">
-        <ElInput v-model="pvSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runPvSearch" @clear="runPvSearch" />
-        <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forcePvSearch" @keyup.enter="forcePvSearch">
+        <ElInput
+          v-model="pvSearchForm.name"
+          clearable
+          placeholder="请输入名称"
+          class="cluster-toolbar__search"
+          @keyup.enter="runPvSearch"
+          @clear="runPvSearch"
+        />
+        <div
+          class="cluster-toolbar-search-btn"
+          role="button"
+          tabindex="0"
+          title="搜索"
+          @click="forcePvSearch"
+          @keyup.enter="forcePvSearch"
+        >
           <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
         </div>
-        <ArtTableHeader v-model:columns="pvColumnChecks" :loading="pvLoading" layout="size,columns,settings" @refresh="onPvRefresh" />
+        <ArtTableHeader
+          v-model:columns="pvColumnChecks"
+          :loading="pvLoading"
+          layout="size,columns,settings"
+          @refresh="onPvRefresh"
+        />
       </div>
     </div>
     <div v-else-if="kind === 'pvc'" class="cluster-toolbar">
       <ElButton v-ripple @click="goCreatePVC">新建 PVC</ElButton>
       <div class="cluster-toolbar__right">
-        <ElInput v-model="pvcSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runPvcSearch" @clear="runPvcSearch" />
-        <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forcePvcSearch" @keyup.enter="forcePvcSearch">
+        <ElInput
+          v-model="pvcSearchForm.name"
+          clearable
+          placeholder="请输入名称"
+          class="cluster-toolbar__search"
+          @keyup.enter="runPvcSearch"
+          @clear="runPvcSearch"
+        />
+        <div
+          class="cluster-toolbar-search-btn"
+          role="button"
+          tabindex="0"
+          title="搜索"
+          @click="forcePvcSearch"
+          @keyup.enter="forcePvcSearch"
+        >
           <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
         </div>
-        <ArtTableHeader v-model:columns="pvcColumnChecks" :loading="pvcLoading" layout="size,columns,settings" @refresh="onPvcRefresh" />
+        <ArtTableHeader
+          v-model:columns="pvcColumnChecks"
+          :loading="pvcLoading"
+          layout="size,columns,settings"
+          @refresh="onPvcRefresh"
+        />
       </div>
     </div>
     <div v-else class="cluster-toolbar">
       <ElButton v-ripple @click="goCreateStorageClass">新建 StorageClass</ElButton>
       <div class="cluster-toolbar__right">
-        <ElInput v-model="scSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runScSearch" @clear="runScSearch" />
-        <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceScSearch" @keyup.enter="forceScSearch">
+        <ElInput
+          v-model="scSearchForm.name"
+          clearable
+          placeholder="请输入名称"
+          class="cluster-toolbar__search"
+          @keyup.enter="runScSearch"
+          @clear="runScSearch"
+        />
+        <div
+          class="cluster-toolbar-search-btn"
+          role="button"
+          tabindex="0"
+          title="搜索"
+          @click="forceScSearch"
+          @keyup.enter="forceScSearch"
+        >
           <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
         </div>
-        <ArtTableHeader v-model:columns="scColumnChecks" :loading="scLoading" layout="size,columns,settings" @refresh="onScRefresh" />
+        <ArtTableHeader
+          v-model:columns="scColumnChecks"
+          :loading="scLoading"
+          layout="size,columns,settings"
+          @refresh="onScRefresh"
+        />
       </div>
     </div>
 
-<ElCard class="art-table-card">
+    <ElCard class="art-table-card">
       <ElTabs v-model="kind" class="storage-tabs">
         <!-- ── PV Tab ── -->
         <ElTabPane label="PersistentVolume" name="pv">
-
           <ArtTable
             :show-table-header="false"
             row-key="rowKey"
@@ -47,16 +103,15 @@
             @pagination:size-change="pvHandleSizeChange"
             @pagination:current-change="pvHandleCurrentChange"
             @sort-change="onPvSortChange"
->
-        <template #empty>
-          <ClusterTableEmpty />
-        </template>
+          >
+            <template #empty>
+              <ClusterTableEmpty />
+            </template>
           </ArtTable>
         </ElTabPane>
 
         <!-- ── PVC Tab ── -->
         <ElTabPane label="PersistentVolumeClaim" name="pvc">
-
           <ArtTable
             :show-table-header="false"
             row-key="rowKey"
@@ -68,16 +123,15 @@
             @pagination:size-change="pvcHandleSizeChange"
             @pagination:current-change="pvcHandleCurrentChange"
             @sort-change="onPvcSortChange"
->
-        <template #empty>
-          <ClusterTableEmpty />
-        </template>
+          >
+            <template #empty>
+              <ClusterTableEmpty />
+            </template>
           </ArtTable>
         </ElTabPane>
 
         <!-- ── StorageClass Tab ── -->
         <ElTabPane label="StorageClass" name="sc">
-
           <ArtTable
             :show-table-header="false"
             row-key="rowKey"
@@ -89,10 +143,10 @@
             @pagination:size-change="scHandleSizeChange"
             @pagination:current-change="scHandleCurrentChange"
             @sort-change="onScSortChange"
->
-        <template #empty>
-          <ClusterTableEmpty />
-        </template>
+          >
+            <template #empty>
+              <ClusterTableEmpty />
+            </template>
           </ArtTable>
         </ElTabPane>
       </ElTabs>
@@ -122,7 +176,6 @@
       @save="saveScYaml"
     />
   </div>
-
 </template>
 
 <script setup lang="ts">
@@ -140,19 +193,26 @@
   import { CopyDocument } from '@element-plus/icons-vue'
   import yaml from 'js-yaml'
   import { computed, h, inject, ref, watch } from 'vue'
-import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
-import ClusterTableEmpty from './components/cluster-table-empty.vue'
+  import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
+  import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
   import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
   import { useClusterDetailNamespaceRefresh } from '@/hooks/core/useClusterDetailNamespaceRefresh'
   import { fetchK8sPVCList, fetchK8sPVC, deleteK8sPVC, type K8sPVC } from '@/api/kubernetes/pvc'
   import { fetchK8sPVList, fetchK8sPV, deleteK8sPV, type K8sPV } from '@/api/kubernetes/pv'
-  import { fetchK8sStorageClassList, fetchK8sStorageClass, deleteK8sStorageClass, putK8sStorageClass, type K8sStorageClass } from '@/api/kubernetes/storageclass'
+  import {
+    fetchK8sStorageClassList,
+    fetchK8sStorageClass,
+    deleteK8sStorageClass,
+    putK8sStorageClass,
+    type K8sStorageClass
+  } from '@/api/kubernetes/storageclass'
   import { formatNodeCreationTime } from '@/utils/kubernetes/nodeDisplay'
   import { clusterDetailNamespaceKey } from './context'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
   import { updateK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
+  import { notifyError } from '@/utils/sys/notify'
 
   defineOptions({ name: 'ClusterDetailStorage' })
 
@@ -196,10 +256,14 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     return h('div', { style: 'display:flex;align-items:center;gap:6px' }, [
       h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, ns),
       isSystem
-        ? h('span', {
-            style:
-              'font-size:11px;padding:0 4px;line-height:16px;border-radius:3px;background:var(--el-color-primary-light-9);color:var(--el-color-primary);border:1px solid var(--el-color-primary-light-7);flex-shrink:0'
-          }, '系统')
+        ? h(
+            'span',
+            {
+              style:
+                'font-size:11px;padding:0 4px;line-height:16px;border-radius:3px;background:var(--el-color-primary-light-9);color:var(--el-color-primary);border:1px solid var(--el-color-primary-light-7);flex-shrink:0'
+            },
+            '系统'
+          )
         : null
     ])
   }
@@ -207,16 +271,21 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   function renderNameCell(name: string) {
     return h('div', { style: 'display:flex;align-items:center;gap:8px' }, [
       h('span', { style: 'font-size:12px;color:var(--el-text-color-primary)' }, name),
-      h('span', {
-        class: 'icon-action',
-        style: 'cursor:pointer;color:var(--el-text-color-secondary);display:inline-flex;align-items:center',
-        title: '复制',
-        onClick: (e: MouseEvent) => {
-          e.stopPropagation()
-          navigator.clipboard.writeText(name)
-          ElMessage.success('已复制')
-        }
-      }, [h(CopyDocument, { style: 'width:12px;height:12px' })])
+      h(
+        'span',
+        {
+          class: 'icon-action',
+          style:
+            'cursor:pointer;color:var(--el-text-color-secondary);display:inline-flex;align-items:center',
+          title: '复制',
+          onClick: (e: MouseEvent) => {
+            e.stopPropagation()
+            navigator.clipboard.writeText(name)
+            ElMessage.success('已复制')
+          }
+        },
+        [h(CopyDocument, { style: 'width:12px;height:12px' })]
+      )
     ])
   }
 
@@ -232,7 +301,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       yamlText.value = yaml.dump(resource, { quotingType: '"' })
       yamlVisible.value = true
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '加载失败')
+      notifyError(e, '加载失败')
     }
   }
 
@@ -252,7 +321,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       else if (currentYamlKind.value === 'pv') getPvData()
       else getScData()
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '保存失败')
+      notifyError(e, '保存失败')
     } finally {
       yamlSaving.value = false
     }
@@ -267,7 +336,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       scEditYamlName.value = name
       scEditYamlVisible.value = true
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '加载失败')
+      notifyError(e, '加载失败')
     }
   }
 
@@ -282,13 +351,18 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       scEditYamlVisible.value = false
       onScRefresh()
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '更新失败')
+      notifyError(e, '更新失败')
     } finally {
       scEditYamlSubmitting.value = false
     }
   }
 
-  async function deleteResource(res: 'pvc' | 'pv' | 'sc', ns: string, name: string, refresh: () => void) {
+  async function deleteResource(
+    res: 'pvc' | 'pv' | 'sc',
+    ns: string,
+    name: string,
+    refresh: () => void
+  ) {
     const cluster = String(route.query.cluster ?? '')
     if (!cluster || !name) return
     try {
@@ -325,10 +399,20 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       immediate: false,
       apiFn: async (params: PvcParams) => {
         const cluster = String(route.query.cluster ?? '')
-        if (!cluster) return { code: 200, data: { records: [] as (K8sPVC & { rowKey: string })[], total: 0, current: 1, size: params.size } }
+        if (!cluster)
+          return {
+            code: 200,
+            data: {
+              records: [] as (K8sPVC & { rowKey: string })[],
+              total: 0,
+              current: 1,
+              size: params.size
+            }
+          }
         // 拉取全部资源（不带 fieldSelector），本地模糊搜索
         const { items: allItems } = await fetchK8sPVCList(cluster, {
-          page: 1, limit: 999999,
+          page: 1,
+          limit: 999999,
           namespace: selectedNamespace.value || undefined
         })
         // 本地模糊筛选
@@ -339,28 +423,45 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
         // 本地分页
         const start = (params.current - 1) * params.size
         const end = start + params.size
-        let list = filtered.slice(start, end).map((d, i) => ({ ...d, rowKey: d.metadata?.uid ?? d.metadata?.name ?? `pvc-${i}` }))
+        let list = filtered
+          .slice(start, end)
+          .map((d, i) => ({ ...d, rowKey: d.metadata?.uid ?? d.metadata?.name ?? `pvc-${i}` }))
         if (pvcSortOrder.value) {
           list = [...list].sort((a, b) => {
-            const ta = a.metadata?.creationTimestamp ?? '', tb = b.metadata?.creationTimestamp ?? ''
+            const ta = a.metadata?.creationTimestamp ?? '',
+              tb = b.metadata?.creationTimestamp ?? ''
             return pvcSortOrder.value === 'ascending' ? ta.localeCompare(tb) : tb.localeCompare(ta)
           })
         }
-        return { code: 200, data: { records: list, total: filtered.length, current: params.current, size: params.size } }
+        return {
+          code: 200,
+          data: {
+            records: list,
+            total: filtered.length,
+            current: params.current,
+            size: params.size
+          }
+        }
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
       columnsFactory: () => [
         { type: 'selection', width: 30 },
         {
-          prop: 'metadata.name', label: '名称', minWidth: 160,
+          prop: 'metadata.name',
+          label: '名称',
+          minWidth: 160,
           formatter: (row: K8sPVC) => renderNameCell(row.metadata?.name ?? '-')
         },
         {
-          prop: 'metadata.namespace', label: '命名空间', width: 160,
+          prop: 'metadata.namespace',
+          label: '命名空间',
+          width: 160,
           formatter: (row: K8sPVC) => renderNsCell(row.metadata?.namespace ?? '-')
         },
         {
-          prop: 'status.phase', label: '状态', width: 100,
+          prop: 'status.phase',
+          label: '状态',
+          width: 100,
           formatter: (row: K8sPVC) => {
             const phase = row.status?.phase ?? '-'
             const typeMap: Record<string, 'success' | 'warning' | 'danger' | 'info'> = {
@@ -372,31 +473,88 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
           }
         },
         {
-          prop: 'capacity', label: '容量', width: 100,
+          prop: 'capacity',
+          label: '容量',
+          width: 100,
           formatter: (row: K8sPVC) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, row.status?.capacity?.storage ?? row.spec?.resources?.requests?.storage ?? '-')
+            h(
+              'span',
+              { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+              row.status?.capacity?.storage ?? row.spec?.resources?.requests?.storage ?? '-'
+            )
         },
         {
-          prop: 'accessModes', label: '访问模式', minWidth: 160,
+          prop: 'accessModes',
+          label: '访问模式',
+          minWidth: 160,
           formatter: (row: K8sPVC) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, (row.status?.accessModes ?? row.spec?.accessModes ?? []).join(', ') || '-')
+            h(
+              'span',
+              { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+              (row.status?.accessModes ?? row.spec?.accessModes ?? []).join(', ') || '-'
+            )
         },
         {
-          prop: 'spec.storageClassName', label: '存储类', minWidth: 160,
+          prop: 'spec.storageClassName',
+          label: '存储类',
+          minWidth: 160,
           formatter: (row: K8sPVC) =>
-            h('span', { style: 'font-size:12px;font-weight:400;color:var(--el-text-color-regular)' }, row.spec?.storageClassName ?? '-')
+            h(
+              'span',
+              { style: 'font-size:12px;font-weight:400;color:var(--el-text-color-regular)' },
+              row.spec?.storageClassName ?? '-'
+            )
         },
         {
-          prop: 'metadata.creationTimestamp', label: '创建时间', width: 168, sortable: 'custom',
+          prop: 'metadata.creationTimestamp',
+          label: '创建时间',
+          width: 168,
+          sortable: 'custom',
           formatter: (row: K8sPVC) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, formatNodeCreationTime(row.metadata?.creationTimestamp))
+            h(
+              'span',
+              { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+              formatNodeCreationTime(row.metadata?.creationTimestamp)
+            )
         },
         {
-          prop: 'operation', label: '操作', width: 160, fixed: 'right',
+          prop: 'operation',
+          label: '操作',
+          width: 160,
+          fixed: 'right',
           formatter: (row: K8sPVC) =>
             h('div', { style: 'display:flex;align-items:center;gap:12px' }, [
-              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void openYamlDialog('pvc', row.metadata?.namespace ?? '', row.metadata?.name ?? '') }, () => '编辑YAML'),
-              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void deleteResource('pvc', row.metadata?.namespace ?? '', row.metadata?.name ?? '', onPvcRefresh) }, () => '删除')
+              h(
+                ElLink,
+                {
+                  type: 'primary',
+                  underline: 'never',
+                  style: 'font-size:12px',
+                  onClick: () =>
+                    void openYamlDialog(
+                      'pvc',
+                      row.metadata?.namespace ?? '',
+                      row.metadata?.name ?? ''
+                    )
+                },
+                () => '编辑YAML'
+              ),
+              h(
+                ElLink,
+                {
+                  type: 'primary',
+                  underline: 'never',
+                  style: 'font-size:12px',
+                  onClick: () =>
+                    void deleteResource(
+                      'pvc',
+                      row.metadata?.namespace ?? '',
+                      row.metadata?.name ?? '',
+                      onPvcRefresh
+                    )
+                },
+                () => '删除'
+              )
             ])
         }
       ]
@@ -404,7 +562,9 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   })
 
   const pvcVisibleColumns = computed(() =>
-    pvcColumns.value.filter((c: any) => !(selectedNamespace.value && c.prop === 'metadata.namespace'))
+    pvcColumns.value.filter(
+      (c: any) => !(selectedNamespace.value && c.prop === 'metadata.namespace')
+    )
   )
   function runPvcSearch() {
     const name = (pvcSearchForm.value.name ?? '').trim() || undefined
@@ -416,9 +576,14 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     replacePvcSearchParams({ name, namespace: selectedNamespace.value || undefined })
     getPvcData()
   }
-  function onPvcRefresh() { refreshPvcData() }
+  function onPvcRefresh() {
+    refreshPvcData()
+  }
   function onPvcSortChange({ prop, order }: { prop: string; order: string | null }) {
-    if (prop === 'metadata.creationTimestamp') { pvcSortOrder.value = (order as 'ascending' | 'descending' | null) ?? null; getPvcData() }
+    if (prop === 'metadata.creationTimestamp') {
+      pvcSortOrder.value = (order as 'ascending' | 'descending' | null) ?? null
+      getPvcData()
+    }
   }
 
   // ── PV useTable ──
@@ -439,10 +604,20 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       immediate: true,
       apiFn: async (params: PvParams) => {
         const cluster = String(route.query.cluster ?? '')
-        if (!cluster) return { code: 200, data: { records: [] as (K8sPV & { rowKey: string })[], total: 0, current: 1, size: params.size } }
+        if (!cluster)
+          return {
+            code: 200,
+            data: {
+              records: [] as (K8sPV & { rowKey: string })[],
+              total: 0,
+              current: 1,
+              size: params.size
+            }
+          }
         // 拉取全部资源（不带 fieldSelector），本地模糊搜索
         const { items: allItems } = await fetchK8sPVList(cluster, {
-          page: 1, limit: 999999
+          page: 1,
+          limit: 999999
         })
         // 本地模糊筛选
         const keyword = (params.name ?? '').trim().toLowerCase()
@@ -452,24 +627,39 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
         // 本地分页
         const start = (params.current - 1) * params.size
         const end = start + params.size
-        let list = filtered.slice(start, end).map((d, i) => ({ ...d, rowKey: d.metadata?.uid ?? d.metadata?.name ?? `pv-${i}` }))
+        let list = filtered
+          .slice(start, end)
+          .map((d, i) => ({ ...d, rowKey: d.metadata?.uid ?? d.metadata?.name ?? `pv-${i}` }))
         if (pvSortOrder.value) {
           list = [...list].sort((a, b) => {
-            const ta = a.metadata?.creationTimestamp ?? '', tb = b.metadata?.creationTimestamp ?? ''
+            const ta = a.metadata?.creationTimestamp ?? '',
+              tb = b.metadata?.creationTimestamp ?? ''
             return pvSortOrder.value === 'ascending' ? ta.localeCompare(tb) : tb.localeCompare(ta)
           })
         }
-        return { code: 200, data: { records: list, total: filtered.length, current: params.current, size: params.size } }
+        return {
+          code: 200,
+          data: {
+            records: list,
+            total: filtered.length,
+            current: params.current,
+            size: params.size
+          }
+        }
       },
       apiParams: { current: 1, size: 10, name: undefined },
       columnsFactory: () => [
         { type: 'selection', width: 30 },
         {
-          prop: 'metadata.name', label: '名称', minWidth: 160,
+          prop: 'metadata.name',
+          label: '名称',
+          minWidth: 160,
           formatter: (row: K8sPV) => renderNameCell(row.metadata?.name ?? '-')
         },
         {
-          prop: 'status.phase', label: '状态', width: 100,
+          prop: 'status.phase',
+          label: '状态',
+          width: 100,
           formatter: (row: K8sPV) => {
             const phase = row.status?.phase ?? '-'
             const typeMap: Record<string, 'success' | 'warning' | 'danger' | 'primary' | 'info'> = {
@@ -482,41 +672,100 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
           }
         },
         {
-          prop: 'spec.capacity.storage', label: '容量', width: 100,
+          prop: 'spec.capacity.storage',
+          label: '容量',
+          width: 100,
           formatter: (row: K8sPV) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, row.spec?.capacity?.storage ?? '-')
+            h(
+              'span',
+              { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+              row.spec?.capacity?.storage ?? '-'
+            )
         },
         {
-          prop: 'spec.accessModes', label: '访问模式', minWidth: 150,
+          prop: 'spec.accessModes',
+          label: '访问模式',
+          minWidth: 150,
           formatter: (row: K8sPV) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, (row.spec?.accessModes ?? []).join(', ') || '-')
+            h(
+              'span',
+              { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+              (row.spec?.accessModes ?? []).join(', ') || '-'
+            )
         },
         {
-          prop: 'spec.persistentVolumeReclaimPolicy', label: '回收策略', width: 120,
+          prop: 'spec.persistentVolumeReclaimPolicy',
+          label: '回收策略',
+          width: 120,
           formatter: (row: K8sPV) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, row.spec?.persistentVolumeReclaimPolicy ?? '-')
+            h(
+              'span',
+              { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+              row.spec?.persistentVolumeReclaimPolicy ?? '-'
+            )
         },
         {
-          prop: 'spec.claimRef', label: 'PVC', minWidth: 150,
+          prop: 'spec.claimRef',
+          label: 'PVC',
+          minWidth: 150,
           formatter: (row: K8sPV) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, row.spec?.claimRef?.name ?? '-')
+            h(
+              'span',
+              { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+              row.spec?.claimRef?.name ?? '-'
+            )
         },
         {
-          prop: 'spec.storageClassName', label: '存储类', minWidth: 150,
+          prop: 'spec.storageClassName',
+          label: '存储类',
+          minWidth: 150,
           formatter: (row: K8sPV) =>
-            h('span', { style: 'font-size:12px;font-weight:400;color:var(--el-text-color-regular)' }, row.spec?.storageClassName ?? '-')
+            h(
+              'span',
+              { style: 'font-size:12px;font-weight:400;color:var(--el-text-color-regular)' },
+              row.spec?.storageClassName ?? '-'
+            )
         },
         {
-          prop: 'metadata.creationTimestamp', label: '创建时间', width: 168, sortable: 'custom',
+          prop: 'metadata.creationTimestamp',
+          label: '创建时间',
+          width: 168,
+          sortable: 'custom',
           formatter: (row: K8sPV) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, formatNodeCreationTime(row.metadata?.creationTimestamp))
+            h(
+              'span',
+              { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+              formatNodeCreationTime(row.metadata?.creationTimestamp)
+            )
         },
         {
-          prop: 'operation', label: '操作', width: 160, fixed: 'right',
+          prop: 'operation',
+          label: '操作',
+          width: 160,
+          fixed: 'right',
           formatter: (row: K8sPV) =>
             h('div', { style: 'display:flex;align-items:center;gap:12px' }, [
-              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void openYamlDialog('pv', '', row.metadata?.name ?? '') }, () => '编辑YAML'),
-              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void deleteResource('pv', '', row.metadata?.name ?? '', onPvRefresh) }, () => '删除')
+              h(
+                ElLink,
+                {
+                  type: 'primary',
+                  underline: 'never',
+                  style: 'font-size:12px',
+                  onClick: () => void openYamlDialog('pv', '', row.metadata?.name ?? '')
+                },
+                () => '编辑YAML'
+              ),
+              h(
+                ElLink,
+                {
+                  type: 'primary',
+                  underline: 'never',
+                  style: 'font-size:12px',
+                  onClick: () =>
+                    void deleteResource('pv', '', row.metadata?.name ?? '', onPvRefresh)
+                },
+                () => '删除'
+              )
             ])
         }
       ]
@@ -533,9 +782,14 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     replacePvSearchParams({ name })
     getPvData()
   }
-  function onPvRefresh() { refreshPvData() }
+  function onPvRefresh() {
+    refreshPvData()
+  }
   function onPvSortChange({ prop, order }: { prop: string; order: string | null }) {
-    if (prop === 'metadata.creationTimestamp') { pvSortOrder.value = (order as 'ascending' | 'descending' | null) ?? null; getPvData() }
+    if (prop === 'metadata.creationTimestamp') {
+      pvSortOrder.value = (order as 'ascending' | 'descending' | null) ?? null
+      getPvData()
+    }
   }
 
   // ── StorageClass useTable ──
@@ -556,10 +810,20 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       immediate: false,
       apiFn: async (params: ScParams) => {
         const cluster = String(route.query.cluster ?? '')
-        if (!cluster) return { code: 200, data: { records: [] as (K8sStorageClass & { rowKey: string })[], total: 0, current: 1, size: params.size } }
+        if (!cluster)
+          return {
+            code: 200,
+            data: {
+              records: [] as (K8sStorageClass & { rowKey: string })[],
+              total: 0,
+              current: 1,
+              size: params.size
+            }
+          }
         // 拉取全部资源（不带 fieldSelector），本地模糊搜索
         const { items: allItems } = await fetchK8sStorageClassList(cluster, {
-          page: 1, limit: 999999
+          page: 1,
+          limit: 999999
         })
         // 本地模糊筛选
         const keyword = (params.name ?? '').trim().toLowerCase()
@@ -569,48 +833,108 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
         // 本地分页
         const start = (params.current - 1) * params.size
         const end = start + params.size
-        let list = filtered.slice(start, end).map((d, i) => ({ ...d, rowKey: d.metadata?.uid ?? d.metadata?.name ?? `sc-${i}` }))
+        let list = filtered
+          .slice(start, end)
+          .map((d, i) => ({ ...d, rowKey: d.metadata?.uid ?? d.metadata?.name ?? `sc-${i}` }))
         if (scSortOrder.value) {
           list = [...list].sort((a, b) => {
-            const ta = a.metadata?.creationTimestamp ?? '', tb = b.metadata?.creationTimestamp ?? ''
+            const ta = a.metadata?.creationTimestamp ?? '',
+              tb = b.metadata?.creationTimestamp ?? ''
             return scSortOrder.value === 'ascending' ? ta.localeCompare(tb) : tb.localeCompare(ta)
           })
         }
-        return { code: 200, data: { records: list, total: filtered.length, current: params.current, size: params.size } }
+        return {
+          code: 200,
+          data: {
+            records: list,
+            total: filtered.length,
+            current: params.current,
+            size: params.size
+          }
+        }
       },
       apiParams: { current: 1, size: 10, name: undefined },
       columnsFactory: () => [
         { type: 'selection', width: 30 },
         {
-          prop: 'metadata.name', label: '名称', minWidth: 160,
+          prop: 'metadata.name',
+          label: '名称',
+          minWidth: 160,
           formatter: (row: K8sStorageClass) => renderNameCell(row.metadata?.name ?? '-')
         },
         {
-          prop: 'provisioner', label: '提供者', minWidth: 200,
+          prop: 'provisioner',
+          label: '提供者',
+          minWidth: 200,
           formatter: (row: K8sStorageClass) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, row.provisioner ?? '-')
+            h(
+              'span',
+              { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+              row.provisioner ?? '-'
+            )
         },
         {
-          prop: 'reclaimPolicy', label: '回收策略', width: 120,
+          prop: 'reclaimPolicy',
+          label: '回收策略',
+          width: 120,
           formatter: (row: K8sStorageClass) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, row.reclaimPolicy ?? 'Delete')
+            h(
+              'span',
+              { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+              row.reclaimPolicy ?? 'Delete'
+            )
         },
         {
-          prop: 'volumeBindingMode', label: '绑定模式', width: 160,
+          prop: 'volumeBindingMode',
+          label: '绑定模式',
+          width: 160,
           formatter: (row: K8sStorageClass) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, row.volumeBindingMode ?? '-')
+            h(
+              'span',
+              { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+              row.volumeBindingMode ?? '-'
+            )
         },
         {
-          prop: 'metadata.creationTimestamp', label: '创建时间', width: 168, sortable: 'custom',
+          prop: 'metadata.creationTimestamp',
+          label: '创建时间',
+          width: 168,
+          sortable: 'custom',
           formatter: (row: K8sStorageClass) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, formatNodeCreationTime(row.metadata?.creationTimestamp))
+            h(
+              'span',
+              { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+              formatNodeCreationTime(row.metadata?.creationTimestamp)
+            )
         },
         {
-          prop: 'operation', label: '操作', width: 160, fixed: 'right',
+          prop: 'operation',
+          label: '操作',
+          width: 160,
+          fixed: 'right',
           formatter: (row: K8sStorageClass) =>
             h('div', { style: 'display:flex;align-items:center;gap:12px' }, [
-              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void openScEditYaml(row.metadata?.name ?? '') }, () => '编辑YAML'),
-              h(ElLink, { type: 'primary', underline: 'never', style: 'font-size:12px', onClick: () => void deleteResource('sc', '', row.metadata?.name ?? '', onScRefresh) }, () => '删除')
+              h(
+                ElLink,
+                {
+                  type: 'primary',
+                  underline: 'never',
+                  style: 'font-size:12px',
+                  onClick: () => void openScEditYaml(row.metadata?.name ?? '')
+                },
+                () => '编辑YAML'
+              ),
+              h(
+                ElLink,
+                {
+                  type: 'primary',
+                  underline: 'never',
+                  style: 'font-size:12px',
+                  onClick: () =>
+                    void deleteResource('sc', '', row.metadata?.name ?? '', onScRefresh)
+                },
+                () => '删除'
+              )
             ])
         }
       ]
@@ -627,17 +951,28 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     replaceScSearchParams({ name })
     getScData()
   }
-  function onScRefresh() { refreshScData() }
+  function onScRefresh() {
+    refreshScData()
+  }
   function onScSortChange({ prop, order }: { prop: string; order: string | null }) {
-    if (prop === 'metadata.creationTimestamp') { scSortOrder.value = (order as 'ascending' | 'descending' | null) ?? null; getScData() }
+    if (prop === 'metadata.creationTimestamp') {
+      scSortOrder.value = (order as 'ascending' | 'descending' | null) ?? null
+      getScData()
+    }
   }
 
   function goCreateStorageClass() {
-    router.push({ path: '/container/storageclass-create', query: { cluster: String(route.query.cluster ?? '') } })
+    router.push({
+      path: '/container/storageclass-create',
+      query: { cluster: String(route.query.cluster ?? '') }
+    })
   }
 
   function goCreatePV() {
-    router.push({ path: '/container/pv-create', query: { cluster: String(route.query.cluster ?? '') } })
+    router.push({
+      path: '/container/pv-create',
+      query: { cluster: String(route.query.cluster ?? '') }
+    })
   }
 
   function goCreatePVC() {
@@ -664,8 +999,13 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     }
     const cluster = String(route.query.cluster ?? '')
     if (!cluster) return
-    if (val === 'pvc' && !pvcLoaded.value) { pvcLoaded.value = true; getPvcData() }
-    else if (val === 'sc' && !scLoaded.value) { scLoaded.value = true; getScData() }
+    if (val === 'pvc' && !pvcLoaded.value) {
+      pvcLoaded.value = true
+      getPvcData()
+    } else if (val === 'sc' && !scLoaded.value) {
+      scLoaded.value = true
+      getScData()
+    }
   })
 
   watch(
@@ -711,7 +1051,6 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   .storage-page .art-table .el-table th.el-table__cell {
     font-size: 13px;
   }
-
 
   .storage-page .el-tabs__header {
     margin: 0 0 4px;
@@ -798,5 +1137,4 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     outline: 2px solid var(--el-color-primary);
     outline-offset: 1px;
   }
-
 </style>

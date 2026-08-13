@@ -21,9 +21,14 @@
 
         <ElFormItem label="名称" prop="name">
           <div class="svc-field-col">
-            <ElInput v-model="form.name" placeholder="请输入 PersistentVolumeClaim 名称" style="width: 300px" />
+            <ElInput
+              v-model="form.name"
+              placeholder="请输入 PersistentVolumeClaim 名称"
+              style="width: 300px"
+            />
             <div class="svc-field-tip"
-              >最长 253 个字符，只能包含小写字母、数字及分隔符（-），且必须以小写字母或数字开头和结尾</div
+              >最长 253
+              个字符，只能包含小写字母、数字及分隔符（-），且必须以小写字母或数字开头和结尾</div
             >
           </div>
         </ElFormItem>
@@ -49,7 +54,11 @@
                   ><ElIcon><Close /></ElIcon
                 ></ElButton>
               </div>
-              <ElButton link type="primary" class="kv-add-btn" @click="form.labels.push({ key: '', value: '' })"
+              <ElButton
+                link
+                type="primary"
+                class="kv-add-btn"
+                @click="form.labels.push({ key: '', value: '' })"
                 >新增</ElButton
               >
             </div>
@@ -66,7 +75,11 @@
                   ><ElIcon><Close /></ElIcon
                 ></ElButton>
               </div>
-              <ElButton link type="primary" class="kv-add-btn" @click="form.annotations.push({ key: '', value: '' })"
+              <ElButton
+                link
+                type="primary"
+                class="kv-add-btn"
+                @click="form.annotations.push({ key: '', value: '' })"
                 >新增</ElButton
               >
             </div>
@@ -104,9 +117,7 @@
               <ElRadioButton value="Filesystem">文件系统（Filesystem）</ElRadioButton>
               <ElRadioButton value="Block">块设备（Block）</ElRadioButton>
             </ElRadioGroup>
-            <div class="svc-field-tip"
-              >需与绑定的 PersistentVolume 卷模式一致，否则绑定失败</div
-            >
+            <div class="svc-field-tip">需与绑定的 PersistentVolume 卷模式一致，否则绑定失败</div>
           </div>
         </ElFormItem>
 
@@ -119,7 +130,7 @@
             />
             <div class="svc-field-tip"
               >指定后仅匹配相同 StorageClass 的 PV；留空则匹配所有无 StorageClass 的 PV；填写
-              <code style="font-size:11px">""</code> 表示明确禁用 StorageClass</div
+              <code style="font-size: 11px">""</code> 表示明确禁用 StorageClass</div
             >
           </div>
         </ElFormItem>
@@ -135,7 +146,8 @@
               style="width: 300px"
             />
             <div class="svc-field-tip"
-              >填写 PersistentVolume 名称可跳过自动匹配逻辑，直接绑定到该 PV；留空由 Kubernetes 自动选择匹配的 PV</div
+              >填写 PersistentVolume 名称可跳过自动匹配逻辑，直接绑定到该 PV；留空由 Kubernetes
+              自动选择匹配的 PV</div
             >
           </div>
         </ElFormItem>
@@ -143,7 +155,9 @@
 
       <div class="svc-create-footer">
         <ElButton @click="goBack">取消</ElButton>
-        <ElButton type="primary" :loading="submitting" @click="submit">创建 PersistentVolumeClaim</ElButton>
+        <ElButton type="primary" :loading="submitting" @click="submit"
+          >创建 PersistentVolumeClaim</ElButton
+        >
       </div>
     </ElCard>
   </div>
@@ -157,6 +171,7 @@
   import { createK8sPVC } from '@/api/kubernetes/pvc'
   import { fetchK8sNamespaceList } from '@/api/kubernetes/namespace'
   import ClusterResourceBreadcrumb from '../components/cluster-resource-breadcrumb.vue'
+  import { notifyError } from '@/utils/sys/notify'
 
   defineOptions({ name: 'PVCCreatePage' })
 
@@ -200,7 +215,15 @@
         trigger: 'blur'
       }
     ],
-    accessModes: [{ required: true, type: 'array', min: 1, message: '请至少选择一种访问模式', trigger: 'change' }]
+    accessModes: [
+      {
+        required: true,
+        type: 'array',
+        min: 1,
+        message: '请至少选择一种访问模式',
+        trigger: 'change'
+      }
+    ]
   }
 
   function kvToObj(list: Array<{ key: string; value: string }>): Record<string, string> {
@@ -257,7 +280,7 @@
       ElMessage.success(`PersistentVolumeClaim（${form.value.name}）创建成功`)
       goBack()
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '创建失败')
+      notifyError(e, '创建失败')
     } finally {
       submitting.value = false
     }
@@ -399,5 +422,4 @@
     justify-content: center;
     gap: 12px;
   }
-
 </style>

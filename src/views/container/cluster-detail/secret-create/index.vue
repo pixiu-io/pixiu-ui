@@ -287,10 +287,11 @@
   import { ElMessage } from 'element-plus'
   import { ArrowLeft, CircleClose, Close, QuestionFilled, Search } from '@element-plus/icons-vue'
   import { useRoute, useRouter } from 'vue-router'
-import { nextTick } from 'vue'
+  import { nextTick } from 'vue'
   import { createK8sSecret } from '@/api/kubernetes/secret'
   import { fetchK8sNamespaceList } from '@/api/kubernetes/namespace'
   import ClusterResourceBreadcrumb from '../components/cluster-resource-breadcrumb.vue'
+  import { notifyError } from '@/utils/sys/notify'
 
   defineOptions({ name: 'SecretCreatePage' })
 
@@ -349,10 +350,12 @@ import { nextTick } from 'vue'
       const end = Math.max(lastCheckedIdx.value, idx)
       const check = !set.has(ns)
       filteredNsList.value.slice(start, end + 1).forEach((n) => {
-        check ? set.add(n) : set.delete(n)
+        if (check) set.add(n)
+        else set.delete(n)
       })
     } else {
-      set.has(ns) ? set.delete(ns) : set.add(ns)
+      if (set.has(ns)) set.delete(ns)
+      else set.add(ns)
       lastCheckedIdx.value = idx
     }
     // 触发响应式更新
@@ -576,7 +579,7 @@ import { nextTick } from 'vue'
       )
       goBack()
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '创建失败')
+      notifyError(e, '创建失败')
     } finally {
       submitting.value = false
     }

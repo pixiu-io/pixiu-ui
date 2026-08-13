@@ -58,10 +58,19 @@
 </template>
 
 <script setup lang="ts">
-  import { ElButton, ElLink, ElMessage, ElMessageBox, ElTag, ElSelect, ElOption } from 'element-plus'
+  import {
+    ElButton,
+    ElLink,
+    ElMessage,
+    ElMessageBox,
+    ElTag,
+    ElSelect,
+    ElOption
+  } from 'element-plus'
+  import { notifyError } from '@/utils/sys/notify'
   import { computed, h, ref, watch, inject } from 'vue'
-import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
-import ClusterTableEmpty from './components/cluster-table-empty.vue'
+  import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
+  import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
   import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
@@ -203,7 +212,11 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
           label: '出现次数',
           width: 100,
           formatter: (row: K8sEventRow) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, String(row.count ?? 0))
+            h(
+              'span',
+              { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+              String(row.count ?? 0)
+            )
         },
         createK8sEventMessageColumn<K8sEventRow>(),
         {
@@ -270,7 +283,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     } catch (e: unknown) {
       if (e === 'cancel') return
       if (e instanceof PixiuApiError && e.notified) return
-      ElMessage.error(e instanceof Error ? e.message : '删除失败')
+      notifyError(e, '删除失败')
     }
   }
 
@@ -301,7 +314,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     } catch (e: unknown) {
       if (e === 'cancel') return
       if (e instanceof PixiuApiError && e.notified) return
-      ElMessage.error(e instanceof Error ? e.message : '删除失败')
+      notifyError(e, '删除失败')
     }
   }
 </script>
@@ -322,7 +335,6 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     display: flex;
     flex-direction: column;
   }
-
 
   .events-page :deep(.art-table-card) {
     flex: 1;

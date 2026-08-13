@@ -143,6 +143,7 @@
   import { Close } from '@element-plus/icons-vue'
   import { computed, ref, watch } from 'vue'
   import { ElIcon, ElMessage, type FormInstance, type FormRules } from 'element-plus'
+  import { notifyError } from '@/utils/sys/notify'
   import {
     fetchCreateAlertChannel,
     fetchGetAlertChannel,
@@ -309,7 +310,7 @@
       }
       parseConfig(detail.channelType, detail.config)
     } catch (error) {
-      ElMessage.error(error instanceof Error ? error.message : '加载渠道详情失败')
+      notifyError(error, '加载渠道详情失败')
       closeDrawer()
     } finally {
       editLoading.value = false
@@ -363,7 +364,7 @@
       closeDrawer()
     } catch (error) {
       if (!(error instanceof PixiuApiError) || !error.notified) {
-        ElMessage.error(error instanceof Error ? error.message : '提交失败')
+        notifyError(error, '提交失败')
       }
     } finally {
       submitting.value = false
@@ -381,7 +382,7 @@
       ElMessage.success('连通正常')
     } catch (error) {
       if (!(error instanceof PixiuApiError) || !error.notified) {
-        ElMessage.error(error instanceof Error ? error.message : '连通性测试失败')
+        notifyError(error, '连通性测试失败')
       }
     } finally {
       testing.value = false

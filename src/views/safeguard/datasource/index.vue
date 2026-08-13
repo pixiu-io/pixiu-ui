@@ -57,6 +57,7 @@
   import { h, ref } from 'vue'
   import { useTable } from '@/hooks/core/useTable'
   import { ElAlert, ElButton, ElInput, ElLink, ElMessage, ElMessageBox, ElTag } from 'element-plus'
+  import { notifyError } from '@/utils/sys/notify'
   import {
     fetchDatasourceList,
     fetchDeleteDatasource,
@@ -296,7 +297,7 @@
       refreshData()
     } catch (error) {
       if (error !== 'cancel' && (!(error instanceof PixiuApiError) || !error.notified)) {
-        ElMessage.error(error instanceof Error ? error.message : '删除失败')
+        notifyError(error, '删除失败')
       }
     }
   }
@@ -310,7 +311,6 @@
     flex-direction: column;
     overflow: hidden;
   }
-
 
   .datasource-page :deep(.art-table) {
     display: flex;

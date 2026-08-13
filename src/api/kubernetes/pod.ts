@@ -51,14 +51,22 @@ export async function fetchK8sPodList(
   })
 }
 
-export async function fetchK8sPod(cluster: string, namespace: string, name: string): Promise<K8sPod> {
+export async function fetchK8sPod(
+  cluster: string,
+  namespace: string,
+  name: string
+): Promise<K8sPod> {
   const { data } = await kubeProxyAxios.get<K8sPod>(
     `/pixiu/proxy/${encodeURIComponent(cluster)}/api/v1/namespaces/${encodeURIComponent(namespace)}/pods/${encodeURIComponent(name)}`
   )
   return data
 }
 
-export async function deleteK8sPod(cluster: string, namespace: string, name: string): Promise<void> {
+export async function deleteK8sPod(
+  cluster: string,
+  namespace: string,
+  name: string
+): Promise<void> {
   await kubeProxyAxios.delete(
     `/pixiu/proxy/${encodeURIComponent(cluster)}/api/v1/namespaces/${encodeURIComponent(namespace)}/pods/${encodeURIComponent(name)}`
   )

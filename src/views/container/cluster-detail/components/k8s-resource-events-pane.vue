@@ -10,11 +10,7 @@
     >
       <template #left>
         <div class="workloads-toolbar">
-          <ElButton
-            v-ripple
-            :disabled="selectedRows.length === 0"
-            @click="batchDelete"
-          >
+          <ElButton v-ripple :disabled="selectedRows.length === 0" @click="batchDelete">
             批量删除
           </ElButton>
           <div class="workloads-toolbar__filters">
@@ -66,7 +62,16 @@
 
 <script setup lang="ts">
   import { computed, h, ref, watch } from 'vue'
-  import { ElButton, ElLink, ElMessage, ElMessageBox, ElOption, ElSelect, ElTag } from 'element-plus'
+  import {
+    ElButton,
+    ElLink,
+    ElMessage,
+    ElMessageBox,
+    ElOption,
+    ElSelect,
+    ElTag
+  } from 'element-plus'
+  import { notifyError } from '@/utils/sys/notify'
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
   import { useTable } from '@/hooks/core/useTable'
   import { deleteK8sEvent, fetchKubeRawEventList } from '@/api/kubernetes/events'
@@ -197,7 +202,8 @@
             h(
               'span',
               { style: 'font-size:12px;color:var(--el-text-color-regular)' },
-              `${row.involvedObject?.kind ?? ''}/${row.involvedObject?.name ?? ''}` || '-'
+              `${row.involvedObject?.kind ?? ''}${row.involvedObject?.name ? `/${row.involvedObject.name}` : ''}` ||
+                '-'
             )
         },
         { prop: 'count', label: '出现次数', width: 100 },
@@ -267,7 +273,7 @@
       onRefresh()
     } catch (e: unknown) {
       if (e === 'cancel') return
-      ElMessage.error(e instanceof Error ? e.message : '删除失败')
+      notifyError(e, '删除失败')
     }
   }
 
@@ -298,7 +304,7 @@
       onRefresh()
     } catch (e: unknown) {
       if (e === 'cancel') return
-      ElMessage.error(e instanceof Error ? e.message : '删除失败')
+      notifyError(e, '删除失败')
     }
   }
 

@@ -17,11 +17,7 @@
           <ElTabPane label="菜单权限" name="menu">
             <div v-loading="menuLoading" class="menu-perm-pane">
               <ElCheckboxGroup v-model="selectedMenuCodes" class="menu-perm-groups">
-                <div
-                  v-for="group in menuGroups"
-                  :key="group.code"
-                  class="menu-perm-group"
-                >
+                <div v-for="group in menuGroups" :key="group.code" class="menu-perm-group">
                   <div class="menu-perm-group__title">{{ group.title }}</div>
                   <div class="menu-perm-group__items">
                     <ElCheckbox
@@ -38,348 +34,361 @@
             </div>
           </ElTabPane>
           <ElTabPane label="API / 按钮权限" name="api">
-        <!-- api 模式：双栏穿梭框绑定 API 权限点 -->
-        <div v-loading="loading" class="api-perm-pane">
-          <div class="role-api-picker">
-          <div class="role-api-picker__panel">
-            <div class="role-api-picker__header">
-              <ElCheckbox
-                :model-value="isLeftPanelAllChecked"
-                :indeterminate="isLeftPanelIndeterminate"
-                @change="(val) => toggleLeftPanelAll(Boolean(val))"
-              />
-              <span class="role-api-picker__title">
-                未选资源
-                <span class="role-api-picker__count">
-                  {{ leftCheckedIds.length }}/{{ leftApiIds.length }}
-                </span>
-              </span>
-              <button
-                type="button"
-                class="role-api-picker__expand-btn"
-                @click="selectReadonlyApis"
-              >
-                只读
-              </button>
-              <button
-                type="button"
-                class="role-api-picker__expand-btn"
-                :disabled="!filteredLeftGroups.length"
-                @click="togglePanelExpandAll('left')"
-              >
-                {{ isLeftAllExpanded ? '收起' : '展开' }}
-              </button>
-            </div>
-            <ElInput
-              v-model="leftFilter"
-              class="role-api-picker__filter"
-              size="small"
-              clearable
-              placeholder="请输入"
-            />
-            <ElScrollbar class="role-api-picker__body">
-              <ElCollapse v-model="leftExpandedKeys" class="role-api-picker__collapse">
-                <ElCollapseItem
-                  v-for="group in filteredLeftGroups"
-                  :key="group.key"
-                  :name="group.key"
-                >
-                  <template #title>
-                    <div class="role-api-picker__group-title">
-                      <ElCheckbox
-                        :model-value="isGroupFullyChecked(group, 'left')"
-                        :indeterminate="isGroupIndeterminate(group, 'left')"
-                        @change="(val) => toggleGroup(group, 'left', Boolean(val))"
-                        @click.stop
-                      />
-                      <span
-                        class="role-api-picker__group-name"
-                        @click.stop="toggleGroupExpand(group.key, 'left')"
-                      >{{ group.label }}</span>
-                      <span
-                        class="role-api-picker__group-count"
-                        @click.stop="toggleGroupExpand(group.key, 'left')"
-                      >({{ group.apis.length }})</span>
-                    </div>
-                  </template>
-                  <RoleApiGroupBody
-                    :group="group"
-                    :filter-text="leftFilter"
-                    :checked-ids="leftCheckedIds"
-                    @toggle-api="(id, checked) => toggleApiCheck(id, 'left', checked)"
+            <!-- api 模式：双栏穿梭框绑定 API 权限点 -->
+            <div v-loading="loading" class="api-perm-pane">
+              <div class="role-api-picker">
+                <div class="role-api-picker__panel">
+                  <div class="role-api-picker__header">
+                    <ElCheckbox
+                      :model-value="isLeftPanelAllChecked"
+                      :indeterminate="isLeftPanelIndeterminate"
+                      @change="(val) => toggleLeftPanelAll(Boolean(val))"
+                    />
+                    <span class="role-api-picker__title">
+                      未选资源
+                      <span class="role-api-picker__count">
+                        {{ leftCheckedIds.length }}/{{ leftApiIds.length }}
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      class="role-api-picker__expand-btn"
+                      @click="selectReadonlyApis"
+                    >
+                      只读
+                    </button>
+                    <button
+                      type="button"
+                      class="role-api-picker__expand-btn"
+                      :disabled="!filteredLeftGroups.length"
+                      @click="togglePanelExpandAll('left')"
+                    >
+                      {{ isLeftAllExpanded ? '收起' : '展开' }}
+                    </button>
+                  </div>
+                  <ElInput
+                    v-model="leftFilter"
+                    class="role-api-picker__filter"
+                    size="small"
+                    clearable
+                    placeholder="请输入"
                   />
-                </ElCollapseItem>
-              </ElCollapse>
-              <div v-if="!filteredLeftGroups.length" class="role-api-picker__empty">暂无数据</div>
-            </ElScrollbar>
-          </div>
+                  <ElScrollbar class="role-api-picker__body">
+                    <ElCollapse v-model="leftExpandedKeys" class="role-api-picker__collapse">
+                      <ElCollapseItem
+                        v-for="group in filteredLeftGroups"
+                        :key="group.key"
+                        :name="group.key"
+                      >
+                        <template #title>
+                          <div class="role-api-picker__group-title">
+                            <ElCheckbox
+                              :model-value="isGroupFullyChecked(group, 'left')"
+                              :indeterminate="isGroupIndeterminate(group, 'left')"
+                              @change="(val) => toggleGroup(group, 'left', Boolean(val))"
+                              @click.stop
+                            />
+                            <span
+                              class="role-api-picker__group-name"
+                              @click.stop="toggleGroupExpand(group.key, 'left')"
+                              >{{ group.label }}</span
+                            >
+                            <span
+                              class="role-api-picker__group-count"
+                              @click.stop="toggleGroupExpand(group.key, 'left')"
+                              >({{ group.apis.length }})</span
+                            >
+                          </div>
+                        </template>
+                        <RoleApiGroupBody
+                          :group="group"
+                          :filter-text="leftFilter"
+                          :checked-ids="leftCheckedIds"
+                          @toggle-api="(id, checked) => toggleApiCheck(id, 'left', checked)"
+                        />
+                      </ElCollapseItem>
+                    </ElCollapse>
+                    <div v-if="!filteredLeftGroups.length" class="role-api-picker__empty"
+                      >暂无数据</div
+                    >
+                  </ElScrollbar>
+                </div>
 
-          <div class="role-api-picker__actions">
-            <ElButton
-              type="primary"
-              class="role-api-picker__action-btn"
-              :disabled="!leftCheckedIds.length"
-              @click="moveToRight"
-            >
-              <ElIcon><ArrowRight /></ElIcon>
-            </ElButton>
-            <ElButton
-              type="primary"
-              class="role-api-picker__action-btn"
-              :disabled="!rightCheckedIds.length"
-              @click="moveToLeft"
-            >
-              <ElIcon><ArrowLeft /></ElIcon>
-            </ElButton>
-          </div>
+                <div class="role-api-picker__actions">
+                  <ElButton
+                    type="primary"
+                    class="role-api-picker__action-btn"
+                    :disabled="!leftCheckedIds.length"
+                    @click="moveToRight"
+                  >
+                    <ElIcon><ArrowRight /></ElIcon>
+                  </ElButton>
+                  <ElButton
+                    type="primary"
+                    class="role-api-picker__action-btn"
+                    :disabled="!rightCheckedIds.length"
+                    @click="moveToLeft"
+                  >
+                    <ElIcon><ArrowLeft /></ElIcon>
+                  </ElButton>
+                </div>
 
-          <div class="role-api-picker__panel">
-            <div class="role-api-picker__header">
-              <ElCheckbox
-                :model-value="isRightPanelAllChecked"
-                :indeterminate="isRightPanelIndeterminate"
-                @change="(val) => toggleRightPanelAll(Boolean(val))"
-              />
-              <span class="role-api-picker__title">
-                已选资源
-                <span class="role-api-picker__count">
-                  {{ rightCheckedIds.length }}/{{ rightApiIds.length }}
-                </span>
-              </span>
-              <button
-                type="button"
-                class="role-api-picker__expand-btn"
-                :disabled="!filteredRightGroups.length"
-                @click="togglePanelExpandAll('right')"
-              >
-                {{ isRightAllExpanded ? '收起' : '展开' }}
-              </button>
-            </div>
-            <ElInput
-              v-model="rightFilter"
-              class="role-api-picker__filter"
-              size="small"
-              clearable
-              placeholder="请输入"
-            />
-            <ElScrollbar class="role-api-picker__body">
-              <ElCollapse v-model="rightExpandedKeys" class="role-api-picker__collapse">
-                <ElCollapseItem
-                  v-for="group in filteredRightGroups"
-                  :key="group.key"
-                  :name="group.key"
-                >
-                  <template #title>
-                    <div class="role-api-picker__group-title">
-                      <ElCheckbox
-                        :model-value="isGroupFullyChecked(group, 'right')"
-                        :indeterminate="isGroupIndeterminate(group, 'right')"
-                        @change="(val) => toggleGroup(group, 'right', Boolean(val))"
-                        @click.stop
-                      />
-                      <span
-                        class="role-api-picker__group-name"
-                        @click.stop="toggleGroupExpand(group.key, 'right')"
-                      >{{ group.label }}</span>
-                      <span
-                        class="role-api-picker__group-count"
-                        @click.stop="toggleGroupExpand(group.key, 'right')"
-                      >({{ group.apis.length }})</span>
-                    </div>
-                  </template>
-                  <RoleApiGroupBody
-                    :group="group"
-                    :filter-text="rightFilter"
-                    :checked-ids="rightCheckedIds"
-                    @toggle-api="(id, checked) => toggleApiCheck(id, 'right', checked)"
+                <div class="role-api-picker__panel">
+                  <div class="role-api-picker__header">
+                    <ElCheckbox
+                      :model-value="isRightPanelAllChecked"
+                      :indeterminate="isRightPanelIndeterminate"
+                      @change="(val) => toggleRightPanelAll(Boolean(val))"
+                    />
+                    <span class="role-api-picker__title">
+                      已选资源
+                      <span class="role-api-picker__count">
+                        {{ rightCheckedIds.length }}/{{ rightApiIds.length }}
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      class="role-api-picker__expand-btn"
+                      :disabled="!filteredRightGroups.length"
+                      @click="togglePanelExpandAll('right')"
+                    >
+                      {{ isRightAllExpanded ? '收起' : '展开' }}
+                    </button>
+                  </div>
+                  <ElInput
+                    v-model="rightFilter"
+                    class="role-api-picker__filter"
+                    size="small"
+                    clearable
+                    placeholder="请输入"
                   />
-                </ElCollapseItem>
-              </ElCollapse>
-              <div v-if="!filteredRightGroups.length" class="role-api-picker__empty">暂无数据</div>
-            </ElScrollbar>
-          </div>
-          </div>
-        </div>
+                  <ElScrollbar class="role-api-picker__body">
+                    <ElCollapse v-model="rightExpandedKeys" class="role-api-picker__collapse">
+                      <ElCollapseItem
+                        v-for="group in filteredRightGroups"
+                        :key="group.key"
+                        :name="group.key"
+                      >
+                        <template #title>
+                          <div class="role-api-picker__group-title">
+                            <ElCheckbox
+                              :model-value="isGroupFullyChecked(group, 'right')"
+                              :indeterminate="isGroupIndeterminate(group, 'right')"
+                              @change="(val) => toggleGroup(group, 'right', Boolean(val))"
+                              @click.stop
+                            />
+                            <span
+                              class="role-api-picker__group-name"
+                              @click.stop="toggleGroupExpand(group.key, 'right')"
+                              >{{ group.label }}</span
+                            >
+                            <span
+                              class="role-api-picker__group-count"
+                              @click.stop="toggleGroupExpand(group.key, 'right')"
+                              >({{ group.apis.length }})</span
+                            >
+                          </div>
+                        </template>
+                        <RoleApiGroupBody
+                          :group="group"
+                          :filter-text="rightFilter"
+                          :checked-ids="rightCheckedIds"
+                          @toggle-api="(id, checked) => toggleApiCheck(id, 'right', checked)"
+                        />
+                      </ElCollapseItem>
+                    </ElCollapse>
+                    <div v-if="!filteredRightGroups.length" class="role-api-picker__empty"
+                      >暂无数据</div
+                    >
+                  </ElScrollbar>
+                </div>
+              </div>
+            </div>
           </ElTabPane>
           <ElTabPane label="数据权限" name="scope">
-        <!-- scope 模式：pixiu 资源作用域（左右穿梭框选择资源实例） -->
-        <div v-loading="loading || scopeResourcesPending" class="scope-config">
-          <div class="role-api-picker">
-            <!-- 左侧：未选资源 -->
-            <div class="role-api-picker__panel">
-              <div class="role-api-picker__header">
-                <ElCheckbox
-                  :model-value="isScopeLeftAllChecked"
-                  :indeterminate="isScopeLeftIndeterminate"
-                  @change="(val) => toggleScopePanelAll('left', Boolean(val))"
-                />
-                <span class="role-api-picker__title">
-                  未选资源
-                  <span class="role-api-picker__count">
-                    {{ scopeLeftCheckedKeys.length }}/{{ scopeLeftVisibleKeys.length }}
-                  </span>
-                </span>
-                <button
-                  type="button"
-                  class="role-api-picker__expand-btn"
-                  :disabled="!filteredScopeLeftGroups.length"
-                  @click="toggleScopePanelExpandAll('left')"
-                >
-                  {{ isScopeLeftAllExpanded ? '收起' : '展开' }}
-                </button>
-              </div>
-              <ElInput
-                v-model="scopeLeftFilter"
-                class="role-api-picker__filter"
-                size="small"
-                clearable
-                placeholder="请输入"
-              />
-              <ElScrollbar class="role-api-picker__body">
-                <ElCollapse v-model="scopeLeftExpandedKeys" class="role-api-picker__collapse">
-                  <ElCollapseItem
-                    v-for="group in filteredScopeLeftGroups"
-                    :key="group.resource_type"
-                    :name="group.resource_type"
-                  >
-                    <template #title>
-                      <div class="role-api-picker__group-title">
-                        <ElCheckbox
-                          :model-value="isScopeGroupFullyChecked(group, 'left')"
-                          :indeterminate="isScopeGroupIndeterminate(group, 'left')"
-                          @change="(val) => toggleScopeGroup(group, 'left', Boolean(val))"
-                          @click.stop
-                        />
-                        <span
-                          class="role-api-picker__group-name"
-                          @click.stop="toggleScopeGroupExpand(group.resource_type, 'left')"
-                        >{{ group.label }}</span>
-                        <span
-                          class="role-api-picker__group-count"
-                          @click.stop="toggleScopeGroupExpand(group.resource_type, 'left')"
-                        >({{ group.items.length }})</span>
-                      </div>
-                    </template>
-                    <div class="role-api-picker__items">
-                      <ElCheckbox
-                        v-for="item in group.items"
-                        :key="scopeResourceKey(item)"
-                        :model-value="scopeLeftCheckedKeys.includes(scopeResourceKey(item))"
-                        class="role-api-picker__item"
-                        @change="(val) => toggleScopeItem(item, 'left', Boolean(val))"
+            <!-- scope 模式：pixiu 资源作用域（左右穿梭框选择资源实例） -->
+            <div v-loading="loading || scopeResourcesPending" class="scope-config">
+              <div class="role-api-picker">
+                <!-- 左侧：未选资源 -->
+                <div class="role-api-picker__panel">
+                  <div class="role-api-picker__header">
+                    <ElCheckbox
+                      :model-value="isScopeLeftAllChecked"
+                      :indeterminate="isScopeLeftIndeterminate"
+                      @change="(val) => toggleScopePanelAll('left', Boolean(val))"
+                    />
+                    <span class="role-api-picker__title">
+                      未选资源
+                      <span class="role-api-picker__count">
+                        {{ scopeLeftCheckedKeys.length }}/{{ scopeLeftVisibleKeys.length }}
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      class="role-api-picker__expand-btn"
+                      :disabled="!filteredScopeLeftGroups.length"
+                      @click="toggleScopePanelExpandAll('left')"
+                    >
+                      {{ isScopeLeftAllExpanded ? '收起' : '展开' }}
+                    </button>
+                  </div>
+                  <ElInput
+                    v-model="scopeLeftFilter"
+                    class="role-api-picker__filter"
+                    size="small"
+                    clearable
+                    placeholder="请输入"
+                  />
+                  <ElScrollbar class="role-api-picker__body">
+                    <ElCollapse v-model="scopeLeftExpandedKeys" class="role-api-picker__collapse">
+                      <ElCollapseItem
+                        v-for="group in filteredScopeLeftGroups"
+                        :key="group.resource_type"
+                        :name="group.resource_type"
                       >
-                        <span class="scope-item-label">
-                          <span class="scope-item-name">{{ item.label }}</span>
-                        </span>
-                      </ElCheckbox>
+                        <template #title>
+                          <div class="role-api-picker__group-title">
+                            <ElCheckbox
+                              :model-value="isScopeGroupFullyChecked(group, 'left')"
+                              :indeterminate="isScopeGroupIndeterminate(group, 'left')"
+                              @change="(val) => toggleScopeGroup(group, 'left', Boolean(val))"
+                              @click.stop
+                            />
+                            <span
+                              class="role-api-picker__group-name"
+                              @click.stop="toggleScopeGroupExpand(group.resource_type, 'left')"
+                              >{{ group.label }}</span
+                            >
+                            <span
+                              class="role-api-picker__group-count"
+                              @click.stop="toggleScopeGroupExpand(group.resource_type, 'left')"
+                              >({{ group.items.length }})</span
+                            >
+                          </div>
+                        </template>
+                        <div class="role-api-picker__items">
+                          <ElCheckbox
+                            v-for="item in group.items"
+                            :key="scopeResourceKey(item)"
+                            :model-value="scopeLeftCheckedKeys.includes(scopeResourceKey(item))"
+                            class="role-api-picker__item"
+                            @change="(val) => toggleScopeItem(item, 'left', Boolean(val))"
+                          >
+                            <span class="scope-item-label">
+                              <span class="scope-item-name">{{ item.label }}</span>
+                            </span>
+                          </ElCheckbox>
+                        </div>
+                      </ElCollapseItem>
+                    </ElCollapse>
+                    <div v-if="!filteredScopeLeftGroups.length" class="role-api-picker__empty">
+                      暂无数据
                     </div>
-                  </ElCollapseItem>
-                </ElCollapse>
-                <div v-if="!filteredScopeLeftGroups.length" class="role-api-picker__empty">
-                  暂无数据
+                  </ElScrollbar>
                 </div>
-              </ElScrollbar>
-            </div>
 
-            <!-- 中间移动按钮 -->
-            <div class="role-api-picker__actions">
-              <ElButton
-                type="primary"
-                class="role-api-picker__action-btn"
-                :disabled="!scopeLeftCheckedKeys.length"
-                @click="moveScopeToRight"
-              >
-                <ElIcon><DArrowRight /></ElIcon>
-              </ElButton>
-              <ElButton
-                type="primary"
-                class="role-api-picker__action-btn"
-                :disabled="!scopeRightCheckedKeys.length"
-                @click="moveScopeToLeft"
-              >
-                <ElIcon><DArrowLeft /></ElIcon>
-              </ElButton>
-            </div>
-
-            <!-- 右侧：已选资源 -->
-            <div class="role-api-picker__panel">
-              <div class="role-api-picker__header">
-                <ElCheckbox
-                  :model-value="isScopeRightAllChecked"
-                  :indeterminate="isScopeRightIndeterminate"
-                  @change="(val) => toggleScopePanelAll('right', Boolean(val))"
-                />
-                <span class="role-api-picker__title">
-                  已选资源
-                  <span class="role-api-picker__count">
-                    {{ scopeRightCheckedKeys.length }}/{{ scopeRightVisibleKeys.length }}
-                  </span>
-                </span>
-                <button
-                  type="button"
-                  class="role-api-picker__expand-btn"
-                  :disabled="!filteredScopeRightGroups.length"
-                  @click="toggleScopePanelExpandAll('right')"
-                >
-                  {{ isScopeRightAllExpanded ? '收起' : '展开' }}
-                </button>
-              </div>
-              <ElInput
-                v-model="scopeRightFilter"
-                class="role-api-picker__filter"
-                size="small"
-                clearable
-                placeholder="请输入"
-              />
-              <ElScrollbar class="role-api-picker__body">
-                <ElCollapse v-model="scopeRightExpandedKeys" class="role-api-picker__collapse">
-                  <ElCollapseItem
-                    v-for="group in filteredScopeRightGroups"
-                    :key="group.resource_type"
-                    :name="group.resource_type"
+                <!-- 中间移动按钮 -->
+                <div class="role-api-picker__actions">
+                  <ElButton
+                    type="primary"
+                    class="role-api-picker__action-btn"
+                    :disabled="!scopeLeftCheckedKeys.length"
+                    @click="moveScopeToRight"
                   >
-                    <template #title>
-                      <div class="role-api-picker__group-title">
-                        <ElCheckbox
-                          :model-value="isScopeGroupFullyChecked(group, 'right')"
-                          :indeterminate="isScopeGroupIndeterminate(group, 'right')"
-                          @change="(val) => toggleScopeGroup(group, 'right', Boolean(val))"
-                          @click.stop
-                        />
-                        <span
-                          class="role-api-picker__group-name"
-                          @click.stop="toggleScopeGroupExpand(group.resource_type, 'right')"
-                        >{{ group.label }}</span>
-                        <span
-                          class="role-api-picker__group-count"
-                          @click.stop="toggleScopeGroupExpand(group.resource_type, 'right')"
-                        >({{ group.items.length }})</span>
-                      </div>
-                    </template>
-                    <div class="role-api-picker__items">
-                      <ElCheckbox
-                        v-for="item in group.items"
-                        :key="scopeResourceKey(item)"
-                        :model-value="scopeRightCheckedKeys.includes(scopeResourceKey(item))"
-                        class="role-api-picker__item"
-                        @change="(val) => toggleScopeItem(item, 'right', Boolean(val))"
-                      >
-                        <span class="scope-item-label">
-                          <span class="scope-item-tag">{{ resourceTypeLabel(item.resource_type) }}</span>
-                          <span class="scope-item-name">{{ item.label }}</span>
-                        </span>
-                      </ElCheckbox>
-                    </div>
-                  </ElCollapseItem>
-                </ElCollapse>
-                <div v-if="!filteredScopeRightGroups.length" class="role-api-picker__empty">
-                  暂无数据
+                    <ElIcon><DArrowRight /></ElIcon>
+                  </ElButton>
+                  <ElButton
+                    type="primary"
+                    class="role-api-picker__action-btn"
+                    :disabled="!scopeRightCheckedKeys.length"
+                    @click="moveScopeToLeft"
+                  >
+                    <ElIcon><DArrowLeft /></ElIcon>
+                  </ElButton>
                 </div>
-              </ElScrollbar>
-            </div>
-          </div>
-        </div>
 
+                <!-- 右侧：已选资源 -->
+                <div class="role-api-picker__panel">
+                  <div class="role-api-picker__header">
+                    <ElCheckbox
+                      :model-value="isScopeRightAllChecked"
+                      :indeterminate="isScopeRightIndeterminate"
+                      @change="(val) => toggleScopePanelAll('right', Boolean(val))"
+                    />
+                    <span class="role-api-picker__title">
+                      已选资源
+                      <span class="role-api-picker__count">
+                        {{ scopeRightCheckedKeys.length }}/{{ scopeRightVisibleKeys.length }}
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      class="role-api-picker__expand-btn"
+                      :disabled="!filteredScopeRightGroups.length"
+                      @click="toggleScopePanelExpandAll('right')"
+                    >
+                      {{ isScopeRightAllExpanded ? '收起' : '展开' }}
+                    </button>
+                  </div>
+                  <ElInput
+                    v-model="scopeRightFilter"
+                    class="role-api-picker__filter"
+                    size="small"
+                    clearable
+                    placeholder="请输入"
+                  />
+                  <ElScrollbar class="role-api-picker__body">
+                    <ElCollapse v-model="scopeRightExpandedKeys" class="role-api-picker__collapse">
+                      <ElCollapseItem
+                        v-for="group in filteredScopeRightGroups"
+                        :key="group.resource_type"
+                        :name="group.resource_type"
+                      >
+                        <template #title>
+                          <div class="role-api-picker__group-title">
+                            <ElCheckbox
+                              :model-value="isScopeGroupFullyChecked(group, 'right')"
+                              :indeterminate="isScopeGroupIndeterminate(group, 'right')"
+                              @change="(val) => toggleScopeGroup(group, 'right', Boolean(val))"
+                              @click.stop
+                            />
+                            <span
+                              class="role-api-picker__group-name"
+                              @click.stop="toggleScopeGroupExpand(group.resource_type, 'right')"
+                              >{{ group.label }}</span
+                            >
+                            <span
+                              class="role-api-picker__group-count"
+                              @click.stop="toggleScopeGroupExpand(group.resource_type, 'right')"
+                              >({{ group.items.length }})</span
+                            >
+                          </div>
+                        </template>
+                        <div class="role-api-picker__items">
+                          <ElCheckbox
+                            v-for="item in group.items"
+                            :key="scopeResourceKey(item)"
+                            :model-value="scopeRightCheckedKeys.includes(scopeResourceKey(item))"
+                            class="role-api-picker__item"
+                            @change="(val) => toggleScopeItem(item, 'right', Boolean(val))"
+                          >
+                            <span class="scope-item-label">
+                              <span class="scope-item-tag">{{
+                                resourceTypeLabel(item.resource_type)
+                              }}</span>
+                              <span class="scope-item-name">{{ item.label }}</span>
+                            </span>
+                          </ElCheckbox>
+                        </div>
+                      </ElCollapseItem>
+                    </ElCollapse>
+                    <div v-if="!filteredScopeRightGroups.length" class="role-api-picker__empty">
+                      暂无数据
+                    </div>
+                  </ElScrollbar>
+                </div>
+              </div>
+            </div>
           </ElTabPane>
         </ElTabs>
       </ElFormItem>
@@ -412,6 +421,7 @@
     type RoleAPIScopeRecord
   } from '@/api/system-manage'
   import { ElMessage } from 'element-plus'
+  import { notifyError } from '@/utils/sys/notify'
   import RoleApiGroupBody from './role-api-group-body.vue'
   import { scopeItemToKey, type RoleAPIScopeItem } from './role-api-scope-utils'
 
@@ -667,8 +677,7 @@
     const groups = side === 'left' ? filteredLeftGroups.value : filteredRightGroups.value
     const expanded = getExpandedKeysRef(side)
     const allKeys = groups.map((group) => group.key)
-    const isAllExpanded =
-      allKeys.length > 0 && allKeys.every((key) => expanded.value.includes(key))
+    const isAllExpanded = allKeys.length > 0 && allKeys.every((key) => expanded.value.includes(key))
 
     if (isAllExpanded) {
       expanded.value = []
@@ -699,7 +708,9 @@
     return Array.from(map.values())
       .map((group) => ({
         ...group,
-        apis: group.apis.sort((a, b) => formatApiDescription(a).localeCompare(formatApiDescription(b), 'zh-CN'))
+        apis: group.apis.sort((a, b) =>
+          formatApiDescription(a).localeCompare(formatApiDescription(b), 'zh-CN')
+        )
       }))
       .sort((a, b) => a.label.localeCompare(b.label, 'zh-CN'))
   }
@@ -831,7 +842,7 @@
       resourceMap.value[resourceType] = list
     } catch (e: unknown) {
       const err = e as { message?: string }
-      ElMessage.error(err?.message || `获取${resourceTypeLabel(resourceType)}列表失败`)
+      notifyError(err, `获取${resourceTypeLabel(resourceType)}列表失败`)
       resourceMap.value[resourceType] = []
     } finally {
       delete resourceLoading.value[resourceType]
@@ -1214,7 +1225,7 @@
       rightExpandedKeys.value = []
     } catch (e: unknown) {
       const err = e as { message?: string }
-      ElMessage.error(err?.message || '获取角色权限失败')
+      notifyError(err, '获取角色权限失败')
       dialogVisible.value = false
     } finally {
       loading.value = false
@@ -1319,9 +1330,7 @@
         })
         // 仅公共菜单 / 全不选 → 清空显式绑定，回退 API 推导
         const codes =
-          leafSelected.length === 0
-            ? []
-            : Array.from(new Set([...leafSelected, ...publicCodes]))
+          leafSelected.length === 0 ? [] : Array.from(new Set([...leafSelected, ...publicCodes]))
         await fetchUpdateRoleMenus(roleId, codes)
       } else {
         await fetchUpdateRoleAPIs(roleId, selectedApiIds.value)
@@ -1331,7 +1340,7 @@
       dialogVisible.value = false
     } catch (e: unknown) {
       const err = e as { message?: string }
-      ElMessage.error(err?.message || '权限更新失败')
+      notifyError(err, '权限更新失败')
     } finally {
       submitting.value = false
     }
@@ -1369,7 +1378,7 @@
         })
         .catch((e: unknown) => {
           const err = e as { message?: string }
-          ElMessage.error(err?.message || '获取角色菜单权限失败')
+          notifyError(err, '获取角色菜单权限失败')
         })
         .finally(() => {
           menuLoading.value = false
@@ -1385,7 +1394,7 @@
         })
         .catch((e: unknown) => {
           const err = e as { message?: string }
-          ElMessage.error(err?.message || '获取角色资源权限失败')
+          notifyError(err, '获取角色资源权限失败')
         })
         .finally(() => {
           scopeLoading.value = false

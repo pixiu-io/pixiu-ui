@@ -3,7 +3,12 @@
   <div class="tenant-page art-full-height" style="padding-top: 10px">
     <div
       class="tenant-toolbar"
-      style="margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between"
+      style="
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      "
     >
       <ElButton @click="showDialog('add')" v-ripple>创建租户</ElButton>
       <div style="display: flex; align-items: center; gap: 8px">
@@ -108,8 +113,7 @@
           label: '描述',
           minWidth: 200,
           showOverflowTooltip: true,
-          formatter: (row) =>
-            h('span', { style: { fontSize: '12px' } }, row.description || '-')
+          formatter: (row) => h('span', { style: { fontSize: '12px' } }, row.description || '-')
         },
         {
           prop: 'operation',
@@ -162,15 +166,19 @@
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'error'
-    }).then(async () => {
-      try {
-        await fetchDeleteTenant(row.id)
-        ElMessage.success('删除成功')
-        await refreshData()
-      } catch {
-        // 错误提示由 HTTP 封装处理
-      }
     })
+      .then(async () => {
+        try {
+          await fetchDeleteTenant(row.id)
+          ElMessage.success('删除成功')
+          await refreshData()
+        } catch {
+          // 错误提示由 HTTP 封装处理
+        }
+      })
+      .catch(() => {
+        /* 用户取消或关闭，忽略 */
+      })
   }
 
   const handleDialogSubmit = async (data: { tenantName: string; description: string }) => {
@@ -213,7 +221,6 @@
     flex-direction: column;
     overflow: hidden;
   }
-
 
   .tenant-page :deep(.art-table) {
     display: flex;

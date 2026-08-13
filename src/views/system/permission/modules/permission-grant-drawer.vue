@@ -205,6 +205,7 @@
 <script setup lang="ts">
   import { Close } from '@element-plus/icons-vue'
   import { ElCheckbox, ElIcon, ElMessage } from 'element-plus'
+  import { notifyError } from '@/utils/sys/notify'
   import { computed, ref, watch } from 'vue'
   import { fetchClusterList, type ClusterItem } from '@/api/container'
   import { fetchK8sClusterRole } from '@/api/kubernetes/rbac'
@@ -439,10 +440,13 @@
           if (!matrixRow) continue
           // 根据 verbs 设置勾选状态
           if (verbs.includes('*') || verbs.includes('get')) matrixRow.actions.view = true
-          if (verbs.includes('*') || verbs.includes('list') || verbs.includes('watch')) matrixRow.actions.list = true
+          if (verbs.includes('*') || verbs.includes('list') || verbs.includes('watch'))
+            matrixRow.actions.list = true
           if (verbs.includes('*') || verbs.includes('create')) matrixRow.actions.create = true
-          if (verbs.includes('*') || verbs.includes('update') || verbs.includes('patch')) matrixRow.actions.modify = true
-          if (verbs.includes('*') || verbs.includes('delete') || verbs.includes('deletecollection')) matrixRow.actions.delete = true
+          if (verbs.includes('*') || verbs.includes('update') || verbs.includes('patch'))
+            matrixRow.actions.modify = true
+          if (verbs.includes('*') || verbs.includes('delete') || verbs.includes('deletecollection'))
+            matrixRow.actions.delete = true
         }
       }
     }
@@ -645,7 +649,7 @@
     } catch (e: unknown) {
       const err = e as { notified?: boolean; message?: string }
       if (!err.notified) {
-        ElMessage.error(err?.message || (isEdit.value ? '修改失败' : '创建失败'))
+        notifyError(err, isEdit.value ? '修改失败' : '创建失败')
       }
     } finally {
       submitting.value = false
@@ -955,7 +959,8 @@
     padding-right: 12px;
   }
 
-  .permission-grant-ns-popper.el-select-dropdown.is-multiple .el-select-dropdown__item.is-selected::after {
+  .permission-grant-ns-popper.el-select-dropdown.is-multiple
+    .el-select-dropdown__item.is-selected::after {
     display: none;
   }
 </style>

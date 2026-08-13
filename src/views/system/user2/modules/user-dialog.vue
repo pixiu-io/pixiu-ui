@@ -7,10 +7,19 @@
   >
     <ElForm ref="formRef" :model="formData" :rules="rules" label-width="80px">
       <ElFormItem label="用户名" prop="username">
-        <ElInput v-model="formData.username" placeholder="请输入用户名" :disabled="dialogType === 'edit'" />
+        <ElInput
+          v-model="formData.username"
+          placeholder="请输入用户名"
+          :disabled="dialogType === 'edit'"
+        />
       </ElFormItem>
       <ElFormItem v-if="dialogType === 'add'" label="密码" prop="password">
-        <ElInput v-model="formData.password" type="password" show-password placeholder="请输入密码" />
+        <ElInput
+          v-model="formData.password"
+          type="password"
+          show-password
+          placeholder="请输入密码"
+        />
       </ElFormItem>
       <ElFormItem label="手机号" prop="phone">
         <ElInput v-model="formData.phone" placeholder="请输入手机号" />

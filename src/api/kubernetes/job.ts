@@ -16,7 +16,18 @@ export interface K8sJob {
     completions?: number
     parallelism?: number
     suspend?: boolean
-    template?: { spec?: { containers?: Array<{ name?: string; image?: string; resources?: { requests?: { cpu?: string; memory?: string }; limits?: { cpu?: string; memory?: string } } }> } }
+    template?: {
+      spec?: {
+        containers?: Array<{
+          name?: string
+          image?: string
+          resources?: {
+            requests?: { cpu?: string; memory?: string }
+            limits?: { cpu?: string; memory?: string }
+          }
+        }>
+      }
+    }
   }
   status?: {
     active?: number
@@ -46,19 +57,35 @@ export async function fetchK8sJobList(
   })
 }
 
-export async function fetchK8sJob(cluster: string, namespace: string, name: string): Promise<K8sJob> {
+export async function fetchK8sJob(
+  cluster: string,
+  namespace: string,
+  name: string
+): Promise<K8sJob> {
   const { data } = await kubeProxyAxios.get<K8sJob>(
     `${jobBase(cluster, namespace)}/${encodeURIComponent(name)}`
   )
   return data
 }
 
-export async function deleteK8sJob(cluster: string, namespace: string, name: string): Promise<void> {
-  await kubeProxyAxios.delete(`${jobBase(cluster, namespace)}/${encodeURIComponent(name)}`, { skipErrorNotification: true } as any)
+export async function deleteK8sJob(
+  cluster: string,
+  namespace: string,
+  name: string
+): Promise<void> {
+  await kubeProxyAxios.delete(`${jobBase(cluster, namespace)}/${encodeURIComponent(name)}`, {
+    skipErrorNotification: true
+  } as any)
 }
 
-export async function createK8sJob(cluster: string, namespace: string, body: object): Promise<K8sJob> {
-  const { data } = await kubeProxyAxios.post<K8sJob>(jobBase(cluster, namespace), body, { skipErrorNotification: true } as any)
+export async function createK8sJob(
+  cluster: string,
+  namespace: string,
+  body: object
+): Promise<K8sJob> {
+  const { data } = await kubeProxyAxios.post<K8sJob>(jobBase(cluster, namespace), body, {
+    skipErrorNotification: true
+  } as any)
   return data
 }
 

@@ -44,9 +44,9 @@
 
 <script setup lang="ts">
   import type { FormInstance, FormRules } from 'element-plus'
-  import { ElMessage } from 'element-plus'
   import { PixiuApiError } from '@/api/container'
   import { fetchGetTenantList } from '@/api/system-manage'
+  import { notifyError } from '@/utils/sys/notify'
 
   interface Props {
     visible: boolean
@@ -111,7 +111,7 @@
       tenantOptions.value = []
       if (e instanceof PixiuApiError && e.notified) return
       const err = e as { message?: string }
-      ElMessage.error(err?.message || '获取租户列表失败')
+      notifyError(err, '获取租户列表失败')
     } finally {
       tenantLoading.value = false
     }

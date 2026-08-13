@@ -327,6 +327,7 @@
     ElTabPane,
     ElTooltip
   } from 'element-plus'
+  import { notifyError } from '@/utils/sys/notify'
   import { CopyDocument } from '@element-plus/icons-vue'
   import yaml from 'js-yaml'
   import { computed, h, inject, nextTick, ref, watch } from 'vue'
@@ -354,12 +355,7 @@
     type K8sSecret
   } from '@/api/kubernetes/secret'
   import { fetchK8sNamespaceList } from '@/api/kubernetes/namespace'
-  import {
-    fetchK8sIngressList,
-    fetchK8sIngress,
-    patchK8sIngress,
-    type K8sIngress
-  } from '@/api/kubernetes/ingress'
+  import { fetchK8sIngressList, fetchK8sIngress, patchK8sIngress } from '@/api/kubernetes/ingress'
   import { formatNodeCreationTime } from '@/utils/kubernetes/nodeDisplay'
   import { clusterDetailNamespaceKey } from './context'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
@@ -464,7 +460,7 @@
         }
       }
     } catch (e: any) {
-      ElMessage.error(e?.message || '获取域名列表失败')
+      notifyError(e, '获取域名列表失败')
       certDialogVisible.value = false
     } finally {
       certLoading.value = false
@@ -535,9 +531,7 @@
       )
       certDialogVisible.value = false
     } catch (e: any) {
-      ElMessage.error(
-        e?.response?.data?.message || e?.message || (isUnbind ? '解除绑定失败' : '绑定证书失败')
-      )
+      notifyError(e, isUnbind ? '解除绑定失败' : '绑定证书失败')
     } finally {
       certSaving.value = false
     }
@@ -617,7 +611,7 @@
       replaceCertVisible.value = false
       refreshSecData()
     } catch (e: any) {
-      ElMessage.error(e?.response?.data?.message || e?.message || '更新证书失败')
+      notifyError(e, '更新证书失败')
     } finally {
       replaceCertSaving.value = false
     }
@@ -727,7 +721,7 @@
         if (r.exists) syncNsTableRef.value?.toggleRowSelection(r, true)
       }
     } catch (e: any) {
-      ElMessage.error(e?.response?.data?.message || e?.message || '加载命名空间失败')
+      notifyError(e, '加载命名空间失败')
       syncNsVisible.value = false
     } finally {
       syncNsLoading.value = false
@@ -743,9 +737,7 @@
     }
     const force = syncNsForce.value
     const createTargets = syncNsCreateTargets.value
-    const updateTargets = force
-      ? checked.filter((ns) => syncNsExistingSet.value.has(ns))
-      : []
+    const updateTargets = force ? checked.filter((ns) => syncNsExistingSet.value.has(ns)) : []
     const targets = force ? checked : createTargets
     if (!targets.length) {
       ElMessage.warning(force ? '请选择命名空间' : '没有需要新建的命名空间')
@@ -809,15 +801,11 @@
         const firstErr = results.find((r) => r.status === 'rejected') as
           | PromiseRejectedResult
           | undefined
-        ElMessage.error(
-          (firstErr?.reason as any)?.response?.data?.message ||
-            (firstErr?.reason as Error)?.message ||
-            '同步失败'
-        )
+        notifyError(firstErr?.reason, '同步失败')
       }
       refreshSecData()
     } catch (e: any) {
-      ElMessage.error(e?.response?.data?.message || e?.message || '同步失败')
+      notifyError(e, '同步失败')
     } finally {
       syncNsSaving.value = false
     }
@@ -985,7 +973,7 @@
       yamlText.value = yaml.dump(resource, { quotingType: '"' })
       yamlVisible.value = true
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '加载失败')
+      notifyError(e, '加载失败')
     }
   }
 
@@ -1004,7 +992,7 @@
       if (currentYamlKind.value === 'cm') getCmData()
       else getSecData()
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '保存失败')
+      notifyError(e, '保存失败')
     } finally {
       yamlSaving.value = false
     }

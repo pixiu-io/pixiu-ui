@@ -327,7 +327,12 @@
           description: importForm.description.trim(),
           protected: importForm.protected,
           connect_mode: importForm.connectMode,
-          agent_token: importForm.connectMode === 1 ? (agentTokenMode.value === 'manual' ? importForm.agentToken.trim() : '') : undefined,
+          agent_token:
+            importForm.connectMode === 1
+              ? agentTokenMode.value === 'manual'
+                ? importForm.agentToken.trim()
+                : ''
+              : undefined,
           cluster_type: 0
         })
         ElMessage.success('集群导入成功')

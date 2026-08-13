@@ -12,10 +12,22 @@
           @keyup.enter="runSvcSearch"
           @clear="runSvcSearch"
         />
-        <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceSvcSearch" @keyup.enter="forceSvcSearch">
+        <div
+          class="cluster-toolbar-search-btn"
+          role="button"
+          tabindex="0"
+          title="搜索"
+          @click="forceSvcSearch"
+          @keyup.enter="forceSvcSearch"
+        >
           <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
         </div>
-        <ArtTableHeader v-model:columns="svcColumnChecks" :loading="svcLoading" layout="size,columns,settings" @refresh="onSvcRefresh" />
+        <ArtTableHeader
+          v-model:columns="svcColumnChecks"
+          :loading="svcLoading"
+          layout="size,columns,settings"
+          @refresh="onSvcRefresh"
+        />
       </div>
     </div>
     <!-- Ingress 工具栏 -->
@@ -30,10 +42,22 @@
           @keyup.enter="runIngSearch"
           @clear="runIngSearch"
         />
-        <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceIngSearch" @keyup.enter="forceIngSearch">
+        <div
+          class="cluster-toolbar-search-btn"
+          role="button"
+          tabindex="0"
+          title="搜索"
+          @click="forceIngSearch"
+          @keyup.enter="forceIngSearch"
+        >
           <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
         </div>
-        <ArtTableHeader v-model:columns="ingColumnChecks" :loading="ingLoading" layout="size,columns,settings" @refresh="onIngRefresh" />
+        <ArtTableHeader
+          v-model:columns="ingColumnChecks"
+          :loading="ingLoading"
+          layout="size,columns,settings"
+          @refresh="onIngRefresh"
+        />
       </div>
     </div>
 
@@ -132,6 +156,7 @@
   import { clusterDetailNamespaceKey } from './context'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
   import { updateK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
+  import { notifyError } from '@/utils/sys/notify'
 
   defineOptions({ name: 'ClusterDetailServices' })
 
@@ -240,7 +265,8 @@
         })
       }
     }
-    if (!lines.length) return h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, '-')
+    if (!lines.length)
+      return h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, '-')
 
     const renderLine = (line: LineMeta) =>
       h(
@@ -351,7 +377,12 @@
         }
         return {
           code: 200,
-          data: { records: list, total: filtered.length, current: params.current, size: params.size }
+          data: {
+            records: list,
+            total: filtered.length,
+            current: params.current,
+            size: params.size
+          }
         }
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
@@ -368,7 +399,11 @@
           label: '类型',
           width: 130,
           formatter: (row: K8sService) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, row.spec?.type ?? 'ClusterIP')
+            h(
+              'span',
+              { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+              row.spec?.type ?? 'ClusterIP'
+            )
         },
         {
           prop: 'metadata.namespace',
@@ -409,7 +444,11 @@
           label: '端口',
           minWidth: 180,
           formatter: (row: K8sService) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, formatSvcPorts(row.spec?.ports as any))
+            h(
+              'span',
+              { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+              formatSvcPorts(row.spec?.ports as any)
+            )
         },
         {
           prop: 'metadata.creationTimestamp',
@@ -468,7 +507,9 @@
   })
 
   const svcVisibleColumns = computed(() =>
-    svcColumns.value.filter((c: any) => !(selectedNamespace.value && c.prop === 'metadata.namespace'))
+    svcColumns.value.filter(
+      (c: any) => !(selectedNamespace.value && c.prop === 'metadata.namespace')
+    )
   )
 
   function runSvcSearch() {
@@ -546,7 +587,12 @@
         }
         return {
           code: 200,
-          data: { records: list, total: filtered.length, current: params.current, size: params.size }
+          data: {
+            records: list,
+            total: filtered.length,
+            current: params.current,
+            size: params.size
+          }
         }
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
@@ -652,7 +698,9 @@
   })
 
   const ingVisibleColumns = computed(() =>
-    ingColumns.value.filter((c: any) => !(selectedNamespace.value && c.prop === 'metadata.namespace'))
+    ingColumns.value.filter(
+      (c: any) => !(selectedNamespace.value && c.prop === 'metadata.namespace')
+    )
   )
 
   function runIngSearch() {
@@ -687,7 +735,7 @@
       yamlText.value = yaml.dump(resource, { quotingType: '"' })
       yamlVisible.value = true
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '加载失败')
+      notifyError(e, '加载失败')
     }
   }
 
@@ -706,7 +754,7 @@
       if (currentYamlKind.value === 'svc') getSvcData()
       else getIngData()
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '保存失败')
+      notifyError(e, '保存失败')
     } finally {
       yamlSaving.value = false
     }
@@ -779,7 +827,6 @@
   .services-page .art-table .el-table th.el-table__cell {
     font-size: 13px;
   }
-
 
   .services-page .el-tabs__header {
     margin: 0 0 4px;
@@ -866,5 +913,4 @@
     outline: 2px solid var(--el-color-primary);
     outline-offset: 1px;
   }
-
 </style>

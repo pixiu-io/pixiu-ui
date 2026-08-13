@@ -77,7 +77,16 @@
                   @focus="focusedIdx = idx"
                   @blur="focusedIdx = -1"
                 />
-                <ElButton link class="kv-del-btn cm-col-del" @click="() => { form.data.splice(idx, 1); $nextTick(() => formRef?.validateField('data')) }">
+                <ElButton
+                  link
+                  class="kv-del-btn cm-col-del"
+                  @click="
+                    () => {
+                      form.data.splice(idx, 1)
+                      $nextTick(() => formRef?.validateField('data'))
+                    }
+                  "
+                >
                   <ElIcon><Close /></ElIcon>
                 </ElButton>
               </div>
@@ -106,6 +115,7 @@
 <script setup lang="ts">
   import type { FormInstance, FormRules } from 'element-plus'
   import { ElMessage } from 'element-plus'
+  import { notifyError } from '@/utils/sys/notify'
   import { ArrowLeft, Close, QuestionFilled } from '@element-plus/icons-vue'
   import { useRoute, useRouter } from 'vue-router'
   import { createK8sConfigMap } from '@/api/kubernetes/configmap'
@@ -223,7 +233,7 @@
       ElMessage.success(`ConfigMap（${form.value.name}）创建成功`)
       goBack()
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '创建失败')
+      notifyError(e, '创建失败')
     } finally {
       submitting.value = false
     }

@@ -41,17 +41,44 @@
             <span class="nd-k">节点名称</span>
             <span class="nd-v nd-v--with-tag">
               <span>{{ node.metadata.name }}</span>
-              <ElTag size="small" :type="nodeTypeTagType" effect="light">{{ nodeTypeTagText }}</ElTag>
+              <ElTag size="small" :type="nodeTypeTagType" effect="light">{{
+                nodeTypeTagText
+              }}</ElTag>
             </span>
           </div>
-          <div class="nd-info-cell"><span class="nd-k">操作系统</span><span class="nd-v">{{ node.status?.nodeInfo?.osImage || '-' }}</span></div>
-          <div class="nd-info-cell"><span class="nd-k">创建时间</span><span class="nd-v">{{ formatNodeCreationTime(node.metadata.creationTimestamp) }}</span></div>
-          <div class="nd-info-cell"><span class="nd-k">运行状态</span><span class="nd-v">{{ runningStatusText }}</span></div>
-          <div class="nd-info-cell"><span class="nd-k">容器运行时</span><span class="nd-v">{{ formatContainerRuntime(node) }}</span></div>
-          <div class="nd-info-cell"><span class="nd-k">kubelet版本</span><span class="nd-v">{{ formatKubeletVersion(node) }}</span></div>
-          <div class="nd-info-cell"><span class="nd-k">PodCIDRs</span><span class="nd-v">{{ podCidrsText }}</span></div>
-          <div class="nd-info-cell"><span class="nd-k">内核版本</span><span class="nd-v">{{ kernelVersionText }}</span></div>
-          <div class="nd-info-cell"><span class="nd-k">IP地址</span><span class="nd-v">{{ formatNodeInternalIp(node) }}</span></div>
+          <div class="nd-info-cell"
+            ><span class="nd-k">操作系统</span
+            ><span class="nd-v">{{ node.status?.nodeInfo?.osImage || '-' }}</span></div
+          >
+          <div class="nd-info-cell"
+            ><span class="nd-k">创建时间</span
+            ><span class="nd-v">{{
+              formatNodeCreationTime(node.metadata.creationTimestamp)
+            }}</span></div
+          >
+          <div class="nd-info-cell"
+            ><span class="nd-k">运行状态</span
+            ><span class="nd-v">{{ runningStatusText }}</span></div
+          >
+          <div class="nd-info-cell"
+            ><span class="nd-k">容器运行时</span
+            ><span class="nd-v">{{ formatContainerRuntime(node) }}</span></div
+          >
+          <div class="nd-info-cell"
+            ><span class="nd-k">kubelet版本</span
+            ><span class="nd-v">{{ formatKubeletVersion(node) }}</span></div
+          >
+          <div class="nd-info-cell"
+            ><span class="nd-k">PodCIDRs</span><span class="nd-v">{{ podCidrsText }}</span></div
+          >
+          <div class="nd-info-cell"
+            ><span class="nd-k">内核版本</span
+            ><span class="nd-v">{{ kernelVersionText }}</span></div
+          >
+          <div class="nd-info-cell"
+            ><span class="nd-k">IP地址</span
+            ><span class="nd-v">{{ formatNodeInternalIp(node) }}</span></div
+          >
           <div class="nd-info-cell">
             <span class="nd-k">标签</span>
             <div class="nd-tag-group">
@@ -175,16 +202,13 @@
   import { computed, inject, onMounted, ref } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import YAML from 'js-yaml'
-  import ArtButtonMore, { type ButtonMoreItem } from '@/components/core/forms/art-button-more/index.vue'
+  import ArtButtonMore, {
+    type ButtonMoreItem
+  } from '@/components/core/forms/art-button-more/index.vue'
   import ClusterDetailWorkloads from '../workloads.vue'
   import { clusterDetailContextKey } from '../context'
   import { buildClusterRouteQuery } from '@/utils/navigation/cluster-query'
-  import {
-    fetchK8sNode,
-    patchK8sNode,
-    deleteK8sNode,
-    type K8sNode
-  } from '@/api/kubernetes/node'
+  import { fetchK8sNode, patchK8sNode, deleteK8sNode, type K8sNode } from '@/api/kubernetes/node'
   import { kubeProxyAxios } from '@/api/kubeProxy'
   import HostRemoteSsh from '@/views/safeguard/host/modules/host-remote-ssh.vue'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
@@ -197,6 +221,7 @@
     formatNodeStatusText,
     nodeStatusTagType
   } from '@/utils/kubernetes/nodeDisplay'
+  import { notifyError } from '@/utils/sys/notify'
 
   const route = useRoute()
   const router = useRouter()
@@ -223,7 +248,10 @@
   const kernelVersionText = computed(() => node.value?.status?.nodeInfo?.kernelVersion || '-')
   const nodeRole = computed(() => {
     const labels = node.value?.metadata?.labels ?? {}
-    if ('node-role.kubernetes.io/control-plane' in labels || 'node-role.kubernetes.io/master' in labels)
+    if (
+      'node-role.kubernetes.io/control-plane' in labels ||
+      'node-role.kubernetes.io/master' in labels
+    )
       return '管控'
     return '工作节点'
   })
@@ -244,7 +272,9 @@
   const hasMoreLabels = computed(() => labelEntries.value.length > 3)
   const hasMoreAnnotations = computed(() => annotationEntries.value.length > 3)
   const visibleLabelEntries = computed(() =>
-    showAllLabels.value || !hasMoreLabels.value ? labelEntries.value : labelEntries.value.slice(0, 2)
+    showAllLabels.value || !hasMoreLabels.value
+      ? labelEntries.value
+      : labelEntries.value.slice(0, 2)
   )
   const visibleAnnotationEntries = computed(() =>
     showAllAnnotations.value || !hasMoreAnnotations.value
@@ -269,7 +299,7 @@
       yamlVisible.value = false
       await loadNode()
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '保存失败')
+      notifyError(e, '保存失败')
     } finally {
       yamlSaving.value = false
     }
@@ -413,10 +443,12 @@
             const reqRaw = String((requests as Record<string, string | undefined>)[r] ?? '')
             const limRaw = String((limits as Record<string, string | undefined>)[r] ?? '')
             if (reqRaw) {
-              summary[r].req += r === 'cpu' ? parseCpuToMillicores(reqRaw) : parseMemoryToBytes(reqRaw)
+              summary[r].req +=
+                r === 'cpu' ? parseCpuToMillicores(reqRaw) : parseMemoryToBytes(reqRaw)
             }
             if (limRaw) {
-              summary[r].lim += r === 'cpu' ? parseCpuToMillicores(limRaw) : parseMemoryToBytes(limRaw)
+              summary[r].lim +=
+                r === 'cpu' ? parseCpuToMillicores(limRaw) : parseMemoryToBytes(limRaw)
             }
           }
         }
@@ -433,7 +465,7 @@
       node.value = await fetchK8sNode(cluster.value, name.value)
       yamlText.value = YAML.dump(node.value)
     } catch (e: any) {
-      ElMessage.error(e.message || '加载节点失败')
+      notifyError(e, '加载节点失败')
     } finally {
       loading.value = false
       showAllLabels.value = false
@@ -462,12 +494,14 @@
       for (const key of Object.keys(oldLabels)) {
         if (!(key in newLabels)) newLabels[key] = null
       }
-      await patchK8sNode(cluster.value, node.value.metadata.name, { metadata: { labels: newLabels } })
+      await patchK8sNode(cluster.value, node.value.metadata.name, {
+        metadata: { labels: newLabels }
+      })
       ElMessage.success('标签更新成功')
       labelVisible.value = false
       await loadNode()
     } catch (e: any) {
-      ElMessage.error(e.message || '更新失败')
+      notifyError(e, '更新失败')
     } finally {
       labelSubmitting.value = false
     }
@@ -482,7 +516,7 @@
       ElMessage.success('调度状态已更新')
       await loadNode()
     } catch (e: any) {
-      ElMessage.error(e.message || '操作失败')
+      notifyError(e, '操作失败')
     }
   }
 

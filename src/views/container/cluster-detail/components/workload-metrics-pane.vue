@@ -79,9 +79,7 @@
     resetCharts
   } = useWorkloadPodsUsageMetrics(clusterRef, namespaceRef, selectorRef, podNamesRef)
 
-  const metricsInitialLoading = computed(
-    () => metricsLoading.value && !metricsChartReady.value
-  )
+  const metricsInitialLoading = computed(() => metricsLoading.value && !metricsChartReady.value)
 
   const chartSilentUpdate = ref(false)
   const metricsVersion = ref(0)

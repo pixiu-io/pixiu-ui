@@ -10,7 +10,12 @@
         <ElInput v-model="formData.username" placeholder="请输入用户名" />
       </ElFormItem>
       <ElFormItem v-if="dialogType === 'add'" label="登录密码" prop="password">
-        <ElInput v-model="formData.password" type="password" placeholder="请输入密码" show-password />
+        <ElInput
+          v-model="formData.password"
+          type="password"
+          placeholder="请输入密码"
+          show-password
+        />
       </ElFormItem>
       <ElFormItem label="用户类型" prop="role">
         <ElSelect
@@ -21,12 +26,7 @@
           clearable
         >
           <ElOption v-if="isSuperAdmin" label="超级管理员" value="0" />
-          <ElOption
-            v-for="r in roleList"
-            :key="r.id"
-            :label="r.roleName"
-            :value="String(r.id)"
-          />
+          <ElOption v-for="r in roleList" :key="r.id" :label="r.roleName" :value="String(r.id)" />
         </ElSelect>
       </ElFormItem>
       <ElFormItem v-if="dialogType === 'edit'" label="状态" prop="status">
@@ -61,9 +61,9 @@
 
 <script setup lang="ts">
   import type { FormInstance, FormRules } from 'element-plus'
-  import { ElMessage } from 'element-plus'
   import { PixiuApiError } from '@/api/container'
   import { fetchGetRoleList } from '@/api/system-manage'
+  import { notifyError } from '@/utils/sys/notify'
 
   interface Props {
     visible: boolean
@@ -73,7 +73,18 @@
 
   interface Emits {
     (e: 'update:visible', value: boolean): void
-    (e: 'submit', data: { username: string; password: string; phone: string; email: string; description: string; role: string; status: string }): void
+    (
+      e: 'submit',
+      data: {
+        username: string
+        password: string
+        phone: string
+        email: string
+        description: string
+        role: string
+        status: string
+      }
+    ): void
   }
 
   const props = defineProps<Props>()
@@ -115,7 +126,7 @@
       roleList.value = []
       if (e instanceof PixiuApiError && e.notified) return
       const err = e as { message?: string }
-      ElMessage.error(err?.message || '获取角色列表失败')
+      notifyError(err, '获取角色列表失败')
     } finally {
       roleLoading.value = false
     }
@@ -143,14 +154,14 @@
     password: [
       { required: true, message: '请输入密码', trigger: 'blur' },
       { min: 6, max: 32, message: '长度在 6 到 32 个字符', trigger: 'blur' },
-      { pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, message: '密码不符合要求，至少包含一个大写字母、一个小写字母、一个数字', trigger: 'blur' }
+      {
+        pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+        message: '密码不符合要求，至少包含一个大写字母、一个小写字母、一个数字',
+        trigger: 'blur'
+      }
     ],
-    phone: [
-      { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号格式', trigger: 'blur' }
-    ],
-    email: [
-      { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }
-    ],
+    phone: [{ pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号格式', trigger: 'blur' }],
+    email: [{ type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }],
     role: [{ required: true, message: '请选择角色', trigger: 'blur' }]
   }
 

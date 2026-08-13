@@ -154,6 +154,7 @@
   import { useRoute, useRouter } from 'vue-router'
   import { createK8sStorageClass } from '@/api/kubernetes/storageclass'
   import ClusterResourceBreadcrumb from '../components/cluster-resource-breadcrumb.vue'
+  import { notifyError } from '@/utils/sys/notify'
 
   defineOptions({ name: 'StorageClassCreatePage' })
 
@@ -228,7 +229,7 @@
       ElMessage.success(`StorageClass（${form.value.name}）创建成功`)
       goBack()
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '创建失败')
+      notifyError(e, '创建失败')
     } finally {
       submitting.value = false
     }

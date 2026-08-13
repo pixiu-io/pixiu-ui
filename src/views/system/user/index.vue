@@ -5,9 +5,17 @@
 <!-- useTable 文档：https://www.pixiu-cloud.com/docs/zh/guide/hooks/use-table.html -->
 <template>
   <div class="user-page art-full-height" style="padding-top: 10px">
-    <div class="user-toolbar" style="margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;">
+    <div
+      class="user-toolbar"
+      style="
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      "
+    >
       <ElButton @click="showDialog('add')" v-ripple>创建用户</ElButton>
-      <div style="display: flex; align-items: center; gap: 8px;">
+      <div style="display: flex; align-items: center; gap: 8px">
         <ElInput
           v-model="searchForm.userName"
           clearable
@@ -35,18 +43,42 @@
       </ArtTable>
 
       <!-- 修改密码弹窗 -->
-      <ElDialog v-model="passwordVisible" title="修改密码" width="420px" align-center destroy-on-close class="password-dialog">
-        <ElForm ref="passwordFormRef" :model="passwordForm" :rules="passwordRules" label-width="80px">
+      <ElDialog
+        v-model="passwordVisible"
+        title="修改密码"
+        width="420px"
+        align-center
+        destroy-on-close
+        class="password-dialog"
+      >
+        <ElForm
+          ref="passwordFormRef"
+          :model="passwordForm"
+          :rules="passwordRules"
+          label-width="80px"
+        >
           <ElFormItem label="新密码" prop="newPassword">
-            <ElInput v-model="passwordForm.newPassword" type="password" placeholder="请输入新密码" show-password />
+            <ElInput
+              v-model="passwordForm.newPassword"
+              type="password"
+              placeholder="请输入新密码"
+              show-password
+            />
           </ElFormItem>
           <ElFormItem label="确认密码" prop="confirmPassword">
-            <ElInput v-model="passwordForm.confirmPassword" type="password" placeholder="请再次输入新密码" show-password />
+            <ElInput
+              v-model="passwordForm.confirmPassword"
+              type="password"
+              placeholder="请再次输入新密码"
+              show-password
+            />
           </ElFormItem>
         </ElForm>
         <template #footer>
           <ElButton @click="passwordVisible = false">取消</ElButton>
-          <ElButton type="primary" :loading="passwordSubmitting" @click="submitPassword">确认</ElButton>
+          <ElButton type="primary" :loading="passwordSubmitting" @click="submitPassword"
+            >确认</ElButton
+          >
         </template>
       </ElDialog>
 
@@ -62,13 +94,20 @@
 </template>
 
 <script setup lang="ts">
-  import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import { ACCOUNT_TABLE_DATA } from '@/mock/temp/formData'
   import { useTable } from '@/hooks/core/useTable'
   import { PixiuApiError } from '@/api/container'
-  import { fetchBatchDeleteUsers, fetchCreateUser, fetchGetRoleList, fetchGetUserList, fetchResetUserPassword, fetchUpdateUser } from '@/api/system-manage'
-    import UserDialog from './modules/user-dialog.vue'
+  import {
+    fetchBatchDeleteUsers,
+    fetchCreateUser,
+    fetchGetRoleList,
+    fetchGetUserList,
+    fetchResetUserPassword,
+    fetchUpdateUser
+  } from '@/api/system-manage'
+  import UserDialog from './modules/user-dialog.vue'
   import { ElLink, ElMessage } from 'element-plus'
+  import { notifyError } from '@/utils/sys/notify'
   import { DialogType } from '@/types'
 
   defineOptions({ name: 'User' })
@@ -91,14 +130,23 @@
     newPassword: [
       { required: true, message: '请输入新密码', trigger: 'blur' },
       { min: 6, max: 32, message: '长度在 6 到 32 个字符', trigger: 'blur' },
-      { pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, message: '密码不符合要求，至少包含一个大写字母、一个小写字母、一个数字', trigger: 'blur' }
+      {
+        pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+        message: '密码不符合要求，至少包含一个大写字母、一个小写字母、一个数字',
+        trigger: 'blur'
+      }
     ],
     confirmPassword: [
       { required: true, message: '请再次输入新密码', trigger: 'blur' },
-      { validator: (_rule: any, value: string, callback: any) => { if (value !== passwordForm.newPassword) callback(new Error('两次密码不一致')); else callback() }, trigger: 'blur' }
+      {
+        validator: (_rule: any, value: string, callback: any) => {
+          if (value !== passwordForm.newPassword) callback(new Error('两次密码不一致'))
+          else callback()
+        },
+        trigger: 'blur'
+      }
     ]
   }
-
 
   // 搜索表单
   const searchForm = ref({
@@ -135,7 +183,9 @@
       // ignore
     }
   }
-  onMounted(() => { void loadRoleMap() })
+  onMounted(() => {
+    void loadRoleMap()
+  })
 
   /** 用户角色显示：0=超级管理员，其他查角色表 */
   const getUserRoleText = (role?: number) => {
@@ -191,9 +241,17 @@
           prop: 'role',
           label: '角色',
           formatter: (row) =>
-            h('span', { class: 'user-role', style: { fontSize: '12px' } }, getUserRoleText(row.role))
+            h(
+              'span',
+              { class: 'user-role', style: { fontSize: '12px' } },
+              getUserRoleText(row.role)
+            )
         },
-        { prop: 'userPhone', label: '手机号', formatter: (row) => h('span', { style: { fontSize: '12px' } }, row.userPhone || '-') },
+        {
+          prop: 'userPhone',
+          label: '手机号',
+          formatter: (row) => h('span', { style: { fontSize: '12px' } }, row.userPhone || '-')
+        },
         {
           prop: 'userEmail',
           label: '邮箱',
@@ -216,25 +274,40 @@
           fixed: 'right', // 固定列
           formatter: (row) =>
             h('div', { style: 'display:flex;align-items:center;gap:12px;flex-wrap:nowrap' }, [
-              h(ElLink, {
-                type: 'primary',
-                underline: 'never',
-                style: 'font-size:12px',
-                onClick: () => showDialog('edit', row)
-              }, () => '编辑'),
-              h(ElLink, {
-                type: 'primary',
-                underline: 'never',
-                style: 'font-size:12px',
-                onClick: () => openPasswordDialog(row)
-              }, () => '修改密码'),
-              h(ElLink, {
-                type: 'primary',
-                underline: 'never',
-                disabled: row.role === 0,
-                style: { fontSize: '12px', color: row.role === 0 ? 'var(--el-text-color-disabled)' : undefined },
-                onClick: () => deleteUser(row)
-              }, () => '删除')
+              h(
+                ElLink,
+                {
+                  type: 'primary',
+                  underline: 'never',
+                  style: 'font-size:12px',
+                  onClick: () => showDialog('edit', row)
+                },
+                () => '编辑'
+              ),
+              h(
+                ElLink,
+                {
+                  type: 'primary',
+                  underline: 'never',
+                  style: 'font-size:12px',
+                  onClick: () => openPasswordDialog(row)
+                },
+                () => '修改密码'
+              ),
+              h(
+                ElLink,
+                {
+                  type: 'primary',
+                  underline: 'never',
+                  disabled: row.role === 0,
+                  style: {
+                    fontSize: '12px',
+                    color: row.role === 0 ? 'var(--el-text-color-disabled)' : undefined
+                  },
+                  onClick: () => deleteUser(row)
+                },
+                () => '删除'
+              )
             ])
         }
       ]
@@ -280,7 +353,6 @@
     })
   }
 
-
   /**
    * 删除用户
    */
@@ -299,12 +371,16 @@
       if (!valid) return
       passwordSubmitting.value = true
       try {
-        await fetchResetUserPassword(passwordUserId.value, passwordResourceVersion.value, passwordForm.newPassword)
+        await fetchResetUserPassword(
+          passwordUserId.value,
+          passwordResourceVersion.value,
+          passwordForm.newPassword
+        )
         ElMessage.success('密码修改成功')
         passwordVisible.value = false
         await refreshData()
       } catch (e: any) {
-        ElMessage.error(e?.message || '修改密码失败')
+        notifyError(e, '修改密码失败')
       } finally {
         passwordSubmitting.value = false
       }
@@ -320,21 +396,33 @@
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'error'
-    }).then(async () => {
-      try {
-        await fetchBatchDeleteUsers([row.id])
-        ElMessage.success('注销成功')
-        await refreshData()
-      } catch {
-        // 错误提示由 HTTP 封装处理
-      }
     })
+      .then(async () => {
+        try {
+          await fetchBatchDeleteUsers([row.id])
+          ElMessage.success('注销成功')
+          await refreshData()
+        } catch {
+          // 错误提示由 HTTP 封装处理
+        }
+      })
+      .catch(() => {
+        /* 用户取消或关闭，忽略 */
+      })
   }
 
   /**
    * 处理弹窗提交事件
    */
-  const handleDialogSubmit = async (data: { username: string; password: string; phone: string; email: string; description: string; role: string; status: string }) => {
+  const handleDialogSubmit = async (data: {
+    username: string
+    password: string
+    phone: string
+    email: string
+    description: string
+    role: string
+    status: string
+  }) => {
     try {
       if (dialogType.value === 'add') {
         await fetchCreateUser({
@@ -363,10 +451,9 @@
     } catch (error: unknown) {
       if (error instanceof PixiuApiError && error.notified) return
       const err = error as { message?: string }
-      ElMessage.error(err?.message || '操作失败')
+      notifyError(err, '操作失败')
     }
   }
-
 </script>
 
 <style lang="scss" scoped>
@@ -381,7 +468,6 @@
     padding-top: 12px;
     padding-bottom: 10px;
   }
-
 
   .user-page :deep(.custom-pagination) {
     flex: 0 0 auto;
