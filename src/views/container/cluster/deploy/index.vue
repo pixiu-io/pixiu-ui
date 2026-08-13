@@ -112,7 +112,6 @@
   import { useRoute, useRouter } from 'vue-router'
   import {
     fetchCreatePlan,
-    fetchPlan,
     fetchPlanWithResources,
     fetchStartPlan,
     fetchUpdatePlan
@@ -292,13 +291,10 @@
 
   async function loadPlanDetail(planId: number) {
     try {
-      const [detail, planMeta] = await Promise.all([
-        fetchPlanWithResources(planId),
-        fetchPlan(planId)
-      ])
-      planStatusText.value = planMeta.step || '未开始'
+      const detail = await fetchPlanWithResources(planId)
+      planStatusText.value = detail.step || '未开始'
       const cfg = detail.config ?? {}
-      const rv = planMeta.resourceVersion ?? detail.resource_version
+      const rv = detail.resource_version
       currentResourceVersion.value = rv == null ? null : Number(rv)
       const osImage = cfg.os_image ?? ''
       const highAvailability = Boolean(
@@ -348,7 +344,7 @@
           (cfg.network as any)?.api_server_address ?? (cfg.kubernetes as any)?.api_server ?? ''
         ),
         apiServerPort,
-        kubeProxyMode: 'iptables',
+        kubeProxyMode: (cfg.network as any)?.kube_proxy ?? (cfg.network as any)?.kube_proxy_mode ?? 'iptables',
         certificatePeriodEnabled: Boolean((cfg.component as any)?.certificate_period?.enable),
         certificateValidityPeriod: hoursToYears(
           (cfg.component as any)?.certificate_period?.certificate_validity_period,
@@ -366,8 +362,8 @@
         nodes: (detail.nodes ?? []).map(mapNodeFromApi),
         enablePrometheus: Boolean(cfg.component?.prometheus?.enabled),
         enableLogging: Boolean(cfg.component?.logging?.enabled),
-        execMode: planMeta.execMode || 'local',
-        deployAgentId: planMeta.deployAgentId || undefined
+        execMode: detail.exec_mode || 'local',
+        deployAgentId: detail.deploy_agent_id || undefined
       }
       // 进入部署详情默认落在「集群信息」
       activeTabName.value = '0'
@@ -379,11 +375,11 @@
 
   async function ensureResourceVersion(planId: number) {
     if (currentResourceVersion.value != null) return
-    const planMeta = await fetchPlan(planId)
-    const rv = planMeta.resourceVersion
+    const detail = await fetchPlanWithResources(planId)
+    const rv = detail.resource_version
     currentResourceVersion.value = rv == null ? null : Number(rv)
     if (!planStatusText.value || planStatusText.value === '未开始') {
-      planStatusText.value = planMeta.step || '未开始'
+      planStatusText.value = detail.step || '未开始'
     }
   }
 
@@ -512,8 +508,8 @@
           service_network: f.serviceNetwork,
           api_server_address: f.apiServerAddress || undefined,
           api_server_port: f.apiServerPort,
-          kube_proxy_mode: 'iptables',
-          kube_proxy: 'iptables'
+          // 与后端 NetworkSpec.kube_proxy 对齐；勿再传 kube_proxy_mode（后端无此字段）
+          kube_proxy: f.kubeProxyMode || 'iptables'
         },
         runtime: {
           runtime: f.runtime,

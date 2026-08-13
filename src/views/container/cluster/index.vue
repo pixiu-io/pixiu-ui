@@ -34,7 +34,7 @@
         :data="data"
         :columns="columns"
         :pagination="pagination"
-        :pagination-options="{ align: 'right' }"
+        :pagination-options="{ align: 'right', hideOnEmpty: false }"
         @selection-change="handleSelectionChange"
         @pagination:size-change="handleSizeChange"
         @pagination:current-change="handleCurrentChange"
@@ -557,8 +557,12 @@
   }
 
   function shouldShowDeployProgress(row: ClusterItem): boolean {
-    // 集群失联（status=4）不展示部署进度入口
-    return isCustomClusterNotRunning(row) && Number(row.status) !== 4
+    // 仅自建集群展示部署进度入口；部署完成（运行中 status=0 / 失联 status=4）不再展示
+    return (
+      Number(row.clusterType) === 1 &&
+      Number(row.status) !== 0 &&
+      Number(row.status) !== 4
+    )
   }
 
   const {

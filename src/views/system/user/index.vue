@@ -28,7 +28,7 @@
         :data="data"
         :columns="columns"
         :pagination="pagination"
-        :pagination-options="{ align: 'right' }"
+        :pagination-options="{ align: 'right', hideOnEmpty: false }"
         @pagination:size-change="handleSizeChange"
         @pagination:current-change="handleCurrentChange"
       >
@@ -379,17 +379,20 @@
 
   .user-page :deep(.art-table-card .el-card__body) {
     padding-top: 12px;
-    padding-bottom: 0;
+    padding-bottom: 10px;
   }
 
 
   .user-page :deep(.custom-pagination) {
-    padding-bottom: 0;
+    flex: 0 0 auto;
+    margin-top: 10px;
     margin-bottom: 0;
+    padding-bottom: 4px;
+    box-sizing: border-box;
   }
 
   .user-page :deep(.el-pagination) {
-    padding: 2px 0;
+    padding: 0;
   }
 </style>
 

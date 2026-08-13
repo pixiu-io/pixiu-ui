@@ -34,7 +34,7 @@
         :data="data"
         :columns="columns"
         :pagination="pagination"
-        :pagination-options="{ align: 'right' }"
+        :pagination-options="{ align: 'right', hideOnEmpty: false }"
         @selection-change="handleSelectionChange"
         @pagination:size-change="handleSizeChange"
         @pagination:current-change="handleCurrentChange"
@@ -525,7 +525,7 @@
             h('div', { style: 'display:flex;align-items:center;gap:4px' }, [
               h(
                 'span',
-                { style: 'font-size:12px;font-family:var(--el-font-family-mono,monospace)' },
+                { style: 'font-size:12px;color:var(--el-text-color-primary)' },
                 row.ip || '-'
               ),
               ...(row.ip
@@ -665,13 +665,19 @@
 
   .host-page :deep(.art-table-card > .el-card__body) {
     padding-top: 12px;
-    padding-bottom: 0;
+    padding-bottom: 7px !important;
   }
 
   .host-page :deep(.custom-pagination) {
+    flex: 0 0 auto;
     margin-top: 10px;
     margin-bottom: 0;
-    padding-bottom: 4px;
+    padding-bottom: 1px;
+    box-sizing: border-box;
+  }
+
+  .host-page :deep(.el-pagination) {
+    padding: 0;
   }
 
   .host-toolbar {
