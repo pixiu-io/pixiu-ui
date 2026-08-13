@@ -48,7 +48,11 @@
         @pagination:current-change="handleCurrentChange"
       />
 
-      <PermissionGrantDrawer v-model="grantDrawerVisible" :edit-permission-id="editPermissionId" @success="refreshData" />
+      <PermissionGrantDrawer
+        v-model="grantDrawerVisible"
+        :edit-permission-id="editPermissionId"
+        @success="refreshData"
+      />
     </ElCard>
   </div>
 </template>
@@ -57,11 +61,10 @@
   import { h, ref } from 'vue'
   import { useTable } from '@/hooks/core/useTable'
   import { ElAlert, ElButton, ElInput, ElLink, ElMessage, ElMessageBox, ElTag } from 'element-plus'
-  import { useRouter } from 'vue-router'
+  import { notifyError } from '@/utils/sys/notify'
   import {
     fetchDeletePermission,
     fetchPermissionList,
-    fetchBatchDeletePermissions,
     fetchGetClusterKubeconfig,
     type PermissionListItem
   } from '@/api/system-manage'
@@ -69,7 +72,6 @@
 
   defineOptions({ name: 'PermissionManage' })
 
-  const router = useRouter()
   const searchForm = ref({ clusterName: undefined as string | undefined })
   const grantDrawerVisible = ref(false)
   const editPermissionId = ref<number | undefined>(undefined)
@@ -151,10 +153,18 @@
           minWidth: 180,
           formatter: (row: any) =>
             h('div', { style: 'line-height:1.8' }, [
-              h('span', { style: 'font-size:13px;color:var(--el-color-primary)' }, row.clusterAliasName || row.clusterName),
-              h('div', {
-                style: 'color:var(--el-text-color-secondary);font-size:12px'
-              }, row.clusterName)
+              h(
+                'span',
+                { style: 'font-size:13px;color:var(--el-color-primary)' },
+                row.clusterAliasName || row.clusterName
+              ),
+              h(
+                'div',
+                {
+                  style: 'color:var(--el-text-color-secondary);font-size:12px'
+                },
+                row.clusterName
+              )
             ])
         },
         {
@@ -181,11 +191,18 @@
           minWidth: 150,
           formatter: (row: any) => {
             // 如果是自定义类型且有 targetNamespaces，则显示多个标签
-            if (row.pType === 1 && row.targetNamespaces && Array.isArray(row.targetNamespaces) && row.targetNamespaces.length > 0) {
-              return h('div', { style: 'display:flex;flex-wrap:wrap;gap:4px' }, 
+            if (
+              row.pType === 1 &&
+              row.targetNamespaces &&
+              Array.isArray(row.targetNamespaces) &&
+              row.targetNamespaces.length > 0
+            ) {
+              return h(
+                'div',
+                { style: 'display:flex;flex-wrap:wrap;gap:4px' },
                 row.targetNamespaces
                   .filter((ns: any) => typeof ns === 'string' && ns != null)
-                  .map((ns: string) => 
+                  .map((ns: string) =>
                     h(ElTag, { type: 'info', size: 'small', effect: 'light' }, () => ns)
                   )
               )
@@ -298,7 +315,7 @@
         ElMessage.warning('暂无 Kubeconfig 内容')
         return
       }
-      
+
       // 对 content 进行 base64 解码
       let decodedContent = kubeconfig.content
       try {
@@ -307,19 +324,24 @@
         // 如果解码失败，可能已经是明文，直接使用原内容
         console.warn('Base64 解码失败，使用原始内容:', e)
       }
-      
+
       const blob = new Blob([decodedContent], { type: 'text/yaml' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
       // 使用后端返回的 cluster_name，或者 row 中的集群名称
-      const fileName = kubeconfig.cluster_name || row.clusterName || row.clusterAliasName || row.name || 'kubeconfig'
+      const fileName =
+        kubeconfig.cluster_name ||
+        row.clusterName ||
+        row.clusterAliasName ||
+        row.name ||
+        'kubeconfig'
       a.download = `${fileName}.yaml`
       a.click()
       URL.revokeObjectURL(url)
     } catch (e: any) {
       if (e.notified) return
-      ElMessage.error(e.message || '下载 Kubeconfig 失败')
+      notifyError(e, '下载 Kubeconfig 失败')
     }
   }
 
@@ -339,7 +361,7 @@
     } catch (e: any) {
       if (e === 'cancel' || e === 'close') return
       if (e.notified) return
-      ElMessage.error(e.message || '删除失败')
+      notifyError(e, '删除失败')
     }
   }
 </script>
@@ -360,7 +382,6 @@
     flex-direction: column;
     overflow: hidden;
   }
-
 
   .permission-page :deep(.art-table) {
     display: flex;

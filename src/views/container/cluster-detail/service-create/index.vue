@@ -323,6 +323,7 @@
   import { fetchK8sStatefulSetList } from '@/api/kubernetes/statefulset'
   import ClusterResourceBreadcrumb from '../components/cluster-resource-breadcrumb.vue'
   import { buildClusterRouteQuery } from '@/utils/navigation/cluster-query'
+  import { notifyError } from '@/utils/sys/notify'
 
   defineOptions({ name: 'ServiceCreatePage' })
 
@@ -457,7 +458,7 @@
       ElMessage.success(`Service（${form.value.name}）创建成功`)
       goBack()
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '创建失败')
+      notifyError(e, '创建失败')
     } finally {
       submitting.value = false
     }
@@ -512,7 +513,7 @@
         })
         bindResourceList.value = items.map((d) => ({
           name: d.metadata?.name ?? '',
-          labels: (d.spec?.template as any)?.metadata?.labels ?? {} as any
+          labels: (d.spec?.template as any)?.metadata?.labels ?? ({} as any)
         }))
       } else {
         const { items } = await fetchK8sStatefulSetList(cluster.value, {
@@ -522,7 +523,7 @@
         })
         bindResourceList.value = items.map((d) => ({
           name: d.metadata?.name ?? '',
-          labels: (d.spec?.template as any)?.metadata?.labels ?? {} as any
+          labels: (d.spec?.template as any)?.metadata?.labels ?? ({} as any)
         }))
       }
     } catch {

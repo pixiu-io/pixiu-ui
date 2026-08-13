@@ -247,6 +247,7 @@
   import { Close, Delete } from '@element-plus/icons-vue'
   import { computed, ref, watch } from 'vue'
   import { ElIcon, ElMessage, type FormInstance, type FormRules } from 'element-plus'
+  import { notifyError } from '@/utils/sys/notify'
   import {
     AlertRuleTypeMap,
     AlertSeverityMap,
@@ -680,7 +681,7 @@
         enabled: detail.enabled
       }
     } catch (error) {
-      ElMessage.error(error instanceof Error ? error.message : '加载规则详情失败')
+      notifyError(error, '加载规则详情失败')
       closeDrawer()
     } finally {
       editLoading.value = false
@@ -720,7 +721,7 @@
         enabled: detail.enabled
       }
     } catch (error) {
-      ElMessage.error(error instanceof Error ? error.message : '加载规则详情失败')
+      notifyError(error, '加载规则详情失败')
       closeDrawer()
     } finally {
       editLoading.value = false
@@ -824,7 +825,7 @@
       closeDrawer()
     } catch (error) {
       if (!(error instanceof PixiuApiError) || !error.notified) {
-        ElMessage.error(error instanceof Error ? error.message : '提交失败')
+        notifyError(error, '提交失败')
       }
     } finally {
       submitting.value = false

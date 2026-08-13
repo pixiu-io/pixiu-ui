@@ -200,7 +200,10 @@
 
   /** ElMenu / ElSubMenu 的 index 必填，不可为 undefined */
   const subMenuIndex = (item: AppRouteRecord, menuIdx: number): string => {
-    return (item.path || item.meta.title || item.meta?.link || `sub-${props.level}-${menuIdx}`) as string
+    return (item.path ||
+      item.meta.title ||
+      item.meta?.link ||
+      `sub-${props.level}-${menuIdx}`) as string
   }
 
   const menuItemIndex = (item: AppRouteRecord, menuIdx: number): string => {

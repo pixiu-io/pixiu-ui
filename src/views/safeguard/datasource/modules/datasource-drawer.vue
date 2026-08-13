@@ -309,6 +309,7 @@
 <script setup lang="ts">
   import { Plus } from '@element-plus/icons-vue'
   import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+  import { notifyError } from '@/utils/sys/notify'
   import { computed, reactive, ref, watch } from 'vue'
   import { kubeProxyAxios } from '@/api/kubeProxy'
   import {
@@ -540,7 +541,7 @@
       })
       clusterServices.value = items
     } catch (error) {
-      ElMessage.error(error instanceof Error ? error.message : '获取 Service 列表失败')
+      notifyError(error, '获取 Service 列表失败')
     } finally {
       serviceListLoading.value = false
     }
@@ -749,7 +750,7 @@
       editResourceVersion.value = data.resourceVersion
     } catch (error) {
       if (!(error instanceof PixiuApiError) || !error.notified) {
-        ElMessage.error(error instanceof Error ? error.message : '获取数据失败')
+        notifyError(error, '获取数据失败')
       }
       closeDialog()
     } finally {
@@ -804,7 +805,7 @@
       }
       return true
     } catch (error) {
-      ElMessage.error(error instanceof Error ? error.message : '连接测试失败')
+      notifyError(error, '连接测试失败')
       return false
     }
   }
@@ -873,7 +874,7 @@
       closeDialog()
     } catch (error) {
       if (!(error instanceof PixiuApiError) || !error.notified) {
-        ElMessage.error(error instanceof Error ? error.message : '操作失败')
+        notifyError(error, '操作失败')
       }
     } finally {
       submitting.value = false

@@ -46,7 +46,6 @@ import { setPageTitle } from '@/utils/router'
 import { RoutesAlias } from '../routesAlias'
 import { staticRoutes } from '../routes/staticRoutes'
 import { loadingService } from '@/utils/ui'
-import { useCommon } from '@/hooks/core/useCommon'
 import { useWorktabStore } from '@/store/modules/worktab'
 import { ApiStatus } from '@/utils/http/status'
 import { isHttpError } from '@/utils/http/error'
@@ -256,9 +255,7 @@ function handleLoginStatus(
   next: NavigationGuardNext
 ): boolean {
   if (to.path === RoutesAlias.Login || to.path === '/login') {
-    const hasToken = Boolean(
-      userStore.accessToken || localStorage.getItem('pixiu-access-token')
-    )
+    const hasToken = Boolean(userStore.accessToken || localStorage.getItem('pixiu-access-token'))
     if (hasToken && userStore.isLogin) {
       next({ path: '/', replace: true })
       return false
@@ -308,7 +305,11 @@ function isStaticRoute(path: string): boolean {
     return routes.some((route) => {
       // catch-all 和 404/500 路由不应视为可匿名访问的静态页，
       // 否则未登录时手动输入任意地址会直接落到 404，无法跳转登录页。
-      if (route.name === 'Exception404' || route.name === 'Exception500' || route.name === 'NotFound') {
+      if (
+        route.name === 'Exception404' ||
+        route.name === 'Exception500' ||
+        route.name === 'NotFound'
+      ) {
         return false
       }
 
@@ -371,12 +372,15 @@ async function handleDynamicRoutes(
     // 7. 验证工作标签页
     useWorktabStore().validateWorktabs(router)
 
-    const resolvedHome =
-      menuStore.getHomePath() || getFirstMenuPath(menuList) || ''
+    const resolvedHome = menuStore.getHomePath() || getFirstMenuPath(menuList) || ''
 
     // 登录后默认去首页，避免停留在 / 或登录页触发 catch-all 404
     let navigationPath = to.path
-    if (navigationPath === '/' || navigationPath === RoutesAlias.Login || navigationPath === '/login') {
+    if (
+      navigationPath === '/' ||
+      navigationPath === RoutesAlias.Login ||
+      navigationPath === '/login'
+    ) {
       navigationPath = resolvedHome
     }
 
@@ -505,8 +509,7 @@ function handleRootPathRedirect(to: RouteLocationNormalized, next: NavigationGua
   }
 
   const menuStore = useMenuStore()
-  const target =
-    menuStore.getHomePath() || getFirstMenuPath(menuStore.menuList) || ''
+  const target = menuStore.getHomePath() || getFirstMenuPath(menuStore.menuList) || ''
 
   if (target && target !== '/') {
     next({ path: target, replace: true })

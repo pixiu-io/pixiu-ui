@@ -248,7 +248,6 @@
   const emit = defineEmits<{ 'update:form': [DeployClusterForm] }>()
   const form = computed(() => props.form)
   const readOnly = computed(() => props.readOnly)
-  const lockImmutableFields = computed(() => props.lockImmutableFields)
   const formRef = ref<FormInstance>()
 
   function onNfsEnabledChange(checked: boolean) {
@@ -294,10 +293,7 @@
         : props.form.caCertificateValidityPeriod
     })
     nextTick(() => {
-      formRef.value?.clearValidate([
-        'certificateValidityPeriod',
-        'caCertificateValidityPeriod'
-      ])
+      formRef.value?.clearValidate(['certificateValidityPeriod', 'caCertificateValidityPeriod'])
       if (on) {
         void formRef.value?.validateField('certificateValidityPeriod')
         void formRef.value?.validateField('caCertificateValidityPeriod')
@@ -316,10 +312,7 @@
         certificatePeriodEnabled: false
       })
       nextTick(() => {
-        formRef.value?.clearValidate([
-          'certificateValidityPeriod',
-          'caCertificateValidityPeriod'
-        ])
+        formRef.value?.clearValidate(['certificateValidityPeriod', 'caCertificateValidityPeriod'])
       })
     }
   )

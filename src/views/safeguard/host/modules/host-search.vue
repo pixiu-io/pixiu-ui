@@ -1,10 +1,5 @@
 <template>
-  <ArtSearchBar
-    v-model="formData"
-    :items="formItems"
-    @reset="handleReset"
-    @search="handleSearch"
-  />
+  <ArtSearchBar v-model="formData" :items="formItems" @reset="handleReset" @search="handleSearch" />
 </template>
 
 <script setup lang="ts">

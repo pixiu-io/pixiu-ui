@@ -72,9 +72,7 @@
     resetCharts
   } = useNodeUsageMetrics(clusterRef, nodeNameRef, nodeRef)
 
-  const metricsInitialLoading = computed(
-    () => metricsLoading.value && !metricsChartReady.value
-  )
+  const metricsInitialLoading = computed(() => metricsLoading.value && !metricsChartReady.value)
 
   const chartSilentUpdate = ref(false)
   let chartAnimateTimer: ReturnType<typeof setTimeout> | null = null

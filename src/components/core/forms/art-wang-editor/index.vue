@@ -137,7 +137,10 @@
 
   // 自定义上传
   if (props.uploadConfig?.isCustomUpload && props.uploadConfig?.server && editorConfig.MENU_CONF) {
-    editorConfig.MENU_CONF.uploadImage.customUpload = async (file: File, insertFn: InsertFnType) => {
+    editorConfig.MENU_CONF.uploadImage.customUpload = async (
+      file: File,
+      insertFn: InsertFnType
+    ) => {
       try {
         const formData = new FormData()
         formData.append(mergedUploadConfig.value.fieldName, file)
@@ -146,7 +149,7 @@
           url: props.uploadConfig?.server,
           data: formData,
           headers: {
-            'Content-Type':'multipart/form-data',
+            'Content-Type': 'multipart/form-data',
             Authorization: userStore.accessToken
           }
         })

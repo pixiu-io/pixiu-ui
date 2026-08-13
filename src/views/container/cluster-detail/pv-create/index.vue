@@ -21,9 +21,14 @@
 
         <ElFormItem label="名称" prop="name">
           <div class="svc-field-col">
-            <ElInput v-model="form.name" placeholder="请输入 PersistentVolume 名称" style="width: 300px" />
+            <ElInput
+              v-model="form.name"
+              placeholder="请输入 PersistentVolume 名称"
+              style="width: 300px"
+            />
             <div class="svc-field-tip"
-              >最长 253 个字符，只能包含小写字母、数字及分隔符（-），且必须以小写字母或数字开头和结尾</div
+              >最长 253
+              个字符，只能包含小写字母、数字及分隔符（-），且必须以小写字母或数字开头和结尾</div
             >
           </div>
         </ElFormItem>
@@ -38,7 +43,11 @@
                   ><ElIcon><Close /></ElIcon
                 ></ElButton>
               </div>
-              <ElButton link type="primary" class="kv-add-btn" @click="form.labels.push({ key: '', value: '' })"
+              <ElButton
+                link
+                type="primary"
+                class="kv-add-btn"
+                @click="form.labels.push({ key: '', value: '' })"
                 >新增</ElButton
               >
             </div>
@@ -55,7 +64,11 @@
                   ><ElIcon><Close /></ElIcon
                 ></ElButton>
               </div>
-              <ElButton link type="primary" class="kv-add-btn" @click="form.annotations.push({ key: '', value: '' })"
+              <ElButton
+                link
+                type="primary"
+                class="kv-add-btn"
+                @click="form.annotations.push({ key: '', value: '' })"
                 >新增</ElButton
               >
             </div>
@@ -94,7 +107,8 @@
               <ElRadioButton value="Block">块设备（Block）</ElRadioButton>
             </ElRadioGroup>
             <div class="svc-field-tip"
-              >Filesystem：将卷挂载为目录，适用于大多数场景；Block：将卷直接作为裸块设备挂载，适用于数据库等需要直接 I/O 的场景</div
+              >Filesystem：将卷挂载为目录，适用于大多数场景；Block：将卷直接作为裸块设备挂载，适用于数据库等需要直接
+              I/O 的场景</div
             >
           </div>
         </ElFormItem>
@@ -120,9 +134,14 @@
 
         <ElFormItem label="存储类（StorageClass）">
           <div class="svc-field-col">
-            <ElInput v-model="form.storageClassName" placeholder="可选，与 PVC 对应的 StorageClass 名称" style="width: 300px" />
+            <ElInput
+              v-model="form.storageClassName"
+              placeholder="可选，与 PVC 对应的 StorageClass 名称"
+              style="width: 300px"
+            />
             <div class="svc-field-tip"
-              >填写后 PVC 只有指定相同 StorageClass 时才可绑定该 PV；留空表示不关联 StorageClass</div
+              >填写后 PVC 只有指定相同 StorageClass 时才可绑定该 PV；留空表示不关联
+              StorageClass</div
             >
           </div>
         </ElFormItem>
@@ -143,9 +162,7 @@
             <div v-else-if="form.volumeType === 'nfs'" class="svc-field-tip"
               >通过 NFS 协议挂载远端存储，支持多节点共享访问</div
             >
-            <div v-else class="svc-field-tip"
-              >通过 CSI 驱动挂载外部存储系统，推荐生产环境使用</div
-            >
+            <div v-else class="svc-field-tip">通过 CSI 驱动挂载外部存储系统，推荐生产环境使用</div>
           </div>
         </ElFormItem>
 
@@ -163,7 +180,11 @@
         <template v-if="form.volumeType === 'nfs'">
           <ElFormItem label="NFS 服务地址" prop="nfsServer">
             <div class="svc-field-col">
-              <ElInput v-model="form.nfsServer" placeholder="如 192.168.1.100" style="width: 300px" />
+              <ElInput
+                v-model="form.nfsServer"
+                placeholder="如 192.168.1.100"
+                style="width: 300px"
+              />
               <div class="svc-field-tip">NFS 服务端的 IP 地址或域名</div>
             </div>
           </ElFormItem>
@@ -183,26 +204,38 @@
         <template v-if="form.volumeType === 'csi'">
           <ElFormItem label="CSI 驱动名称" prop="csiDriver">
             <div class="svc-field-col">
-              <ElInput v-model="form.csiDriver" placeholder="如 disk.csi.aliyun.com" style="width: 300px" />
+              <ElInput
+                v-model="form.csiDriver"
+                placeholder="如 disk.csi.aliyun.com"
+                style="width: 300px"
+              />
               <div class="svc-field-tip">与 StorageClass provisioner 字段对应的 CSI 驱动名称</div>
             </div>
           </ElFormItem>
           <ElFormItem label="Volume Handle" prop="csiVolumeHandle">
             <div class="svc-field-col">
-              <ElInput v-model="form.csiVolumeHandle" placeholder="存储系统中的卷唯一标识" style="width: 300px" />
+              <ElInput
+                v-model="form.csiVolumeHandle"
+                placeholder="存储系统中的卷唯一标识"
+                style="width: 300px"
+              />
               <div class="svc-field-tip">CSI 驱动中标识底层存储卷的唯一 ID，由存储系统分配</div>
             </div>
           </ElFormItem>
           <ElFormItem label="只读挂载">
             <ElSwitch v-model="form.csiReadOnly" />
-            <span class="svc-field-tip" style="margin-left: 8px">开启后 CSI 驱动以只读方式挂载卷</span>
+            <span class="svc-field-tip" style="margin-left: 8px"
+              >开启后 CSI 驱动以只读方式挂载卷</span
+            >
           </ElFormItem>
         </template>
       </ElForm>
 
       <div class="svc-create-footer">
         <ElButton @click="goBack">取消</ElButton>
-        <ElButton type="primary" :loading="submitting" @click="submit">创建 PersistentVolume</ElButton>
+        <ElButton type="primary" :loading="submitting" @click="submit"
+          >创建 PersistentVolume</ElButton
+        >
       </div>
     </ElCard>
   </div>
@@ -215,6 +248,7 @@
   import { useRoute, useRouter } from 'vue-router'
   import { createK8sPV } from '@/api/kubernetes/pv'
   import ClusterResourceBreadcrumb from '../components/cluster-resource-breadcrumb.vue'
+  import { notifyError } from '@/utils/sys/notify'
 
   defineOptions({ name: 'PVCreatePage' })
 
@@ -262,7 +296,15 @@
         trigger: 'blur'
       }
     ],
-    accessModes: [{ required: true, type: 'array', min: 1, message: '请至少选择一种访问模式', trigger: 'change' }],
+    accessModes: [
+      {
+        required: true,
+        type: 'array',
+        min: 1,
+        message: '请至少选择一种访问模式',
+        trigger: 'change'
+      }
+    ],
     volumeType: [{ required: true, message: '请选择存储源类型', trigger: 'change' }],
     hostPath: [
       {
@@ -368,7 +410,7 @@
       ElMessage.success(`PersistentVolume（${form.value.name}）创建成功`)
       goBack()
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '创建失败')
+      notifyError(e, '创建失败')
     } finally {
       submitting.value = false
     }
@@ -498,5 +540,4 @@
     justify-content: center;
     gap: 12px;
   }
-
 </style>

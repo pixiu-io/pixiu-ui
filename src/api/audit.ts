@@ -74,7 +74,7 @@ function toAuditItem(b: BackendAuditItem): AuditItem {
     resourceName: b.resource_name || '',
     resourceNamespace: b.resource_namespace || '',
     gmtCreate: b.gmt_create || '',
-    gmtModified: b.gmt_modified || '',
+    gmtModified: b.gmt_modified || ''
   }
 }
 
@@ -83,7 +83,7 @@ export async function fetchAuditList(
 ): Promise<{ total: number; items: AuditItem[] }> {
   const query: Record<string, unknown> = {
     page: params.page,
-    limit: params.limit,
+    limit: params.limit
   }
   if (params.operator) query.operator = params.operator
   if (params.action) query.action = params.action
@@ -99,6 +99,6 @@ export async function fetchAuditList(
   const data = result as AuditListResponse
   return {
     total: data.total ?? 0,
-    items: (data.items ?? []).map(toAuditItem),
+    items: (data.items ?? []).map(toAuditItem)
   }
 }

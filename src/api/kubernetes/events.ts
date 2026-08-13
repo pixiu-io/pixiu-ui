@@ -75,7 +75,11 @@ export async function fetchKubeRawEventList(
   })
 }
 
-export async function deleteK8sEvent(cluster: string, namespace: string, name: string): Promise<void> {
+export async function deleteK8sEvent(
+  cluster: string,
+  namespace: string,
+  name: string
+): Promise<void> {
   await kubeProxyAxios.delete(
     `/pixiu/proxy/${encodeURIComponent(cluster)}/api/v1/namespaces/${encodeURIComponent(namespace)}/events/${encodeURIComponent(name)}`
   )

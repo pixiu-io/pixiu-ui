@@ -40,7 +40,8 @@
                   <span>{</span>
                   <template v-for="(label, i) in row.labels" :key="`${label.key}-${i}`">
                     <span v-if="i > 0">, </span>
-                    <span class="metric-preview__label-key">{{ label.key }}</span>=
+                    <span class="metric-preview__label-key">{{ label.key }}</span
+                    >=
                     <span class="metric-preview__label-val">"{{ label.value }}"</span>
                   </template>
                   <span>}</span>

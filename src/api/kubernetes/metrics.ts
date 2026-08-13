@@ -187,7 +187,9 @@ export function aggregateDashboardMetricPoints(
   items: Array<{ metricPoints?: DashboardMetricPoint[] }> | undefined,
   options?: AggregateMetricOptions
 ): { labels: string[]; values: number[]; timestamps: number[] } {
-  const startMs = options?.timeRange?.start ? options.timeRange.start.getTime() : Number.NEGATIVE_INFINITY
+  const startMs = options?.timeRange?.start
+    ? options.timeRange.start.getTime()
+    : Number.NEGATIVE_INFINITY
   const endMs = options?.timeRange?.end ? options.timeRange.end.getTime() : Number.POSITIVE_INFINITY
   const byTime = new Map<number, number>()
   for (const item of items ?? []) {

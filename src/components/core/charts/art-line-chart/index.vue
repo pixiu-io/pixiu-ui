@@ -178,7 +178,7 @@
     const result: (number | null)[] = values.map((v, idx) => {
       if (idx < revealIdx) return v
       if (idx === revealIdx && frac > 0) {
-        const prev = revealIdx > 0 ? values[revealIdx - 1] ?? 0 : 0
+        const prev = revealIdx > 0 ? (values[revealIdx - 1] ?? 0) : 0
         return +(prev + (v - prev) * frac).toFixed(2)
       }
       return null
@@ -237,7 +237,7 @@
   }
 
   // 生成图表配置
-  const generateChartOptions = (isInitial = false, stepReveal = false): EChartsOption => {
+  const generateChartOptions = (_isInitial = false, stepReveal = false): EChartsOption => {
     const options: EChartsOption = {
       animation: !stepReveal,
       animationDuration: 150,
@@ -437,7 +437,6 @@
     getTooltipStyle,
     getLegendStyle,
     getGridWithLegend,
-    isEmpty,
     isDark,
     emptyStateManager
   } = useChartComponent({

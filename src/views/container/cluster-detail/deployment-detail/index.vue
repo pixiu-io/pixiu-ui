@@ -203,14 +203,23 @@
           >
             <el-table-column label="名称" min-width="200">
               <template #default="{ row }">
-                <el-link type="primary" underline="never" class="mono" @click="goToPodDetail(row)">{{ row.metadata?.name }}</el-link>
+                <el-link
+                  type="primary"
+                  underline="never"
+                  class="mono"
+                  @click="goToPodDetail(row)"
+                  >{{ row.metadata?.name }}</el-link
+                >
               </template>
             </el-table-column>
             <el-table-column label="状态" width="100">
               <template #default="{ row }">
-                <el-tag :type="podStatusType(formatPodDisplayStatus(row))" size="small" effect="light">{{
-                  formatPodDisplayStatus(row)
-                }}</el-tag>
+                <el-tag
+                  :type="podStatusType(formatPodDisplayStatus(row))"
+                  size="small"
+                  effect="light"
+                  >{{ formatPodDisplayStatus(row) }}</el-tag
+                >
               </template>
             </el-table-column>
             <el-table-column label="Ready" width="90">
@@ -393,7 +402,11 @@
                 >{{ row.involvedObject?.kind }}/{{ row.involvedObject?.name }}</template
               >
             </el-table-column>
-            <el-table-column label="消息" min-width="300" :class-name="K8S_EVENT_MESSAGE_CELL_CLASS">
+            <el-table-column
+              label="消息"
+              min-width="300"
+              :class-name="K8S_EVENT_MESSAGE_CELL_CLASS"
+            >
               <template #default="{ row }">
                 <div class="k8s-event-message">{{ row.message?.trim() ? row.message : '-' }}</div>
               </template>
@@ -576,6 +589,7 @@
 <script setup lang="ts">
   import { ArrowLeft, Loading } from '@element-plus/icons-vue'
   import { ElMessageBox } from 'element-plus'
+  import { notifyError } from '@/utils/sys/notify'
   import { useRouter, useRoute } from 'vue-router'
   import { inject, watch } from 'vue'
   import ArtButtonMore, {
@@ -604,7 +618,6 @@
   import type { K8sJob } from '@/api/kubernetes/job'
   import { fetchK8sCronJob, deleteK8sCronJob } from '@/api/kubernetes/cronjob'
   import type { K8sCronJob } from '@/api/kubernetes/cronjob'
-  import { fetchK8sPodList } from '@/api/kubernetes/pod'
   import type { K8sPod } from '@/api/kubernetes/pod'
   import { formatPodDisplayStatus, podStatusTagType } from '@/utils/kubernetes/podDisplay'
   import { K8S_EVENT_MESSAGE_CELL_CLASS } from '@/utils/kubernetes/eventDisplay'
@@ -646,11 +659,12 @@
     const tab = String(route.query.tab ?? '')
     return DETAIL_TAB_TO_KIND[tab] ?? tab
   })
-  const isSystemNamespace = computed(() => namespace.value === 'default' || namespace.value.startsWith('kube-'))
+  const isSystemNamespace = computed(
+    () => namespace.value === 'default' || namespace.value.startsWith('kube-')
+  )
 
   const clusterDetailCtx = inject(clusterDetailContextKey, undefined)
   const cronJobApiVersion = computed(() => getCronJobApiVersion(clusterDetailCtx?.value?.version))
-  const clusterAlias = computed(() => clusterDetailCtx?.value?.aliasName || cluster.value)
   const clusterDisplayName = computed(() => {
     const name = cluster.value
     const alias = clusterDetailCtx?.value?.aliasName
@@ -664,7 +678,14 @@
   const workload = ref<WorkloadUnion | null>(null)
 
   /** 详情页主 Tab（与 workloads 列表的 ?tab=deploy|sts|… 区分开） */
-  const DETAIL_MAIN_TAB_NAMES = new Set(['pods', 'services', 'containers', 'events', 'history', 'logs'])
+  const DETAIL_MAIN_TAB_NAMES = new Set([
+    'pods',
+    'services',
+    'containers',
+    'events',
+    'history',
+    'logs'
+  ])
   const tabFromRoute = String(route.query.tab ?? '')
   const activeTab = ref(DETAIL_MAIN_TAB_NAMES.has(tabFromRoute) ? tabFromRoute : 'pods')
 
@@ -704,13 +725,17 @@
       return ((workload.value as K8sCronJob).spec?.jobTemplate?.spec?.template?.spec?.containers ??
         []) as any[]
     }
-    return (((workload.value as any).spec?.template?.spec?.containers ?? []) as any[])
+    return ((workload.value as any).spec?.template?.spec?.containers ?? []) as any[]
   })
   const showAllLabels = ref(false)
   const showAllAnnotations = ref(false)
   const selectorLabelMap = computed<Record<string, string>>(() => {
     if (!workload.value) return {}
-    if (workloadKind.value === 'Deployment' || workloadKind.value === 'StatefulSet' || workloadKind.value === 'DaemonSet') {
+    if (
+      workloadKind.value === 'Deployment' ||
+      workloadKind.value === 'StatefulSet' ||
+      workloadKind.value === 'DaemonSet'
+    ) {
       return ((workload.value as K8sDeployment | K8sStatefulSet | K8sDaemonSet).spec?.selector
         ?.matchLabels ?? {}) as Record<string, string>
     }
@@ -763,73 +788,6 @@
       maxSurge: String(ru.maxSurge ?? '25%'),
       maxUnavailable: String(ru.maxUnavailable ?? '25%')
     }
-  })
-
-  // CPU/Mem aggregation
-  function parseCpuMilli(s: string): number {
-    if (!s) return 0
-    if (s.endsWith('m')) return parseInt(s)
-    return parseFloat(s) * 1000
-  }
-  function parseMemBytes(s: string): number {
-    if (!s) return 0
-    const units: Record<string, number> = {
-      Ki: 1024,
-      Mi: 1024 ** 2,
-      Gi: 1024 ** 3,
-      Ti: 1024 ** 4,
-      K: 1000,
-      M: 1000 ** 2,
-      G: 1000 ** 3
-    }
-    for (const [u, mul] of Object.entries(units)) {
-      if (s.endsWith(u)) return parseFloat(s) * mul
-    }
-    return parseFloat(s)
-  }
-  function fmtCpu(m: number) {
-    return m < 1000 ? `${Math.round(m)}m` : `${(m / 1000).toFixed(2)}`
-  }
-  function fmtMem(b: number) {
-    if (b >= 1024 ** 3) return `${(b / 1024 ** 3).toFixed(1)}Gi`
-    if (b >= 1024 ** 2) return `${(b / 1024 ** 2).toFixed(0)}Mi`
-    if (b >= 1024) return `${(b / 1024).toFixed(0)}Ki`
-    return `${b}B`
-  }
-
-  const aggregatedCpu = computed(() => {
-    let reqM = 0,
-      limM = 0,
-      hasReq = false,
-      hasLim = false
-    for (const c of containers.value) {
-      if (c.resources?.requests?.cpu) {
-        reqM += parseCpuMilli(c.resources.requests.cpu)
-        hasReq = true
-      }
-      if (c.resources?.limits?.cpu) {
-        limM += parseCpuMilli(c.resources.limits.cpu)
-        hasLim = true
-      }
-    }
-    return { request: hasReq ? fmtCpu(reqM) : '', limit: hasLim ? fmtCpu(limM) : '' }
-  })
-  const aggregatedMem = computed(() => {
-    let reqB = 0,
-      limB = 0,
-      hasReq = false,
-      hasLim = false
-    for (const c of containers.value) {
-      if (c.resources?.requests?.memory) {
-        reqB += parseMemBytes(c.resources.requests.memory)
-        hasReq = true
-      }
-      if (c.resources?.limits?.memory) {
-        limB += parseMemBytes(c.resources.limits.memory)
-        hasLim = true
-      }
-    }
-    return { request: hasReq ? fmtMem(reqB) : '', limit: hasLim ? fmtMem(limB) : '' }
   })
 
   function containerResources(c: any) {
@@ -916,8 +874,7 @@
       })
       const deployLabels =
         ((workload.value as K8sDeployment | K8sStatefulSet | K8sDaemonSet | undefined)?.spec
-          ?.selector?.matchLabels as Record<string, string> | undefined) ??
-        {}
+          ?.selector?.matchLabels as Record<string, string> | undefined) ?? {}
       matchedServices.value = items.filter((svc) => {
         const sel = svc.spec?.selector ?? {}
         if (!Object.keys(sel).length) return false
@@ -938,12 +895,7 @@
     try {
       const aggregateKind = getAggregatedEventKind(workloadKind.value)
       const { items } = aggregateKind
-        ? await fetchAggregatedEventList(
-            cluster.value,
-            namespace.value,
-            name.value,
-            aggregateKind
-          )
+        ? await fetchAggregatedEventList(cluster.value, namespace.value, name.value, aggregateKind)
         : await fetchKubeRawEventList(cluster.value, {
             namespace: namespace.value,
             name: name.value,
@@ -1044,7 +996,7 @@
       scaleVisible.value = false
       await loadWorkload()
     } catch (e: any) {
-      ElMessage.error(e.message)
+      notifyError(e)
     } finally {
       scaling.value = false
     }
@@ -1052,18 +1004,23 @@
 
   async function handleDelete() {
     try {
-      await ElMessageBox.confirm(`确认删除 ${workloadKind.value} "${name.value}"? 此操作不可撤销。`, '删除', {
-        type: 'warning',
-        confirmButtonText: '确认删除',
-        confirmButtonClass: 'el-button--danger'
-      })
+      await ElMessageBox.confirm(
+        `确认删除 ${workloadKind.value} "${name.value}"? 此操作不可撤销。`,
+        '删除',
+        {
+          type: 'warning',
+          confirmButtonText: '确认删除',
+          confirmButtonClass: 'el-button--danger'
+        }
+      )
       if (workloadKind.value === 'Deployment')
         await deleteK8sDeployment(cluster.value, namespace.value, name.value)
       else if (workloadKind.value === 'StatefulSet')
         await deleteK8sStatefulSet(cluster.value, namespace.value, name.value)
       else if (workloadKind.value === 'DaemonSet')
         await deleteK8sDaemonSet(cluster.value, namespace.value, name.value)
-      else if (workloadKind.value === 'Job') await deleteK8sJob(cluster.value, namespace.value, name.value)
+      else if (workloadKind.value === 'Job')
+        await deleteK8sJob(cluster.value, namespace.value, name.value)
       else if (workloadKind.value === 'CronJob')
         await deleteK8sCronJob(cluster.value, namespace.value, name.value, cronJobApiVersion.value)
       ElMessage.success('已删除')
@@ -1094,11 +1051,16 @@
       } else if (workloadKind.value === 'Job') {
         obj = await fetchK8sJob(cluster.value, namespace.value, name.value)
       } else {
-        obj = await fetchK8sCronJob(cluster.value, namespace.value, name.value, cronJobApiVersion.value)
+        obj = await fetchK8sCronJob(
+          cluster.value,
+          namespace.value,
+          name.value,
+          cronJobApiVersion.value
+        )
       }
       yamlContent.value = YAML.dump(obj)
       yamlVisible.value = true
-    } catch (e: any) {
+    } catch {
       ElMessage.error('获取 YAML 失败')
     }
   }
@@ -1110,7 +1072,7 @@
       yamlVisible.value = false
       await loadWorkload()
     } catch (e: any) {
-      ElMessage.error(e.message || '保存失败')
+      notifyError(e, '保存失败')
     } finally {
       yamlSaving.value = false
     }
@@ -1160,10 +1122,16 @@
       } else if (workloadKind.value === 'Job') {
         workload.value = await fetchK8sJob(cluster.value, namespace.value, name.value)
       } else {
-        workload.value = await fetchK8sCronJob(cluster.value, namespace.value, name.value, cronJobApiVersion.value)
+        workload.value = await fetchK8sCronJob(
+          cluster.value,
+          namespace.value,
+          name.value,
+          cronJobApiVersion.value
+        )
       }
-      scaleTarget.value = ((workload.value as K8sDeployment | K8sStatefulSet | undefined)?.spec?.replicas ?? 0)
-    } catch (e: any) {
+      scaleTarget.value =
+        (workload.value as K8sDeployment | K8sStatefulSet | undefined)?.spec?.replicas ?? 0
+    } catch {
       ElMessage.error(`获取 ${workloadKind.value} 详情失败`)
     } finally {
       loading.value = false

@@ -24,7 +24,11 @@ export function releaseStatusMeta(status?: string) {
   if (normalized === 'failed') {
     return { label: status || 'failed', type: 'danger' as const, dot: 'is-danger' }
   }
-  if (normalized === 'pending-install' || normalized === 'pending-upgrade' || normalized === 'pending-rollback') {
+  if (
+    normalized === 'pending-install' ||
+    normalized === 'pending-upgrade' ||
+    normalized === 'pending-rollback'
+  ) {
     return { label: status || 'pending', type: 'warning' as const, dot: 'is-warning' }
   }
   if (normalized === 'uninstalled' || normalized === 'superseded') {
@@ -36,7 +40,11 @@ export function releaseStatusMeta(status?: string) {
 export function filterByName<T extends { name?: string }>(list: T[], keyword: string): T[] {
   const kw = keyword.trim().toLowerCase()
   if (!kw) return list
-  return list.filter((item) => String(item.name ?? '').toLowerCase().includes(kw))
+  return list.filter((item) =>
+    String(item.name ?? '')
+      .toLowerCase()
+      .includes(kw)
+  )
 }
 
 export function summarizeReleases(releases: HelmReleaseItem[]) {

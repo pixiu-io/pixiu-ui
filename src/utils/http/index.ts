@@ -128,7 +128,7 @@ function handleUnauthorizedError(message?: string): never {
 
     unauthorizedTimer = setTimeout(resetUnauthorizedError, UNAUTHORIZED_DEBOUNCE_TIME)
   }
-  
+
   // 标记这个错误已经被处理过，避免在 request 函数中再次显示
   ;(error as any).handled = true
   throw error
@@ -211,6 +211,8 @@ async function request<T = any>(config: ExtendedAxiosRequestConfig): Promise<T> 
       if (!alreadyHandled) {
         const showMsg = config.showErrorMessage !== false
         showError(error, showMsg)
+        // 标记已提示，页面 catch 不再重复提示（统一：一次请求只弹一次）
+        ;(error as any).toasted = showMsg
       }
     }
     return Promise.reject(error)

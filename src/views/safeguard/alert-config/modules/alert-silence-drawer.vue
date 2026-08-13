@@ -100,11 +100,7 @@
                 </div>
                 <div class="silence-label-field">
                   <div class="kv-list">
-                    <div
-                      v-for="(item, index) in labelMatchers"
-                      :key="item.keyId"
-                      class="kv-row"
-                    >
+                    <div v-for="(item, index) in labelMatchers" :key="item.keyId" class="kv-row">
                       <ElInput v-model="item.labelKey" placeholder="键" />
                       <ElInput v-model="item.labelValue" placeholder="值" />
                       <ElButton link class="kv-del-btn" @click="removeLabelMatcher(index)">
@@ -144,6 +140,7 @@
   import { Close, Delete, QuestionFilled } from '@element-plus/icons-vue'
   import { computed, ref, watch } from 'vue'
   import { ElIcon, ElMessage, ElTooltip, type FormInstance, type FormRules } from 'element-plus'
+  import { notifyError } from '@/utils/sys/notify'
   import {
     fetchCreateAlertSilence,
     fetchGetAlertRuleList,
@@ -369,7 +366,7 @@
     } catch (error) {
       ruleOptions.value = []
       if (!(error instanceof PixiuApiError) || !error.notified) {
-        ElMessage.error(error instanceof Error ? error.message : '加载关联告警失败')
+        notifyError(error, '加载关联告警失败')
       }
     } finally {
       rulesLoading.value = false
@@ -416,7 +413,7 @@
         enabled: detail.enabled
       }
     } catch (error) {
-      ElMessage.error(error instanceof Error ? error.message : '加载告警静默失败')
+      notifyError(error, '加载告警静默失败')
       closeDrawer()
     } finally {
       editLoading.value = false
@@ -496,7 +493,7 @@
       closeDrawer()
     } catch (error) {
       if (!(error instanceof PixiuApiError) || !error.notified) {
-        ElMessage.error(error instanceof Error ? error.message : '提交失败')
+        notifyError(error, '提交失败')
       }
     } finally {
       submitting.value = false

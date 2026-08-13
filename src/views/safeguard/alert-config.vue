@@ -321,12 +321,11 @@
     ElTabs,
     ElTag
   } from 'element-plus'
+  import { notifyError } from '@/utils/sys/notify'
   import {
     AlertChannelTypeMap,
     AlertEventStatusMap,
-    AlertNotificationStatusMap,
     AlertRuleTypeMap,
-    AlertScopeTypeMap,
     AlertSeverityMap,
     formatAlertDateTime,
     fetchDeleteAlertChannel,
@@ -400,14 +399,6 @@
       map[ch.id] = ch.name
     }
     channelIdToNameMap.value = map
-  }
-
-  function formatNotifyChannels(notifyChannels?: string) {
-    if (!notifyChannels) return '-'
-    const ids = notifyChannels.split(',').map(Number).filter(Boolean)
-    if (ids.length === 0) return '-'
-    const names = ids.map((id) => channelIdToNameMap.value[id] || String(id))
-    return names.join('，')
   }
 
   function renderNotifyChannelTags(notifyChannels?: string) {
@@ -560,7 +551,7 @@
       URL.revokeObjectURL(url)
       ElMessage.success(`已导出 ${selectedRules.value.length} 条告警规则`)
     } catch (error) {
-      ElMessage.error(error instanceof Error ? error.message : '导出失败')
+      notifyError(error, '导出失败')
     } finally {
       ruleExporting.value = false
     }
@@ -587,7 +578,7 @@
       refreshRuleData()
     } catch (error) {
       if (!(error instanceof PixiuApiError) || !error.notified) {
-        ElMessage.error(error instanceof Error ? error.message : '导入失败')
+        notifyError(error, '导入失败')
       }
     } finally {
       ruleImporting.value = false
@@ -608,7 +599,7 @@
       refreshRuleData()
     } catch (error) {
       if (!(error instanceof PixiuApiError) || !error.notified) {
-        ElMessage.error(error instanceof Error ? error.message : '更新失败')
+        notifyError(error, '更新失败')
       }
       refreshRuleData()
     }
@@ -930,7 +921,7 @@
       refreshSilenceData()
     } catch (error) {
       if (!(error instanceof PixiuApiError) || !error.notified) {
-        ElMessage.error(error instanceof Error ? error.message : '更新失败')
+        notifyError(error, '更新失败')
       }
       refreshSilenceData()
     }
@@ -1197,6 +1188,8 @@
         refreshNotificationData()
         done()
       }
+    }).catch(() => {
+      /* 用户取消或关闭，忽略 */
     })
   }
 
@@ -1398,7 +1391,7 @@
       refresh()
     } catch (error) {
       if (error !== 'cancel' && (!(error instanceof PixiuApiError) || !error.notified)) {
-        ElMessage.error(error instanceof Error ? error.message : '删除失败')
+        notifyError(error, '删除失败')
       }
     }
   }

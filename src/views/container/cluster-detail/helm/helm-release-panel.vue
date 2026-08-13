@@ -2,9 +2,7 @@
   <section class="helm-release-panel">
     <div class="helm-panel-toolbar">
       <div class="helm-panel-toolbar__left">
-        <ElButton v-ripple @click="emit('install')">
-          部署应用
-        </ElButton>
+        <ElButton v-ripple @click="emit('install')"> 部署应用 </ElButton>
         <ElAlert
           v-if="!namespace"
           type="info"
@@ -47,18 +45,16 @@
     <div v-loading="loading" class="helm-release-panel__body">
       <template v-if="layout === 'grid'">
         <div v-if="releases.length" class="helm-release-grid">
-          <article
-            v-for="row in releases"
-            :key="row.name"
-            class="helm-release-card"
-          >
+          <article v-for="row in releases" :key="row.name" class="helm-release-card">
             <div class="helm-release-card__head">
               <div class="helm-release-card__title-wrap">
                 <h4 class="helm-release-card__title" :title="row.name">{{ row.name }}</h4>
                 <div class="helm-release-card__meta-line">
                   <span class="helm-release-card__rev">Rev {{ row.version ?? '-' }}</span>
                   <span class="helm-status-dot" :class="releaseStatusMeta(row.info?.status).dot" />
-                  <span class="helm-release-card__status-text">{{ releaseStatusMeta(row.info?.status).label }}</span>
+                  <span class="helm-release-card__status-text">{{
+                    releaseStatusMeta(row.info?.status).label
+                  }}</span>
                 </div>
               </div>
               <ElDropdown trigger="click">
@@ -96,16 +92,16 @@
             </div>
           </article>
         </div>
-        <ElEmpty v-else description="当前命名空间暂无 Helm 应用，请切换命名空间" :image-size="64" class="helm-release-empty" />
+        <ElEmpty
+          v-else
+          description="当前命名空间暂无 Helm 应用，请切换命名空间"
+          :image-size="64"
+          class="helm-release-empty"
+        />
       </template>
 
       <template v-else>
-        <ElTable
-          v-if="releases.length"
-          :data="releases"
-          row-key="name"
-          class="helm-release-table"
-        >
+        <ElTable v-if="releases.length" :data="releases" row-key="name" class="helm-release-table">
           <ElTableColumn label="应用名称" min-width="180">
             <template #default="{ row }">
               <button type="button" class="helm-table-link" @click="emit('open-detail', row)">
@@ -135,7 +131,12 @@
             </template>
           </ElTableColumn>
         </ElTable>
-        <ElEmpty v-else description="当前命名空间暂无 Helm 应用" :image-size="64" class="helm-release-empty" />
+        <ElEmpty
+          v-else
+          description="当前命名空间暂无 Helm 应用"
+          :image-size="64"
+          class="helm-release-empty"
+        />
       </template>
     </div>
   </section>
@@ -144,7 +145,12 @@
 <script setup lang="ts">
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
   import type { HelmReleaseItem } from '@/api/helm'
-  import { formatChartLabel, formatHelmTime, releaseStatusMeta, type HelmReleaseLayout } from './shared'
+  import {
+    formatChartLabel,
+    formatHelmTime,
+    releaseStatusMeta,
+    type HelmReleaseLayout
+  } from './shared'
 
   defineProps<{
     loading: boolean
@@ -436,14 +442,14 @@
 </style>
 
 <style>
-.helm-release-card__actions .el-button,
-.helm-release-card__actions .el-button--link {
-  font-size: 12px !important;
-  padding: 2px 4px !important;
-  margin: 0 !important;
-}
+  .helm-release-card__actions .el-button,
+  .helm-release-card__actions .el-button--link {
+    font-size: 12px !important;
+    padding: 2px 4px !important;
+    margin: 0 !important;
+  }
 
-.helm-release-card__actions .el-button + .el-button {
-  margin-left: -4px !important;
-}
+  .helm-release-card__actions .el-button + .el-button {
+    margin-left: -4px !important;
+  }
 </style>

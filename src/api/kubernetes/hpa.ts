@@ -75,7 +75,10 @@ function hpaItemPath(cluster: string, namespace: string, name: string): string {
   return `${hpaCollectionPath(cluster, namespace)}/${encodeURIComponent(name)}`
 }
 
-async function listAllHpas(cluster: string, namespace?: string): Promise<K8sHorizontalPodAutoscaler[]> {
+async function listAllHpas(
+  cluster: string,
+  namespace?: string
+): Promise<K8sHorizontalPodAutoscaler[]> {
   const path = hpaCollectionPath(cluster, namespace)
   const all: K8sHorizontalPodAutoscaler[] = []
   let continueToken: string | undefined
@@ -105,11 +108,21 @@ export async function fetchK8sHpaList(
   return { items: all.slice(start, start + limit), total }
 }
 
-export async function fetchK8sHpa(cluster: string, namespace: string, name: string): Promise<K8sHorizontalPodAutoscaler> {
-  const { data } = await kubeProxyAxios.get<K8sHorizontalPodAutoscaler>(hpaItemPath(cluster, namespace, name))
+export async function fetchK8sHpa(
+  cluster: string,
+  namespace: string,
+  name: string
+): Promise<K8sHorizontalPodAutoscaler> {
+  const { data } = await kubeProxyAxios.get<K8sHorizontalPodAutoscaler>(
+    hpaItemPath(cluster, namespace, name)
+  )
   return data
 }
 
-export async function deleteK8sHpa(cluster: string, namespace: string, name: string): Promise<void> {
+export async function deleteK8sHpa(
+  cluster: string,
+  namespace: string,
+  name: string
+): Promise<void> {
   await kubeProxyAxios.delete(hpaItemPath(cluster, namespace, name))
 }

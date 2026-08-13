@@ -48,7 +48,9 @@
   }>()
 
   const visible = defineModel<boolean>('visible', { required: true })
-  const form = defineModel<{ name: string; chart: string; version: string }>('form', { required: true })
+  const form = defineModel<{ name: string; chart: string; version: string }>('form', {
+    required: true
+  })
   const valuesText = defineModel<string>('valuesText', { required: true })
 
   const emit = defineEmits<{ close: []; submit: [] }>()

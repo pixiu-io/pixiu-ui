@@ -17,7 +17,6 @@
   import { useMenuStore } from '@/store/modules/menu'
   import { useUserStore } from '@/store/modules/user'
   import { getFirstMenuPath } from '@/utils'
-  import { RoutesAlias } from '@/router/routesAlias'
 
   const router = useRouter()
   const userStore = useUserStore()

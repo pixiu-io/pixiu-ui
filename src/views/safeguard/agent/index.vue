@@ -14,12 +14,7 @@
             />
           </ElFormItem>
           <ElFormItem label="状态">
-            <ElSelect
-              v-model="searchForm.status"
-              placeholder="全部"
-              clearable
-              style="width: 140px"
-            >
+            <ElSelect v-model="searchForm.status" placeholder="全部" clearable style="width: 140px">
               <ElOption label="未知" :value="0" />
               <ElOption label="在线" :value="1" />
               <ElOption label="离线" :value="2" />
@@ -61,12 +56,7 @@
       width="500px"
       destroy-on-close
     >
-      <ElForm
-        ref="dialogFormRef"
-        :model="dialogForm"
-        :rules="dialogRules"
-        label-width="90px"
-      >
+      <ElForm ref="dialogFormRef" :model="dialogForm" :rules="dialogRules" label-width="90px">
         <ElFormItem label="名称" prop="name">
           <ElInput v-model="dialogForm.name" placeholder="请输入名称" />
         </ElFormItem>
@@ -98,24 +88,23 @@
 <script setup lang="ts">
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import { ElTag, ElMessage, ElMessageBox } from 'element-plus'
+  import { notifyError } from '@/utils/sys/notify'
   import type { FormInstance, FormRules } from 'element-plus'
   import { useTable } from '@/hooks/core/useTable'
-  import {
-    fetchAgentList,
-    fetchCreateAgent,
-    fetchUpdateAgent,
-    fetchDeleteAgent,
-  } from '@/api/agent'
+  import { fetchAgentList, fetchCreateAgent, fetchUpdateAgent, fetchDeleteAgent } from '@/api/agent'
   import type { AgentItem } from '@/api/agent'
 
   defineOptions({ name: 'SafeguardAgent' })
 
   // 状态配置
-  const STATUS_CONFIG: Record<number, { label: string; type: 'info' | 'success' | 'warning' | 'danger' }> = {
+  const STATUS_CONFIG: Record<
+    number,
+    { label: string; type: 'info' | 'success' | 'warning' | 'danger' }
+  > = {
     0: { label: '未知', type: 'info' },
     1: { label: '在线', type: 'success' },
     2: { label: '离线', type: 'warning' },
-    3: { label: '异常', type: 'danger' },
+    3: { label: '异常', type: 'danger' }
   }
 
   /** 格式化 ISO 日期为 yyyy-MM-dd HH:mm:ss */
@@ -129,8 +118,8 @@
   // 搜索表单
   const searchForm = ref({
     // @ts-ignore
-      nameSelector: '',
-    status: '' as string | number,
+    nameSelector: '',
+    status: '' as string | number
   })
 
   // 弹窗
@@ -143,11 +132,11 @@
     status: 0,
     description: '',
     id: 0,
-    resourceVersion: 0,
+    resourceVersion: 0
   })
 
   const dialogRules: FormRules = {
-    name: [{ required: true, message: '请输入名称', trigger: 'blur' }],
+    name: [{ required: true, message: '请输入名称', trigger: 'blur' }]
   }
 
   const {
@@ -160,7 +149,7 @@
     resetSearchParams,
     handleSizeChange,
     handleCurrentChange,
-    refreshData,
+    refreshData
   } = useTable({
     core: {
       apiFn: async (params: { current: number; size: number }) => {
@@ -168,12 +157,12 @@
           page: params.current,
           limit: params.size,
           // @ts-ignore
-      nameSelector: searchForm.value.nameSelector || undefined,
-          status: searchForm.value.status !== '' ? Number(searchForm.value.status) : undefined,
+          nameSelector: searchForm.value.nameSelector || undefined,
+          status: searchForm.value.status !== '' ? Number(searchForm.value.status) : undefined
         })
         return {
           code: 200,
-          data: { records: items, total, current: params.current, size: params.size },
+          data: { records: items, total, current: params.current, size: params.size }
         }
       },
       columnsFactory: () => [
@@ -182,8 +171,7 @@
           prop: 'name',
           label: '名称',
           minWidth: 140,
-          formatter: (row: AgentItem) =>
-            h('span', { style: 'font-size:12px' }, row.name || '-'),
+          formatter: (row: AgentItem) => h('span', { style: 'font-size:12px' }, row.name || '-')
         },
         {
           prop: 'status',
@@ -192,14 +180,14 @@
           formatter: (row: AgentItem) => {
             const cfg = STATUS_CONFIG[row.status] ?? { label: '未知', type: 'info' as const }
             return h(ElTag, { type: cfg.type, size: 'small' }, () => cfg.label)
-          },
+          }
         },
         {
           prop: 'lastHeartbeat',
           label: '上次上报时间',
           width: 170,
           formatter: (row: AgentItem) =>
-            h('span', { style: 'font-size:12px' }, formatDate(row.lastHeartbeat)),
+            h('span', { style: 'font-size:12px' }, formatDate(row.lastHeartbeat))
         },
         {
           prop: 'description',
@@ -207,7 +195,7 @@
           minWidth: 160,
           showOverflowTooltip: true,
           formatter: (row: AgentItem) =>
-            h('span', { style: 'font-size:12px' }, row.description || '-'),
+            h('span', { style: 'font-size:12px' }, row.description || '-')
         },
         {
           prop: 'operation',
@@ -218,16 +206,16 @@
             h('div', [
               h(ArtButtonTable, {
                 type: 'edit',
-                onClick: () => openDialog('edit', row),
+                onClick: () => openDialog('edit', row)
               }),
               h(ArtButtonTable, {
                 type: 'delete',
-                onClick: () => handleDelete(row),
-              }),
-            ]),
-        },
-      ],
-    },
+                onClick: () => handleDelete(row)
+              })
+            ])
+        }
+      ]
+    }
   })
 
   const selectedRows = ref<AgentItem[]>([])
@@ -236,14 +224,17 @@
     replaceSearchParams({
       // @ts-ignore
       nameSelector: searchForm.value.nameSelector.trim() || undefined,
-      status: searchForm.value.status !== '' ? Number(searchForm.value.status) : undefined,
+      status: searchForm.value.status !== '' ? Number(searchForm.value.status) : undefined
     })
     getData()
   }
 
   function handleReset() {
-    searchForm.value = { // @ts-ignore
-      nameSelector: '', status: '' }
+    searchForm.value = {
+      // @ts-ignore
+      nameSelector: '',
+      status: ''
+    }
     resetSearchParams()
   }
 
@@ -255,7 +246,7 @@
         status: row.status,
         description: row.description,
         id: row.id,
-        resourceVersion: row.resourceVersion,
+        resourceVersion: row.resourceVersion
       }
     } else {
       dialogForm.value = {
@@ -263,7 +254,7 @@
         status: 0,
         description: '',
         id: 0,
-        resourceVersion: 0,
+        resourceVersion: 0
       }
     }
     dialogVisible.value = true
@@ -283,14 +274,14 @@
         await fetchUpdateAgent(dialogForm.value.id, dialogForm.value.resourceVersion, {
           name: dialogForm.value.name,
           status: dialogForm.value.status,
-          description: dialogForm.value.description,
+          description: dialogForm.value.description
         })
         ElMessage.success('更新成功')
       }
       dialogVisible.value = false
       refreshData()
     } catch (e: any) {
-      ElMessage.error(e.message || '操作失败')
+      notifyError(e, '操作失败')
     } finally {
       submitting.value = false
     }
@@ -304,16 +295,18 @@
     ElMessageBox.confirm(`确定要删除 Agent「${row.name}」吗？`, '删除确认', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
-      type: 'warning',
-    }).then(async () => {
-      try {
-        await fetchDeleteAgent(row.id)
-        ElMessage.success('删除成功')
-        refreshData()
-      } catch (e: any) {
-        ElMessage.error(e.message || '删除失败')
-      }
-    }).catch(() => {})
+      type: 'warning'
+    })
+      .then(async () => {
+        try {
+          await fetchDeleteAgent(row.id)
+          ElMessage.success('删除成功')
+          refreshData()
+        } catch (e: any) {
+          notifyError(e, '删除失败')
+        }
+      })
+      .catch(() => {})
   }
 </script>
 

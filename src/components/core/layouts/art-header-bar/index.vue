@@ -1,7 +1,9 @@
 <!-- 顶部栏 -->
 <template>
   <div class="w-full bg-[var(--default-bg-color)]">
-    <div class="relative box-border flex-b h-15 leading-15 select-none border-b border-[var(--art-card-border)]">
+    <div
+      class="relative box-border flex-b h-15 leading-15 select-none border-b border-[var(--art-card-border)]"
+    >
       <div class="flex-c flex-1 min-w-0 leading-15" style="display: flex">
         <!-- 系统信息  -->
         <div class="flex-c c-p" @click="toHome" v-if="isTopMenu">
@@ -196,7 +198,8 @@
     fastEnterMinWidth: headerBarFastEnterMinWidth
   } = useHeaderBar()
 
-  const { menuOpen, systemThemeColor, showSettingGuide, menuType, isDark } = storeToRefs(settingStore)
+  const { menuOpen, systemThemeColor, showSettingGuide, menuType, isDark } =
+    storeToRefs(settingStore)
 
   const { language } = storeToRefs(userStore)
   const { menuList } = storeToRefs(menuStore)

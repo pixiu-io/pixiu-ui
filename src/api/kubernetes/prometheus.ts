@@ -50,10 +50,7 @@ function appendSearchParams(path: string, params: URLSearchParams): string {
   return `${path}${path.includes('?') ? '&' : '?'}${query}`
 }
 
-async function getPrometheusJson<T>(
-  path: string,
-  opts?: PrometheusQueryOptions
-): Promise<T> {
+async function getPrometheusJson<T>(path: string, opts?: PrometheusQueryOptions): Promise<T> {
   const headers = buildRequestHeaders(opts)
   const useClusterProxy = Boolean(opts?.clusterName?.trim())
   if (useClusterProxy) {

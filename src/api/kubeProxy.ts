@@ -48,7 +48,7 @@ kubeProxyAxios.interceptors.response.use(
     const rejected = rejectIfPixiuBusinessError(data, error.config)
     if (rejected) return rejected
 
-    const config = (error.config as Record<string, unknown> | undefined)
+    const config = error.config as Record<string, unknown> | undefined
     // 403 无权限且页面指定静默时，不弹错误提示（如集群详情基础信息页）
     const silence403 = config?.silence403
     if (error.response?.status === 403 && silence403) {
@@ -60,7 +60,8 @@ kubeProxyAxios.interceptors.response.use(
       const message = (data as { message?: string }).message
       if (message) {
         const finalMsg = shortenError(message, error.response?.status)
-        const skipNotify = (error.config as Record<string, unknown> | undefined)?.skipErrorNotification
+        const skipNotify = (error.config as Record<string, unknown> | undefined)
+          ?.skipErrorNotification
         if (!skipNotify) {
           ElMessage.error(finalMsg)
         }

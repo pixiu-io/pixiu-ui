@@ -22,7 +22,11 @@
           @keyup.enter="handleSearch(searchForm)"
           @clear="handleSearch(searchForm)"
         />
-        <ArtTableHeader v-model:columns="columnChecks" :loading="loading" @refresh="handleTableRefresh" />
+        <ArtTableHeader
+          v-model:columns="columnChecks"
+          :loading="loading"
+          @refresh="handleTableRefresh"
+        />
       </div>
     </div>
 
@@ -151,7 +155,9 @@
       </ElForm>
       <template #footer>
         <ElButton @click="editNodeVisible = false">取消</ElButton>
-        <ElButton type="primary" :loading="editNodeSubmitting" @click="submitEditNode">确定</ElButton>
+        <ElButton type="primary" :loading="editNodeSubmitting" @click="submitEditNode"
+          >确定</ElButton
+        >
       </template>
     </ElDialog>
 
@@ -164,7 +170,9 @@
   import { CopyDocument } from '@element-plus/icons-vue'
   import { ElAlert, ElInput, ElLink, ElMessage, ElMessageBox } from 'element-plus'
   import type { FormInstance, FormRules } from 'element-plus'
-  import ArtButtonMore, { type ButtonMoreItem } from '@/components/core/forms/art-button-more/index.vue'
+  import ArtButtonMore, {
+    type ButtonMoreItem
+  } from '@/components/core/forms/art-button-more/index.vue'
   import { useTable } from '@/hooks/core/useTable'
   import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
   import {
@@ -370,8 +378,7 @@
   function openEditNodeDialog(row: PixiuNodeItem) {
     editingNodeId.value = row.id
     const rv = row.resource_version
-    editingResourceVersion.value =
-      typeof rv === 'number' && !Number.isNaN(rv) ? rv : 0
+    editingResourceVersion.value = typeof rv === 'number' && !Number.isNaN(rv) ? rv : 0
     const parsed = parseAuthForForm(row.auth || '{}')
     Object.assign(editNodeForm, {
       name: row.name,
@@ -462,7 +469,6 @@
     pagination,
     getData,
     replaceSearchParams,
-    resetSearchParams,
     handleSizeChange,
     handleCurrentChange,
     refreshData
@@ -608,10 +614,6 @@
       hostName: params.hostName
     })
     void getData()
-  }
-
-  function handleReset() {
-    void resetSearchParams()
   }
 
   async function handleTableRefresh() {

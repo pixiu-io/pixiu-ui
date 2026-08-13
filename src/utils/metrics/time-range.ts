@@ -122,7 +122,9 @@ export function toDateTimePickerValue(range: MetricsTimeRange): [Date, Date] {
   return [new Date(range.start), new Date(range.end)]
 }
 
-export function fromDateTimePickerValue(value: [Date, Date] | null | undefined): MetricsTimeRange | null {
+export function fromDateTimePickerValue(
+  value: [Date, Date] | null | undefined
+): MetricsTimeRange | null {
   if (!value?.[0] || !value?.[1]) return null
   const start = value[0]
   const end = value[1]
@@ -152,7 +154,9 @@ export type MetricsTimeShortcut = {
  * 生成 Element Plus DatePicker shortcuts。
  * 每次点击快捷项时按“当前时间”重新计算区间，避免使用陈旧时间。
  */
-export function buildMetricsTimeShortcuts(nowFactory: () => Date = () => new Date()): MetricsTimeShortcut[] {
+export function buildMetricsTimeShortcuts(
+  nowFactory: () => Date = () => new Date()
+): MetricsTimeShortcut[] {
   return METRICS_TIME_PRESETS.map((preset) => ({
     text: preset.label,
     value: () => {

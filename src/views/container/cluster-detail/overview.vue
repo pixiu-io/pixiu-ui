@@ -404,7 +404,9 @@
               <pre v-if="kubeconfigContent && kubeconfigVisible" class="kubeconfig-pre">{{
                 kubeconfigContent
               }}</pre>
-              <div v-else-if="kubeconfigContent" class="kubeconfig-hidden">KubeConfig 内容已隐藏</div>
+              <div v-else-if="kubeconfigContent" class="kubeconfig-hidden"
+                >KubeConfig 内容已隐藏</div
+              >
               <ElEmpty v-else description="暂无 KubeConfig 内容" :image-size="80" />
             </div>
           </ElCard>
@@ -420,9 +422,7 @@
                     :disabled="!ctx.id"
                     @change="onProxyToggle"
                   />
-                  <span class="info-dl__switch-text">{{
-                    proxyEnabled ? '已开启' : '未开启'
-                  }}</span>
+                  <span class="info-dl__switch-text">{{ proxyEnabled ? '已开启' : '未开启' }}</span>
                   <span v-if="proxyFull?.expire_at" class="proxy-expire-text">
                     过期时间 {{ formatProxyExpireAt(proxyFull.expire_at) }}
                   </span>
@@ -466,14 +466,17 @@
               </div>
             </template>
             <div v-loading="proxyLoading" class="kubeconfig-body">
-              <pre
-                v-if="proxyFull?.kubeconfig && proxyKubeconfigVisible"
-                class="kubeconfig-pre"
-              >{{ proxyFull.kubeconfig }}</pre>
+              <pre v-if="proxyFull?.kubeconfig && proxyKubeconfigVisible" class="kubeconfig-pre">{{
+                proxyFull.kubeconfig
+              }}</pre>
               <div v-else-if="proxyFull?.kubeconfig" class="kubeconfig-hidden">
                 代理 KubeConfig 内容已隐藏
               </div>
-              <ElEmpty v-else description="未开启，启用后可通过外网 kubectl 连接集群" :image-size="80" />
+              <ElEmpty
+                v-else
+                description="未开启，启用后可通过外网 kubectl 连接集群"
+                :image-size="80"
+              />
             </div>
           </ElCard>
         </div>
@@ -495,7 +498,9 @@
       </ElForm>
       <template #footer>
         <ElButton @click="proxyDialogVisible = false">取消</ElButton>
-        <ElButton type="primary" :loading="proxyFormLoading" @click="submitProxyCreate">确定</ElButton>
+        <ElButton type="primary" :loading="proxyFormLoading" @click="submitProxyCreate"
+          >确定</ElButton
+        >
       </template>
     </ElDialog>
   </div>
@@ -532,6 +537,7 @@
   import ArtRingChart from '@/components/core/charts/art-ring-chart/index.vue'
   import { clusterDetailContextKey, clusterDetailRefreshKey } from './context'
   import { getCronJobApiVersion } from '@/utils/kubernetes/cronjob'
+  import { notifyError } from '@/utils/sys/notify'
 
   defineOptions({ name: 'ClusterDetailOverview' })
 
@@ -740,7 +746,7 @@
     } catch (e: unknown) {
       kubeconfigContent.value = ''
       if (e instanceof PixiuApiError && e.notified) return
-      ElMessage.error(e instanceof Error ? e.message : '获取 Kubeconfig 失败')
+      notifyError(e, '获取 Kubeconfig 失败')
     } finally {
       kubeconfigLoading.value = false
     }
@@ -799,11 +805,11 @@
       // 关闭：确认后删除 token 记录
       if (!proxyFull.value?.jti) return
       try {
-        await ElMessageBox.confirm(
-          '关闭后将删除代理凭证，该 KubeConfig 立即失效。',
-          '确认关闭',
-          { confirmButtonText: '确认', cancelButtonText: '取消', type: 'warning' }
-        )
+        await ElMessageBox.confirm('关闭后将删除代理凭证，该 KubeConfig 立即失效。', '确认关闭', {
+          confirmButtonText: '确认',
+          cancelButtonText: '取消',
+          type: 'warning'
+        })
       } catch {
         return
       }
@@ -816,7 +822,7 @@
         ElMessage.success('已关闭外部访问')
       } catch (e: unknown) {
         if (e instanceof PixiuApiError && e.notified) return
-        ElMessage.error(e instanceof Error ? e.message : '关闭失败')
+        notifyError(e, '关闭失败')
       } finally {
         proxyLoading.value = false
       }
@@ -865,7 +871,7 @@
       ElMessage.success('已开启外部访问')
     } catch (e: unknown) {
       if (e instanceof PixiuApiError && e.notified) return
-      ElMessage.error(e instanceof Error ? e.message : '开启失败')
+      notifyError(e, '开启失败')
     } finally {
       proxyFormLoading.value = false
     }
@@ -912,7 +918,7 @@
       router.replace({ path: route.path, query: q })
     } catch (e: unknown) {
       if (e instanceof PixiuApiError && e.notified) return
-      ElMessage.error(e instanceof Error ? e.message : '更新失败')
+      notifyError(e, '更新失败')
     } finally {
       aliasSaving.value = false
     }
@@ -928,7 +934,7 @@
       await refreshCluster?.()
     } catch (e: unknown) {
       if (e instanceof PixiuApiError && e.notified) return
-      ElMessage.error(e instanceof Error ? e.message : '操作失败')
+      notifyError(e, '操作失败')
     } finally {
       protectSaving.value = false
     }

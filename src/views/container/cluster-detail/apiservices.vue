@@ -64,6 +64,7 @@
 <script setup lang="ts">
   import { ElMessage, ElLink } from 'element-plus'
   import { CopyDocument } from '@element-plus/icons-vue'
+  import { notifyError } from '@/utils/sys/notify'
   import yaml from 'js-yaml'
   import { h, ref, watch } from 'vue'
   import { useRoute } from 'vue-router'
@@ -71,7 +72,11 @@
   import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useTable } from '@/hooks/core/useTable'
   import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
-  import { fetchK8sAPIService, fetchK8sAPIServiceList, type K8sAPIService } from '@/api/kubernetes/apiservice'
+  import {
+    fetchK8sAPIService,
+    fetchK8sAPIServiceList,
+    type K8sAPIService
+  } from '@/api/kubernetes/apiservice'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
   import { updateK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
 
@@ -86,20 +91,31 @@
   function renderNameCell(row: K8sAPIService) {
     const name = row.metadata?.name ?? '-'
     return h('div', { style: 'display:flex;align-items:center;gap:8px' }, [
-      h(ElLink, {
-        type: 'primary', underline: 'never', style: 'font-size:12px',
-        onClick: () => void openYaml(row)
-      }, () => name),
-      h('span', {
-        class: 'icon-action',
-        style: 'cursor:pointer;color:var(--el-text-color-secondary);display:inline-flex;align-items:center',
-        title: '复制',
-        onClick: (e: MouseEvent) => {
-          e.stopPropagation()
-          navigator.clipboard.writeText(name)
-          ElMessage.success('已复制')
-        }
-      }, [h(CopyDocument, { style: 'width:12px;height:12px' })])
+      h(
+        ElLink,
+        {
+          type: 'primary',
+          underline: 'never',
+          style: 'font-size:12px',
+          onClick: () => void openYaml(row)
+        },
+        () => name
+      ),
+      h(
+        'span',
+        {
+          class: 'icon-action',
+          style:
+            'cursor:pointer;color:var(--el-text-color-secondary);display:inline-flex;align-items:center',
+          title: '复制',
+          onClick: (e: MouseEvent) => {
+            e.stopPropagation()
+            navigator.clipboard.writeText(name)
+            ElMessage.success('已复制')
+          }
+        },
+        [h(CopyDocument, { style: 'width:12px;height:12px' })]
+      )
     ])
   }
 
@@ -139,7 +155,7 @@
       yamlText.value = yaml.dump(resource, { quotingType: '"' })
       yamlVisible.value = true
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '加载失败')
+      notifyError(e, '加载失败')
     }
   }
 
@@ -157,7 +173,7 @@
       yamlVisible.value = false
       refreshData()
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '保存失败')
+      notifyError(e, '保存失败')
     } finally {
       yamlSaving.value = false
     }
@@ -166,69 +182,123 @@
   type TableParams = { current: number; size: number; name?: string }
 
   const {
-    columns, columnChecks, data, loading, pagination,
-    getData, replaceSearchParams,
-    handleSizeChange, handleCurrentChange, refreshData
+    columns,
+    columnChecks,
+    data,
+    loading,
+    pagination,
+    getData,
+    replaceSearchParams,
+    handleSizeChange,
+    handleCurrentChange,
+    refreshData
   } = useTable({
     core: {
       immediate: false,
       apiFn: async (params: TableParams) => {
         const cluster = String(route.query.cluster ?? '')
         if (!cluster) {
-          return { code: 200 as const, data: { records: [], total: 0, current: 1, size: params.size } }
+          return {
+            code: 200 as const,
+            data: { records: [], total: 0, current: 1, size: params.size }
+          }
         }
         const { items, total } = await fetchK8sAPIServiceList(cluster, {
-          page: params.current, limit: params.size,
+          page: params.current,
+          limit: params.size,
           name: (params.name ?? '').trim() || undefined
         })
         const records = items.map((row, i) => ({
-          ...row, rowKey: row.metadata?.uid ?? row.metadata?.name ?? `apiservice-${i}`
+          ...row,
+          rowKey: row.metadata?.uid ?? row.metadata?.name ?? `apiservice-${i}`
         }))
-        return { code: 200 as const, data: { records, total, current: params.current, size: params.size } }
+        return {
+          code: 200 as const,
+          data: { records, total, current: params.current, size: params.size }
+        }
       },
       apiParams: { current: 1, size: 10, name: undefined },
       columnsFactory: () => [
         {
-          prop: 'metadata.name', label: 'NAME', minWidth: 200,
+          prop: 'metadata.name',
+          label: 'NAME',
+          minWidth: 200,
           formatter: (row: K8sAPIService) => renderNameCell(row)
         },
         {
-          prop: 'spec.service', label: 'SERVICE', minWidth: 200,
+          prop: 'spec.service',
+          label: 'SERVICE',
+          minWidth: 200,
           formatter: (row: K8sAPIService) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, formatServiceRef(row))
+            h(
+              'span',
+              { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+              formatServiceRef(row)
+            )
         },
         {
-          prop: 'available', label: 'AVAILABLE', width: 110,
+          prop: 'available',
+          label: 'AVAILABLE',
+          width: 110,
           formatter: (row: K8sAPIService) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, formatAvailable(row))
+            h(
+              'span',
+              { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+              formatAvailable(row)
+            )
         },
         {
-          prop: 'metadata.creationTimestamp', label: 'AGE', width: 120,
+          prop: 'metadata.creationTimestamp',
+          label: 'AGE',
+          width: 120,
           formatter: (row: K8sAPIService) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, formatAge(row.metadata?.creationTimestamp))
+            h(
+              'span',
+              { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+              formatAge(row.metadata?.creationTimestamp)
+            )
         },
         {
-          prop: 'operation', label: '操作', width: 120, fixed: 'right',
+          prop: 'operation',
+          label: '操作',
+          width: 120,
+          fixed: 'right',
           formatter: (row: K8sAPIService) =>
             h('div', { class: 'workloads-op-cell' }, [
-              h(ElLink, {
-                type: 'primary', underline: 'never', style: 'font-size:12px',
-                onClick: () => void openYaml(row)
-              }, () => '查看YAML')
+              h(
+                ElLink,
+                {
+                  type: 'primary',
+                  underline: 'never',
+                  style: 'font-size:12px',
+                  onClick: () => void openYaml(row)
+                },
+                () => '查看YAML'
+              )
             ])
         }
       ]
     }
   })
 
-  function onRefresh() { refreshData() }
+  function onRefresh() {
+    refreshData()
+  }
   function runSearch() {
     replaceSearchParams({ name: (searchForm.value.name ?? '').trim() || undefined })
     getData()
   }
-  function forceSearch() { runSearch() }
+  function forceSearch() {
+    runSearch()
+  }
 
-  watch(() => route.query.cluster, (c) => { if (c) getData() }, { immediate: true })
+  watch(
+    () => route.query.cluster,
+    (c) => {
+      if (c) getData()
+    },
+    { immediate: true }
+  )
 
   useSkipFirstActivatedRefresh(refreshData)
 </script>

@@ -74,10 +74,7 @@
 <script setup lang="ts">
   import { Search } from '@element-plus/icons-vue'
   import { computed, ref } from 'vue'
-  import {
-    RBAC_ACTION_COLUMNS,
-    type RbacRuleMatrixRow
-  } from '@/utils/kubernetes/rbac-rules-matrix'
+  import { RBAC_ACTION_COLUMNS, type RbacRuleMatrixRow } from '@/utils/kubernetes/rbac-rules-matrix'
 
   defineOptions({ name: 'PermissionRulesMatrix' })
 
@@ -100,8 +97,7 @@
     if (!keyword) return rows.value
     return rows.value.filter(
       (row) =>
-        row.apiGroup.toLowerCase().includes(keyword) ||
-        row.resource.toLowerCase().includes(keyword)
+        row.apiGroup.toLowerCase().includes(keyword) || row.resource.toLowerCase().includes(keyword)
     )
   })
 

@@ -186,7 +186,9 @@ export function handleError(error: AxiosError<ErrorResponse>): never {
   // 确定最终显示的 message
   // 1. 如果有状态码，先尝试获取状态码对应的通用翻译
   // 2. 如果通用翻译没覆盖到，或者需要根据内容进一步精简，则走 shortenError
-  let message = statusCode ? getErrorMessage(statusCode) : errorMessage || $t('httpMsg.requestFailed')
+  let message = statusCode
+    ? getErrorMessage(statusCode)
+    : errorMessage || $t('httpMsg.requestFailed')
 
   // 针对 K8s 代理请求或其他权限报错进行二次精简
   message = shortenError(message || errorMessage, statusCode)

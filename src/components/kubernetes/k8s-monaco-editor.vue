@@ -4,7 +4,9 @@
     class="k8s-monaco-editor"
     :class="{ 'k8s-monaco-editor--fill': fillHeight }"
     :style="
-      fillHeight ? { height: '100%', width: '100%', minHeight: 0 } : { height: `${height}px`, width: '100%' }
+      fillHeight
+        ? { height: '100%', width: '100%', minHeight: 0 }
+        : { height: `${height}px`, width: '100%' }
     "
   />
 </template>
@@ -27,7 +29,14 @@
       fontSize?: number
       language?: string
     }>(),
-    { readOnly: true, height: 480, fillHeight: false, wordWrap: false, fontSize: 13, language: 'yaml' }
+    {
+      readOnly: true,
+      height: 480,
+      fillHeight: false,
+      wordWrap: false,
+      fontSize: 13,
+      language: 'yaml'
+    }
   )
 
   const emit = defineEmits<{ 'update:modelValue': [string] }>()

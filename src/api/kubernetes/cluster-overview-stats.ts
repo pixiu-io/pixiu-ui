@@ -121,11 +121,22 @@ export async function fetchClusterOverviewK8sStats(
         fetchKubeListCount({ path: paths.statefulSets, silence403: true }),
         fetchKubeListCount({ path: paths.daemonSets, silence403: true }),
         // 版本未知时跳过 CronJob 请求，避免 batch/v1 在旧集群 404
-        cronJobApiVersion ? fetchKubeListCount({ path: paths.cronJobs, silence403: true }) : Promise.resolve(0),
+        cronJobApiVersion
+          ? fetchKubeListCount({ path: paths.cronJobs, silence403: true })
+          : Promise.resolve(0),
         fetchKubeListCount({ path: paths.jobs, silence403: true })
       ])
 
-      const [nodeTotal, cpLabelCount, masterLabelCount, deployment, statefulSet, daemonSet, cronJob, job] = counts
+      const [
+        nodeTotal,
+        cpLabelCount,
+        masterLabelCount,
+        deployment,
+        statefulSet,
+        daemonSet,
+        cronJob,
+        job
+      ] = counts
 
       let controlPlane = cpLabelCount + masterLabelCount
       if (controlPlane > nodeTotal) {
@@ -218,7 +229,9 @@ export async function fetchClusterDetailInfo(
           const url = new URL(server)
           if (url.port) empty.apiServerPort = url.port
         }
-      } catch {}
+      } catch {
+        // 解析 kubeconfig 失败时忽略，apiServerPort 保持默认
+      }
     }
     const { data: nodeRes } = await kubeProxyAxios.get<{ items: K8sNode[] }>(
       `/pixiu/proxy/${c}/api/v1/nodes?limit=1`,
@@ -240,11 +253,16 @@ export async function fetchClusterDetailInfo(
         `/pixiu/proxy/${c}/api/v1/namespaces/kube-system/configmaps/kube-proxy`,
         { silence403: true } as any
       )
-      const kpYaml = kpConfig.data?.config ?? kpConfig.data?.Config ?? kpConfig.data?.config_conf ?? ''
+      const kpYaml =
+        kpConfig.data?.config ?? kpConfig.data?.Config ?? kpConfig.data?.config_conf ?? ''
       const mode = kpYaml.match(/mode:\s*(\S+)/)?.[1]
       if (mode) empty.kubeProxyMode = mode
-    } catch {}
+    } catch {
+      // 获取 kube-proxy configmap 失败时忽略，kubeProxyMode 保持默认
+    }
     empty.cni = await detectCniFromDeployments(cluster)
-  } catch {}
+  } catch {
+    // 节点信息获取失败时忽略，保持 empty 默认值
+  }
   return empty
 }

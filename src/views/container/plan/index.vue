@@ -168,6 +168,7 @@
   } from '@/api/plan'
   import { confirmDestroyPlan } from '../utils/destroy-plan-dialog'
   import type { PlanItemFormatted, PlanTask } from '@/api/plan'
+  import { notifyError } from '@/utils/sys/notify'
 
   defineOptions({ name: 'Plan' })
 
@@ -294,6 +295,8 @@
     return ''
   }
 
+  // ANSI 转义序列正则，用于渲染终端日志颜色
+  // eslint-disable-next-line no-control-regex
   const ansiCodeRegex = /\u001b\[([0-9;]*)m/g
 
   function escapeHtml(input: string): string {
@@ -397,7 +400,6 @@
     data,
     loading,
     pagination,
-    getData,
     handleSizeChange,
     handleCurrentChange,
     refreshData
@@ -612,7 +614,7 @@
       ElMessage.success(`计划 "${row.name}" 启动成功`)
       refreshData()
     } catch (e: any) {
-      ElMessage.error(e?.message || '启动失败')
+      notifyError(e, '启动失败')
     }
   }
 
@@ -628,7 +630,7 @@
       refreshData()
     } catch (e: any) {
       if (e !== 'cancel' && e) {
-        ElMessage.error(e?.message || '删除失败')
+        notifyError(e, '删除失败')
       }
     }
   }
@@ -641,7 +643,7 @@
       ElMessage.success('销毁任务已提交')
       refreshData()
     } catch (e: any) {
-      ElMessage.error(e?.message || '销毁失败')
+      notifyError(e, '销毁失败')
     }
   }
 
@@ -681,7 +683,7 @@
     try {
       tasks.value = await fetchPlanTasks(currentPlan.value.id)
     } catch (e: any) {
-      ElMessage.error(e.message || '获取任务列表失败')
+      notifyError(e, '获取任务列表失败')
     } finally {
       if (!silent) {
         tasksLoading.value = false

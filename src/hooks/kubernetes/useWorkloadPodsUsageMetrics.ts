@@ -51,9 +51,7 @@ function buildUtilizationSeries(
   }
   return usageSeries.map((item) => ({
     ...item,
-    data: item.data.map((v) =>
-      v == null || Number.isNaN(v) ? v : +toPercent(v).toFixed(2)
-    )
+    data: item.data.map((v) => (v == null || Number.isNaN(v) ? v : +toPercent(v).toFixed(2)))
   }))
 }
 
@@ -113,9 +111,7 @@ export function useWorkloadPodsUsageMetrics(
     const override = podNamesOverride.value
     if (override.length) {
       const results = await Promise.all(
-        override.map((name) =>
-          fetchK8sPod(cluster.value, ns.value, name).catch(() => null)
-        )
+        override.map((name) => fetchK8sPod(cluster.value, ns.value, name).catch(() => null))
       )
       return results.filter(Boolean) as any[]
     }

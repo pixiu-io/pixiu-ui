@@ -22,7 +22,12 @@
         <template #default="{ row }">
           <div class="workload-image-dialog__name-cell">
             <span class="workload-image-dialog__name-text">{{ row.name }}</span>
-            <ElTag v-if="row.init" size="small" type="danger" class="workload-image-dialog__init-tag">
+            <ElTag
+              v-if="row.init"
+              size="small"
+              type="danger"
+              class="workload-image-dialog__init-tag"
+            >
               Init
             </ElTag>
           </div>
@@ -84,6 +89,7 @@
   import { fetchK8sDeployment, patchK8sDeployment } from '@/api/kubernetes/deployment'
   import { fetchK8sDaemonSet, patchK8sDaemonSet } from '@/api/kubernetes/daemonset'
   import { fetchK8sStatefulSet, patchK8sStatefulSet } from '@/api/kubernetes/statefulset'
+  import { notifyError } from '@/utils/sys/notify'
 
   export type WorkloadImageKind = 'deploy' | 'sts' | 'ds'
 
@@ -112,7 +118,14 @@
   const patching = ref(false)
   const imageRows = ref<ImageRow[]>([])
 
-  function extractContainers(spec: { containers?: Array<{ name?: string; image?: string }>; initContainers?: Array<{ name?: string; image?: string }> } | undefined): ImageRow[] {
+  function extractContainers(
+    spec:
+      | {
+          containers?: Array<{ name?: string; image?: string }>
+          initContainers?: Array<{ name?: string; image?: string }>
+        }
+      | undefined
+  ): ImageRow[] {
     const rows: ImageRow[] = []
     for (const c of spec?.containers ?? []) {
       if (!c.name) continue
@@ -157,7 +170,7 @@
       }
     } catch (e: unknown) {
       imageRows.value = []
-      ElMessage.error(e instanceof Error ? e.message : '加载镜像列表失败')
+      notifyError(e, '加载镜像列表失败')
     } finally {
       loading.value = false
     }
@@ -221,7 +234,7 @@
       ElMessage.success('镜像更新成功')
       emit('updated')
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '镜像更新失败')
+      notifyError(e, '镜像更新失败')
     } finally {
       patching.value = false
     }
@@ -355,5 +368,4 @@
   .workload-image-dialog.el-dialog .el-dialog__footer {
     padding-top: 8px;
   }
-
 </style>

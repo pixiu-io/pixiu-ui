@@ -99,9 +99,7 @@ const POD_STATUS_WARNING = new Set([
   'Unknown'
 ])
 
-export function podStatusTagType(
-  status: string
-): 'success' | 'warning' | 'info' | 'danger' {
+export function podStatusTagType(status: string): 'success' | 'warning' | 'info' | 'danger' {
   if (status === 'Running' || status === 'Completed') return 'success'
   if (POD_STATUS_DANGER.has(status) || status.endsWith('BackOff') || status.startsWith('Err')) {
     return 'danger'

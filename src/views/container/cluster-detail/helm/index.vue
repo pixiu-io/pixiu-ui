@@ -64,29 +64,29 @@
 
       <ElCard class="helm-dashboard__content" shadow="never">
         <HelmReleasePanel
-        v-if="activeView === 'releases'"
-        v-model:search="releaseSearch"
-        v-model:layout="releaseLayout"
-        :loading="releaseLoading"
-        :namespace="selectedNamespace"
-        :releases="filteredReleases"
-        @install="openInstallDialog"
-        @open-detail="openReleaseDetail"
-        @upgrade="openUpgradeDialog"
-        @history="openHistoryDialog"
-        @uninstall="confirmUninstall"
-      />
-      <HelmRepoPanel
-        v-else
-        v-model:search="repoSearch"
-        v-model:selected-repo-id="selectedRepoId"
-        :loading="repoLoading"
-        :repos="filteredRepos"
-        :selected-repo="selectedRepo"
-        @create="openRepoDialog()"
-        @edit="openRepoDialog"
-        @delete="confirmDeleteRepo"
-      />
+          v-if="activeView === 'releases'"
+          v-model:search="releaseSearch"
+          v-model:layout="releaseLayout"
+          :loading="releaseLoading"
+          :namespace="selectedNamespace"
+          :releases="filteredReleases"
+          @install="openInstallDialog"
+          @open-detail="openReleaseDetail"
+          @upgrade="openUpgradeDialog"
+          @history="openHistoryDialog"
+          @uninstall="confirmUninstall"
+        />
+        <HelmRepoPanel
+          v-else
+          v-model:search="repoSearch"
+          v-model:selected-repo-id="selectedRepoId"
+          :loading="repoLoading"
+          :repos="filteredRepos"
+          :selected-repo="selectedRepo"
+          @create="openRepoDialog()"
+          @edit="openRepoDialog"
+          @delete="confirmDeleteRepo"
+        />
       </ElCard>
     </div>
 
@@ -136,7 +136,9 @@
         </ElTableColumn>
         <ElTableColumn label="操作" width="90" fixed="right">
           <template #default="{ row }">
-            <ElButton link type="primary" style="font-size: 12px" @click="confirmRollback(row)">回滚</ElButton>
+            <ElButton link type="primary" style="font-size: 12px" @click="confirmRollback(row)"
+              >回滚</ElButton
+            >
           </template>
         </ElTableColumn>
       </ElTable>
@@ -152,7 +154,12 @@
   import HelmReleasePanel from './helm-release-panel.vue'
   import HelmRepoFormDialog from './helm-repo-form-dialog.vue'
   import HelmRepoPanel from './helm-repo-panel.vue'
-  import { formatChartLabel, formatHelmTime, releaseStatusMeta, type HelmReleaseLayout } from './shared'
+  import {
+    formatChartLabel,
+    formatHelmTime,
+    releaseStatusMeta,
+    type HelmReleaseLayout
+  } from './shared'
   import { useHelmPage } from './useHelmPage'
 
   defineOptions({ name: 'ClusterDetailHelm' })

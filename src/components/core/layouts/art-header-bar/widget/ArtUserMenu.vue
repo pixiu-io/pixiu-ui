@@ -28,9 +28,7 @@
           />
           <div class="w-[calc(100%-60px)] h-full">
             <div class="flex items-center gap-2">
-              <span class="text-sm font-medium text-g-800 truncate">{{
-                userInfo.userName
-              }}</span>
+              <span class="text-sm font-medium text-g-800 truncate">{{ userInfo.userName }}</span>
             </div>
             <span class="block mt-0.5 text-xs text-g-500 truncate">{{ userInfo.email }}</span>
           </div>
@@ -120,17 +118,21 @@
         confirmButtonText: t('common.confirm'),
         cancelButtonText: t('common.cancel'),
         customClass: 'login-out-dialog'
-      }).then(async () => {
-        const userId = userStore.getUserInfo.userId
-        if (userId) {
-          try {
-            await fetchLogout(userId)
-          } catch {
-            // 忽略后端登出错误，继续本地清理
-          }
-        }
-        userStore.logOut()
       })
+        .then(async () => {
+          const userId = userStore.getUserInfo.userId
+          if (userId) {
+            try {
+              await fetchLogout(userId)
+            } catch {
+              // 忽略后端登出错误，继续本地清理
+            }
+          }
+          userStore.logOut()
+        })
+        .catch(() => {
+          /* 用户取消或关闭，忽略 */
+        })
     }, 200)
   }
 

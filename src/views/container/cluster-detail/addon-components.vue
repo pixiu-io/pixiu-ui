@@ -43,7 +43,7 @@
         :pagination-options="CLUSTER_TABLE_PAGINATION_OPTIONS"
         @pagination:size-change="handleSizeChange"
         @pagination:current-change="handleCurrentChange"
->
+      >
         <template #empty>
           <ClusterTableEmpty />
         </template>
@@ -55,8 +55,8 @@
 <script setup lang="ts">
   import { ElInput, ElTag } from 'element-plus'
   import { h, ref, watch } from 'vue'
-import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
-import ClusterTableEmpty from './components/cluster-table-empty.vue'
+  import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
+  import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
   import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
@@ -130,12 +130,17 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
         }
         const q = (params.name ?? '').trim().toLowerCase()
         const filtered = q
-          ? ALL_ROWS.filter((r) => r.name.toLowerCase().includes(q) || r.note.toLowerCase().includes(q))
+          ? ALL_ROWS.filter(
+              (r) => r.name.toLowerCase().includes(q) || r.note.toLowerCase().includes(q)
+            )
           : ALL_ROWS
         const total = filtered.length
         const start = (params.current - 1) * params.size
         const records = filtered.slice(start, start + params.size)
-        return { code: 200 as const, data: { records, total, current: params.current, size: params.size } }
+        return {
+          code: 200 as const,
+          data: { records, total, current: params.current, size: params.size }
+        }
       },
       apiParams: { current: 1, size: 10, name: undefined },
       columnsFactory: () => [
@@ -167,7 +172,11 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
           width: 110,
           formatter: (row: AddonRow) => {
             const ok = row.status === 'Running'
-            return h(ElTag, { type: ok ? 'success' : 'warning', size: 'small' }, () => row.status ?? '-')
+            return h(
+              ElTag,
+              { type: ok ? 'success' : 'warning', size: 'small' },
+              () => row.status ?? '-'
+            )
           }
         },
         {

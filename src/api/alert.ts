@@ -213,7 +213,11 @@ function formatDateTime(dateStr?: string): string {
   return formatAlertDateTime(dateStr)
 }
 
-function unwrapList<T>(result: BackendPageResult<T>, page: number, limit: number): AlertListResult<T> {
+function unwrapList<T>(
+  result: BackendPageResult<T>,
+  page: number,
+  limit: number
+): AlertListResult<T> {
   return {
     records: result?.items ?? [],
     total: result?.total ?? 0,
@@ -335,7 +339,10 @@ function toAlertNotification(item: BackendMeta & Record<string, unknown>): Alert
   }
 }
 
-async function request<T>(promise: Promise<{ data: { code: number; result?: T; message?: string } }>, fallback: string) {
+async function request<T>(
+  promise: Promise<{ data: { code: number; result?: T; message?: string } }>,
+  fallback: string
+) {
   const res = await promise
   const { code, result, message } = res.data
   if (code !== 200) throw new Error(message || fallback)
@@ -344,7 +351,9 @@ async function request<T>(promise: Promise<{ data: { code: number; result?: T; m
 
 // ---------- Rules ----------
 
-export async function fetchGetAlertRuleList(params: AlertListParams = {}): Promise<AlertListResult<AlertRuleItem>> {
+export async function fetchGetAlertRuleList(
+  params: AlertListParams = {}
+): Promise<AlertListResult<AlertRuleItem>> {
   const { page, limit } = resolvePage(params)
   const result = await request<BackendPageResult<BackendMeta & Record<string, unknown>>>(
     pixiuAxios.get('/pixiu/alerts/rules', {
@@ -375,7 +384,10 @@ export async function fetchCreateAlertRule(payload: Record<string, unknown>): Pr
   await request(pixiuAxios.post('/pixiu/alerts/rules', payload), '创建告警规则失败')
 }
 
-export async function fetchUpdateAlertRule(id: number, payload: Record<string, unknown>): Promise<void> {
+export async function fetchUpdateAlertRule(
+  id: number,
+  payload: Record<string, unknown>
+): Promise<void> {
   await request(pixiuAxios.put(`/pixiu/alerts/rules/${id}`, payload), '更新告警规则失败')
 }
 
@@ -427,7 +439,9 @@ export async function fetchImportAlertRules(file: File): Promise<ImportAlertRule
 
 // ---------- Channels ----------
 
-export async function fetchGetAlertChannelList(params: AlertListParams = {}): Promise<AlertListResult<AlertChannelItem>> {
+export async function fetchGetAlertChannelList(
+  params: AlertListParams = {}
+): Promise<AlertListResult<AlertChannelItem>> {
   const { page, limit } = resolvePage(params)
   const result = await request<BackendPageResult<BackendMeta & Record<string, unknown>>>(
     pixiuAxios.get('/pixiu/alerts/channels', {
@@ -459,7 +473,10 @@ export async function fetchCreateAlertChannel(payload: Record<string, unknown>):
   await request(pixiuAxios.post('/pixiu/alerts/channels', payload), '创建通知渠道失败')
 }
 
-export async function fetchUpdateAlertChannel(id: number, payload: Record<string, unknown>): Promise<void> {
+export async function fetchUpdateAlertChannel(
+  id: number,
+  payload: Record<string, unknown>
+): Promise<void> {
   await request(pixiuAxios.put(`/pixiu/alerts/channels/${id}`, payload), '更新通知渠道失败')
 }
 
@@ -473,7 +490,9 @@ export async function fetchPingAlertChannel(payload: Record<string, unknown>): P
 
 // ---------- Silences ----------
 
-export async function fetchGetAlertSilenceList(params: AlertListParams = {}): Promise<AlertListResult<AlertSilenceItem>> {
+export async function fetchGetAlertSilenceList(
+  params: AlertListParams = {}
+): Promise<AlertListResult<AlertSilenceItem>> {
   const { page, limit } = resolvePage(params)
   const result = await request<BackendPageResult<BackendMeta & Record<string, unknown>>>(
     pixiuAxios.get('/pixiu/alerts/silences', {
@@ -504,7 +523,10 @@ export async function fetchCreateAlertSilence(payload: Record<string, unknown>):
   await request(pixiuAxios.post('/pixiu/alerts/silences', payload), '创建静默规则失败')
 }
 
-export async function fetchUpdateAlertSilence(id: number, payload: Record<string, unknown>): Promise<void> {
+export async function fetchUpdateAlertSilence(
+  id: number,
+  payload: Record<string, unknown>
+): Promise<void> {
   await request(pixiuAxios.put(`/pixiu/alerts/silences/${id}`, payload), '更新静默规则失败')
 }
 
@@ -514,7 +536,9 @@ export async function fetchDeleteAlertSilence(id: number): Promise<void> {
 
 // ---------- Events ----------
 
-export async function fetchGetAlertEventList(params: AlertListParams = {}): Promise<AlertListResult<AlertEventItem>> {
+export async function fetchGetAlertEventList(
+  params: AlertListParams = {}
+): Promise<AlertListResult<AlertEventItem>> {
   const { page, limit } = resolvePage(params)
   const result = await request<BackendPageResult<BackendMeta & Record<string, unknown>>>(
     pixiuAxios.get('/pixiu/alerts/events', {
