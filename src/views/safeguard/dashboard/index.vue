@@ -356,13 +356,14 @@
   }
 
   async function loadVariables() {
-    if (!selectedDatasourceId.value) {
+    const datasource = selectedDatasource.value
+    if (!datasource) {
       variables.value = emptyVariables()
       return
     }
     variablesLoading.value = true
     try {
-      variables.value = await fetchDashboardVariables(selectedDatasourceId.value, filters)
+      variables.value = await fetchDashboardVariables(datasource, filters)
     } catch (error) {
       pageError.value = error instanceof Error ? error.message : '筛选项加载失败'
     } finally {
@@ -389,7 +390,8 @@
   }
 
   async function queryCurrentSection() {
-    if (!selectedDatasourceId.value || !currentPanels.value.length) return
+    const datasource = selectedDatasource.value
+    if (!datasource || !currentPanels.value.length) return
     const sequence = ++querySequence
     queryLoading.value = true
     pageError.value = ''
@@ -400,8 +402,7 @@
         Math.floor((range.end.getTime() - range.start.getTime()) / 1000)
       )
       const step = Math.max(15, Math.ceil(durationSeconds / 600))
-      const response = await fetchDashboardQuery({
-        datasourceId: selectedDatasourceId.value,
+      const response = await fetchDashboardQuery(datasource, {
         panelIds: currentPanels.value.map((panel) => panel.id),
         start: Math.floor(range.start.getTime() / 1000),
         end: Math.floor(range.end.getTime() / 1000),

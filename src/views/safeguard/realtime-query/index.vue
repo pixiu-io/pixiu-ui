@@ -368,11 +368,11 @@
   import {
     fetchDatasourceList,
     resolveDatasourceUrl,
-    type DatasourceHeader,
     type DatasourceItem,
     type DatasourceSubType
   } from '@/api/datasource'
   import {
+    buildPrometheusRequestOptions,
     fetchPrometheusInstantQuery,
     fetchPrometheusRangeQuery,
     type PrometheusInstantResult
@@ -478,48 +478,6 @@
     queryError.value = ''
   })
 
-  function buildExternalAuthHeader(datasource: DatasourceItem | null): string {
-    const username =
-      datasource?.config.log?.userName?.trim() || datasource?.config.alert?.userName?.trim() || ''
-    const password = datasource?.config.log?.password ?? datasource?.config.alert?.password ?? ''
-    if (!username && !password) return ''
-    return `Basic ${btoa(`${username}:${password}`)}`
-  }
-
-  function applyExternalDatasourceHeaders(
-    target: Record<string, string>,
-    headers: DatasourceHeader[] | undefined
-  ) {
-    for (const header of headers ?? []) {
-      const key = header.key.trim()
-      if (!key) continue
-      target[key] = header.value
-    }
-  }
-
-  function getExternalProxyHeaders(datasource: DatasourceItem | null): Record<string, string> {
-    if (!datasource) return {}
-    const headers: Record<string, string> = {}
-    const authHeader = buildExternalAuthHeader(datasource)
-    if (authHeader) {
-      headers['X-Pixiu-Proxy-Authorization'] = authHeader
-    }
-    applyExternalDatasourceHeaders(headers, datasource.config.headers)
-    return headers
-  }
-
-  /** 内部数据源走集群代理，外部走 /pixiu/external */
-  function buildPrometheusRequestOptions(datasource: DatasourceItem) {
-    if (!datasource.external) {
-      return {
-        clusterName: datasource.clusterName || undefined
-      }
-    }
-    return {
-      headers: getExternalProxyHeaders(datasource)
-    }
-  }
-
   // ---- 时间范围 ----
   const timeRangeMinutes = ref(60)
 
@@ -555,8 +513,7 @@
     promql,
     autocompleteEnabled,
     selectedDatasource,
-    resolveTimeRange,
-    getExternalProxyHeaders
+    resolveTimeRange
   })
 
   watch(activeQueryTab, (tab) => {

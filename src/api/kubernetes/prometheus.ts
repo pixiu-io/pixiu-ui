@@ -1,5 +1,6 @@
 import { pixiuAxios } from '@/api/container'
 import { kubeProxyAxios } from '@/api/kubeProxy'
+import type { DatasourceItem } from '@/api/datasource'
 import { buildClusterServiceProxyPath } from '@/utils/datasource/clusterProxy'
 
 /** Prometheus 即时查询响应 */
@@ -29,6 +30,32 @@ export interface PrometheusQueryOptions {
    * 传入后走 /pixiu/proxy/{cluster}/.../services/.../proxy，而不是 /pixiu/external。
    */
   clusterName?: string
+}
+
+function buildBasicAuth(datasource: DatasourceItem): string {
+  const username =
+    datasource.config.log?.userName?.trim() || datasource.config.alert?.userName?.trim() || ''
+  const password = datasource.config.log?.password ?? datasource.config.alert?.password ?? ''
+  if (!username && !password) return ''
+  return `Basic ${btoa(`${username}:${password}`)}`
+}
+
+export function buildPrometheusRequestOptions(datasource: DatasourceItem): PrometheusQueryOptions {
+  if (!datasource.external) {
+    return {
+      clusterName: datasource.clusterName || undefined
+    }
+  }
+
+  const headers: Record<string, string> = {}
+  for (const header of datasource.config.headers ?? []) {
+    const key = header.key.trim()
+    if (key) headers[key] = header.value
+  }
+  return {
+    proxyAuth: buildBasicAuth(datasource) || undefined,
+    headers
+  }
 }
 
 function trimTrailingSlash(url: string): string {

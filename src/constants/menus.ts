@@ -17,7 +17,6 @@ export const MenuCodes = {
   MiddlewareNacos: 'middleware.nacos',
 
   Monitor: 'monitor',
-  MonitorDashboard: 'monitor.dashboard',
   MonitorRealtime: 'monitor.realtime',
   MonitorLogs: 'monitor.logs',
   MonitorAlert: 'monitor.alert',
