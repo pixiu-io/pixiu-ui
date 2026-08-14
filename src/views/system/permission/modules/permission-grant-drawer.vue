@@ -35,6 +35,12 @@
             :loading="userLoading"
             :disabled="isEdit"
           >
+            <ElOption
+              v-if="selectedUserId != null && editUserName && !grantUserOptions.some((u) => u.id === selectedUserId)"
+              :key="`edit-user-${selectedUserId}`"
+              :label="editUserName"
+              :value="selectedUserId"
+            />
             <ElOption v-for="u in grantUserOptions" :key="u.id" :label="u.userName" :value="u.id" />
           </ElSelect>
         </div>
@@ -45,11 +51,11 @@
             class="permission-grant-field-select"
             placeholder="选择授权期限"
           >
-            <ElOption label="24 小时" :value="86400" />
             <ElOption label="7 天" :value="604800" />
             <ElOption label="30 天" :value="2592000" />
             <ElOption label="90 天" :value="7776000" />
             <ElOption label="1 年" :value="31536000" />
+            <ElOption label="10 年" :value="315360000" />
           </ElSelect>
         </div>
         <div v-if="isEdit" class="permission-grant-field">
@@ -261,6 +267,7 @@
   const userLoading = ref(false)
   const selectedUserId = ref<number | undefined>(undefined)
   const expirationSeconds = ref(31536000)
+  const editUserName = ref('')
 
   let rowKeySeq = 0
 
@@ -311,9 +318,10 @@
       userOptions.value = records
       const selfId = currentUserId()
       if (
-        selectedUserId.value == null ||
-        selectedUserId.value === selfId ||
-        !grantUserOptions.value.some((u) => u.id === selectedUserId.value)
+        !isEdit.value &&
+        (selectedUserId.value == null ||
+          selectedUserId.value === selfId ||
+          !grantUserOptions.value.some((u) => u.id === selectedUserId.value))
       ) {
         selectedUserId.value = pickDefaultGrantUserId()
       }
@@ -551,6 +559,7 @@
     selectedUserId.value = pickDefaultGrantUserId()
     expirationSeconds.value = 31536000
     forceUpdate.value = false
+    editUserName.value = ''
     if (clusterOptions.value.length === 1) {
       const row = rows.value[0]
       row.cluster = clusterOptions.value[0].name
@@ -676,6 +685,7 @@
       const detail = await fetchGetPermission(props.editPermissionId!)
       editResourceVersion.value = detail.resourceVersion
       selectedUserId.value = detail.userId
+      editUserName.value = detail.userName || ''
       expirationSeconds.value = detail.expirationSeconds
       const row = createRow()
       row.cluster = detail.clusterName || detail.cluster || ''
