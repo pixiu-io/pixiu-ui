@@ -28,7 +28,7 @@ export const middlewareRoutes: AppRouteRecord = {
       component: '/middleware/nacos',
       meta: {
         title: 'Nacos',
-        icon: 'ri:settings-3-line',
+        icon: 'ri:route-line',
         menu: MenuCodes.MiddlewareNacos
       }
     }
