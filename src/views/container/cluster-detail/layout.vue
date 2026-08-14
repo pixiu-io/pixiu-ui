@@ -481,6 +481,7 @@
       nodeCount: 0,
       isProtected: false,
       permissionId: 0,
+      connectMode: 0,
       createTime: '',
       planId: 0
     }

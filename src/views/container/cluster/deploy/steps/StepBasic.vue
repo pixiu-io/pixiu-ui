@@ -684,13 +684,14 @@
     }
   )
 
-  function onExecModeChange(mode: string) {
+  function onExecModeChange(mode: string | number | boolean | undefined) {
+    const execMode = String(mode ?? '')
     emit('update:form', {
       ...props.form,
-      execMode: mode,
-      deployAgentId: mode === 'agent' ? props.form.deployAgentId : undefined
+      execMode,
+      deployAgentId: execMode === 'agent' ? props.form.deployAgentId : undefined
     })
-    if (mode === 'agent' && agents.value.length === 0) {
+    if (execMode === 'agent' && agents.value.length === 0) {
       loadAgents()
     }
   }

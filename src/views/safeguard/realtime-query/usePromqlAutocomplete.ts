@@ -536,7 +536,7 @@ export function usePromqlAutocomplete(options: UsePromqlAutocompleteOptions) {
     })
   }
 
-  function onPromqlSuggestionSelect(item: PromqlSuggestion) {
+  function onPromqlSuggestionSelect(item: Record<string, any>) {
     nextTick(() => {
       promql.value = item.fullQuery
       focusPromqlInput(item.cursorAfter)

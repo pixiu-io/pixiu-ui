@@ -269,7 +269,7 @@
                       >
                         <ElCheckbox
                           :model-value="isFieldValueSelected(field, value)"
-                          @change="(checked: boolean) => toggleFieldValue(field, value, checked)"
+                          @change="(checked: CheckboxValueType) => toggleFieldValue(field, value, checked)"
                         />
                         <span class="logs-field-node__value" :title="value">{{ value }}</span>
                       </label>
@@ -625,7 +625,7 @@
 <script setup lang="ts">
   import { computed, inject, ref, watch } from 'vue'
   import { useRouter } from 'vue-router'
-  import { ElMessage } from 'element-plus'
+  import { ElMessage, type CheckboxValueType } from 'element-plus'
   import {
     Search,
     Document,
@@ -1081,7 +1081,7 @@
     return getSelectedFieldValues(field).includes(value)
   }
 
-  function toggleFieldValue(field: string, value: string, checked: boolean) {
+  function toggleFieldValue(field: string, value: string, checked: CheckboxValueType) {
     const current = [...getSelectedFieldValues(field)]
     if (checked) {
       if (!current.includes(value)) current.push(value)
@@ -1181,10 +1181,10 @@
     }
 
     const endpoint = resolvedEndpoint.value
+    const clusterName = effectiveCluster.value
+    if (!endpoint || !endpoint.serviceName || !endpoint.namespace || !clusterName) return ''
     const service = endpoint.serviceName
     const namespace = endpoint.namespace
-    const clusterName = effectiveCluster.value
-    if (!endpoint || !service || !namespace || !clusterName) return ''
     const requestPath = path.startsWith('/') ? path : `/${path}`
     return (
       `/pixiu/proxy/${encodeURIComponent(clusterName)}/api/v1/namespaces/${encodeURIComponent(namespace)}` +

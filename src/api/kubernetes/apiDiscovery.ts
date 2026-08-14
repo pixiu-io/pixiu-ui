@@ -20,7 +20,7 @@ type CacheEntry = {
 
 const CACHE_TTL_MS = 5 * 60 * 1000
 const cache = new Map<string, CacheEntry>()
-const inflight = new Map<string, Promise<ApiGroupVersion>>()
+const inflight = new Map<string, Promise<ApiGroupVersion | null>>()
 
 function cacheKey(cluster: string, group: string, resource: string) {
   return `${cluster}::${group}::${resource}`

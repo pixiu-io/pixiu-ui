@@ -1,5 +1,5 @@
 <template>
-  <div v-loading="loading" class="permission-rules-matrix">
+  <div v-loading="loading ?? false" class="permission-rules-matrix">
     <div class="permission-rules-matrix__toolbar">
       <ElInput
         v-model="searchKeyword"

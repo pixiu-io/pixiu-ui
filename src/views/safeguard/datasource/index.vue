@@ -230,7 +230,7 @@
           label: '类型',
           minWidth: 80,
           formatter: (row: any) =>
-            h('span', { style: { fontSize: '12px' } }, DatasourceTypeMap[row.type]?.label || '未知')
+            h('span', { style: { fontSize: '12px' } }, DatasourceTypeMap[row.type as 0 | 1]?.label || '未知')
         },
         {
           prop: 'gmtCreate',

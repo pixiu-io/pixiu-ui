@@ -871,6 +871,8 @@
                     disabled: true
                   },
                   {
+                    key: 'download',
+                    label: '下载',
                     icon: 'ri:file-download-line',
                     disabled: isCustomClusterNotRunning(row) || !!row.permissionId
                   },

@@ -15,15 +15,11 @@ export function parseKubeProxyPath(path: string): {
   return { cluster: decodeURIComponent(cluster), namespace: decodeURIComponent(namespace) }
 }
 
-type NamedKubeItem = {
-  metadata?: { name?: string; namespace?: string }
-}
-
 /**
  * 按角色 scope 过滤 K8s list items 的历史逻辑已移除。
  * k8s 集群内授权由后端 Permission 机制负责，scope 不再控制 k8s 资源，此处直接透传。
  */
-export async function filterKubeItemsByScope<T extends NamedKubeItem>(
+export async function filterKubeItemsByScope<T>(
   _path: string,
   items: T[]
 ): Promise<T[]> {

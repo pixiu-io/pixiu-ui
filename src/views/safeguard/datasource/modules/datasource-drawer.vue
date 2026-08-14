@@ -116,7 +116,7 @@
                       v-for="namespace in namespaceOptions"
                       :key="namespace"
                       :label="namespace"
-                      :value="namespace"
+                      :value="namespace!"
                     />
                   </ElSelect>
                 </ElFormItem>
@@ -137,7 +137,7 @@
                       v-for="service in serviceOptions"
                       :key="service.metadata?.uid || service.metadata?.name"
                       :label="service.metadata?.name"
-                      :value="service.metadata?.name"
+                      :value="service.metadata?.name!"
                     />
                   </ElSelect>
                 </ElFormItem>
@@ -155,7 +155,7 @@
                       v-for="port in servicePortOptions"
                       :key="`${port.name || 'port'}-${port.port}`"
                       :label="port.name ? `${port.name} (${port.port})` : String(port.port)"
-                      :value="port.port"
+                      :value="port.port!"
                     />
                   </ElSelect>
                 </ElFormItem>
@@ -482,6 +482,7 @@
         nodeCount: 0,
         isProtected: false,
         permissionId: 0,
+        connectMode: 0,
         createTime: '-'
       })
     }

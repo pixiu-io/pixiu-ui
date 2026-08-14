@@ -110,6 +110,11 @@
   const createSubmitting = ref(false)
   const sortOrder = ref<'ascending' | 'descending' | null>(null)
 
+  function goCreateCRD() {
+    createYamlText.value = ''
+    createYamlVisible.value = true
+  }
+
   async function onCreateYamlSave(text: string) {
     const cluster = String(route.query.cluster ?? '')
     if (!cluster) return
