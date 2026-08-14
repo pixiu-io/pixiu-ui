@@ -343,7 +343,8 @@
 
   const logSubTypes: SubTypeOption[] = [
     { value: 'loki', label: 'Loki', icon: 'simple-icons:grafana', color: '#F46800' },
-    { value: 'es', label: 'Elasticsearch', icon: 'simple-icons:elasticsearch', color: '#005571' }
+    { value: 'es', label: 'Elasticsearch', icon: 'simple-icons:elasticsearch', color: '#005571' },
+    { value: 'nacos', label: 'Nacos', icon: 'ri:settings-3-line', color: '#3A78FF' }
   ]
   const alertSubTypes: SubTypeOption[] = [
     {
@@ -774,6 +775,7 @@
   function datasourceTestPath(): string {
     if (formData.sub_type === 'loki') return '/loki/api/v1/labels'
     if (formData.sub_type === 'es') return '/_cluster/health'
+    if (formData.sub_type === 'nacos') return '/nacos/v1/console/server/state'
     return '/-/ready'
   }
 

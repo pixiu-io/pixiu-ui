@@ -21,6 +21,16 @@ export const middlewareRoutes: AppRouteRecord = {
         icon: 'ri:search-line',
         menu: MenuCodes.MiddlewareElasticsearch
       }
+    },
+    {
+      path: 'nacos',
+      name: 'MiddlewareNacos',
+      component: '/middleware/nacos',
+      meta: {
+        title: 'Nacos',
+        icon: 'ri:settings-3-line',
+        menu: MenuCodes.MiddlewareNacos
+      }
     }
   ]
 }
