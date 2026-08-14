@@ -6,8 +6,8 @@
       type="info"
       closable
       show-icon
-      class="nacos-alert"
-      description="管理 Nacos 数据源，支持配置管理、服务发现与命名空间管理。请先在「数据源管理」中添加 Nacos 类型数据源，再选择实例进行管理。"
+      class="quota-alert"
+      description="管理 Nacos 数据源，支持配置管理、服务发现与命名空间管理。请先选择 Nacos 类型数据源，再进行管理。"
       @close="alertVisible = false"
     />
 
@@ -78,230 +78,222 @@
             </div>
           </div>
         </div>
-        <div class="nacos-rule-right">
-          <ElButton :loading="stateLoading" @click="loadInstance">
-            <ArtSvgIcon icon="ri:refresh-line" class="nacos-refresh-icon" />
-            刷新
-          </ElButton>
-        </div>
       </div>
     </section>
 
-    <ElCard v-if="!dsList.length && !dsLoading" shadow="never" class="nacos-empty-card">
-      <ElEmpty description="暂无 Nacos 数据源，请先在「数据源管理」中添加 Nacos 类型数据源" />
+    <div class="nacos-toolbar-outer">
+      <div class="nacos-toolbar-outer__left">
+        <template v-if="activeTab === 'config'">
+          <ElButton v-ripple :disabled="!selectedDatasource" @click="openCreateConfig"
+            >新建配置</ElButton
+          >
+          <ElButton v-ripple :disabled="!selectedConfigs.length" @click="handleBatchDeleteConfigs"
+            >批量删除</ElButton
+          >
+        </template>
+        <template v-else-if="activeTab === 'namespace'">
+          <ElButton v-ripple type="primary" :disabled="!selectedDatasource" @click="nsCreateVisible = true"
+            >新建命名空间</ElButton
+          >
+        </template>
+      </div>
+      <div class="nacos-toolbar-outer__right">
+        <template v-if="activeTab === 'config'">
+          <ElSelect
+            v-model="configTenant"
+            class="nacos-toolbar-outer__namespace"
+            placeholder="命名空间"
+            @change="handleConfigSearch"
+          >
+            <ElOption
+              v-for="ns in namespaceOptions"
+              :key="ns.value"
+              :label="ns.label"
+              :value="ns.value"
+            />
+          </ElSelect>
+          <ElInput
+            v-model="configDataIdFilter"
+            clearable
+            placeholder="Data ID"
+            class="nacos-toolbar-outer__search"
+            @keyup.enter="handleConfigSearch"
+            @clear="handleConfigSearch"
+          />
+          <ElInput
+            v-model="configGroupFilter"
+            clearable
+            placeholder="Group"
+            class="nacos-toolbar-outer__search"
+            @keyup.enter="handleConfigSearch"
+            @clear="handleConfigSearch"
+          />
+          <ElButton @click="handleConfigSearch">查询</ElButton>
+        </template>
+        <template v-else-if="activeTab === 'service'">
+          <ElSelect
+            v-model="serviceNamespaceId"
+            class="nacos-toolbar-outer__namespace"
+            placeholder="命名空间"
+            @change="fetchServices"
+          >
+            <ElOption
+              v-for="ns in namespaceOptions"
+              :key="ns.value"
+              :label="ns.label"
+              :value="ns.value"
+            />
+          </ElSelect>
+          <ElInput
+            v-model="serviceFilter"
+            clearable
+            placeholder="搜索服务名称"
+            class="nacos-toolbar-outer__search"
+            @clear="() => {}"
+          />
+        </template>
+      </div>
+    </div>
+
+    <ElCard shadow="never" class="art-table-card" :class="{ 'art-table-card--after-toolbar': true }">
+      <ElTabs v-model="activeTab" class="nacos-tabs" @tab-change="onTabChange">
+        <!-- 配置管理 -->
+        <ElTabPane label="配置管理" name="config">
+          <div class="nacos-table-wrap">
+            <ElTable
+              v-loading="configLoading"
+              :data="configList"
+              stripe
+              :size="tableSize"
+              empty-text="请先选择 Nacos 数据源"
+              class="nacos-table"
+              @selection-change="handleConfigSelectionChange"
+            >
+              <ElTableColumn type="selection" width="30" />
+              <ElTableColumn prop="dataId" label="Data ID" min-width="280" show-overflow-tooltip />
+              <ElTableColumn prop="group" label="Group" width="180" show-overflow-tooltip />
+              <ElTableColumn prop="type" label="格式" width="90">
+                <template #default="{ row }">{{ row.type || 'text' }}</template>
+              </ElTableColumn>
+              <ElTableColumn prop="appName" label="应用" width="140" show-overflow-tooltip>
+                <template #default="{ row }">{{ row.appName || '-' }}</template>
+              </ElTableColumn>
+              <ElTableColumn label="更新时间" width="170">
+                <template #default="{ row }">{{ formatUpdateTime(row.updateTime) }}</template>
+              </ElTableColumn>
+              <ElTableColumn label="操作" width="180" fixed="right" class-name="nacos-action-col">
+                <template #default="{ row }">
+                  <ElButton text type="primary" @click="openViewConfig(row as NacosConfigItem)"
+                    >查看</ElButton
+                  >
+                  <ElButton text type="primary" @click="openEditConfig(row as NacosConfigItem)"
+                    >编辑</ElButton
+                  >
+                  <ElButton text type="danger" @click="handleDeleteConfig(row as NacosConfigItem)"
+                    >删除</ElButton
+                  >
+                </template>
+              </ElTableColumn>
+            </ElTable>
+          </div>
+
+          <div class="nacos-pagination">
+            <ElPagination
+              v-model:current-page="configPage"
+              v-model:page-size="configPageSize"
+              :total="configTotal"
+              :page-sizes="[10, 20, 50]"
+              layout="total, sizes, prev, pager, next"
+              background
+              @size-change="handleConfigSearch"
+              @current-change="fetchConfigs"
+            />
+          </div>
+        </ElTabPane>
+
+        <!-- 服务发现 -->
+        <ElTabPane label="服务发现" name="service">
+          <div class="nacos-table-wrap">
+            <ElTable
+              v-loading="serviceLoading"
+              :data="pagedServices"
+              stripe
+              :size="tableSize"
+              empty-text="请先选择 Nacos 数据源"
+              class="nacos-table"
+            >
+              <ElTableColumn prop="name" label="服务名称" min-width="240" show-overflow-tooltip />
+              <ElTableColumn prop="clusterCount" label="集群数" width="90" align="right" />
+              <ElTableColumn prop="ipCount" label="实例数" width="90" align="right" />
+              <ElTableColumn prop="healthyInstanceCount" label="健康实例数" width="110" align="right" />
+              <ElTableColumn label="保护阈值" width="100" align="center">
+                <template #default="{ row }">
+                  <ElTag :type="row.triggerProtectThreshold ? 'warning' : 'info'" size="small">
+                    {{ row.triggerProtectThreshold ? '触发' : '未触发' }}
+                  </ElTag>
+                </template>
+              </ElTableColumn>
+              <ElTableColumn label="操作" width="100" fixed="right">
+                <template #default="{ row }">
+                  <ElButton text type="primary" @click="openInstances(row as NacosServiceItem)"
+                    >实例</ElButton
+                  >
+                </template>
+              </ElTableColumn>
+            </ElTable>
+          </div>
+
+          <div class="nacos-pagination">
+            <ElPagination
+              v-model:current-page="servicePage"
+              v-model:page-size="servicePageSize"
+              :total="filteredServices.length"
+              :page-sizes="[10, 20, 50]"
+              layout="total, sizes, prev, pager, next"
+              background
+            />
+          </div>
+        </ElTabPane>
+
+        <!-- 命名空间 -->
+        <ElTabPane label="命名空间" name="namespace">
+          <div class="nacos-table-wrap">
+            <ElTable
+              v-loading="namespaceLoading"
+              :data="namespaceList"
+              stripe
+              :size="tableSize"
+              empty-text="请先选择 Nacos 数据源"
+              class="nacos-table"
+            >
+              <ElTableColumn prop="namespaceShowName" label="命名空间名称" min-width="200">
+                <template #default="{ row }">
+                  {{ row.namespaceShowName }}
+                  <ElTag v-if="row.namespace === ''" type="info" size="small">public</ElTag>
+                </template>
+              </ElTableColumn>
+              <ElTableColumn prop="namespace" label="命名空间 ID" min-width="260" show-overflow-tooltip>
+                <template #default="{ row }">{{ row.namespace || '-' }}</template>
+              </ElTableColumn>
+              <ElTableColumn prop="configCount" label="配置数" width="100" align="right" />
+              <ElTableColumn prop="quota" label="配额" width="100" align="right" />
+              <ElTableColumn label="操作" width="100" fixed="right">
+                <template #default="{ row }">
+                  <ElButton
+                    text
+                    type="danger"
+                    :disabled="row.namespace === ''"
+                    @click="handleDeleteNamespace(row as NacosNamespace)"
+                  >
+                    删除
+                  </ElButton>
+                </template>
+              </ElTableColumn>
+            </ElTable>
+          </div>
+        </ElTabPane>
+      </ElTabs>
     </ElCard>
-
-    <ElTabs v-else v-model="activeTab" class="nacos-tabs" @tab-change="onTabChange">
-      <!-- 配置管理 -->
-      <ElTabPane label="配置管理" name="config">
-        <div class="nacos-toolbar">
-          <div class="nacos-toolbar__left">
-            <ElSelect
-              v-model="configTenant"
-              class="nacos-toolbar__namespace"
-              placeholder="命名空间"
-              @change="handleConfigSearch"
-            >
-              <ElOption
-                v-for="ns in namespaceOptions"
-                :key="ns.value"
-                :label="ns.label"
-                :value="ns.value"
-              />
-            </ElSelect>
-            <ElButton
-              v-ripple
-              type="primary"
-              :disabled="!selectedDatasource"
-              @click="openCreateConfig"
-            >
-              新建配置
-            </ElButton>
-          </div>
-          <div class="nacos-toolbar__right">
-            <ElInput
-              v-model="configDataIdFilter"
-              clearable
-              placeholder="Data ID"
-              class="nacos-toolbar__search"
-              @keyup.enter="handleConfigSearch"
-              @clear="handleConfigSearch"
-            />
-            <ElInput
-              v-model="configGroupFilter"
-              clearable
-              placeholder="Group"
-              class="nacos-toolbar__search"
-              @keyup.enter="handleConfigSearch"
-              @clear="handleConfigSearch"
-            />
-            <ElButton @click="handleConfigSearch">查询</ElButton>
-          </div>
-        </div>
-
-        <ElTable
-          v-loading="configLoading"
-          :data="configList"
-          stripe
-          size="small"
-          class="nacos-table"
-        >
-          <ElTableColumn prop="dataId" label="Data ID" min-width="280" show-overflow-tooltip />
-          <ElTableColumn prop="group" label="Group" width="180" show-overflow-tooltip />
-          <ElTableColumn prop="type" label="格式" width="90">
-            <template #default="{ row }">{{ row.type || 'text' }}</template>
-          </ElTableColumn>
-          <ElTableColumn prop="appName" label="应用" width="140" show-overflow-tooltip>
-            <template #default="{ row }">{{ row.appName || '-' }}</template>
-          </ElTableColumn>
-          <ElTableColumn label="更新时间" width="170">
-            <template #default="{ row }">{{ formatUpdateTime(row.updateTime) }}</template>
-          </ElTableColumn>
-          <ElTableColumn label="操作" width="180" fixed="right" class-name="nacos-action-col">
-            <template #default="{ row }">
-              <ElButton text type="primary" @click="openViewConfig(row as NacosConfigItem)"
-                >查看</ElButton
-              >
-              <ElButton text type="primary" @click="openEditConfig(row as NacosConfigItem)"
-                >编辑</ElButton
-              >
-              <ElButton text type="danger" @click="handleDeleteConfig(row as NacosConfigItem)"
-                >删除</ElButton
-              >
-            </template>
-          </ElTableColumn>
-        </ElTable>
-
-        <div class="nacos-pagination">
-          <ElPagination
-            v-model:current-page="configPage"
-            v-model:page-size="configPageSize"
-            :total="configTotal"
-            :page-sizes="[10, 20, 50]"
-            layout="total, sizes, prev, pager, next"
-            background
-            @size-change="handleConfigSearch"
-            @current-change="fetchConfigs"
-          />
-        </div>
-      </ElTabPane>
-
-      <!-- 服务发现 -->
-      <ElTabPane label="服务发现" name="service">
-        <div class="nacos-toolbar">
-          <div class="nacos-toolbar__left">
-            <ElSelect
-              v-model="serviceNamespaceId"
-              class="nacos-toolbar__namespace"
-              placeholder="命名空间"
-              @change="fetchServices"
-            >
-              <ElOption
-                v-for="ns in namespaceOptions"
-                :key="ns.value"
-                :label="ns.label"
-                :value="ns.value"
-              />
-            </ElSelect>
-          </div>
-          <div class="nacos-toolbar__right">
-            <ElInput
-              v-model="serviceFilter"
-              clearable
-              placeholder="搜索服务名称"
-              class="nacos-toolbar__search"
-              @clear="() => {}"
-            />
-          </div>
-        </div>
-
-        <ElTable
-          v-loading="serviceLoading"
-          :data="pagedServices"
-          stripe
-          size="small"
-          class="nacos-table"
-        >
-          <ElTableColumn prop="name" label="服务名称" min-width="240" show-overflow-tooltip />
-          <ElTableColumn prop="clusterCount" label="集群数" width="90" align="right" />
-          <ElTableColumn prop="ipCount" label="实例数" width="90" align="right" />
-          <ElTableColumn prop="healthyInstanceCount" label="健康实例数" width="110" align="right" />
-          <ElTableColumn label="保护阈值" width="100" align="center">
-            <template #default="{ row }">
-              <ElTag :type="row.triggerProtectThreshold ? 'warning' : 'info'" size="small">
-                {{ row.triggerProtectThreshold ? '触发' : '未触发' }}
-              </ElTag>
-            </template>
-          </ElTableColumn>
-          <ElTableColumn label="操作" width="100" fixed="right">
-            <template #default="{ row }">
-              <ElButton text type="primary" @click="openInstances(row as NacosServiceItem)"
-                >实例</ElButton
-              >
-            </template>
-          </ElTableColumn>
-        </ElTable>
-
-        <div class="nacos-pagination">
-          <ElPagination
-            v-model:current-page="servicePage"
-            v-model:page-size="servicePageSize"
-            :total="filteredServices.length"
-            :page-sizes="[10, 20, 50]"
-            layout="total, sizes, prev, pager, next"
-            background
-          />
-        </div>
-      </ElTabPane>
-
-      <!-- 命名空间 -->
-      <ElTabPane label="命名空间" name="namespace">
-        <div class="nacos-toolbar">
-          <div class="nacos-toolbar__left">
-            <ElButton
-              v-ripple
-              type="primary"
-              :disabled="!selectedDatasource"
-              @click="nsCreateVisible = true"
-            >
-              新建命名空间
-            </ElButton>
-          </div>
-        </div>
-
-        <ElTable
-          v-loading="namespaceLoading"
-          :data="namespaceList"
-          stripe
-          size="small"
-          class="nacos-table"
-        >
-          <ElTableColumn prop="namespaceShowName" label="命名空间名称" min-width="200">
-            <template #default="{ row }">
-              {{ row.namespaceShowName }}
-              <ElTag v-if="row.namespace === ''" type="info" size="small">public</ElTag>
-            </template>
-          </ElTableColumn>
-          <ElTableColumn prop="namespace" label="命名空间 ID" min-width="260" show-overflow-tooltip>
-            <template #default="{ row }">{{ row.namespace || '-' }}</template>
-          </ElTableColumn>
-          <ElTableColumn prop="configCount" label="配置数" width="100" align="right" />
-          <ElTableColumn prop="quota" label="配额" width="100" align="right" />
-          <ElTableColumn label="操作" width="100" fixed="right">
-            <template #default="{ row }">
-              <ElButton
-                text
-                type="danger"
-                :disabled="row.namespace === ''"
-                @click="handleDeleteNamespace(row as NacosNamespace)"
-              >
-                删除
-              </ElButton>
-            </template>
-          </ElTableColumn>
-        </ElTable>
-      </ElTabPane>
-    </ElTabs>
 
     <!-- 查看配置 -->
     <ElDialog v-model="viewVisible" title="查看配置" width="760px" destroy-on-close>
@@ -447,8 +439,10 @@
 
 <script setup lang="ts">
   import { computed, onMounted, reactive, ref } from 'vue'
+  import { storeToRefs } from 'pinia'
   import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
+  import { useTableStore } from '@/store/modules/table'
   import { fetchDatasourceList, type DatasourceItem } from '@/api/datasource'
   import {
     createNacosNamespace,
@@ -475,6 +469,9 @@
   } from '@/api/nacos'
 
   defineOptions({ name: 'MiddlewareNacos' })
+
+  const tableStore = useTableStore()
+  const { tableSize } = storeToRefs(tableStore)
 
   type ToggleableInstance = NacosInstance & { __toggling?: boolean }
 
@@ -843,6 +840,49 @@
     }
   }
 
+  // 多选批量删除
+  const selectedConfigs = ref<NacosConfigItem[]>([])
+
+  function handleConfigSelectionChange(selection: NacosConfigItem[]) {
+    selectedConfigs.value = selection
+  }
+
+  async function handleBatchDeleteConfigs() {
+    const ds = selectedDatasource.value
+    if (!ds || !selectedConfigs.value.length) return
+    const names = selectedConfigs.value
+      .map((c) => `${c.dataId}（${c.group}）`)
+      .join('、')
+    try {
+      await ElMessageBox.confirm(
+        `确定删除以下 ${selectedConfigs.value.length} 个配置吗？\n${names}\n\n此操作不可恢复。`,
+        '批量删除确认',
+        { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }
+      )
+    } catch {
+      return
+    }
+    let success = 0
+    const total = selectedConfigs.value.length
+    for (const row of selectedConfigs.value) {
+      try {
+        await deleteNacosConfig(ds, {
+          dataId: row.dataId,
+          group: row.group,
+          tenant: configTenant.value
+        })
+        success++
+      } catch {
+        // 单个失败继续执行其余
+      }
+    }
+    selectedConfigs.value = []
+    await fetchConfigs()
+    if (success === total) ElMessage.success('删除成功')
+    else if (success > 0) ElMessage.warning(`成功删除 ${success}/${total} 个配置，其余失败`)
+    else ElMessage.error('删除失败')
+  }
+
   // ---- 服务发现 ----
   const serviceNamespaceId = ref('')
   const serviceFilter = ref('')
@@ -1017,19 +1057,22 @@
   .nacos-page {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 12px;
+    height: 100%;
+    padding: 0;
+    overflow: hidden;
   }
 
-  .nacos-alert {
-    border-radius: 8px;
+  .quota-alert {
+    flex-shrink: 0;
+    margin: 0 0 12px;
   }
 
   .nacos-top-card {
+    flex-shrink: 0;
     padding: 12px 16px;
     border: 1px solid var(--el-border-color-lighter);
-    border-radius: 12px;
-    background: var(--el-bg-color);
+    border-radius: 8px;
+    background: var(--el-fill-color-blank);
   }
 
   .nacos-rule-bar {
@@ -1048,12 +1091,6 @@
     min-width: 0;
   }
 
-  .nacos-rule-right {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
   .nacos-rule-label {
     font-size: 13px;
     color: var(--el-text-color-regular);
@@ -1069,7 +1106,7 @@
   }
 
   .nacos-ds-select {
-    width: 260px;
+    width: 200px;
   }
 
   .nacos-ds-option {
@@ -1127,50 +1164,105 @@
     }
   }
 
-  .nacos-refresh-icon {
-    width: 14px;
-    height: 14px;
-    margin-right: 2px;
-  }
-
-  .nacos-empty-card {
-    border-radius: 12px;
-  }
-
-  .nacos-tabs {
-    padding: 4px 16px 12px;
-    border: 1px solid var(--el-border-color-lighter);
-    border-radius: 12px;
-    background: var(--el-bg-color);
-  }
-
-  .nacos-toolbar {
+  .nacos-toolbar-outer {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin-bottom: 12px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    flex-shrink: 0;
   }
 
-  .nacos-toolbar__left,
-  .nacos-toolbar__right {
+  .nacos-toolbar-outer__left,
+  .nacos-toolbar-outer__right {
     display: flex;
     align-items: center;
     gap: 8px;
-    flex-wrap: wrap;
   }
 
-  .nacos-toolbar__namespace {
-    width: 220px;
+  .nacos-toolbar-outer__namespace {
+    width: 160px;
   }
 
-  .nacos-toolbar__search {
+  .nacos-toolbar-outer__search {
     width: 180px;
+
+    :deep(.el-input__wrapper),
+    :deep(.el-input__inner),
+    :deep(.el-input__wrapper input) {
+      font-size: 12px;
+      color: var(--el-text-color-primary);
+    }
+
+    :deep(.el-input__inner::placeholder),
+    :deep(.el-input__wrapper input::placeholder),
+    :deep(input::placeholder) {
+      font-size: 12px !important;
+      color: var(--el-text-color-placeholder);
+      opacity: 1;
+    }
+  }
+
+  .nacos-tabs {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .nacos-page :deep(.art-table-card) {
+    margin-top: 0;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .nacos-page :deep(.art-table-card > .el-card__body) {
+    padding-top: 8px;
+    padding-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .nacos-page :deep(.nacos-tabs .el-tabs__header) {
+    margin: 0 0 4px;
+    flex-shrink: 0;
+  }
+
+  .nacos-page :deep(.nacos-tabs .el-tabs__content) {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .nacos-page :deep(.nacos-tabs .el-tab-pane) {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .nacos-table-wrap {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
   }
 
   .nacos-table {
     border-radius: 8px;
+  }
+
+  .nacos-page :deep(.nacos-tabs .el-table__empty-text) {
+    font-size: 12px;
   }
 
   .nacos-table :deep(.nacos-action-col .cell) {
@@ -1192,6 +1284,7 @@
     display: flex;
     justify-content: flex-end;
     margin-top: 12px;
+    flex-shrink: 0;
   }
 
   .nacos-config-meta {
