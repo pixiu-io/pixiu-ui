@@ -95,7 +95,7 @@
     timeRangeSelect: [range: { start: number; end: number }]
   }>()
 
-  const { chartRef, initChart, updateChart, isDark, getTooltipStyle, getChartInstance } = useChart()
+  const { chartRef, initChart, isDark, getTooltipStyle, getChartInstance } = useChart()
   const rangeSelection = ref<{ left: number; width: number } | null>(null)
   const rangeSelectionStyle = computed<CSSProperties>(() => ({
     left: `${rangeSelection.value?.left ?? 0}px`,
@@ -403,13 +403,24 @@
     }
   }
 
+  function applyChartOption() {
+    const option = chartOption()
+    const chart = getChartInstance()
+    if (chart) {
+      chart.setOption(option, { replaceMerge: ['series'] })
+      return
+    }
+    initChart(option)
+  }
+
   function renderChart() {
     if (!['line', 'bar'].includes(props.panel.kind)) return
     if (props.result?.status !== 'success' || !props.result.series?.length) return
-    nextTick(() => {
-      if (chartRef.value) updateChart(chartOption())
-      else initChart(chartOption())
-    })
+    nextTick(applyChartOption)
+  }
+
+  function handleChartVisible() {
+    applyChartOption()
   }
 
   function handleChartVisible() {
