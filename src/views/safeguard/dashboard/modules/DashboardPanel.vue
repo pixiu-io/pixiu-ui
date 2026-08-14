@@ -423,10 +423,6 @@
     applyChartOption()
   }
 
-  function handleChartVisible() {
-    updateChart(chartOption())
-  }
-
   onMounted(() => {
     chartRef.value?.addEventListener('chartVisible', handleChartVisible)
     renderChart()
