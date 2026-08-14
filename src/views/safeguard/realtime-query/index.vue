@@ -808,7 +808,7 @@
     containLabel: true
   }
 
-  function buildGraphXAxis(extra: Record<string, unknown> = {}) {
+  function buildGraphXAxis(extra: Record<string, unknown> = {}): EChartsOption['xAxis'] {
     return {
       type: 'time' as const,
       boundaryGap: false,
@@ -823,7 +823,7 @@
         formatter: (value: number) => formatChartAxisTime(value)
       },
       ...extra
-    }
+    } as unknown as EChartsOption['xAxis']
   }
 
   function buildEmptyGraphChartOption(): EChartsOption {
@@ -878,7 +878,7 @@
         },
         data: item.data
       }
-    })
+    }) as EChartsOption['series']
 
     return {
       animation: false,

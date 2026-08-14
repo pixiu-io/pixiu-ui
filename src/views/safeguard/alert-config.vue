@@ -236,7 +236,7 @@
             row-key="id"
             :show-table-header="false"
             :loading="eventLoading"
-            :data="eventData"
+            :data="eventData as Record<string, any>[]"
             :columns="eventColumns"
             :pagination="eventPagination"
             :pagination-options="tablePaginationOptions"
@@ -251,7 +251,7 @@
             row-key="id"
             :show-table-header="false"
             :loading="notificationLoading"
-            :data="notificationData"
+            :data="notificationData as Record<string, any>[]"
             :columns="notificationColumns"
             :pagination="notificationPagination"
             :pagination-options="tablePaginationOptions"
@@ -959,7 +959,7 @@
   } = useTable({
     core: {
       immediate: initialTab === 'events',
-      apiFn: (params) =>
+      apiFn: (params: any): Promise<Api.Common.PaginatedResponse<AlertEventItem>> =>
         fetchGetAlertEventList({
           current: params.current,
           size: params.size,
@@ -1083,7 +1083,7 @@
   } = useTable({
     core: {
       immediate: initialTab === 'notifications',
-      apiFn: (params) =>
+      apiFn: (params: any): Promise<Api.Common.PaginatedResponse<AlertNotificationItem>> =>
         fetchGetAlertNotificationList({
           current: params.current,
           size: params.size,

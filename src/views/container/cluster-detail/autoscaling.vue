@@ -524,6 +524,12 @@
     getData()
   }
 
+  function forceSearch() {
+    const name = (searchForm.value.name ?? '').trim() || undefined
+    replaceSearchParams({ name })
+    getData()
+  }
+
   function onRefresh() {
     refreshData()
   }

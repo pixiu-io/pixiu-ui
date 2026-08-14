@@ -178,12 +178,12 @@ export interface AlertListParams {
   current?: number
   size?: number
   nameSelector?: string
-  severity?: AlertSeverity
+  severity?: number
   ruleId?: number
   eventId?: number
   clusterId?: number
   status?: AlertEventStatus
-  channelType?: AlertChannelType
+  channelType?: number
   enabled?: boolean
 }
 

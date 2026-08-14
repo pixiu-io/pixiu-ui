@@ -380,7 +380,7 @@
   }
 
   async function loadTreeNode(
-    node: { level: number; data: TreeNode },
+    node: { level: number; data: Record<string, any> },
     resolve: (data: TreeNode[]) => void
   ) {
     if (!canBrowse.value) {
