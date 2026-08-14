@@ -1,7 +1,11 @@
 import { nextTick, ref, type Ref } from 'vue'
 import type { DatasourceItem } from '@/api/datasource'
 import { resolveDatasourceUrl } from '@/api/datasource'
-import { fetchPrometheusLabels, fetchPrometheusLabelValues } from '@/api/kubernetes/prometheus'
+import {
+  buildPrometheusRequestOptions,
+  fetchPrometheusLabels,
+  fetchPrometheusLabelValues
+} from '@/api/kubernetes/prometheus'
 
 export type PromqlSuggestionKind = 'metric' | 'label' | 'operator' | 'value'
 
@@ -25,17 +29,10 @@ interface UsePromqlAutocompleteOptions {
   autocompleteEnabled: Ref<boolean>
   selectedDatasource: Ref<DatasourceItem | null | undefined>
   resolveTimeRange: () => { start: number; end: number }
-  getExternalProxyHeaders: (datasource: DatasourceItem | null) => Record<string, string>
 }
 
 export function usePromqlAutocomplete(options: UsePromqlAutocompleteOptions) {
-  const {
-    promql,
-    autocompleteEnabled,
-    selectedDatasource,
-    resolveTimeRange,
-    getExternalProxyHeaders
-  } = options
+  const { promql, autocompleteEnabled, selectedDatasource, resolveTimeRange } = options
 
   const promqlAutocompleteRef = ref<{
     inputRef?: { ref?: HTMLInputElement }
@@ -65,17 +62,6 @@ export function usePromqlAutocomplete(options: UsePromqlAutocompleteOptions) {
 
   async function prefetchMetricNames() {
     await prefetchAutocompleteData()
-  }
-
-  function buildPrometheusRequestOptions(datasource: DatasourceItem) {
-    if (!datasource.external) {
-      return {
-        clusterName: datasource.clusterName || undefined
-      }
-    }
-    return {
-      headers: getExternalProxyHeaders(datasource)
-    }
   }
 
   async function prefetchMetricNameOptions(ds: DatasourceItem) {

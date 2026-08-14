@@ -1,0 +1,764 @@
+import type {
+  DashboardDefinition,
+  DashboardFilters,
+  DashboardPanelDefinition
+} from '@/api/dashboard'
+
+export interface DashboardPanelSpec extends DashboardPanelDefinition {
+  rangeQuery: boolean
+  query?: (filters: DashboardFilters) => string
+}
+
+type FilterLabel = 'namespace' | 'node' | 'pod'
+
+function panel(
+  section: string,
+  id: string,
+  title: string,
+  kind: DashboardPanelDefinition['kind'],
+  unit: string,
+  span: number,
+  requiredMetrics: string[],
+  rangeQuery: boolean,
+  query?: (filters: DashboardFilters) => string,
+  description?: string
+): DashboardPanelSpec {
+  return {
+    id,
+    section,
+    title,
+    kind,
+    unit,
+    span,
+    required_metrics: requiredMetrics,
+    rangeQuery,
+    query,
+    description
+  }
+}
+
+function unavailablePanel(
+  section: string,
+  id: string,
+  title: string,
+  unit: string,
+  span: number,
+  ...requiredMetrics: string[]
+): DashboardPanelSpec {
+  return panel(section, id, title, 'empty', unit, span, requiredMetrics, false)
+}
+
+function fixed(expression: string): (filters: DashboardFilters) => string {
+  return () => expression
+}
+
+function promqlQuote(value: string): string {
+  return JSON.stringify(value.trim())
+}
+
+function matcher(filters: DashboardFilters, supported: FilterLabel[]): string {
+  const values: Record<FilterLabel, string | undefined> = {
+    namespace: filters.namespace,
+    node: filters.node,
+    pod: filters.pod
+  }
+  return (['namespace', 'node', 'pod'] as FilterLabel[])
+    .filter((label) => supported.includes(label) && values[label]?.trim())
+    .map((label) => `${label}=${promqlQuote(values[label] ?? '')}`)
+    .join(',')
+}
+
+function selector(
+  metric: string,
+  filters: DashboardFilters,
+  supported: FilterLabel[],
+  ...extra: string[]
+): string {
+  const filtersPart = matcher(filters, supported)
+  const parts = [...(filtersPart ? [filtersPart] : []), ...extra]
+  return parts.length ? `${metric}{${parts.join(',')}}` : metric
+}
+
+function workloadJoin(expression: string, filters: DashboardFilters): string {
+  const workloadName = filters.workload_name?.trim()
+  if (!workloadName) return expression
+
+  const workloadKind = filters.workload_kind?.trim() ?? ''
+  if (workloadKind.toLowerCase() === 'deployment') {
+    const replicaSetOwners =
+      `max by(namespace,replicaset) (` +
+      `kube_replicaset_owner{owner_kind="Deployment",owner_name=${promqlQuote(workloadName)}})`
+    const podReplicaSets =
+      'max by(namespace,pod,replicaset) (' +
+      'label_replace(kube_pod_owner{owner_kind="ReplicaSet"}, "replicaset", "$1", "owner_name", "(.*)"))'
+    return (
+      `(${expression}) * on(namespace,pod) group_left(replicaset) (${podReplicaSets}) ` +
+      `* on(namespace,replicaset) group_left() (${replicaSetOwners})`
+    )
+  }
+
+  const owner = [`owner_name=${promqlQuote(workloadName)}`]
+  if (workloadKind) owner.push(`owner_kind=${promqlQuote(workloadKind)}`)
+  return (
+    `(${expression}) * on(namespace,pod) group_left(owner_kind,owner_name) ` +
+    `max by(namespace,pod,owner_kind,owner_name) (kube_pod_owner{${owner.join(',')}})`
+  )
+}
+
+function containerExpr(metric: string, filters: DashboardFilters, useRate: boolean): string {
+  let expression = selector(
+    metric,
+    filters,
+    ['namespace', 'node', 'pod'],
+    'container!=""',
+    'image!=""'
+  )
+  if (useRate) expression = `rate(${expression}[5m])`
+  return workloadJoin(expression, filters)
+}
+
+function clusterCPUUsage(filters: DashboardFilters): string {
+  return (
+    `100 * sum(${containerExpr('container_cpu_usage_seconds_total', filters, true)}) / ` +
+    `sum(${selector('kube_node_status_allocatable', filters, ['node'], 'resource="cpu"')})`
+  )
+}
+
+function clusterCPURequests(filters: DashboardFilters): string {
+  return (
+    `100 * sum(${selector('kube_pod_container_resource_requests', filters, ['namespace', 'node', 'pod'], 'resource="cpu"')}) / ` +
+    `sum(${selector('kube_node_status_allocatable', filters, ['node'], 'resource="cpu"')})`
+  )
+}
+
+function clusterMemoryUsage(filters: DashboardFilters): string {
+  return (
+    `100 * sum(${containerExpr('container_memory_working_set_bytes', filters, false)}) / ` +
+    `sum(${selector('kube_node_status_allocatable', filters, ['node'], 'resource="memory"')})`
+  )
+}
+
+function namespacePods(filters: DashboardFilters): string {
+  return `sort_desc(sum by (namespace) (${selector('kube_pod_info', filters, ['namespace', 'node', 'pod'])}))`
+}
+
+function namespaceCPU(filters: DashboardFilters): string {
+  return `topk(10, sum by (namespace) (${containerExpr('container_cpu_usage_seconds_total', filters, true)}))`
+}
+
+function namespaceMemory(filters: DashboardFilters): string {
+  return `topk(10, sum by (namespace) (${containerExpr('container_memory_working_set_bytes', filters, false)}))`
+}
+
+function namespaceRestarts(filters: DashboardFilters): string {
+  return `topk(10, sum by (namespace) (${selector('kube_pod_container_status_restarts_total', filters, ['namespace', 'pod'])}))`
+}
+
+function nodeReady(filters: DashboardFilters): string {
+  return selector(
+    'kube_node_status_condition',
+    filters,
+    ['node'],
+    'condition="Ready"',
+    'status="true"'
+  )
+}
+
+function nodePods(filters: DashboardFilters): string {
+  return `sort_desc(sum by (node) (${selector('kube_pod_info', filters, ['namespace', 'node', 'pod'])}))`
+}
+
+function nodeCPU(filters: DashboardFilters): string {
+  return (
+    `100 * sum by (node) (${containerExpr('container_cpu_usage_seconds_total', filters, true)}) / ` +
+    `sum by (node) (${selector('kube_node_status_allocatable', filters, ['node'], 'resource="cpu"')})`
+  )
+}
+
+function nodeMemory(filters: DashboardFilters): string {
+  return (
+    `100 * sum by (node) (${containerExpr('container_memory_working_set_bytes', filters, false)}) / ` +
+    `sum by (node) (${selector('kube_node_status_allocatable', filters, ['node'], 'resource="memory"')})`
+  )
+}
+
+function podCPU(filters: DashboardFilters): string {
+  return `topk(10, sum by (namespace,pod) (${containerExpr('container_cpu_usage_seconds_total', filters, true)}))`
+}
+
+function podMemory(filters: DashboardFilters): string {
+  return `topk(10, sum by (namespace,pod) (${containerExpr('container_memory_working_set_bytes', filters, false)}))`
+}
+
+function podResourceLimits(filters: DashboardFilters, resource: string, unit: string): string {
+  const expression = selector(
+    'kube_pod_container_resource_limits',
+    filters,
+    ['namespace', 'node', 'pod'],
+    `resource=${promqlQuote(resource)}`,
+    `unit=${promqlQuote(unit)}`
+  )
+  return workloadJoin(expression, filters)
+}
+
+function podCPUTrend(filters: DashboardFilters): string {
+  const usage = `sum by (namespace,pod) (${containerExpr('container_cpu_usage_seconds_total', filters, true)})`
+  const limits = `sum by (namespace,pod) (${podResourceLimits(filters, 'cpu', 'core')})`
+  return `100 * ${usage} / clamp_min(${limits}, 0.001)`
+}
+
+function podMemoryTrend(filters: DashboardFilters): string {
+  const usage = `sum by (namespace,pod) (${containerExpr('container_memory_working_set_bytes', filters, false)})`
+  const limits = `sum by (namespace,pod) (${podResourceLimits(filters, 'memory', 'byte')})`
+  return `100 * ${usage} / clamp_min(${limits}, 1)`
+}
+
+function podRestarts(filters: DashboardFilters): string {
+  return `topk(10, sum by (namespace,pod) (${selector('kube_pod_container_status_restarts_total', filters, ['namespace', 'pod'])}))`
+}
+
+function podPhase(filters: DashboardFilters): string {
+  return `${selector('kube_pod_status_phase', filters, ['namespace', 'pod'])} == 1`
+}
+
+function availability(
+  availableMetric: string,
+  desiredMetric: string,
+  filters: DashboardFilters
+): string {
+  const filtersPart = matcher(filters, ['namespace'])
+  return `100 * ${availableMetric}{${filtersPart}} / clamp_min(${desiredMetric}{${filtersPart}}, 1)`
+}
+
+function networkReceive(filters: DashboardFilters): string {
+  return `topk(10, sum by (namespace,pod) (${containerExpr('container_network_receive_bytes_total', filters, true)}))`
+}
+
+function networkTransmit(filters: DashboardFilters): string {
+  return `topk(10, sum by (namespace,pod) (${containerExpr('container_network_transmit_bytes_total', filters, true)}))`
+}
+
+function networkReceiveTrend(filters: DashboardFilters): string {
+  return `sum by (namespace,pod) (${containerExpr('container_network_receive_bytes_total', filters, true)})`
+}
+
+function networkTransmitTrend(filters: DashboardFilters): string {
+  return `sum by (namespace,pod) (${containerExpr('container_network_transmit_bytes_total', filters, true)})`
+}
+
+function pvcPhase(filters: DashboardFilters): string {
+  return `${selector('kube_persistentvolumeclaim_status_phase', filters, ['namespace'])} == 1`
+}
+
+function containerFS(filters: DashboardFilters): string {
+  return `topk(10, sum by (namespace,pod) (${containerExpr('container_fs_usage_bytes', filters, false)}))`
+}
+
+const sections: DashboardDefinition['sections'] = [
+  {
+    id: 'overview',
+    title: '监控概览',
+    icon: 'ri:dashboard-line',
+    children: ['cluster', 'namespace']
+  },
+  {
+    id: 'core',
+    title: '核心组件监控',
+    icon: 'ri:cpu-line',
+    children: ['kubelet', 'control-plane']
+  },
+  {
+    id: 'node',
+    title: '节点监控',
+    icon: 'ri:server-line',
+    children: ['node-resource', 'node-pod']
+  },
+  {
+    id: 'application',
+    title: '应用监控',
+    icon: 'ri:apps-line',
+    children: ['workload', 'pod']
+  },
+  { id: 'network', title: '网络监控', icon: 'ri:global-line' },
+  { id: 'storage', title: '存储监控', icon: 'ri:hard-drive-2-line' },
+  { id: 'gpu', title: 'GPU 监控', icon: 'ri:dashboard-3-line' }
+]
+
+const panelSpecs: DashboardPanelSpec[] = [
+  panel(
+    'cluster',
+    'cluster.nodes',
+    '节点数',
+    'stat',
+    'short',
+    3,
+    ['kube_node_info'],
+    false,
+    fixed('count(kube_node_info)')
+  ),
+  panel(
+    'cluster',
+    'cluster.ready_nodes',
+    'Ready 节点',
+    'stat',
+    'short',
+    3,
+    ['kube_node_status_condition'],
+    false,
+    fixed('count(kube_node_status_condition{condition="Ready",status="true"} == 1)')
+  ),
+  panel(
+    'cluster',
+    'cluster.running_pods',
+    '运行中 Pod',
+    'stat',
+    'short',
+    3,
+    ['kube_pod_status_phase'],
+    false,
+    fixed('sum(kube_pod_status_phase{phase="Running"})')
+  ),
+  panel(
+    'cluster',
+    'cluster.namespaces',
+    'Namespace',
+    'stat',
+    'short',
+    3,
+    ['kube_namespace_created'],
+    false,
+    fixed('count(kube_namespace_created)')
+  ),
+  panel(
+    'cluster',
+    'cluster.cpu_usage',
+    'CPU 使用率',
+    'gauge',
+    'percent',
+    4,
+    ['container_cpu_usage_seconds_total', 'kube_node_status_allocatable'],
+    false,
+    clusterCPUUsage
+  ),
+  panel(
+    'cluster',
+    'cluster.cpu_requests',
+    'CPU Request 承诺率',
+    'gauge',
+    'percent',
+    4,
+    ['kube_pod_container_resource_requests', 'kube_node_status_allocatable'],
+    false,
+    clusterCPURequests
+  ),
+  panel(
+    'cluster',
+    'cluster.memory_usage',
+    '内存使用率',
+    'gauge',
+    'percent',
+    4,
+    ['container_memory_working_set_bytes', 'kube_node_status_allocatable'],
+    false,
+    clusterMemoryUsage
+  ),
+
+  panel(
+    'namespace',
+    'namespace.pods',
+    'Namespace Pod 数',
+    'bar',
+    'short',
+    6,
+    ['kube_pod_info'],
+    false,
+    namespacePods
+  ),
+  panel(
+    'namespace',
+    'namespace.cpu',
+    'Namespace CPU Top 10',
+    'bar',
+    'cores',
+    6,
+    ['container_cpu_usage_seconds_total'],
+    false,
+    namespaceCPU
+  ),
+  panel(
+    'namespace',
+    'namespace.memory',
+    'Namespace 内存 Top 10',
+    'bar',
+    'bytes',
+    6,
+    ['container_memory_working_set_bytes'],
+    false,
+    namespaceMemory
+  ),
+  panel(
+    'namespace',
+    'namespace.restarts',
+    '容器重启 Top 10',
+    'bar',
+    'short',
+    6,
+    ['kube_pod_container_status_restarts_total'],
+    false,
+    namespaceRestarts
+  ),
+
+  panel(
+    'kubelet',
+    'kubelet.running_pods',
+    '运行中 Pod',
+    'stat',
+    'short',
+    6,
+    ['kubelet_running_pods'],
+    false,
+    fixed('sum(kubelet_running_pods)')
+  ),
+  panel(
+    'kubelet',
+    'kubelet.running_containers',
+    '运行中容器',
+    'stat',
+    'short',
+    6,
+    ['kubelet_running_containers'],
+    false,
+    fixed('sum(kubelet_running_containers)')
+  ),
+  panel(
+    'kubelet',
+    'kubelet.operation_rate',
+    'Runtime 操作速率',
+    'line',
+    'ops',
+    6,
+    ['kubelet_runtime_operations_total'],
+    true,
+    fixed('sum by (operation_type) (rate(kubelet_runtime_operations_total[5m]))')
+  ),
+  panel(
+    'kubelet',
+    'kubelet.error_rate',
+    'Runtime 错误速率',
+    'line',
+    'ops',
+    6,
+    ['kubelet_runtime_operations_errors_total'],
+    true,
+    fixed('sum by (operation_type) (rate(kubelet_runtime_operations_errors_total[5m]))'),
+    'Kubelet 调用容器运行时发生错误的每秒速率，按操作类型统计。'
+  ),
+
+  unavailablePanel(
+    'control-plane',
+    'control.scheduler',
+    'Scheduler 调度状态',
+    '',
+    4,
+    'scheduler_schedule_attempts_total'
+  ),
+  unavailablePanel('control-plane', 'control.controller', 'Controller Manager', '', 4),
+  unavailablePanel(
+    'control-plane',
+    'control.apiserver',
+    'API Server 请求',
+    '',
+    4,
+    'apiserver_request_total'
+  ),
+
+  panel(
+    'node-resource',
+    'node.ready',
+    '节点健康状态',
+    'status',
+    '',
+    6,
+    ['kube_node_status_condition'],
+    false,
+    nodeReady
+  ),
+  panel(
+    'node-resource',
+    'node.pods',
+    '节点 Pod 数',
+    'bar',
+    'short',
+    6,
+    ['kube_pod_info'],
+    false,
+    nodePods
+  ),
+  panel(
+    'node-resource',
+    'node.cpu',
+    '节点 CPU 使用率',
+    'bar',
+    'percent',
+    6,
+    ['container_cpu_usage_seconds_total', 'kube_node_status_allocatable'],
+    false,
+    nodeCPU
+  ),
+  panel(
+    'node-resource',
+    'node.memory',
+    '节点内存使用率',
+    'bar',
+    'percent',
+    6,
+    ['container_memory_working_set_bytes', 'kube_node_status_allocatable'],
+    false,
+    nodeMemory
+  ),
+  panel(
+    'node-pod',
+    'node.pod_cpu',
+    '节点 Pod CPU Top 10',
+    'bar',
+    'cores',
+    6,
+    ['container_cpu_usage_seconds_total'],
+    false,
+    podCPU
+  ),
+  panel(
+    'node-pod',
+    'node.pod_memory',
+    '节点 Pod 内存 Top 10',
+    'bar',
+    'bytes',
+    6,
+    ['container_memory_working_set_bytes'],
+    false,
+    podMemory
+  ),
+
+  panel(
+    'workload',
+    'workload.deployments',
+    'Deployment 可用率',
+    'bar',
+    'percent',
+    4,
+    ['kube_deployment_status_replicas_available', 'kube_deployment_spec_replicas'],
+    false,
+    (filters) =>
+      availability(
+        'kube_deployment_status_replicas_available',
+        'kube_deployment_spec_replicas',
+        filters
+      )
+  ),
+  panel(
+    'workload',
+    'workload.statefulsets',
+    'StatefulSet Ready',
+    'bar',
+    'percent',
+    4,
+    ['kube_statefulset_status_replicas_ready', 'kube_statefulset_replicas'],
+    false,
+    (filters) =>
+      availability('kube_statefulset_status_replicas_ready', 'kube_statefulset_replicas', filters)
+  ),
+  panel(
+    'workload',
+    'workload.daemonsets',
+    'DaemonSet Ready',
+    'bar',
+    'percent',
+    4,
+    ['kube_daemonset_status_number_ready', 'kube_daemonset_status_desired_number_scheduled'],
+    false,
+    (filters) =>
+      availability(
+        'kube_daemonset_status_number_ready',
+        'kube_daemonset_status_desired_number_scheduled',
+        filters
+      )
+  ),
+
+  panel(
+    'pod',
+    'pod.cpu_trend',
+    'Pod CPU 使用率',
+    'line',
+    'percent',
+    6,
+    ['container_cpu_usage_seconds_total', 'kube_pod_container_resource_limits'],
+    true,
+    podCPUTrend,
+    '当前 CPU 用量占 Pod 容器 CPU limits 的百分比；未配置 CPU limits 的 Pod 不显示。'
+  ),
+  panel(
+    'pod',
+    'pod.memory_trend',
+    'Pod 内存使用率',
+    'line',
+    'percent',
+    6,
+    ['container_memory_working_set_bytes', 'kube_pod_container_resource_limits'],
+    true,
+    podMemoryTrend,
+    '当前内存工作集占 Pod 容器内存 limits 的百分比；未配置内存 limits 的 Pod 不显示。'
+  ),
+  panel(
+    'pod',
+    'pod.restarts',
+    'Pod 重启次数',
+    'bar',
+    'short',
+    6,
+    ['kube_pod_container_status_restarts_total'],
+    false,
+    podRestarts
+  ),
+  panel(
+    'pod',
+    'pod.phase',
+    'Pod 状态',
+    'status',
+    '',
+    6,
+    ['kube_pod_status_phase'],
+    false,
+    podPhase
+  ),
+
+  panel(
+    'network',
+    'network.receive',
+    'Pod 网络流入 Top 10',
+    'bar',
+    'Bps',
+    6,
+    ['container_network_receive_bytes_total'],
+    false,
+    networkReceive
+  ),
+  panel(
+    'network',
+    'network.transmit',
+    'Pod 网络流出 Top 10',
+    'bar',
+    'Bps',
+    6,
+    ['container_network_transmit_bytes_total'],
+    false,
+    networkTransmit
+  ),
+  panel(
+    'network',
+    'network.receive_trend',
+    '网络流入趋势',
+    'line',
+    'Bps',
+    6,
+    ['container_network_receive_bytes_total'],
+    true,
+    networkReceiveTrend
+  ),
+  panel(
+    'network',
+    'network.transmit_trend',
+    '网络流出趋势',
+    'line',
+    'Bps',
+    6,
+    ['container_network_transmit_bytes_total'],
+    true,
+    networkTransmitTrend
+  ),
+
+  panel(
+    'storage',
+    'storage.pvc_phase',
+    'PVC 状态',
+    'status',
+    '',
+    6,
+    ['kube_persistentvolumeclaim_status_phase'],
+    false,
+    pvcPhase
+  ),
+  panel(
+    'storage',
+    'storage.container_fs',
+    '容器文件系统使用 Top 10',
+    'bar',
+    'bytes',
+    6,
+    ['container_fs_usage_bytes'],
+    false,
+    containerFS
+  ),
+
+  unavailablePanel('gpu', 'gpu.utilization', 'GPU 使用率', 'percent', 4, 'DCGM_FI_DEV_GPU_UTIL'),
+  unavailablePanel('gpu', 'gpu.memory', 'GPU 显存使用', 'bytes', 4, 'DCGM_FI_DEV_FB_USED'),
+  unavailablePanel('gpu', 'gpu.temperature', 'GPU 温度', 'celsius', 4, 'DCGM_FI_DEV_GPU_TEMP')
+]
+
+export function getDashboardDefinition(): DashboardDefinition {
+  return {
+    sections,
+    panels: panelSpecs.map(
+      ({ rangeQuery: _rangeQuery, query: _query, ...definition }) => definition
+    )
+  }
+}
+
+export function getDashboardPanelSpecs(ids: string[]): DashboardPanelSpec[] {
+  if (!ids.length) return panelSpecs
+  const byId = new Map(panelSpecs.map((spec) => [spec.id, spec]))
+  const selected: DashboardPanelSpec[] = []
+  const seen = new Set<string>()
+  for (const id of ids) {
+    if (seen.has(id)) continue
+    const spec = byId.get(id)
+    if (!spec) throw new Error(`未知仪表盘面板：${id}`)
+    seen.add(id)
+    selected.push(spec)
+  }
+  return selected
+}
+
+export function buildDashboardPodVariableQuery(filters: DashboardFilters): string {
+  const podInfo = selector('kube_pod_info', filters, ['namespace', 'node'])
+  const workloadName = filters.workload_name?.trim()
+  if (!workloadName) return podInfo
+
+  const workloadKind = filters.workload_kind?.trim() ?? ''
+  if (workloadKind.toLowerCase() === 'deployment') {
+    const replicaSetOwners =
+      `max by(namespace,replicaset) (` +
+      `kube_replicaset_owner{owner_kind="Deployment",owner_name=${promqlQuote(workloadName)}})`
+    const podReplicaSets =
+      'max by(namespace,pod,replicaset) (' +
+      'label_replace(kube_pod_owner{owner_kind="ReplicaSet"}, "replicaset", "$1", "owner_name", "(.*)"))'
+    return (
+      `${podInfo} * on(namespace,pod) group_left(replicaset) (${podReplicaSets}) ` +
+      `* on(namespace,replicaset) group_left() (${replicaSetOwners})`
+    )
+  }
+
+  const owner = [`owner_name=${promqlQuote(workloadName)}`]
+  if (workloadKind) owner.push(`owner_kind=${promqlQuote(workloadKind)}`)
+  return (
+    `${podInfo} * on(namespace,pod) group_left(owner_kind,owner_name) ` +
+    `kube_pod_owner{${owner.join(',')}}`
+  )
+}
+
+export function buildDashboardVariableSelector(
+  metric: string,
+  label: string,
+  value?: string
+): string {
+  return value?.trim() ? `${metric}{${label}=${promqlQuote(value)}}` : metric
+}

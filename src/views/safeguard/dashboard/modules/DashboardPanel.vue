@@ -412,7 +412,12 @@
     })
   }
 
+  function handleChartVisible() {
+    updateChart(chartOption())
+  }
+
   onMounted(() => {
+    chartRef.value?.addEventListener('chartVisible', handleChartVisible)
     renderChart()
     window.addEventListener('mousemove', hideTooltipOutsideChart, true)
     window.addEventListener('mouseup', finishChartRangeSelection, true)
@@ -421,6 +426,7 @@
     window.addEventListener('scroll', hideChartTooltip, true)
   })
   onBeforeUnmount(() => {
+    chartRef.value?.removeEventListener('chartVisible', handleChartVisible)
     window.removeEventListener('mousemove', hideTooltipOutsideChart, true)
     window.removeEventListener('mouseup', finishChartRangeSelection, true)
     window.removeEventListener('pointerup', finishChartPointerSelection, true)
