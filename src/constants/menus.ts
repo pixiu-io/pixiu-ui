@@ -16,6 +16,7 @@ export const MenuCodes = {
   MiddlewareElasticsearch: 'middleware.elasticsearch',
 
   Monitor: 'monitor',
+  MonitorDashboard: 'monitor.dashboard',
   MonitorRealtime: 'monitor.realtime',
   MonitorLogs: 'monitor.logs',
   MonitorAlert: 'monitor.alert',
