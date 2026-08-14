@@ -75,7 +75,8 @@
   const subTypeIconMap: Record<string, { icon: string; color: string }> = {
     loki: { icon: 'simple-icons:grafana', color: '#F46800' },
     es: { icon: 'simple-icons:elasticsearch', color: '#005571' },
-    prometheus: { icon: 'simple-icons:prometheus', color: '#E6522C' }
+    prometheus: { icon: 'simple-icons:prometheus', color: '#E6522C' },
+    nacos: { icon: 'ri:settings-3-line', color: '#3A78FF' }
   }
 
   function getSubTypeIcon(subType: string) {

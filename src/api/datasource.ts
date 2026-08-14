@@ -1,7 +1,7 @@
 import { pixiuAxios } from '@/api/container'
 
 export type DatasourceType = 0 | 1
-export type DatasourceSubType = 'loki' | 'es' | 'prometheus'
+export type DatasourceSubType = 'loki' | 'es' | 'prometheus' | 'nacos'
 
 export const DatasourceTypeMap = {
   0: { label: '日志', type: 'info' },
@@ -11,7 +11,8 @@ export const DatasourceTypeMap = {
 export const DatasourceSubTypeMap: Record<DatasourceSubType, string> = {
   loki: 'Loki',
   es: 'Elasticsearch',
-  prometheus: 'Prometheus'
+  prometheus: 'Prometheus',
+  nacos: 'Nacos'
 }
 
 export interface DatasourceHeader {
