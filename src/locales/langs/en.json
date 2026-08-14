@@ -244,6 +244,7 @@
       "audit": "Audit",
       "agent": "Agent Management",
       "monitor": "Monitor & Alert",
+      "dashboard": "Dashboard",
       "datasource": "Datasource",
       "logs": "Logs",
       "realtimeQuery": "Real-time Query"
