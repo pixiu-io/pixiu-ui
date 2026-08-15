@@ -1086,7 +1086,7 @@
   .nacos-rule-left {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     flex-wrap: wrap;
     min-width: 0;
   }
