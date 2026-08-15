@@ -406,7 +406,7 @@
     loki: { label: 'Loki', icon: 'simple-icons:grafana' },
     es: { label: 'Elasticsearch', icon: 'simple-icons:elasticsearch' },
     prometheus: { label: 'Prometheus', icon: 'simple-icons:prometheus' },
-    redis: { label: 'Redis', icon: 'simple-icons:redis' }
+    redis: { label: 'Redis', icon: 'simple-icons:redis' },
     nacos: { label: 'Nacos', icon: 'ri:settings-3-line' }
   }
 

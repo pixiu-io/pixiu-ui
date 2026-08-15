@@ -57,19 +57,9 @@
                 <span v-if="infoData?.usedMemoryHuman" class="redis-health-info-item">内存：{{ infoData.usedMemoryHuman }}</span>
                 <span v-if="infoData" class="redis-health-info-item">客户端连接数：{{ infoData.connectedClients }}</span>
                 <span v-if="infoData" class="redis-health-info-item">Key 总数（DB {{ currentDb }}）：{{ infoData.totalKeys }}</span>
+                <span v-if="isClusterMode" class="redis-cluster-tip">cluster 模式：INFO/DBSIZE 为单节点视角，数据量统计仅代表单个节点</span>
               </div>
             </span>
-          </div>
-          <div class="redis-rule-right">
-            <ElButton
-              v-ripple
-              size="small"
-              :loading="pingLoading"
-              :disabled="!selectedDatasource"
-              @click="loadOverview"
-            >
-              刷新
-            </ElButton>
           </div>
         </div>
         <div v-if="pingData && !pingData.connected && pingData.message" class="redis-health-error">
@@ -79,61 +69,83 @@
     </section>
 
     <div class="redis-body">
-      <aside class="redis-db-side">
-        <button
-          v-for="n in 16"
-          :key="n - 1"
-          type="button"
-          class="redis-db-item"
-          :class="{ 'is-active': currentDb === n - 1 }"
-          :disabled="!isConnected || (isClusterMode && n - 1 !== 0)"
-          @click="selectDb(n - 1)"
-        >
-          <ArtSvgIcon icon="ri:database-2-line" style="width: 14px; height: 14px;" />
-          <span>DB{{ n - 1 }}</span>
-        </button>
+      <div class="redis-keys-toolbar">
+        <div class="redis-keys-toolbar__left">
+          <ElButton
+            v-ripple
+            class="redis-btn-create"
+            :disabled="!isConnected || keysLoading"
+            @click="openCreateDialog"
+          >
+            新增 Key
+          </ElButton>
+          <ElButton
+            v-ripple
+            :loading="batchDeleteLoading"
+            :disabled="!isConnected || keysLoading || selectedRows.length === 0"
+            @click="handleBatchDelete"
+          >
+            批量删除{{ selectedRows.length ? `（${selectedRows.length}）` : '' }}
+          </ElButton>
+        </div>
+        <div class="redis-keys-toolbar__right">
+          <ElInput
+            v-model="matchPattern"
+            clearable
+            placeholder="Key 匹配模式，如 user:*"
+            class="redis-keys-toolbar__search"
+            @keyup.enter="handleSearch"
+            @clear="handleSearch"
+          />
+          <ElButton v-ripple @click="handleSearch">搜索</ElButton>
+          <ArtTableHeader
+            v-model:columns="keyColumnChecks"
+            :loading="keysLoading"
+            full-class="redis-page"
+            @refresh="resetScan"
+          />
+        </div>
+      </div>
+      <div class="redis-content">
+      <aside class="redis-db-side" :class="{ 'is-collapsed': isDbCollapsed }">
+        <div class="redis-db-side__header">
+          <div v-if="!isDbCollapsed" class="redis-db-side__title">逻辑库</div>
+          <button
+            type="button"
+            class="redis-db-side__toggle"
+            :title="isDbCollapsed ? '展开逻辑库列表' : '折叠逻辑库列表'"
+            @click="isDbCollapsed = !isDbCollapsed"
+          >
+            <ElIcon :size="16">
+              <component :is="isDbCollapsed ? Expand : Fold" />
+            </ElIcon>
+          </button>
+        </div>
+        <template v-if="!isDbCollapsed">
+          <ElInput
+            v-model="dbSearch"
+            clearable
+            placeholder="搜索逻辑库"
+            class="redis-db-side__search"
+          />
+          <div class="redis-db-list">
+            <button
+              v-for="n in filteredDBs"
+              :key="n"
+              type="button"
+              class="redis-db-item"
+              :class="{ 'is-active': currentDb === n }"
+              :disabled="!isConnected || (isClusterMode && n !== 0)"
+              @click="selectDb(n)"
+            >
+              <ArtSvgIcon icon="ri:database-2-line" style="width: 14px; height: 14px;" />
+              <span>DB{{ n }}</span>
+            </button>
+            <div v-if="!filteredDBs.length" class="redis-db-side__empty">无匹配逻辑库</div>
+          </div>
+        </template>
       </aside>
       <div class="redis-main">
-    <div class="redis-keys-toolbar">
-      <div class="redis-keys-toolbar__left">
-        <ElInput
-          v-model="matchPattern"
-          clearable
-          placeholder="Key 匹配模式，如 user:*"
-          class="redis-keys-toolbar__search"
-          @keyup.enter="handleSearch"
-          @clear="handleSearch"
-        />
-        <ElButton v-ripple @click="handleSearch">搜索</ElButton>
-        <ElButton
-          v-ripple
-          type="primary"
-          :disabled="!isConnected || keysLoading"
-          @click="openCreateDialog"
-        >
-          新增 Key
-        </ElButton>
-        <ElButton
-          v-ripple
-          type="danger"
-          plain
-          :loading="batchDeleteLoading"
-          :disabled="!isConnected || keysLoading || selectedRows.length === 0"
-          @click="handleBatchDelete"
-        >
-          批量删除{{ selectedRows.length ? `（${selectedRows.length}）` : '' }}
-        </ElButton>
-      </div>
-      <div class="redis-keys-toolbar__right">
-        <ArtTableHeader
-          v-model:columns="keyColumnChecks"
-          :loading="keysLoading"
-          full-class="redis-page"
-          @refresh="resetScan"
-        />
-      </div>
-    </div>
-
     <ElCard class="art-table-card art-table-card--after-toolbar">
       <div class="redis-keys-table-wrap">
         <div class="redis-keys-table-scroll">
@@ -214,53 +226,23 @@
             </ElTableColumn>
           </ElTable>
         </div>
-        <div class="redis-keys-footer">
-          <span class="redis-keys-footer__hint">第 {{ currentPage }} 页 · 本页 {{ keyList.length }} 条</span>
-          <div class="redis-pager">
-            <span class="redis-pager__label">每页</span>
-            <ElSelect
-              v-model="pageSize"
-              class="redis-pager__sizes"
-              :disabled="keysLoading || !selectedDatasource"
-              @change="onPageSizeChange"
-            >
-              <ElOption v-for="s in pageSizeOptions" :key="s" :label="`${s} 条`" :value="s" />
-            </ElSelect>
-            <ElButton
-              v-ripple
-              plain
-              size="small"
-              :disabled="!canPrevPage || keysLoading || !selectedDatasource"
-              @click="handlePrevPage"
-            >
-              上一页
-            </ElButton>
-            <ElButton
-              v-ripple
-              plain
-              size="small"
-              :disabled="!canNextPage || keysLoading || !selectedDatasource"
-              @click="handleNextPage"
-            >
-              下一页
-            </ElButton>
-            <span class="redis-pager__label">前往</span>
-            <ElInputNumber
-              v-model="jumpPage"
-              :min="1"
-              :max="9999999"
-              size="small"
-              controls-position="right"
-              class="redis-pager__jump"
-              @keyup.enter="handleJump"
-            />
-            <ElButton v-ripple size="small" :disabled="keysLoading || !selectedDatasource" @click="handleJump">
-              跳转
-            </ElButton>
-          </div>
+        <div class="pagination custom-pagination right">
+          <ElPagination
+            v-model:current-page="currentPage"
+            v-model:page-size="pageSize"
+            :disabled="keysLoading"
+            :page-sizes="[10, 20, 30, 50, 100]"
+            :total="paginationTotal"
+            :background="true"
+            :pager-count="5"
+            layout="total, prev, pager, next, sizes, jumper"
+            @current-change="handleCurrentChange"
+            @size-change="handlePageSizeChange"
+          />
         </div>
       </div>
     </ElCard>
+      </div>
       </div>
     </div>
 
@@ -448,6 +430,7 @@ import {
 import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
 import { useTableStore } from '@/store/modules/table'
 import type { ColumnOption } from '@/types'
+import { Expand, Fold } from '@element-plus/icons-vue'
 
 defineOptions({ name: 'MiddlewareRedis' })
 
@@ -496,6 +479,16 @@ const infoData = ref<RedisInfoResult | null>(null)
 
 // ---- 逻辑库选择（DB0-DB15；cluster 模式仅 DB0） ----
 const currentDb = ref(0)
+
+// 逻辑库侧边栏折叠与搜索（样式对齐日志页字段列表）
+const isDbCollapsed = ref(false)
+const dbSearch = ref('')
+const filteredDBs = computed(() => {
+  const keyword = dbSearch.value.trim().toLowerCase()
+  const all = Array.from({ length: 16 }, (_, i) => i)
+  if (!keyword) return all
+  return all.filter((db) => `db${db}`.includes(keyword) || String(db).includes(keyword))
+})
 
 const isClusterMode = computed(() => {
   if (infoData.value?.redisMode === 'cluster') return true
@@ -571,29 +564,39 @@ watch(selectedDsId, (id) => {
     infoData.value = null
     keyList.value = []
     currentDb.value = 0
-    scanSession.value = ''
-    pageCache.value.clear()
+    cursor.value = 0
+    nextCursor.value = 0
+    pageStartCursors.value = [0]
     currentPage.value = 1
-    hasMore.value = false
+    loadedPage.value = 1
   }
 })
 
-// ---- Key 浏览（会话式分页） ----
+// ---- Key 浏览（SCAN cursor 透传顺序翻页） ----
 const matchPattern = ref('')
 const keysLoading = ref(false)
 const keyList = ref<RedisKeyItem[]>([])
-const pageSizeOptions = [10, 20, 30, 50, 100]
 const pageSize = ref(10)
+/** 当前页请求使用的 SCAN cursor（0 = 从头扫描） */
+const cursor = ref(0)
+/** 当前页返回的下一游标，0 表示已扫描到底 */
+const nextCursor = ref(0)
+/** 每页起始 SCAN cursor，下标 = 页码 - 1 */
+const pageStartCursors = ref<number[]>([0])
 const currentPage = ref(1)
-const jumpPage = ref(1)
-const hasMore = ref(false)
-/** SCAN 会话 ID：实例/DB/匹配/页大小变化时重新生成，后端据此对齐页边界 */
-const scanSession = ref('')
-/** 客户端页缓存，回跳已访问页零成本 */
-const pageCache = ref(new Map<number, { keys: RedisKeyItem[]; hasMore: boolean }>())
+const loadedPage = ref(1)
+/** 程序改页码时跳过 current-change，避免重复 SCAN */
+let pagingSilent = false
+const MAX_SCAN_HOPS = 40
 
-const canPrevPage = computed(() => currentPage.value > 1)
-const canNextPage = computed(() => hasMore.value)
+// SCAN 无精确总数：扫完用已见条数；未过滤时用 INFO 的 totalKeys；未扫完则预留下一页（与 ES 一致允许 total=0）
+const paginationTotal = computed(() => {
+  const scanned = (loadedPage.value - 1) * pageSize.value + keyList.value.length
+  if (nextCursor.value === 0) return scanned
+  const infoTotal = infoData.value?.totalKeys ?? 0
+  if (!matchPattern.value.trim() && infoTotal > scanned) return infoTotal
+  return scanned + 1
+})
 
 const typeTagMap: Record<string, 'primary' | 'success' | 'warning' | 'danger' | 'info'> = {
   string: 'primary',
@@ -617,35 +620,25 @@ function isKeyColVisible(prop: string) {
   return col.checked ?? true
 }
 
-function newSessionId() {
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
-}
-
-async function loadPage(page: number, force = false) {
+async function loadKeys() {
   const ds = selectedDatasource.value
   if (!ds) return
-  if (!force) {
-    const cached = pageCache.value.get(page)
-    if (cached) {
-      keyList.value = cached.keys
-      hasMore.value = cached.hasMore
-      currentPage.value = page
-      return
-    }
-  }
   keysLoading.value = true
   try {
     const result = await fetchRedisKeys(ds.id, {
-      session: scanSession.value,
-      page,
-      pageSize: pageSize.value,
+      cursor: cursor.value,
+      count: pageSize.value,
       match: matchPattern.value.trim() || undefined,
       db: currentDb.value
     })
-    pageCache.value.set(page, { keys: result.keys, hasMore: result.hasMore })
     keyList.value = result.keys
-    hasMore.value = result.hasMore
-    currentPage.value = page
+    nextCursor.value = result.cursor
+    loadedPage.value = currentPage.value
+    if (result.cursor !== 0) {
+      const next = [...pageStartCursors.value]
+      next[currentPage.value] = result.cursor
+      pageStartCursors.value = next
+    }
   } catch (e: any) {
     keyList.value = []
     ElMessage.error(e?.message || '扫描 Key 失败')
@@ -654,43 +647,77 @@ async function loadPage(page: number, force = false) {
   }
 }
 
-/** 重新生成会话并回到第 1 页（搜索/换 DB/换页大小/刷新/写操作后使用） */
+/** 回到第 1 页（搜索/换 DB/换页大小/刷新/写操作后使用） */
 function resetScan() {
-  scanSession.value = newSessionId()
-  pageCache.value.clear()
+  pagingSilent = true
   currentPage.value = 1
-  jumpPage.value = 1
-  hasMore.value = false
+  loadedPage.value = 1
+  cursor.value = 0
+  nextCursor.value = 0
+  pageStartCursors.value = [0]
   selectedRows.value = []
   keysTableRef.value?.clearSelection()
-  if (selectedDatasource.value) loadPage(1, true)
+  const pending = selectedDatasource.value ? loadKeys() : Promise.resolve()
+  void pending.finally(() => {
+    pagingSilent = false
+  })
 }
 
 function handleSearch() {
   resetScan()
 }
 
-function handleNextPage() {
-  if (!canNextPage.value) return
-  loadPage(currentPage.value + 1)
-}
-
-function handlePrevPage() {
-  if (!canPrevPage.value) return
-  loadPage(currentPage.value - 1)
-}
-
-function handleJump() {
-  const target = Math.floor(Number(jumpPage.value))
-  if (!target || target < 1) {
-    ElMessage.warning('请输入有效页码')
+async function goToPage(targetPage: number) {
+  if (!selectedDatasource.value) return
+  if (targetPage === loadedPage.value) {
+    currentPage.value = targetPage
     return
   }
-  if (target === currentPage.value) return
-  loadPage(target)
+  if (targetPage < 1) {
+    pagingSilent = true
+    currentPage.value = 1
+    pagingSilent = false
+    return
+  }
+
+  if (pageStartCursors.value[targetPage - 1] !== undefined) {
+    cursor.value = pageStartCursors.value[targetPage - 1]!
+    currentPage.value = targetPage
+    await loadKeys()
+    return
+  }
+
+  const hops = targetPage - loadedPage.value
+  if (hops > MAX_SCAN_HOPS) {
+    ElMessage.warning('Redis SCAN 不支持跨度过远的跳页，请逐页翻阅或缩小匹配范围')
+    pagingSilent = true
+    currentPage.value = loadedPage.value
+    pagingSilent = false
+    return
+  }
+
+  while (loadedPage.value < targetPage && nextCursor.value !== 0) {
+    const nextPage = loadedPage.value + 1
+    const start = pageStartCursors.value[nextPage - 1]
+    if (start === undefined) break
+    cursor.value = start
+    currentPage.value = nextPage
+    await loadKeys()
+  }
+
+  if (loadedPage.value !== targetPage) {
+    pagingSilent = true
+    currentPage.value = loadedPage.value
+    pagingSilent = false
+  }
 }
 
-function onPageSizeChange() {
+async function handleCurrentChange(page: number) {
+  if (pagingSilent) return
+  await goToPage(page)
+}
+
+function handlePageSizeChange() {
   resetScan()
 }
 
@@ -961,7 +988,7 @@ async function submitTtl() {
 .redis-page {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: var(--art-full-height);
   padding: 0;
   overflow: hidden;
 }
@@ -994,13 +1021,6 @@ async function submitTtl() {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-}
-
-.redis-rule-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
 }
 
 .redis-rule-label {
@@ -1050,6 +1070,17 @@ async function submitTtl() {
 .redis-health-error {
   font-size: 12px;
   color: #dc2626;
+  word-break: break-all;
+}
+
+.redis-cluster-tip {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #b45309;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 4px;
+  padding: 2px 8px;
   word-break: break-all;
 }
 
@@ -1110,7 +1141,7 @@ async function submitTtl() {
   align-items: center;
   justify-content: space-between;
   margin-top: 0;
-  margin-bottom: 12px;
+  margin-bottom: 0;
   flex-shrink: 0;
 }
 
@@ -1126,39 +1157,197 @@ async function submitTtl() {
   gap: 8px;
 }
 
+/* 新增 Key 按钮：蓝色边框（描边），disabled 时保持蓝边框蓝字 */
+.redis-btn-create.el-button {
+  --el-button-bg-color: transparent !important;
+  --el-button-border-color: var(--el-color-primary) !important;
+  --el-button-text-color: var(--el-color-primary) !important;
+  --el-button-hover-bg-color: var(--el-color-primary) !important;
+  --el-button-hover-border-color: var(--el-color-primary) !important;
+  --el-button-hover-text-color: #fff !important;
+  --el-button-active-bg-color: var(--el-color-primary-dark-2) !important;
+  --el-button-active-border-color: var(--el-color-primary-dark-2) !important;
+}
+
+.redis-btn-create.el-button.is-disabled {
+  --el-button-bg-color: transparent !important;
+  --el-button-border-color: var(--el-color-primary) !important;
+  --el-button-text-color: var(--el-color-primary) !important;
+  opacity: 1;
+}
+
 .redis-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+  margin-top: 12px;
+  overflow: hidden;
+}
+
+.redis-content {
   display: flex;
   align-items: stretch;
   gap: 12px;
   flex: 1;
   min-height: 0;
-  margin-top: 12px;
+  overflow: hidden;
 }
 
 .redis-db-side {
-  width: 110px;
+  width: 180px;
   flex-shrink: 0;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 0 6px 6px;
-  background: var(--default-box-color);
-  border: 1px solid var(--el-border-color-light);
-  border-radius: 6px;
+  background: var(--el-fill-color-blank);
+  overflow: hidden;
+  position: relative;
+  min-height: 0;
+  color: var(--el-text-color-regular);
+  transition: width 0.2s ease;
+
+  &.is-collapsed {
+    width: 44px;
+    padding: 12px 6px;
+    overflow: hidden;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 12px;
+    right: 0;
+    bottom: 12px;
+    width: 1px;
+    background: var(--el-border-color-lighter);
+    pointer-events: none;
+  }
+}
+
+.redis-db-side__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.redis-db-side__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+  margin-bottom: 0;
+}
+
+.redis-db-side__toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  margin-left: auto;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--el-text-color-secondary);
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+
+  &:hover {
+    background: var(--el-fill-color-light);
+    color: var(--el-color-primary);
+  }
+}
+
+.redis-db-side.is-collapsed .redis-db-side__header {
+  justify-content: center;
+  margin-bottom: 0;
+}
+
+.redis-db-side.is-collapsed .redis-db-side__toggle {
+  margin-left: 0;
+}
+
+.redis-db-side__search {
+  margin-bottom: 8px;
+
+  :deep(.el-input__wrapper) {
+    min-height: 30px;
+    padding-top: 1px;
+    padding-bottom: 1px;
+  }
+
+  :deep(.el-input__inner),
+  :deep(input) {
+    font-size: 12px;
+  }
+
+  :deep(.el-input__inner::placeholder),
+  :deep(input::placeholder) {
+    font-size: 12px !important;
+  }
+}
+
+.redis-db-list {
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-right: -4px;
+  padding-right: 4px;
+
+  /* 细滚动条：平时隐藏，悬停显示 */
+  &::-webkit-scrollbar {
+    width: 4px !important;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: transparent;
+    border-radius: 2px;
+    transition: background-color 0.2s ease;
+  }
+
+  &:hover::-webkit-scrollbar-thumb {
+    background-color: rgb(0 0 0 / 0.18);
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(0 0 0 / 0.28);
+  }
+}
+
+.redis-db-side__empty {
+  padding: 12px 4px;
+  color: var(--el-text-color-placeholder);
+  font-size: 12px;
+  text-align: center;
 }
 
 .redis-db-item {
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 36px;
-  padding: 0 10px;
+  height: 28px;
+  flex-shrink: 0;
+  padding: 0 12px;
   border: none;
-  border-radius: 4px;
+  border-radius: 0;
   background: transparent;
   color: var(--el-text-color-regular);
-  font-size: 13px;
+  font-size: 12px;
   text-align: left;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
@@ -1175,6 +1364,7 @@ async function submitTtl() {
   &.is-active {
     background: var(--el-color-primary);
     color: #fff;
+    font-weight: 500;
   }
 
   &:disabled {
@@ -1236,38 +1426,57 @@ async function submitTtl() {
   font-size: 12px;
 }
 
-.redis-keys-footer {
+/* 分页样式对齐 ES / art-table（描边按钮 + 主色选中态） */
+.redis-page .pagination.custom-pagination {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
   flex: 0 0 auto;
   margin-top: 10px;
+  margin-bottom: 0;
   padding-bottom: 4px;
+  box-sizing: border-box;
+
+  &.right {
+    justify-content: flex-end;
+  }
 }
 
-.redis-pager {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.redis-page .pagination.custom-pagination :deep(.el-select) {
+  width: 102px !important;
 }
 
-.redis-pager__label {
-  font-size: 12px;
-  color: var(--el-text-color-regular);
+.redis-page .pagination.custom-pagination :deep(.el-pagination) {
+  padding: 0;
 }
 
-.redis-pager__sizes {
-  width: 88px;
+.redis-page .pagination.custom-pagination :deep(.el-pagination .btn-prev),
+.redis-page .pagination.custom-pagination :deep(.el-pagination .btn-next) {
+  background-color: transparent !important;
+  border: 1px solid var(--art-gray-300);
+  transition: border-color 0.15s;
+
+  &:hover:not(.is-disabled) {
+    color: var(--theme-color);
+    border-color: var(--theme-color);
+  }
 }
 
-.redis-pager__jump {
-  width: 96px;
-}
+.redis-page .pagination.custom-pagination :deep(.el-pagination .el-pager li) {
+  box-sizing: border-box;
+  font-weight: 400 !important;
+  background-color: transparent !important;
+  border: 1px solid var(--art-gray-300);
+  transition: border-color 0.15s;
 
-.redis-keys-footer__hint {
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
+  &.is-active {
+    font-weight: 400;
+    color: #fff !important;
+    background-color: var(--theme-color) !important;
+    border: 1px solid var(--theme-color);
+  }
+
+  &:hover:not(.is-disabled) {
+    border-color: var(--theme-color);
+  }
 }
 
 /* ---- 详情抽屉 ---- */

@@ -77,7 +77,7 @@
     loki: { icon: 'simple-icons:grafana', color: '#F46800' },
     es: { icon: 'simple-icons:elasticsearch', color: '#005571' },
     prometheus: { icon: 'simple-icons:prometheus', color: '#E6522C' },
-    redis: { icon: 'simple-icons:redis', color: '#DC382D' }
+    redis: { icon: 'simple-icons:redis', color: '#DC382D' },
     nacos: { icon: 'ri:settings-3-line', color: '#3A78FF' }
   }
 
