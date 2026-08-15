@@ -170,6 +170,24 @@
 
 ---
 
+## Redis 管理 redis（/pixiu/redis）
+
+| Method | Path | 说明 | 持久化 |
+|--------|------|------|--------|
+| POST | /pixiu/redis/ping | Redis 临时连通性探测（无需已保存数据源） | ✅ |
+| GET | /pixiu/redis/:datasourceId/ping | Redis 连通性探测 | ✅ |
+| GET | /pixiu/redis/:datasourceId/info | Redis 服务信息（INFO） | ✅ |
+| GET | /pixiu/redis/:datasourceId/dbSize | 当前 DB Key 总数 | ✅ |
+| GET | /pixiu/redis/:datasourceId/keys | SCAN 浏览 Key 列表 | ✅ |
+| GET | /pixiu/redis/:datasourceId/key | Key 详情（只读，大值截断） | ✅ |
+| POST | /pixiu/redis/:datasourceId/key | 新增 Key（仅 string；已存在拒绝 409） | ✅ |
+| DELETE | /pixiu/redis/:datasourceId/key | 删除 Key | ✅ |
+| POST | /pixiu/redis/:datasourceId/key/ttl | 修改 Key TTL（>=0 设置过期，-1 永久化） | ✅ |
+
+> Redis 菜单（middleware.redis）为 AdminOnly，仅管理员可见；读接口为只读操作，写接口（新增/删除 Key、修改 TTL）含防误保护：新增拒绝覆盖已有 key、删除需前端二次确认。
+
+---
+
 ## Runner（/pixiu/runners）
 
 | Method | Path | 说明 | 持久化 |
@@ -343,4 +361,4 @@
 | system.ts | tenant | `['GET:/pixiu/tenants']` |
 | system.ts | api | `['GET:/pixiu/apis']` |
 
-**不标注项**：dashboard 首页、container 集群资源模块（cluster/plan/agent 等）、safeguard/agent（isHide 且 agents 不持久化）、safeguard/distribution、runner-distribution（redirect）、monitor/realtime-query、monitor/logs（kube/external 维度）、appstore（无后端 API）、middleware（无后端 API）、user-center（isHide）。
+**不标注项**：dashboard 首页、container 集群资源模块（cluster/plan/agent 等）、safeguard/agent（isHide 且 agents 不持久化）、safeguard/distribution、runner-distribution（redirect）、monitor/realtime-query、monitor/logs（kube/external 维度）、appstore（无后端 API）、middleware/elasticsearch（external 代理维度）、user-center（isHide）。middleware/redis 菜单级 AdminOnly，接口见「Redis 管理」章节。

@@ -23,6 +23,15 @@ export const middlewareRoutes: AppRouteRecord = {
       }
     },
     {
+      path: 'redis',
+      name: 'MiddlewareRedis',
+      component: '/middleware/redis',
+      meta: {
+        title: 'Redis',
+        icon: 'ri:database-2-line',
+        menu: MenuCodes.MiddlewareRedis
+      },
+      {
       path: 'nacos',
       name: 'MiddlewareNacos',
       component: '/middleware/nacos',

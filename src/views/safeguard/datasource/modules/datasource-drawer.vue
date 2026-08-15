@@ -38,6 +38,7 @@
                   class="w-full datasource-sub-type-select"
                   placeholder="请选择数据来源"
                   popper-class="datasource-sub-type-popper"
+                  @change="onSubTypeChange"
                 >
                   <template v-if="selectedSubType" #prefix>
                     <ArtSvgIcon
@@ -68,9 +69,10 @@
 
             <ElCol :span="12">
               <ElFormItem label="类型" prop="type">
-                <ElSelect v-model="formData.type" class="w-full" @change="onTypeChange">
+                <ElSelect v-model="formData.type" class="w-full" :disabled="isRedisSubType" @change="onTypeChange">
                   <ElOption label="日志" :value="0" />
                   <ElOption label="告警" :value="1" />
+                  <ElOption label="缓存" :value="2" />
                 </ElSelect>
               </ElFormItem>
             </ElCol>
@@ -179,12 +181,85 @@
 
             <ElCol :span="12">
               <ElFormItem label="外部数据源">
-                <ElSwitch v-model="formData.external" />
+                <ElSwitch v-model="formData.external" :disabled="isRedisDatasource" />
               </ElFormItem>
             </ElCol>
           </ElRow>
 
-          <ElFormItem label="接入地址" prop="url">
+          <template v-if="isRedisDatasource">
+            <ElFormItem label="部署模式" prop="redis.mode" :required="true">
+              <ElSelect v-model="formData.redis.mode" class="w-full" @change="onRedisModeChange">
+                <ElOption label="单机" value="standalone" />
+                <ElOption label="哨兵" value="sentinel" />
+                <ElOption label="集群" value="cluster" />
+              </ElSelect>
+            </ElFormItem>
+
+            <ElFormItem
+              v-if="formData.redis.mode === 'standalone'"
+              label="连接地址"
+              prop="redis.address"
+              :required="true"
+            >
+              <ElInput
+                v-model="formData.redis.address"
+                placeholder="请输入 host:port，如 192.168.100.210:6379"
+              />
+            </ElFormItem>
+
+            <ElFormItem
+              v-if="formData.redis.mode === 'sentinel'"
+              label="Master 名称"
+              prop="redis.masterName"
+              :required="true"
+            >
+              <ElInput v-model="formData.redis.masterName" placeholder="请输入哨兵 Master 名称，如 mymaster" />
+            </ElFormItem>
+
+            <ElFormItem
+              v-if="formData.redis.mode !== 'standalone'"
+              :label="formData.redis.mode === 'sentinel' ? '哨兵节点地址' : '集群节点地址'"
+              prop="redis.addresses"
+              :required="true"
+            >
+              <ElInput
+                v-model="formData.redis.addresses"
+                :placeholder="
+                  formData.redis.mode === 'sentinel'
+                    ? '逗号分隔多个，如 10.0.0.1:26379,10.0.0.2:26379,10.0.0.3:26379'
+                    : '逗号分隔多个，如 10.0.0.1:7000,10.0.0.2:7000,10.0.0.3:7000'
+                "
+              />
+            </ElFormItem>
+
+            <ElRow :gutter="16">
+              <ElCol :span="12">
+                <ElFormItem label="密码">
+                  <ElInput
+                    v-model="formData.redis.password"
+                    type="password"
+                    show-password
+                    placeholder="可选，Redis 访问密码"
+                  />
+                </ElFormItem>
+              </ElCol>
+              <ElCol v-if="formData.redis.mode === 'sentinel'" :span="12">
+                <ElFormItem label="哨兵密码">
+                  <ElInput
+                    v-model="formData.redis.sentinelPassword"
+                    type="password"
+                    show-password
+                    placeholder="可选，哨兵节点密码"
+                  />
+                </ElFormItem>
+              </ElCol>
+            </ElRow>
+            <div class="datasource-redis-hint">
+              Redis 仅支持外部直连，由 Pixiu 服务端直接访问该地址，请确保网络可达。逻辑库（DB0-DB15）可在 Redis 管理页切换。
+            </div>
+          </template>
+
+          <ElFormItem v-if="!isRedisDatasource" label="接入地址" prop="url">
             <ElInput
               v-model="formData.url"
               :readonly="isInternalLogDatasource"
@@ -208,7 +283,10 @@
           </ElFormItem>
         </section>
 
-        <section class="datasource-form-section datasource-form-section--advanced">
+        <section
+          v-if="!isRedisDatasource"
+          class="datasource-form-section datasource-form-section--advanced"
+        >
           <div class="datasource-form-section__title">高级配置</div>
 
           <ElCollapse v-model="advancedPanels" class="datasource-advanced-collapse">
@@ -326,9 +404,11 @@
     type DatasourceConfig,
     type DatasourceSubType,
     type DatasourceType,
+    type RedisDeployMode,
     type UpdateDatasourcePayload
   } from '@/api/datasource'
   import { fetchClusterList, PixiuApiError, type ClusterItem } from '@/api/container'
+  import { fetchRedisPingAdhoc } from '@/api/redis'
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
 
   defineOptions({ name: 'DatasourceDialog' })
@@ -354,6 +434,17 @@
       color: '#E6522C'
     }
   ]
+  const redisSubTypes: SubTypeOption[] = [
+    { value: 'redis', label: 'Redis', icon: 'simple-icons:redis', color: '#DC382D' }
+  ]
+  // 数据来源常显全量选项；选中后自动联动类型
+  const allSubTypes: SubTypeOption[] = [...logSubTypes, ...alertSubTypes, ...redisSubTypes]
+  const subTypeToType: Record<DatasourceSubType, DatasourceType> = {
+    loki: 0,
+    es: 0,
+    prometheus: 1,
+    redis: 2
+  }
 
   const props = defineProps<{
     editId?: number
@@ -399,6 +490,14 @@
       userName: '',
       password: ''
     },
+    redis: {
+      mode: 'standalone' as RedisDeployMode,
+      address: '',
+      addresses: '',
+      masterName: '',
+      password: '',
+      sentinelPassword: ''
+    },
     headers: [{ key: '', value: '' }]
   })
 
@@ -427,6 +526,52 @@
     callback()
   }
 
+  function validateRedisAddress(_rule: unknown, value: string, callback: (error?: Error) => void) {
+    if (formData.redis.mode !== 'standalone') {
+      callback()
+      return
+    }
+    const trimmed = String(value || '').trim()
+    if (!trimmed) {
+      callback(new Error('请输入连接地址'))
+      return
+    }
+    if (!/^[^:\s]+:\d{1,5}$/.test(trimmed)) {
+      callback(new Error('连接地址格式为 host:port，如 192.168.1.10:6379'))
+      return
+    }
+    callback()
+  }
+
+  function validateRedisAddresses(_rule: unknown, value: string, callback: (error?: Error) => void) {
+    if (formData.redis.mode === 'standalone') {
+      callback()
+      return
+    }
+    const items = splitRedisAddresses(String(value || ''))
+    if (!items.length) {
+      callback(new Error('请输入节点地址'))
+      return
+    }
+    if (items.some((item) => !/^[^:\s]+:\d{1,5}$/.test(item))) {
+      callback(new Error('每个地址格式为 host:port，逗号分隔多个'))
+      return
+    }
+    callback()
+  }
+
+  function validateRedisMasterName(_rule: unknown, value: string, callback: (error?: Error) => void) {
+    if (formData.redis.mode !== 'sentinel') {
+      callback()
+      return
+    }
+    if (!String(value || '').trim()) {
+      callback(new Error('请输入 Master 名称'))
+      return
+    }
+    callback()
+  }
+
   const rules: FormRules = {
     name: [{ required: true, message: '请输入数据源名称', trigger: 'blur' }],
     type: [{ required: true, message: '请选择类型', trigger: 'change' }],
@@ -435,11 +580,17 @@
     service_namespace: [{ required: true, message: '请选择命名空间', trigger: 'change' }],
     service_name: [{ required: true, message: '请选择 Service', trigger: 'change' }],
     service_port: [{ required: true, message: '请选择 Service 端口', trigger: 'change' }],
-    url: [{ validator: validateUrl, trigger: 'blur' }]
+    url: [{ validator: validateUrl, trigger: 'blur' }],
+    'redis.address': [{ validator: validateRedisAddress, trigger: 'blur' }],
+    'redis.addresses': [{ validator: validateRedisAddresses, trigger: 'blur' }],
+    'redis.masterName': [{ validator: validateRedisMasterName, trigger: 'blur' }]
   }
 
-  const currentSubTypeOptions = computed(() => (formData.type === 0 ? logSubTypes : alertSubTypes))
+  const currentSubTypeOptions = computed(() => allSubTypes)
   const isInternalLogDatasource = computed(() => formData.type === 0 && !formData.external)
+  const isRedisDatasource = computed(() => formData.type === 2)
+  // 选中 Redis 时类型锁定为「缓存」
+  const isRedisSubType = computed(() => formData.sub_type === 'redis')
   const namespaceOptions = computed(() =>
     [
       ...new Set(clusterServices.value.map((item) => item.metadata?.namespace).filter(Boolean))
@@ -499,8 +650,59 @@
     return byAlias?.name ?? clusterName
   }
 
+  function onRedisModeChange() {
+    formRef.value?.clearValidate(['redis.address', 'redis.addresses', 'redis.masterName'])
+  }
+
+  function splitRedisAddresses(raw: string): string[] {
+    return raw
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean)
+  }
+
+  // 按部署模式组装 redis 连接配置（创建/更新/临时探测共用）
+  function buildRedisConfig() {
+    const mode = formData.redis.mode
+    const base = {
+      mode,
+      password: formData.redis.password || undefined
+    }
+    if (mode === 'standalone') {
+      return { ...base, address: formData.redis.address.trim() }
+    }
+    const addresses = splitRedisAddresses(formData.redis.addresses)
+    if (mode === 'sentinel') {
+      return {
+        ...base,
+        addresses,
+        masterName: formData.redis.masterName.trim(),
+        sentinelPassword: formData.redis.sentinelPassword || undefined
+      }
+    }
+    return { ...base, addresses }
+  }
+
+  function onSubTypeChange() {
+    const target = subTypeToType[formData.sub_type] ?? 0
+    formData.type = target
+    // Redis 仅支持外部直连，选中时强制开启 external
+    if (target === 2) {
+      formData.external = true
+      formData.cluster_name = ''
+      clearServiceSelection()
+    }
+    syncInternalDatasourceUrl()
+  }
+
   function onTypeChange() {
-    formData.sub_type = currentSubTypeOptions.value[0]?.value ?? 'loki'
+    formData.sub_type = currentSubTypeOptions.value.find((item) => subTypeToType[item.value] === formData.type)?.value ?? 'loki'
+    // Redis 仅支持外部直连，切换到缓存类型时强制开启 external
+    if (formData.type === 2) {
+      formData.external = true
+      formData.cluster_name = ''
+      clearServiceSelection()
+    }
     syncInternalDatasourceUrl()
   }
 
@@ -570,6 +772,13 @@
       .filter((item) => item.key || item.value)
     const url = formData.url.trim()
 
+    if (formData.type === 2) {
+      // Redis 不使用 headers / url，连接信息存于 redis 配置
+      return {
+        redis: buildRedisConfig()
+      }
+    }
+
     if (formData.type === 0) {
       return {
         headers,
@@ -597,6 +806,12 @@
     formData.log.password = config.log?.password || ''
     formData.alert.userName = config.alert?.userName || ''
     formData.alert.password = config.alert?.password || ''
+    formData.redis.mode = config.redis?.mode ?? 'standalone'
+    formData.redis.address = config.redis?.address || ''
+    formData.redis.addresses = (config.redis?.addresses ?? []).join(', ')
+    formData.redis.masterName = config.redis?.masterName || ''
+    formData.redis.password = config.redis?.password || ''
+    formData.redis.sentinelPassword = config.redis?.sentinelPassword || ''
     formData.headers = config.headers?.length
       ? config.headers.map((item) => ({ key: item.key, value: item.value }))
       : [{ key: '', value: '' }]
@@ -706,6 +921,14 @@
       external: false,
       log: { userName: '', password: '' },
       alert: { userName: '', password: '' },
+      redis: {
+        mode: 'standalone',
+        address: '',
+        addresses: '',
+        masterName: '',
+        password: '',
+        sentinelPassword: ''
+      },
       headers: [{ key: '', value: '' }]
     })
     editResourceVersion.value = 0
@@ -727,6 +950,14 @@
         external: data.external,
         log: { userName: '', password: '' },
         alert: { userName: '', password: '' },
+        redis: {
+          mode: 'standalone',
+          address: '',
+          addresses: '',
+          masterName: '',
+          password: '',
+          sentinelPassword: ''
+        },
         headers: [{ key: '', value: '' }]
       })
       fillFormFromConfig(data.config)
@@ -817,6 +1048,26 @@
     if (!formRef.value) return
     const valid = await formRef.value.validate().catch(() => false)
     if (!valid) return
+
+    // Redis 走专用临时探测接口（TCP 直连，不走 HTTP 代理）
+    if (isRedisDatasource.value) {
+      testing.value = true
+      try {
+        const result = await fetchRedisPingAdhoc(buildRedisConfig())
+        if (result.connected) {
+          ElMessage.success(
+            `连接测试成功（延迟 ${result.latencyMs}ms${result.version ? `，版本 ${result.version}` : ''}）`
+          )
+        } else {
+          ElMessage.error(result.message || '连接测试失败')
+        }
+      } catch (error) {
+        ElMessage.error(error instanceof Error ? error.message : '连接测试失败')
+      } finally {
+        testing.value = false
+      }
+      return
+    }
 
     if (!isInternalLogDatasource.value && !formData.external) {
       ElMessage.warning('当前配置暂不支持连通性测试，请改为内部日志数据源或外部数据源后再试')
@@ -964,6 +1215,12 @@
   }
 
   .datasource-cluster-empty-hint {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+  }
+
+  .datasource-redis-hint {
+    margin: -4px 0 8px;
     font-size: 12px;
     color: var(--el-text-color-secondary);
   }
