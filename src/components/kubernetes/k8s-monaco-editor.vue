@@ -12,7 +12,10 @@
 </template>
 
 <script setup lang="ts">
-  import * as monaco from 'monaco-editor'
+  // 仅引入编辑器 API + YAML，避免打包全部语言与特性
+  import * as monaco from 'monaco-editor/esm/vs/editor/editor.api'
+  import 'monaco-editor/esm/vs/basic-languages/yaml/yaml.contribution'
+  import 'monaco-editor/min/vs/editor/editor.main.css'
   import { ElMessage } from 'element-plus'
   import { nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 

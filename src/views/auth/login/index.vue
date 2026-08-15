@@ -74,6 +74,7 @@
 <script setup lang="ts">
   import AppConfig from '@/config'
   import { useUserStore } from '@/store/modules/user'
+  import { usePermissionStore } from '@/store/modules/permission'
   import { useI18n } from 'vue-i18n'
   import { HttpError } from '@/utils/http/error'
   import { fetchLogin } from '@/api/auth'
@@ -163,7 +164,6 @@
       })
 
       // 拉取当前用户 API / 资源作用域，驱动菜单与资源可见性
-      const { usePermissionStore } = await import('@/store/modules/permission')
       const permissionStore = usePermissionStore()
       await permissionStore.loadPermissions()
       userStore.setUserInfo({

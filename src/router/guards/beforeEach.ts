@@ -478,7 +478,6 @@ async function fetchUserInfo(): Promise<void> {
   // 登录时已设置用户信息；刷新页面时需重新拉取权限作用域
   if (userStore.info?.userId) {
     userStore.checkAndClearWorktabs()
-    const { usePermissionStore } = await import('@/store/modules/permission')
     const permissionStore = usePermissionStore()
     if (!permissionStore.loaded) {
       try {

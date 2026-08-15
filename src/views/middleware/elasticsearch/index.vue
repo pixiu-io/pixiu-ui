@@ -210,7 +210,7 @@
                       type="primary"
                       underline="never"
                       style="font-size: 12px"
-                      @click="handleToggleReadOnly(row)"
+                      @click="handleToggleReadOnly(row as IndexItem)"
                     >
                       {{ row.read_only ? '解除只读' : '设为只读' }}
                     </ElLink>
@@ -218,7 +218,7 @@
                       type="primary"
                       underline="never"
                       style="font-size: 12px; margin-left: 8px"
-                      @click="handleDeleteIndex(row)"
+                      @click="handleDeleteIndex(row as IndexItem)"
                     >
                       删除
                     </ElLink>

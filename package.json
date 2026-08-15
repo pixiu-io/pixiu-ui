@@ -56,7 +56,7 @@
     "@iconify/vue": "^5.0.0",
     "@tailwindcss/vite": "^4.1.14",
     "@vue/reactivity": "^3.5.21",
-    "@vueuse/core": "^13.9.0",
+    "@vueuse/core": "^14.4.0",
     "@wangeditor/editor": "^5.1.23",
     "@wangeditor/editor-for-vue": "next",
     "@xterm/addon-fit": "^0.11.0",
@@ -126,6 +126,8 @@
     "vue-tsc": "~2.1.6"
   },
   "overrides": {
+    "@vueuse/core": "^14.4.0",
+    "@vueuse/shared": "^14.4.0",
     "vue-img-cutter": {
       "vue-i18n": "9.14.5",
       "@intlify/core-base": "9.14.5"

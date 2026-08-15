@@ -151,8 +151,8 @@
               <ElLink
                 type="primary"
                 underline="never"
-                :style="taskLogLinkStyle(row)"
-                @click="onTaskLogClick(row)"
+                :style="taskLogLinkStyle(row as PlanTask)"
+                @click="onTaskLogClick(row as PlanTask)"
               >
                 日志
               </ElLink>
