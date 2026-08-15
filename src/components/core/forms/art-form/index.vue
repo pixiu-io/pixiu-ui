@@ -5,7 +5,7 @@
   <section class="px-4 pb-0 pt-4 md:px-4 md:pt-4">
     <ElForm
       ref="formRef"
-      :model="modelValue"
+      :model="(modelValue as Record<string, any>)"
       :label-position="labelPosition"
       v-bind="{ ...$attrs }"
     >
@@ -235,7 +235,7 @@
 
   const emit = defineEmits<FormEmits>()
 
-  const modelValue = defineModel<Record<string, any>>({ default: {} })
+  const modelValue = defineModel<Record<string, any>>({ default: () => ({}) })
   const initialModelValue = ref<Record<string, any>>({})
 
   // 保存组件初始化时的表单快照，用于 reset 时恢复默认值。
@@ -261,7 +261,7 @@
     return deepClone(toRaw(value)) as Record<string, any>
   }
 
-  initialModelValue.value = cloneModelValue(modelValue.value)
+  initialModelValue.value = cloneModelValue(modelValue.value as Record<string, any>)
 
   const rootProps = ['label', 'labelWidth', 'key', 'type', 'hidden', 'span', 'slots']
   // 输出时的清洗策略默认偏“接口友好”，但允许按业务覆盖。
@@ -410,7 +410,8 @@
   }
 
   const getSanitizedOutput = () => {
-    return (sanitizeOutputValue(cloneModelValue(modelValue.value)) || {}) as Record<string, any>
+    return (sanitizeOutputValue(cloneModelValue(modelValue.value as Record<string, any>)) ||
+      {}) as Record<string, any>
   }
 
   const getProps = (item: FormItem) => {
@@ -477,10 +478,11 @@
     formInstance.value?.resetFields()
 
     // 恢复初始表单值，保留默认值而不是简单清空。
-    Object.keys(modelValue.value).forEach((key) => {
-      delete modelValue.value[key]
+    const formModel = modelValue.value as Record<string, any>
+    Object.keys(formModel).forEach((key) => {
+      delete formModel[key]
     })
-    Object.assign(modelValue.value, cloneModelValue(initialModelValue.value))
+    Object.assign(formModel, cloneModelValue(initialModelValue.value))
 
     // 触发 reset 事件
     emit('reset')

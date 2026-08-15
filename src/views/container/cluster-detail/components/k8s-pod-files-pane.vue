@@ -144,12 +144,12 @@
           </ElTableColumn>
           <ElTableColumn label="大小" width="120" align="right">
             <template #default="{ row }">
-              <span class="pod-files-cell">{{ formatSize(row) }}</span>
+              <span class="pod-files-cell">{{ formatSize(row as FileRow) }}</span>
             </template>
           </ElTableColumn>
           <ElTableColumn label="类型" width="110" align="center">
             <template #default="{ row }">
-              <span class="pod-files-cell">{{ formatType(row) }}</span>
+              <span class="pod-files-cell">{{ formatType(row as FileRow) }}</span>
             </template>
           </ElTableColumn>
           <ElTableColumn label="修改时间" width="180" align="center">

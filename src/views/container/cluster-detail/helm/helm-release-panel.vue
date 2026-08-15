@@ -104,7 +104,7 @@
         <ElTable v-if="releases.length" :data="releases" row-key="name" class="helm-release-table">
           <ElTableColumn label="应用名称" min-width="180">
             <template #default="{ row }">
-              <button type="button" class="helm-table-link" @click="emit('open-detail', row)">
+              <button type="button" class="helm-table-link" @click="emit('open-detail', row as HelmReleaseItem)">
                 {{ row.name }}
               </button>
             </template>
@@ -125,9 +125,9 @@
           </ElTableColumn>
           <ElTableColumn label="操作" width="140" fixed="right">
             <template #default="{ row }">
-              <ElButton link type="primary" @click="emit('upgrade', row)">升级</ElButton>
-              <ElButton link type="primary" @click="emit('history', row)">历史</ElButton>
-              <ElButton link type="primary" @click="emit('uninstall', row)">卸载</ElButton>
+              <ElButton link type="primary" @click="emit('upgrade', row as HelmReleaseItem)">升级</ElButton>
+              <ElButton link type="primary" @click="emit('history', row as HelmReleaseItem)">历史</ElButton>
+              <ElButton link type="primary" @click="emit('uninstall', row as HelmReleaseItem)">卸载</ElButton>
             </template>
           </ElTableColumn>
         </ElTable>

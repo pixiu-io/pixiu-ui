@@ -207,7 +207,7 @@
                   type="primary"
                   underline="never"
                   class="mono"
-                  @click="goToPodDetail(row)"
+                  @click="goToPodDetail(row as K8sPod)"
                   >{{ row.metadata?.name }}</el-link
                 >
               </template>
@@ -215,20 +215,20 @@
             <el-table-column label="状态" width="100">
               <template #default="{ row }">
                 <el-tag
-                  :type="podStatusType(formatPodDisplayStatus(row))"
+                  :type="podStatusType(formatPodDisplayStatus(row as K8sPod))"
                   size="small"
                   effect="light"
-                  >{{ formatPodDisplayStatus(row) }}</el-tag
+                  >{{ formatPodDisplayStatus(row as K8sPod) }}</el-tag
                 >
               </template>
             </el-table-column>
             <el-table-column label="Ready" width="90">
               <template #default="{ row }"
-                >{{ podReadyCount(row) }} / {{ row.spec?.containers?.length ?? 0 }}</template
+                >{{ podReadyCount(row as K8sPod) }} / {{ row.spec?.containers?.length ?? 0 }}</template
               >
             </el-table-column>
             <el-table-column label="重启次数" width="90">
-              <template #default="{ row }">{{ podRestartCount(row) }}</template>
+              <template #default="{ row }">{{ podRestartCount(row as K8sPod) }}</template>
             </el-table-column>
             <el-table-column label="所在节点" min-width="140">
               <template #default="{ row }"

@@ -44,7 +44,7 @@
                 class="workload-image-dialog__edit-btn"
                 title="编辑"
                 :disabled="patching"
-                @click.stop="startEdit(row)"
+                @click.stop="startEdit(row as ImageRow)"
               >
                 <ArtSvgIcon icon="ri:edit-line" class="workload-image-dialog__edit-icon" />
               </ElButton>
@@ -56,20 +56,20 @@
               class="workload-image-dialog__image-input"
               placeholder="请输入完整镜像地址"
               clearable
-              @keyup.enter="confirmEdit(row)"
+              @keyup.enter="confirmEdit(row as ImageRow)"
             />
             <div class="workload-image-dialog__edit-actions">
               <span
                 class="workload-image-dialog__action-text"
                 :class="{ 'is-disabled': patching }"
-                @click.stop="!patching && confirmEdit(row)"
+                @click.stop="!patching && confirmEdit(row as ImageRow)"
               >
                 确认
               </span>
               <span
                 class="workload-image-dialog__action-text"
                 :class="{ 'is-disabled': patching }"
-                @click.stop="!patching && cancelEdit(row)"
+                @click.stop="!patching && cancelEdit(row as ImageRow)"
               >
                 取消
               </span>

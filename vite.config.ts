@@ -66,6 +66,8 @@ export default ({ mode }: { mode: string }) => {
     },
     // 路径别名
     resolve: {
+      // 避免 element-plus 嵌套 @vueuse 与根依赖双份，减少 Rollup PURE 注解告警
+      dedupe: ['vue', '@vueuse/core', '@vueuse/shared'],
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
         '@views': resolvePath('src/views'),
@@ -79,7 +81,7 @@ export default ({ mode }: { mode: string }) => {
     build: {
       target: 'es2015',
       outDir: 'dist',
-      chunkSizeWarningLimit: 2000,
+      chunkSizeWarningLimit: 2500,
       minify: 'terser',
       terserOptions: {
         compress: {
@@ -92,6 +94,40 @@ export default ({ mode }: { mode: string }) => {
         warnOnError: true,
         exclude: [],
         include: ['src/views/**/*.vue']
+      },
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (!id.includes('node_modules')) return
+            if (id.includes('monaco-editor')) return 'monaco-editor'
+            if (id.includes('echarts')) return 'echarts'
+            if (id.includes('@xterm')) return 'xterm'
+            if (id.includes('element-plus') || id.includes('@element-plus')) return 'element-plus'
+            if (id.includes('@vueuse')) return 'vueuse'
+            if (
+              id.includes('/vue/') ||
+              id.includes('\\vue\\') ||
+              id.includes('vue-router') ||
+              id.includes('pinia') ||
+              id.includes('vue-i18n') ||
+              id.includes('@vue/')
+            ) {
+              return 'vue-vendor'
+            }
+            if (
+              id.includes('axios') ||
+              id.includes('dayjs') ||
+              id.includes('nprogress') ||
+              id.includes('js-yaml') ||
+              id.includes('crypto-js') ||
+              id.includes('lodash') ||
+              id.includes('mitt') ||
+              id.includes('ohash')
+            ) {
+              return 'utils'
+            }
+          }
+        }
       }
     },
     plugins: [

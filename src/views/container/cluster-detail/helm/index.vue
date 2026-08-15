@@ -136,7 +136,7 @@
         </ElTableColumn>
         <ElTableColumn label="操作" width="90" fixed="right">
           <template #default="{ row }">
-            <ElButton link type="primary" style="font-size: 12px" @click="confirmRollback(row)"
+            <ElButton link type="primary" style="font-size: 12px" @click="confirmRollback(row as HelmReleaseItem)"
               >回滚</ElButton
             >
           </template>
@@ -148,6 +148,7 @@
 
 <script setup lang="ts">
   import { ref } from 'vue'
+  import type { HelmReleaseItem } from '@/api/helm'
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
   import HelmReleaseDrawer from './helm-release-drawer.vue'
   import HelmReleaseFormDialog from './helm-release-form-dialog.vue'

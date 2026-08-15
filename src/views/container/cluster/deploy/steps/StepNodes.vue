@@ -47,7 +47,7 @@
             type="primary"
             :underline="'never'"
             style="font-size: 12px"
-            @click="openEditDialog(row, pageOffset + $index)"
+            @click="openEditDialog(row as NodeConfig, pageOffset + $index)"
             >{{ row.name }}</ElLink
           >
         </template>
@@ -55,7 +55,7 @@
       <ElTableColumn label="角色" min-width="140">
         <template #default="{ row }">
           <ElTag
-            v-for="r in row.role"
+            v-for="r in (row as NodeConfig).role"
             :key="r"
             :type="r === 'master' ? 'primary' : r === 'storage' ? 'warning' : 'info'"
             size="small"
@@ -67,7 +67,7 @@
       <ElTableColumn label="IP 地址" prop="ip" min-width="160" />
       <ElTableColumn label="认证方式" min-width="100">
         <template #default="{ row }">
-          {{ row.authType === 'password' ? '密码' : '密钥' }}
+          {{ (row as NodeConfig).authType === 'password' ? '密码' : '密钥' }}
         </template>
       </ElTableColumn>
       <ElTableColumn label="操作" width="120" fixed="right">
@@ -77,7 +77,7 @@
             :underline="'never'"
             :disabled="readOnly"
             style="font-size: 12px; margin-right: 12px"
-            @click="openEditDialog(row, pageOffset + $index)"
+            @click="openEditDialog(row as NodeConfig, pageOffset + $index)"
             >编辑</ElLink
           >
           <ElLink
