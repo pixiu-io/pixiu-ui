@@ -194,14 +194,15 @@
     >
       <div class="token-dialog-body">
         <ElInput v-model="agentTokenValue" type="textarea" :rows="4" readonly resize="none" />
-        <div class="token-dialog-tip">将 Token 配置到 Cluster Agent 环境变量 PIXIU_TOKEN 后启动。</div>
+        <div class="token-dialog-tip"
+          >将 Token 配置到 Cluster Agent 环境变量 PIXIU_TOKEN 后启动。</div
+        >
       </div>
       <template #footer>
         <ElButton @click="agentTokenVisible = false">关闭</ElButton>
         <ElButton type="primary" @click="copyAgentToken">复制 Token</ElButton>
       </template>
     </ElDialog>
-
 
     <!-- 编辑集群名称对话框 -->
     <ElDialog
@@ -275,6 +276,7 @@
   import type { PlanTask } from '@/api/plan'
   import { setClusterAliasCache } from '@/utils/navigation/cluster-query'
   import { copyText } from '@/utils/clipboard'
+  import { notifyError } from '@/utils/sys/notify'
 
   defineOptions({ name: 'Cluster' })
 
@@ -295,8 +297,7 @@
       navigate()
     } catch (e: unknown) {
       if (e instanceof PixiuApiError && e.notified) return
-      const msg = e instanceof Error ? e.message : '获取集群详情失败'
-      ElMessage.error(msg)
+      notifyError(e, '获取集群详情失败')
     }
   }
 
@@ -467,6 +468,8 @@
     return ''
   }
 
+  // ANSI 转义序列正则，用于渲染终端日志颜色
+  // eslint-disable-next-line no-control-regex
   const ansiCodeRegex = /\u001b\[([0-9;]*)m/g
 
   function escapeHtml(input: string): string {
@@ -558,11 +561,7 @@
 
   function shouldShowDeployProgress(row: ClusterItem): boolean {
     // 仅自建集群展示部署进度入口；部署完成（运行中 status=0 / 失联 status=4）不再展示
-    return (
-      Number(row.clusterType) === 1 &&
-      Number(row.status) !== 0 &&
-      Number(row.status) !== 4
-    )
+    return Number(row.clusterType) === 1 && Number(row.status) !== 0 && Number(row.status) !== 4
   }
 
   const {
@@ -800,7 +799,7 @@
                   refreshData()
                 } catch (e: any) {
                   if (e instanceof PixiuApiError && e.notified) return
-                  ElMessage.error(e.message || '操作失败')
+                  notifyError(e, '操作失败')
                 } finally {
                   protectingIds.value.delete(row.id)
                 }
@@ -872,6 +871,8 @@
                     disabled: true
                   },
                   {
+                    key: 'download',
+                    label: '下载',
                     icon: 'ri:file-download-line',
                     disabled: isCustomClusterNotRunning(row) || !!row.permissionId
                   },
@@ -931,7 +932,6 @@
     }
   }
 
-
   function clusterMoreClick(item: ButtonMoreItem, row: ClusterItem) {
     switch (item.key) {
       case 'cloudShell': {
@@ -976,7 +976,9 @@
       await fetchDestroyPlan(planId, restart)
       ElMessage.success('销毁任务已提交')
       refreshData()
-    } catch {}
+    } catch {
+      // 销毁失败时静默处理，由刷新结果反映
+    }
   }
 
   function openRenameDialog(row: ClusterItem) {
@@ -1004,7 +1006,7 @@
       refreshData()
     } catch (e: any) {
       if (e instanceof PixiuApiError && e.notified) return
-      ElMessage.error(e.message || '修改失败')
+      notifyError(e, '修改失败')
     } finally {
       renameLoading.value = false
     }
@@ -1013,30 +1015,6 @@
   function handleSearch() {
     replaceSearchParams(searchForm.value)
     getData()
-  }
-
-  function getErrorMessage(error: unknown, fallback: string): string {
-    if (error instanceof Error && error.message) return error.message
-    const maybe = error as {
-      message?: string
-      response?: { data?: { message?: string } | string }
-    }
-    const data = maybe?.response?.data
-    if (typeof data === 'string') {
-      try {
-        const parsed = JSON.parse(data) as { message?: string }
-        if (parsed?.message) return parsed.message
-      } catch {
-        // ignore JSON parse error
-      }
-      return data || fallback
-    }
-    if (data && typeof data === 'object' && 'message' in data) {
-      const msg = (data as { message?: string }).message
-      if (msg) return msg
-    }
-    if (maybe?.message) return maybe.message
-    return fallback
   }
 
   async function deleteCluster(row: ClusterItem) {
@@ -1052,7 +1030,7 @@
     } catch (e: unknown) {
       if (e === 'cancel') return
       if (e instanceof PixiuApiError && e.notified) return
-      ElMessage.error(getErrorMessage(e, '删除失败'))
+      notifyError(e, '删除失败')
     }
   }
 
@@ -1098,7 +1076,7 @@
     try {
       tasks.value = await fetchPlanTasks(currentTaskCluster.value.planId)
     } catch (e: any) {
-      ElMessage.error(e.message || '获取任务列表失败')
+      notifyError(e, '获取任务列表失败')
     } finally {
       if (!silent) tasksLoading.value = false
     }

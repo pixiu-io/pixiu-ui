@@ -193,10 +193,7 @@
           <div class="datasource-form-section__title">高级配置</div>
 
           <ElCollapse v-model="advancedPanels" class="datasource-advanced-collapse">
-            <ElCollapseItem
-              name="auth"
-              class="datasource-advanced-collapse__item"
-            >
+            <ElCollapseItem name="auth" class="datasource-advanced-collapse__item">
               <template #title>
                 <div class="datasource-advanced-collapse__title">
                   <span>鉴权</span>
@@ -315,7 +312,10 @@
           </ElDescriptionsItem>
         </ElDescriptions>
 
-        <div v-if="detailItem.type === 0 || detailItem.type === 1" class="datasource-detail__section">
+        <div
+          v-if="detailItem.type === 0 || detailItem.type === 1"
+          class="datasource-detail__section"
+        >
           <div class="datasource-detail__section-title">认证信息</div>
           <ElDescriptions :column="1" border>
             <ElDescriptionsItem label="用户名">
@@ -327,9 +327,11 @@
             </ElDescriptionsItem>
             <ElDescriptionsItem label="密码">
               {{
-                (detailItem.type === 0
-                  ? detailItem.config.log?.password
-                  : detailItem.config.alert?.password)
+                (
+                  detailItem.type === 0
+                    ? detailItem.config.log?.password
+                    : detailItem.config.alert?.password
+                )
                   ? '已配置'
                   : '未配置'
               }}
@@ -364,6 +366,7 @@
   import { clusterDetailContextKey } from './context'
   import { Plus, Refresh, Search } from '@element-plus/icons-vue'
   import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+  import { notifyError } from '@/utils/sys/notify'
   import { computed, inject, onMounted, ref, watch } from 'vue'
 
   defineOptions({ name: 'ClusterDetailDatasources' })
@@ -392,7 +395,8 @@
   > = {
     0: [
       { label: 'Loki', value: 'loki' },
-      { label: 'Elasticsearch', value: 'es' }
+      { label: 'Elasticsearch', value: 'es' },
+      { label: 'Nacos', value: 'nacos' }
     ],
     1: [{ label: 'Prometheus', value: 'prometheus', disabled: true }],
     2: [{ label: 'Redis', value: 'redis', disabled: true }]
@@ -403,6 +407,7 @@
     es: { label: 'Elasticsearch', icon: 'simple-icons:elasticsearch' },
     prometheus: { label: 'Prometheus', icon: 'simple-icons:prometheus' },
     redis: { label: 'Redis', icon: 'simple-icons:redis' }
+    nacos: { label: 'Nacos', icon: 'ri:settings-3-line' }
   }
 
   const createForm = ref({
@@ -523,7 +528,7 @@
       const { items: nextItems } = await fetchDatasourceList({ page: 1, limit: 200 })
       items.value = nextItems
     } catch (error) {
-      ElMessage.error(error instanceof Error ? error.message : '加载数据源失败')
+      notifyError(error, '加载数据源失败')
     } finally {
       loading.value = false
     }
@@ -592,7 +597,7 @@
       createDialogVisible.value = false
       await loadDatasources()
     } catch (error) {
-      ElMessage.error(error instanceof Error ? error.message : '创建数据源失败')
+      notifyError(error, '创建数据源失败')
     } finally {
       submitting.value = false
     }
@@ -606,7 +611,7 @@
     try {
       detailItem.value = await fetchDatasourceDetail(id)
     } catch (error) {
-      ElMessage.error(error instanceof Error ? error.message : '获取详情失败')
+      notifyError(error, '获取详情失败')
       detailVisible.value = false
     } finally {
       detailLoading.value = false
@@ -619,7 +624,7 @@
       ElMessage.success(`已删除数据源「${item.name}」`)
       await loadDatasources()
     } catch (error) {
-      ElMessage.error(error instanceof Error ? error.message : '删除数据源失败')
+      notifyError(error, '删除数据源失败')
     }
   }
 

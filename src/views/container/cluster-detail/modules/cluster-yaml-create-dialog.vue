@@ -56,6 +56,7 @@
 <script setup lang="ts">
   import { Download } from '@element-plus/icons-vue'
   import { ElButton, ElCheckbox, ElDialog, ElIcon, ElMessage } from 'element-plus'
+  import { notifyError } from '@/utils/sys/notify'
   import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
   import { createK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
   import K8sMonacoEditor from '@/components/kubernetes/k8s-monaco-editor.vue'
@@ -181,7 +182,7 @@
       visibleInner.value = false
       emit('success')
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '创建失败')
+      notifyError(e, '创建失败')
     } finally {
       submitting.value = false
     }

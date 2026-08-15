@@ -15,27 +15,10 @@
     </div>
 
     <RouterView v-if="isRefresh" v-slot="{ Component, route }" :style="contentStyle">
-      <!-- 缓存路由动画 -->
-      <Transition :name="showTransitionMask ? '' : actualTransition" mode="out-in" appear>
-        <KeepAlive :max="10" :exclude="keepAliveExclude">
-          <component
-            class="art-page-view"
-            :is="Component"
-            :key="getRouteViewKey(route)"
-            v-if="route.meta.keepAlive"
-          />
-        </KeepAlive>
-      </Transition>
-
-      <!-- 非缓存路由动画 -->
-      <Transition :name="showTransitionMask ? '' : actualTransition" mode="out-in" appear>
-        <component
-          class="art-page-view"
-          :is="Component"
-          :key="getRouteViewKey(route)"
-          v-if="!route.meta.keepAlive"
-        />
-      </Transition>
+      <KeepAlive v-if="route.meta.keepAlive" :max="10" :exclude="keepAliveExclude">
+        <component class="art-page-view" :is="Component" :key="getRouteViewKey(route)" />
+      </KeepAlive>
+      <component v-else class="art-page-view" :is="Component" :key="getRouteViewKey(route)" />
     </RouterView>
 
     <!-- 全屏页面切换过渡遮罩（用于提升页面切换视觉体验） -->
@@ -59,26 +42,15 @@
 
   const route = useRoute()
   const { containerMinHeight } = useAutoLayoutHeight()
-  const { pageTransition, containerWidth, refresh } = storeToRefs(useSettingStore())
+  const { containerWidth, refresh } = storeToRefs(useSettingStore())
   const { keepAliveExclude } = storeToRefs(useWorktabStore())
 
   const isRefresh = shallowRef(true)
   const isOpenRouteInfo = import.meta.env.VITE_OPEN_ROUTE_INFO
   const showTransitionMask = ref(false)
 
-  // 标记是否是首次加载（浏览器刷新）
-  const isFirstLoad = ref(true)
-
   // 检查当前路由是否需要使用无基础布局模式
   const isFullPage = computed(() => route.matched.some((r) => r.meta?.isFullPage))
-  const prevIsFullPage = ref(isFullPage.value)
-
-  // 切换动画名称：首次加载、从全屏返回时不使用动画
-  const actualTransition = computed(() => {
-    if (isFirstLoad.value) return ''
-    if (prevIsFullPage.value && !isFullPage.value) return ''
-    return pageTransition.value
-  })
 
   // 监听全屏状态变化，显示过渡遮罩
   watch(isFullPage, (val, oldVal) => {
@@ -89,10 +61,6 @@
         showTransitionMask.value = false
       }, 50)
     }
-
-    nextTick(() => {
-      prevIsFullPage.value = val
-    })
   })
 
   const containerStyle = computed(
@@ -136,12 +104,4 @@
   }
 
   watch(refresh, reload, { flush: 'post' })
-
-  // 组件挂载后标记首次加载完成
-  onMounted(() => {
-    // 延迟一帧，确保首次渲染完成
-    nextTick(() => {
-      isFirstLoad.value = false
-    })
-  })
 </script>

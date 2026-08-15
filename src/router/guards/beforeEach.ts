@@ -46,7 +46,6 @@ import { setPageTitle } from '@/utils/router'
 import { RoutesAlias } from '../routesAlias'
 import { staticRoutes } from '../routes/staticRoutes'
 import { loadingService } from '@/utils/ui'
-import { useCommon } from '@/hooks/core/useCommon'
 import { useWorktabStore } from '@/store/modules/worktab'
 import { ApiStatus } from '@/utils/http/status'
 import { isHttpError } from '@/utils/http/error'
@@ -69,6 +68,12 @@ let routeInitFailed = false
 
 // 路由初始化进行中标记，防止并发请求
 let routeInitInProgress = false
+
+// 动态路由初始化共享 promise：多个并发导航共享同一份初始化，避免互相 next(false) 取消
+let initPromise: Promise<void> | null = null
+
+// 导航计数器：guard 入口自增；结束时若自己已不是最新导航（已被更新的导航取代），放弃调用 next()
+let navigationCounter = 0
 
 /**
  * 获取 pendingLoading 状态
@@ -97,6 +102,7 @@ export function getRouteInitFailed(): boolean {
 export function resetRouteInitState(): void {
   routeInitFailed = false
   routeInitInProgress = false
+  initPromise = null
 }
 
 /**
@@ -144,6 +150,9 @@ async function handleRouteGuard(
   next: NavigationGuardNext,
   router: Router
 ): Promise<void> {
+  // 导航计数器自增：标记本次导航的身份，供被更新的导航取代时放弃 next()（防重入死循环）
+  const navigationId = ++navigationCounter
+
   const settingStore = useSettingStore()
   const userStore = useUserStore()
 
@@ -168,15 +177,86 @@ async function handleRouteGuard(
     return
   }
 
-  // 3. 处理动态路由注册
+  // 3. 确保动态路由已注册（并发安全：等待共享 promise，绝不用 next(false) 取消并发导航）
   if (!routeRegistry?.isRegistered() && userStore.isLogin) {
-    // 防止并发请求（快速连续导航场景）
-    if (routeInitInProgress) {
-      // 正在初始化中，等待完成后重新导航
+    if (routeInitFailed) {
+      if (to.name === 'Exception500' || to.name === 'Exception404' || to.name === 'Exception401') {
+        next()
+        return
+      }
+      next({ name: 'Exception500', replace: true })
+      return
+    }
+
+    try {
+      await ensureRoutesInitialized(router)
+    } catch (error) {
+      closeLoading()
+      if (isUnauthorizedError(error)) {
+        routeInitInProgress = false
+        next(false)
+        return
+      }
+      routeInitFailed = true
+      routeInitInProgress = false
+      if (isHttpError(error)) {
+        console.error(`[RouteGuard] 错误码: ${error.code}, 消息: ${error.message}`)
+      }
+      next({ name: 'Exception500', replace: true })
+      return
+    }
+
+    // 初始化成功：动态路由已注册。若本导航已被更新的导航取代，显式中止本导航
+    // （next(false) 避免 vue-router 报 "next was never called" / Invalid navigation guard）
+    if (isNavigationStale(navigationId)) {
       next(false)
       return
     }
-    await handleDynamicRoutes(to, next, router)
+
+    const menuStore = useMenuStore()
+    const resolvedHome = menuStore.getHomePath() || getFirstMenuPath(menuStore.menuList) || ''
+
+    // 登录后默认去首页，避免停留在 / 或登录页触发 catch-all 404
+    let navigationPath = to.path
+    if (
+      navigationPath === '/' ||
+      navigationPath === RoutesAlias.Login ||
+      navigationPath === '/login'
+    ) {
+      navigationPath = resolvedHome
+    }
+
+    // 静态路由不依赖菜单权限，初始化后直接恢复目标地址（登录页除外）
+    if (isStaticRoute(to.path) && to.path !== RoutesAlias.Login && to.path !== '/login') {
+      next({ path: to.path, query: to.query, hash: to.hash, replace: true })
+      return
+    }
+
+    if (!navigationPath) {
+      routeInitFailed = true
+      next({ name: 'Exception500', replace: true })
+      return
+    }
+
+    const { path: validatedPath, hasPermission } = RoutePermissionValidator.validatePath(
+      navigationPath,
+      menuStore.menuList,
+      resolvedHome || '/'
+    )
+
+    const targetPath = hasPermission ? navigationPath : validatedPath
+    const useOriginalQuery = targetPath === to.path
+
+    if (!hasPermission) {
+      console.warn(`[RouteGuard] 用户无权限访问路径: ${to.path}，已跳转到首页`)
+    }
+
+    next({
+      path: targetPath,
+      query: useOriginalQuery ? to.query : {},
+      hash: useOriginalQuery ? to.hash : undefined,
+      replace: true
+    })
     return
   }
 
@@ -256,9 +336,7 @@ function handleLoginStatus(
   next: NavigationGuardNext
 ): boolean {
   if (to.path === RoutesAlias.Login || to.path === '/login') {
-    const hasToken = Boolean(
-      userStore.accessToken || localStorage.getItem('pixiu-access-token')
-    )
+    const hasToken = Boolean(userStore.accessToken || localStorage.getItem('pixiu-access-token'))
     if (hasToken && userStore.isLogin) {
       next({ path: '/', replace: true })
       return false
@@ -308,7 +386,11 @@ function isStaticRoute(path: string): boolean {
     return routes.some((route) => {
       // catch-all 和 404/500 路由不应视为可匿名访问的静态页，
       // 否则未登录时手动输入任意地址会直接落到 404，无法跳转登录页。
-      if (route.name === 'Exception404' || route.name === 'Exception500' || route.name === 'NotFound') {
+      if (
+        route.name === 'Exception404' ||
+        route.name === 'Exception500' ||
+        route.name === 'NotFound'
+      ) {
         return false
       }
 
@@ -331,122 +413,60 @@ function isStaticRoute(path: string): boolean {
 }
 
 /**
- * 处理动态路由注册
+ * 判断导航是否已被更新的导航取代
  */
-async function handleDynamicRoutes(
-  to: RouteLocationNormalized,
-  next: NavigationGuardNext,
-  router: Router
-): Promise<void> {
-  // 标记初始化进行中
-  routeInitInProgress = true
+function isNavigationStale(navigationId: number): boolean {
+  return navigationId !== navigationCounter
+}
 
-  // 显示 loading
+/**
+ * 确保动态路由已注册（并发安全）
+ * 多个并发导航共享同一份初始化 promise，等待而非互相 next(false) 取消，避免刷新后黑屏卡死。
+ */
+export async function ensureRoutesInitialized(router: Router): Promise<void> {
+  if (routeRegistry?.isRegistered()) return
+  // 初始化进行中：共享同一份 promise，等待即可（不 cancel 并发导航）
+  if (routeInitInProgress && initPromise) {
+    return initPromise
+  }
+  if (!initPromise) {
+    initPromise = performRouteInit(router).finally(() => {
+      initPromise = null // 无论成败都重置，允许后续重试（如重新登录后）
+    })
+  }
+  return initPromise
+}
+
+/**
+ * 动态路由初始化（仅做数据初始化，不做导航）
+ * 负责：获取用户信息、菜单数据、注册动态路由、写入 store、保存 iframe 路由、验证工作标签页。
+ */
+async function performRouteInit(router: Router): Promise<void> {
+  routeInitInProgress = true
   pendingLoading = true
   loadingService.showLoading()
-
   try {
     // 1. 获取用户信息
     await fetchUserInfo()
-
     // 2. 获取菜单数据
     const menuList = await menuProcessor.getMenuList()
-
     // 3. 验证菜单数据
     if (!menuProcessor.validateMenuList(menuList)) {
       throw new Error('获取菜单列表失败，请重新登录')
     }
-
     // 4. 注册动态路由
     routeRegistry?.register(menuList)
-
     // 5. 保存菜单数据到 store
     const menuStore = useMenuStore()
     menuStore.setMenuList(menuList)
     menuStore.addRemoveRouteFns(routeRegistry?.getRemoveRouteFns() || [])
-
     // 6. 保存 iframe 路由
     IframeRouteManager.getInstance().save()
-
     // 7. 验证工作标签页
     useWorktabStore().validateWorktabs(router)
-
-    const resolvedHome =
-      menuStore.getHomePath() || getFirstMenuPath(menuList) || ''
-
-    // 登录后默认去首页，避免停留在 / 或登录页触发 catch-all 404
-    let navigationPath = to.path
-    if (navigationPath === '/' || navigationPath === RoutesAlias.Login || navigationPath === '/login') {
-      navigationPath = resolvedHome
-    }
-
-    // 8. 静态路由不依赖菜单权限，初始化后直接恢复目标地址（登录页除外）。
-    if (isStaticRoute(to.path) && to.path !== RoutesAlias.Login && to.path !== '/login') {
-      routeInitInProgress = false
-      closeLoading()
-      next({
-        path: to.path,
-        query: to.query,
-        hash: to.hash,
-        replace: true
-      })
-      return
-    }
-
-    if (!navigationPath) {
-      throw new Error('无法获取首页路径，请检查菜单配置')
-    }
-
-    // 9. 验证目标路径权限
-    const { path: validatedPath, hasPermission } = RoutePermissionValidator.validatePath(
-      navigationPath,
-      menuList,
-      resolvedHome || '/'
-    )
-
-    // 初始化成功，重置进行中标记
+  } finally {
     routeInitInProgress = false
-
-    const targetPath = hasPermission ? navigationPath : validatedPath
-    const useOriginalQuery = targetPath === to.path
-
-    // 10. 重新导航到目标路由
-    if (!hasPermission) {
-      console.warn(`[RouteGuard] 用户无权限访问路径: ${to.path}，已跳转到首页`)
-    }
-
     closeLoading()
-    next({
-      path: targetPath,
-      query: useOriginalQuery ? to.query : {},
-      hash: useOriginalQuery ? to.hash : undefined,
-      replace: true
-    })
-  } catch (error) {
-    console.error('[RouteGuard] 动态路由注册失败:', error)
-
-    // 关闭 loading
-    closeLoading()
-
-    // 401 错误：axios 拦截器会跳转 401 页面，这里取消当前导航
-    if (isUnauthorizedError(error)) {
-      // 重置状态，允许重新登录后再次初始化
-      routeInitInProgress = false
-      next(false)
-      return
-    }
-
-    // 标记初始化失败，防止死循环
-    routeInitFailed = true
-    routeInitInProgress = false
-
-    // 输出详细错误信息，便于排查
-    if (isHttpError(error)) {
-      console.error(`[RouteGuard] 错误码: ${error.code}, 消息: ${error.message}`)
-    }
-
-    // 跳转到 500 页面，使用 replace 避免产生历史记录
-    next({ name: 'Exception500', replace: true })
   }
 }
 
@@ -505,8 +525,7 @@ function handleRootPathRedirect(to: RouteLocationNormalized, next: NavigationGua
   }
 
   const menuStore = useMenuStore()
-  const target =
-    menuStore.getHomePath() || getFirstMenuPath(menuStore.menuList) || ''
+  const target = menuStore.getHomePath() || getFirstMenuPath(menuStore.menuList) || ''
 
   if (target && target !== '/') {
     next({ path: target, replace: true })

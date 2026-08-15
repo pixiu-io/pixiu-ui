@@ -48,51 +48,51 @@
                   class="logs-console__rule-select"
                   :loading="datasourceLoading"
                 >
-                <template #label="{ value }">
-                  <span
-                    v-if="value && getDatasourceById(Number(value))"
-                    class="logs-console__datasource-option"
-                  >
+                  <template #label="{ value }">
                     <span
-                      class="logs-console__datasource-logo"
-                      :class="`is-${getDatasourceById(Number(value))?.subType}`"
+                      v-if="value && getDatasourceById(Number(value))"
+                      class="logs-console__datasource-option"
                     >
-                      <ArtSvgIcon
-                        :icon="subTypeMeta[getDatasourceById(Number(value))!.subType].icon"
-                        class="logs-console__datasource-logo-icon"
-                      />
+                      <span
+                        class="logs-console__datasource-logo"
+                        :class="`is-${getDatasourceById(Number(value))?.subType}`"
+                      >
+                        <ArtSvgIcon
+                          :icon="subTypeMeta[getDatasourceById(Number(value))!.subType].icon"
+                          class="logs-console__datasource-logo-icon"
+                        />
+                      </span>
+                      <span class="logs-console__datasource-name">
+                        {{ getDatasourceById(Number(value))?.name }}
+                      </span>
                     </span>
-                    <span class="logs-console__datasource-name">
-                      {{ getDatasourceById(Number(value))?.name }}
+                  </template>
+                  <ElOption
+                    v-for="item in filteredDatasourceOptions"
+                    :key="item.id"
+                    :label="item.name"
+                    :value="item.id"
+                  >
+                    <span class="logs-console__datasource-option">
+                      <span class="logs-console__datasource-logo" :class="`is-${item.subType}`">
+                        <ArtSvgIcon
+                          :icon="subTypeMeta[item.subType].icon"
+                          class="logs-console__datasource-logo-icon"
+                        />
+                      </span>
+                      <span class="logs-console__datasource-name">{{ item.name }}</span>
                     </span>
-                  </span>
-                </template>
-                <ElOption
-                  v-for="item in filteredDatasourceOptions"
-                  :key="item.id"
-                  :label="item.name"
-                  :value="item.id"
+                  </ElOption>
+                </ElSelect>
+                <ElTag
+                  v-if="sourceFilter === 'internal' && selectedDatasource"
+                  class="logs-console__datasource-cluster-tag"
+                  size="small"
+                  effect="light"
                 >
-                  <span class="logs-console__datasource-option">
-                    <span class="logs-console__datasource-logo" :class="`is-${item.subType}`">
-                      <ArtSvgIcon
-                        :icon="subTypeMeta[item.subType].icon"
-                        class="logs-console__datasource-logo-icon"
-                      />
-                    </span>
-                    <span class="logs-console__datasource-name">{{ item.name }}</span>
-                  </span>
-                </ElOption>
-              </ElSelect>
-              <ElTag
-                v-if="sourceFilter === 'internal' && selectedDatasource"
-                class="logs-console__datasource-cluster-tag"
-                size="small"
-                effect="light"
-              >
-                {{ getClusterLabel(selectedDatasource.clusterName || '') }}
-              </ElTag>
-            </span>
+                  {{ getClusterLabel(selectedDatasource.clusterName || '') }}
+                </ElTag>
+              </span>
             </div>
             <ElButton link type="primary" class="logs-console__external-link" disabled>
               在日志服务中查看更多
@@ -269,7 +269,7 @@
                       >
                         <ElCheckbox
                           :model-value="isFieldValueSelected(field, value)"
-                          @change="(checked: boolean) => toggleFieldValue(field, value, checked)"
+                          @change="(checked: CheckboxValueType) => toggleFieldValue(field, value, checked)"
                         />
                         <span class="logs-field-node__value" :title="value">{{ value }}</span>
                       </label>
@@ -493,13 +493,18 @@
                     :class="{ 'is-wrap': wordWrap }"
                   >
                     <span v-if="showLineNumber" class="logs-raw-line__no">{{ index + 1 }}</span>
-                    <span v-if="rawColumnVisibility.time" class="logs-raw-line__time">{{ row.time }}</span>
+                    <span v-if="rawColumnVisibility.time" class="logs-raw-line__time">{{
+                      row.time
+                    }}</span>
                     <span
                       v-if="rawColumnVisibility.pod"
                       class="logs-raw-line__pod"
                       :title="row.pod"
-                    >{{ row.pod }}</span>
-                    <span v-if="rawColumnVisibility.msg" class="logs-raw-line__msg">{{ row.msg }}</span>
+                      >{{ row.pod }}</span
+                    >
+                    <span v-if="rawColumnVisibility.msg" class="logs-raw-line__msg">{{
+                      row.msg
+                    }}</span>
                   </div>
                   <div v-if="!displayLogs.length" class="logs-empty">{{ emptyText }}</div>
                 </div>
@@ -618,9 +623,9 @@
 </template>
 
 <script setup lang="ts">
-  import { computed, inject, nextTick, ref, watch } from 'vue'
+  import { computed, inject, ref, watch } from 'vue'
   import { useRouter } from 'vue-router'
-  import { ElMessage } from 'element-plus'
+  import { ElMessage, type CheckboxValueType } from 'element-plus'
   import {
     Search,
     Document,
@@ -794,6 +799,7 @@
     es: { label: 'Elasticsearch', icon: 'simple-icons:elasticsearch' },
     prometheus: { label: 'Prometheus', icon: 'simple-icons:prometheus' },
     redis: { label: 'Redis', icon: 'simple-icons:redis' }
+    nacos: { label: 'Nacos', icon: 'ri:settings-3-line' }
   }
 
   const datasourceLoading = ref(false)
@@ -851,7 +857,8 @@
   const currentCluster = computed(() => ctxRef.value.name)
   const isExternalMode = computed(() => props.externalOnly)
   const selectedDatasource = computed(
-    () => filteredDatasourceOptions.value.find((item) => item.id === selectedDatasourceId.value) ?? null
+    () =>
+      filteredDatasourceOptions.value.find((item) => item.id === selectedDatasourceId.value) ?? null
   )
   /**
    * 与指标实时查询一致：按数据源自身 external 标志决定请求路径。
@@ -1075,7 +1082,7 @@
     return getSelectedFieldValues(field).includes(value)
   }
 
-  function toggleFieldValue(field: string, value: string, checked: boolean) {
+  function toggleFieldValue(field: string, value: string, checked: CheckboxValueType) {
     const current = [...getSelectedFieldValues(field)]
     if (checked) {
       if (!current.includes(value)) current.push(value)
@@ -1087,20 +1094,6 @@
       ...selectedFieldFilters.value,
       [field]: current
     }
-  }
-
-  function addFieldFilter(key: string) {
-    if (!isLokiDatasource.value) return
-    if (filters.value.some((item) => item.key === key)) return
-    filters.value.push({
-      id: filterSeed.value++,
-      key,
-      operator: '=',
-      value: '',
-      options: [],
-      loading: false
-    })
-    syncGeneratedQuery()
   }
 
   function addFilter() {
@@ -1121,7 +1114,11 @@
   }
 
   function getDatasourceById(id: number) {
-    return datasourceOptions.value.find((item) => item.id === id) ?? filteredDatasourceOptions.value.find((item) => item.id === id) ?? null
+    return (
+      datasourceOptions.value.find((item) => item.id === id) ??
+      filteredDatasourceOptions.value.find((item) => item.id === id) ??
+      null
+    )
   }
 
   function onFilterKeyChange(filter: FilterRow) {
@@ -1185,10 +1182,10 @@
     }
 
     const endpoint = resolvedEndpoint.value
+    const clusterName = effectiveCluster.value
+    if (!endpoint || !endpoint.serviceName || !endpoint.namespace || !clusterName) return ''
     const service = endpoint.serviceName
     const namespace = endpoint.namespace
-    const clusterName = effectiveCluster.value
-    if (!endpoint || !service || !namespace || !clusterName) return ''
     const requestPath = path.startsWith('/') ? path : `/${path}`
     return (
       `/pixiu/proxy/${encodeURIComponent(clusterName)}/api/v1/namespaces/${encodeURIComponent(namespace)}` +
@@ -1207,14 +1204,11 @@
       allDatasourceItems.value = items.filter(
         (item) => item.subType === 'loki' || item.subType === 'es'
       )
-      datasourceOptions.value = allDatasourceItems.value.filter(
-        (item) =>
-          (props.externalOnly
-            ? true
-            : item.clusterName === currentCluster.value && !item.external)
+      datasourceOptions.value = allDatasourceItems.value.filter((item) =>
+        props.externalOnly ? true : item.clusterName === currentCluster.value && !item.external
       )
       if (sourceOptions.value.length > 0) {
-        const prefer = sourceOptions.value.find(o => o.value === 'internal')
+        const prefer = sourceOptions.value.find((o) => o.value === 'internal')
         if (prefer && sourceFilter.value !== 'internal') {
           sourceFilter.value = 'internal'
         } else if (!prefer && sourceFilter.value !== sourceOptions.value[0].value) {
@@ -1311,7 +1305,7 @@
   }
 
   async function resolveServiceContext(
-    skipErrorNotification = false,
+    _skipErrorNotification = false,
     options: { resetState?: boolean } = {}
   ) {
     const { resetState = true } = options
@@ -1564,11 +1558,8 @@
 
     const datasource = selectedDatasource.value
     const username =
-      datasource?.config.log?.userName?.trim() ||
-      datasource?.config.alert?.userName?.trim() ||
-      ''
-    const password =
-      datasource?.config.log?.password ?? datasource?.config.alert?.password ?? ''
+      datasource?.config.log?.userName?.trim() || datasource?.config.alert?.userName?.trim() || ''
+    const password = datasource?.config.log?.password ?? datasource?.config.alert?.password ?? ''
     if (!username && !password) {
       return {}
     }
@@ -1582,7 +1573,8 @@
   }
 
   function buildExternalAuthHeader(datasource: DatasourceItem | null): string {
-    const username = datasource?.config.log?.userName?.trim() || datasource?.config.alert?.userName?.trim() || ''
+    const username =
+      datasource?.config.log?.userName?.trim() || datasource?.config.alert?.userName?.trim() || ''
     const password = datasource?.config.log?.password ?? datasource?.config.alert?.password ?? ''
     if (!username && !password) return ''
     return `Basic ${btoa(`${username}:${password}`)}`

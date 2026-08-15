@@ -62,7 +62,9 @@ export interface DistributionList {
 }
 
 // 获取 Distribution 列表
-export async function fetchGetDistributionList(params: DistributionListParams): Promise<DistributionList> {
+export async function fetchGetDistributionList(
+  params: DistributionListParams
+): Promise<DistributionList> {
   const query: Record<string, unknown> = {
     page: params.current || 1,
     limit: params.size || 20

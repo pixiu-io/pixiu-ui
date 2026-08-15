@@ -15,8 +15,7 @@ export async function confirmDestroyPlan(
 ): Promise<boolean | null> {
   const restart = ref(false)
   const title = options?.title ?? '销毁部署'
-  const message =
-    options?.messageBuilder?.(planName) ?? `确定要销毁部署计划 "${planName}" 吗？`
+  const message = options?.messageBuilder?.(planName) ?? `确定要销毁部署计划 "${planName}" 吗？`
 
   try {
     await ElMessageBox({

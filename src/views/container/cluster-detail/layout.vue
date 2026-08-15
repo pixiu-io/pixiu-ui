@@ -223,7 +223,12 @@
   const { getMenuTheme } = storeToRefs(settingStore)
 
   /** 默认展开「资源对象」「应用资源」「运维中心」「监控告警」 */
-  const DEFAULT_SUBMENU_OPENEDS: string[] = ['group-resource', 'group-app', 'group-ops', 'group-monitor']
+  const DEFAULT_SUBMENU_OPENEDS: string[] = [
+    'group-resource',
+    'group-app',
+    'group-ops',
+    'group-monitor'
+  ]
 
   const DETAIL_SEGMENTS = new Set([
     'overview',
@@ -476,6 +481,7 @@
       nodeCount: 0,
       isProtected: false,
       permissionId: 0,
+      connectMode: 0,
       createTime: '',
       planId: 0
     }
@@ -534,13 +540,7 @@
   })
 
   /** 集群级资源（非命名空间作用域）不展示顶栏命名空间切换 */
-  const CLUSTER_SCOPED_MENUS = new Set([
-    'overview',
-    'nodes',
-    'namespaces',
-    'crds',
-    'apiservices'
-  ])
+  const CLUSTER_SCOPED_MENUS = new Set(['overview', 'nodes', 'namespaces', 'crds', 'apiservices'])
   const CLUSTER_SCOPED_TABS: Record<string, Set<string>> = {
     storage: new Set(['pv', 'sc']),
     auth: new Set(['clusterrole', 'clusterrolebinding'])
@@ -553,8 +553,7 @@
     const scopedTabs = CLUSTER_SCOPED_TABS[menu]
     if (scopedTabs) {
       // 存储默认 tab 为 pv；认证默认 tab 为 clusterrole
-      const effectiveTab =
-        tab || (menu === 'storage' ? 'pv' : menu === 'auth' ? 'clusterrole' : '')
+      const effectiveTab = tab || (menu === 'storage' ? 'pv' : menu === 'auth' ? 'clusterrole' : '')
       if (scopedTabs.has(effectiveTab)) return false
     }
     return true

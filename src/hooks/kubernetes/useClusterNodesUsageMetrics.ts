@@ -68,11 +68,7 @@ export function useClusterNodesUsageMetrics(
     cpuMetrics.value[2].data = usageMillicSeries.map((v) => +(v / 1000).toFixed(2))
   }
 
-  function applyMemoryChartData(
-    labels: string[],
-    totalBytes: number,
-    usageBytesSeries: number[]
-  ) {
+  function applyMemoryChartData(labels: string[], totalBytes: number, usageBytesSeries: number[]) {
     memoryTimeLabels.value = labels
     const totalGib = bytesToGib(totalBytes)
     memoryMetrics.value[0].data = usageBytesSeries.map(() => totalGib)
@@ -134,15 +130,13 @@ export function useClusterNodesUsageMetrics(
 
       const totalMillic = nodes.reduce(
         (sum, n) =>
-          sum +
-          parseNodeCpuMillicores(n.status?.capacity?.cpu ?? n.status?.allocatable?.cpu),
+          sum + parseNodeCpuMillicores(n.status?.capacity?.cpu ?? n.status?.allocatable?.cpu),
         0
       )
       const totalCores = totalMillic > 0 ? +(totalMillic / 1000).toFixed(2) : 0
       const totalMemoryBytes = nodes.reduce(
         (sum, n) =>
-          sum +
-          parseNodeMemoryBytes(n.status?.capacity?.memory ?? n.status?.allocatable?.memory),
+          sum + parseNodeMemoryBytes(n.status?.capacity?.memory ?? n.status?.allocatable?.memory),
         0
       )
 

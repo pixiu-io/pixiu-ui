@@ -29,7 +29,12 @@
             </button>
           </div>
           <div class="host-shell-window-actions">
-            <button type="button" class="host-shell-window-btn" title="最小化" @click.stop="minimizeHostShell">
+            <button
+              type="button"
+              class="host-shell-window-btn"
+              title="最小化"
+              @click.stop="minimizeHostShell"
+            >
               <ElIcon :size="14"><Minus /></ElIcon>
             </button>
             <button
@@ -84,7 +89,8 @@
               'is-connected': activeTab?.connected && !activeTab?.connecting,
               'is-connecting': activeTab?.connecting
             }"
-          >{{ footerStatusText }}</span>
+            >{{ footerStatusText }}</span
+          >
         </footer>
       </section>
     </div>

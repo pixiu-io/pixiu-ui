@@ -1,84 +1,192 @@
-<!-- 监控时间区间选择（快捷项 + 自定义 datetimerange） -->
 <template>
-  <div class="metrics-time-range-picker" :class="{ 'is-custom-range': isCustomRange }">
-    <button
-      type="button"
-      class="metrics-time-range-picker__trigger"
-      :class="{ 'is-active': panelVisible }"
-      @click="openPicker"
+  <div class="metrics-time-range-picker">
+    <ElPopover
+      v-model:visible="panelVisible"
+      trigger="click"
+      placement="bottom-end"
+      :width="548"
+      :show-arrow="false"
+      popper-class="metrics-time-range-picker__popover"
+      @show="syncDraftFromModel"
     >
-      <span class="metrics-time-range-picker__label">{{ displayLabel }}</span>
-      <ElIcon class="metrics-time-range-picker__icon"><Calendar /></ElIcon>
-    </button>
-    <ElDatePicker
-      ref="pickerRef"
-      v-model="pickerDraft"
-      type="datetimerange"
-      class="metrics-time-range-picker__picker"
-      placement="top-start"
-      :shortcuts="shortcuts"
-      :clearable="false"
-      range-separator="至"
-      start-placeholder="开始日期"
-      end-placeholder="结束日期"
-      format="YYYY-MM-DD HH:mm:ss"
-      value-format="x"
-      :default-time="defaultTimeRange"
-      popper-class="metrics-time-range-picker__popper"
-      teleported
-      @visible-change="onPanelVisibleChange"
-      @change="onPickerChange"
-    />
+      <template #reference>
+        <button
+          type="button"
+          class="metrics-time-range-picker__trigger"
+          :class="{ 'is-active': panelVisible }"
+          aria-haspopup="dialog"
+          :aria-expanded="panelVisible"
+        >
+          <ElIcon class="metrics-time-range-picker__clock"><Clock /></ElIcon>
+          <span class="metrics-time-range-picker__range">{{ displayRangeLabel }}</span>
+          <ElIcon class="metrics-time-range-picker__caret">
+            <ArrowUp v-if="panelVisible" />
+            <ArrowDown v-else />
+          </ElIcon>
+        </button>
+      </template>
+
+      <div class="metrics-time-range-picker__panel">
+        <section class="metrics-time-range-picker__absolute">
+          <h3>绝对时间范围</h3>
+
+          <label for="metrics-range-start">开始</label>
+          <ElDatePicker
+            id="metrics-range-start"
+            v-model="absoluteStart"
+            type="datetime"
+            format="YYYY-MM-DD HH:mm:ss"
+            placeholder="开始时间"
+            :clearable="false"
+            :teleported="true"
+          />
+
+          <label for="metrics-range-end">结束</label>
+          <ElDatePicker
+            id="metrics-range-end"
+            v-model="absoluteEnd"
+            type="datetime"
+            format="YYYY-MM-DD HH:mm:ss"
+            placeholder="结束时间"
+            :clearable="false"
+            :teleported="true"
+          />
+
+          <div class="metrics-time-range-picker__actions">
+            <ElButton type="primary" :disabled="!canApplyAbsolute" @click="applyAbsoluteRange">
+              应用时间范围
+            </ElButton>
+          </div>
+
+          <div v-if="recentRanges.length" class="metrics-time-range-picker__recent">
+            <h3>最近使用的绝对范围</h3>
+            <button
+              v-for="range in recentRanges"
+              :key="`${range.start.getTime()}-${range.end.getTime()}`"
+              type="button"
+              @click="applyRecentRange(range)"
+            >
+              {{ formatRange(range) }}
+            </button>
+          </div>
+        </section>
+
+        <section class="metrics-time-range-picker__quick">
+          <ElInput v-model="quickSearch" clearable placeholder="搜索快速范围">
+            <template #prefix>
+              <ElIcon><Search /></ElIcon>
+            </template>
+          </ElInput>
+
+          <div class="metrics-time-range-picker__quick-list">
+            <button
+              v-for="preset in filteredPresets"
+              :key="preset.key"
+              type="button"
+              :class="{ 'is-active': model.presetKey === preset.key }"
+              @click="applyPreset(preset)"
+            >
+              {{ preset.label }}
+            </button>
+          </div>
+        </section>
+
+        <footer class="metrics-time-range-picker__footer">
+          <span>浏览器时间</span>
+          <strong>{{ browserTimeZone }}</strong>
+          <span>{{ utcOffset }}</span>
+        </footer>
+      </div>
+    </ElPopover>
   </div>
 </template>
 
 <script setup lang="ts">
-  import { Calendar } from '@element-plus/icons-vue'
-  import type { ElDatePicker } from 'element-plus'
+  import { ArrowDown, ArrowUp, Clock, Search } from '@element-plus/icons-vue'
   import {
-    buildMetricsTimeShortcuts,
+    formatDateTime,
     fromDateTimePickerValue,
-    getMetricsTimeRangeLabel,
-    toDateTimePickerValue,
+    METRICS_TIME_PRESETS,
+    type MetricsTimePreset,
     type MetricsTimeRange
   } from '@/utils/metrics/time-range'
 
   const model = defineModel<MetricsTimeRange>({ required: true })
 
-  const pickerRef = ref<InstanceType<typeof ElDatePicker> | null>(null)
   const panelVisible = ref(false)
-  const shortcuts = buildMetricsTimeShortcuts()
-  const defaultTimeRange: [Date, Date] = [
-    new Date(2000, 0, 1, 0, 0, 0),
-    new Date(2000, 0, 1, 23, 59, 59)
-  ]
+  const absoluteStart = ref<Date>()
+  const absoluteEnd = ref<Date>()
+  const quickSearch = ref('')
+  const recentRanges = ref<MetricsTimeRange[]>([])
 
-  const pickerDraft = ref<[number, number] | null>(null)
-  const displayLabel = computed(() => getMetricsTimeRangeLabel(model.value))
-  const isCustomRange = computed(() => model.value?.presetKey === 'custom')
-
-  function syncDraftFromModel() {
-    const [start, end] = toDateTimePickerValue(model.value)
-    pickerDraft.value = [start.getTime(), end.getTime()]
-  }
+  const displayRangeLabel = computed(() => formatRange(model.value))
+  const canApplyAbsolute = computed(() => {
+    if (!absoluteStart.value || !absoluteEnd.value) return false
+    return absoluteStart.value.getTime() < absoluteEnd.value.getTime()
+  })
+  const filteredPresets = computed(() => {
+    const keyword = quickSearch.value.trim().toLowerCase()
+    if (!keyword) return METRICS_TIME_PRESETS
+    return METRICS_TIME_PRESETS.filter((preset) =>
+      `${preset.label} ${preset.key}`.toLowerCase().includes(keyword)
+    )
+  })
+  const browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Local'
+  const utcOffset = computed(() => {
+    const offsetMinutes = -new Date().getTimezoneOffset()
+    const sign = offsetMinutes >= 0 ? '+' : '-'
+    const absolute = Math.abs(offsetMinutes)
+    const hours = String(Math.floor(absolute / 60)).padStart(2, '0')
+    const minutes = String(absolute % 60).padStart(2, '0')
+    return `UTC${sign}${hours}:${minutes}`
+  })
 
   watch(model, syncDraftFromModel, { immediate: true, deep: true })
 
-  function openPicker() {
-    syncDraftFromModel()
-    ;(pickerRef.value as any)?.handleOpen?.()
+  function formatRange(range: MetricsTimeRange): string {
+    return `${formatDateTime(range.start)} 至 ${formatDateTime(range.end)}`
   }
 
-  function onPanelVisibleChange(visible: boolean) {
-    panelVisible.value = visible
-    if (visible) syncDraftFromModel()
+  function syncDraftFromModel() {
+    absoluteStart.value = new Date(model.value.start)
+    absoluteEnd.value = new Date(model.value.end)
   }
 
-  function onPickerChange(value: [number, number] | null) {
-    if (!value?.[0] || !value?.[1]) return
-    const next = fromDateTimePickerValue([new Date(value[0]), new Date(value[1])])
+  function applyAbsoluteRange() {
+    if (!absoluteStart.value || !absoluteEnd.value) return
+    const next = fromDateTimePickerValue([absoluteStart.value, absoluteEnd.value])
     if (!next) return
     model.value = next
+    rememberRange(next)
+    panelVisible.value = false
+  }
+
+  function applyPreset(preset: MetricsTimePreset) {
+    model.value = preset.getRange(new Date())
+    panelVisible.value = false
+  }
+
+  function applyRecentRange(range: MetricsTimeRange) {
+    model.value = {
+      start: new Date(range.start),
+      end: new Date(range.end),
+      presetKey: 'custom'
+    }
+    panelVisible.value = false
+  }
+
+  function rememberRange(range: MetricsTimeRange) {
+    const key = `${range.start.getTime()}-${range.end.getTime()}`
+    recentRanges.value = [
+      {
+        start: new Date(range.start),
+        end: new Date(range.end),
+        presetKey: 'custom'
+      },
+      ...recentRanges.value.filter(
+        (item) => `${item.start.getTime()}-${item.end.getTime()}` !== key
+      )
+    ].slice(0, 3)
   }
 </script>
 
@@ -86,187 +194,224 @@
   @use './metrics-toolbar-controls.scss' as toolbar;
 
   .metrics-time-range-picker {
-    position: relative;
-    display: inline-flex;
-    min-width: 168px;
-    max-width: 280px;
-    flex: 1 1 200px;
+    flex: 1 1 500px;
+    width: 100%;
+    min-width: 440px;
+    max-width: 620px;
   }
 
   .metrics-time-range-picker__trigger {
     @include toolbar.metrics-toolbar-control-base;
     @include toolbar.metrics-toolbar-control-interactive;
+
+    display: flex;
+    gap: 8px;
+    align-items: center;
     width: 100%;
+    padding: 0 10px;
 
     &.is-active {
       border-color: var(--el-color-primary);
-      box-shadow: 0 0 0 2px var(--el-color-primary-light-8);
+      box-shadow: 0 0 0 1px var(--el-color-primary) inset;
     }
   }
 
-  .metrics-time-range-picker__label {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    text-align: left;
-  }
-
-  .metrics-time-range-picker__icon {
-    flex-shrink: 0;
+  .metrics-time-range-picker__clock,
+  .metrics-time-range-picker__caret {
+    flex: 0 0 auto;
     font-size: 15px;
     color: var(--el-text-color-secondary);
   }
 
-  .metrics-time-range-picker__picker {
-    position: absolute;
-    left: 0;
-    top: calc(100% + 4px);
-    width: 0;
-    height: 0;
+  .metrics-time-range-picker__range {
+    flex: 1;
+    min-width: 0;
     overflow: hidden;
-    opacity: 0;
-    pointer-events: none;
-    z-index: -1;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--el-text-color-primary);
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  @media (width <= 640px) {
+    .metrics-time-range-picker {
+      min-width: 0;
+      max-width: none;
+    }
+
+    .metrics-time-range-picker__trigger {
+      min-width: 0;
+      max-width: none;
+    }
+
+    .metrics-time-range-picker__range {
+      font-size: 11px;
+    }
   }
 </style>
 
 <style lang="scss">
-  .metrics-time-range-picker__popper.el-picker__popper {
-    margin-top: 6px !important;
-  }
-
-  .metrics-time-range-picker__popper .el-date-range-picker {
-    width: 680px;
-  }
-
-  .metrics-time-range-picker__popper .el-picker-panel {
-    border-radius: 8px;
+  .metrics-time-range-picker__popover.el-popper {
+    width: min(548px, calc(100vw - 24px)) !important;
+    max-width: calc(100vw - 24px);
+    padding: 0;
     overflow: hidden;
-    border: 1px solid var(--el-border-color-lighter);
+    background: var(--el-bg-color);
+    border: 1px solid var(--el-border-color);
+    border-radius: 3px;
+    box-shadow: var(--el-box-shadow-dark);
   }
 
-  .metrics-time-range-picker__popper .el-picker-panel__body-wrapper {
+  .metrics-time-range-picker__panel {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) 40px;
+    grid-template-columns: minmax(0, 3fr) minmax(190px, 2fr);
+    max-height: calc(100vh - 110px);
+    color: var(--el-text-color-regular);
+  }
+
+  .metrics-time-range-picker__absolute,
+  .metrics-time-range-picker__quick {
+    min-height: 0;
+    padding: 12px;
+  }
+
+  .metrics-time-range-picker__absolute {
+    overflow-y: auto;
+    border-right: 1px solid var(--el-border-color);
+  }
+
+  .metrics-time-range-picker__absolute h3,
+  .metrics-time-range-picker__recent h3 {
+    margin: 0 0 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--el-text-color-secondary);
+  }
+
+  .metrics-time-range-picker__absolute label {
+    display: block;
+    margin: 9px 0 5px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--el-text-color-secondary);
+  }
+
+  .metrics-time-range-picker__absolute .el-date-editor.el-input {
+    width: 100%;
+  }
+
+  .metrics-time-range-picker__absolute .el-input__wrapper,
+  .metrics-time-range-picker__quick .el-input__wrapper {
+    min-height: 34px;
+    border-radius: 2px;
+  }
+
+  .metrics-time-range-picker__actions {
+    display: flex;
+    margin-top: 12px;
+  }
+
+  .metrics-time-range-picker__actions .el-button {
+    height: 34px;
+    border-radius: 2px;
+  }
+
+  .metrics-time-range-picker__recent {
+    margin-top: 18px;
+  }
+
+  .metrics-time-range-picker__recent button {
+    display: block;
+    width: 100%;
+    padding: 5px 0;
+    overflow: hidden;
+    font-size: 11px;
+    line-height: 16px;
+    color: var(--el-text-color-secondary);
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+    background: transparent;
+    border: 0;
+  }
+
+  .metrics-time-range-picker__recent button:hover {
+    color: var(--el-color-primary);
+  }
+
+  .metrics-time-range-picker__quick {
     display: flex;
     flex-direction: column;
-    align-items: stretch;
+    gap: 8px;
+    overflow: hidden;
   }
 
-  .metrics-time-range-picker__popper .el-picker-panel__sidebar {
-    order: 0;
-    position: static !important;
-    inset: auto !important;
+  .metrics-time-range-picker__quick-list {
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .metrics-time-range-picker__quick-list button {
+    display: block;
     width: 100%;
-    height: auto !important;
-    float: none !important;
-    border-right: none;
-    border-bottom: 1px solid var(--el-border-color);
-    padding: 12px 16px 10px;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    gap: 8px 16px;
-    justify-content: flex-start;
-    background: var(--el-bg-color);
-  }
-
-  .metrics-time-range-picker__popper .el-picker-panel__sidebar + .el-picker-panel__body {
-    order: 1;
-    margin-left: 0 !important;
-    width: 100%;
-    padding-top: 6px;
-  }
-
-  .metrics-time-range-picker__popper .el-date-range-picker.has-sidebar {
-    width: 680px;
-  }
-
-  .metrics-time-range-picker__popper .el-picker-panel__shortcut {
-    display: inline-flex !important;
-    align-items: center;
-    justify-content: center;
-    width: auto !important;
-    max-width: none !important;
-    flex: 0 0 auto;
-    min-width: 52px;
-    height: 30px;
-    margin: 0;
-    padding: 0 10px;
-    border: 1px solid transparent;
-    border-radius: 3px;
-    font-size: 13px;
-    font-weight: 500;
-    line-height: 1;
+    height: 31px;
+    padding: 0 5px;
+    font-size: 12px;
     color: var(--el-text-color-regular);
+    text-align: left;
+    cursor: pointer;
     background: transparent;
-    transition:
-      color 0.15s,
-      border-color 0.15s,
-      background-color 0.15s;
+    border: 0;
   }
 
-  .metrics-time-range-picker__popper .el-picker-panel__shortcut:hover {
+  .metrics-time-range-picker__quick-list button:hover,
+  .metrics-time-range-picker__quick-list button.is-active {
     color: var(--el-color-primary);
-    background: transparent;
+    background: var(--el-fill-color-light);
   }
 
-  .metrics-time-range-picker__popper .el-picker-panel__shortcut.active,
-  .metrics-time-range-picker__popper .el-picker-panel__shortcut.is-active {
-    color: var(--el-color-primary);
-    border-color: var(--el-color-primary);
-    background: var(--el-bg-color);
+  .metrics-time-range-picker__footer {
+    display: flex;
+    grid-column: 1 / -1;
+    gap: 8px;
+    align-items: center;
+    padding: 0 12px;
+    font-size: 11px;
+    color: var(--el-text-color-secondary);
+    border-top: 1px solid var(--el-border-color);
   }
 
-  .metrics-time-range-picker__popper .el-date-range-picker__time-header {
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--el-border-color-lighter);
-    background: var(--el-fill-color-blank);
+  .metrics-time-range-picker__footer strong {
+    font-weight: 600;
+    color: var(--el-text-color-primary);
   }
 
-  .metrics-time-range-picker__popper
-    .el-date-range-picker__time-header
-    .el-date-range-picker__editor {
-    height: 32px;
+  .metrics-time-range-picker__footer span:last-child {
+    margin-left: auto;
   }
 
-  .metrics-time-range-picker__popper .el-date-range-picker__time-header .el-input__wrapper {
-    min-height: 32px;
-    border-radius: 2px;
-    box-shadow: 0 0 0 1px var(--el-border-color) inset;
-  }
+  @media (width <= 640px) {
+    .metrics-time-range-picker__panel {
+      grid-template-rows: auto auto 40px;
+      grid-template-columns: 1fr;
+      overflow-y: auto;
+    }
 
-  .metrics-time-range-picker__popper .el-picker-panel__body {
-    padding: 10px 8px 8px;
-  }
+    .metrics-time-range-picker__absolute {
+      border-right: 0;
+      border-bottom: 1px solid var(--el-border-color);
+    }
 
-  .metrics-time-range-picker__popper .el-date-range-picker__content {
-    padding: 0 10px;
-  }
+    .metrics-time-range-picker__quick-list {
+      max-height: 190px;
+    }
 
-  .metrics-time-range-picker__popper .el-date-range-picker__header {
-    margin-bottom: 8px;
-  }
-
-  .metrics-time-range-picker__popper .el-date-table td div {
-    height: 28px;
-    padding: 0;
-  }
-
-  .metrics-time-range-picker__popper .el-date-table td span {
-    width: 26px;
-    height: 26px;
-    line-height: 26px;
-  }
-
-  .metrics-time-range-picker__popper .el-picker-panel__footer {
-    padding: 10px 16px 12px;
-    border-top: 1px solid var(--el-border-color-lighter);
-  }
-
-  .metrics-time-range-picker__popper .el-picker-panel__footer .el-button--primary {
-    min-width: 88px;
-    height: 32px;
-    border-radius: 2px;
+    .metrics-time-range-picker__footer {
+      grid-column: 1;
+    }
   }
 </style>

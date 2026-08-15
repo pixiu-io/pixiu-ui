@@ -33,7 +33,6 @@
     <ElCard class="art-table-card">
       <ElTabs v-model="resourceTab" class="hpa-tabs">
         <ElTabPane label="HorizontalPodAutoscaler" name="hpa">
-
           <ArtTable
             row-key="rowKey"
             :show-table-header="false"
@@ -44,10 +43,10 @@
             :pagination-options="CLUSTER_TABLE_PAGINATION_OPTIONS"
             @pagination:size-change="handleSizeChange"
             @pagination:current-change="handleCurrentChange"
->
-        <template #empty>
-          <ClusterTableEmpty />
-        </template>
+          >
+            <template #empty>
+              <ClusterTableEmpty />
+            </template>
           </ArtTable>
         </ElTabPane>
 
@@ -71,7 +70,6 @@
       @save="onYamlSave"
     />
   </div>
-
 </template>
 
 <script setup lang="ts">
@@ -86,15 +84,18 @@
     ElTabs,
     ElLink
   } from 'element-plus'
+  import { notifyError } from '@/utils/sys/notify'
   import { CopyDocument } from '@element-plus/icons-vue'
   import { h, computed, inject, ref, watch } from 'vue'
-import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
-import ClusterTableEmpty from './components/cluster-table-empty.vue'
+  import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
+  import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
   import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
   import { useClusterDetailNamespaceRefresh } from '@/hooks/core/useClusterDetailNamespaceRefresh'
-  import ArtButtonMore, { type ButtonMoreItem } from '@/components/core/forms/art-button-more/index.vue'
+  import ArtButtonMore, {
+    type ButtonMoreItem
+  } from '@/components/core/forms/art-button-more/index.vue'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
   import { updateK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
   import yaml from 'js-yaml'
@@ -212,13 +213,19 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     if (!currentMetrics?.length) return undefined
     const t = spec.type
     if (t === 'Resource' && spec.resource?.name) {
-      return currentMetrics.find((c) => c.type === 'Resource' && c.resource?.name === spec.resource?.name)
+      return currentMetrics.find(
+        (c) => c.type === 'Resource' && c.resource?.name === spec.resource?.name
+      )
     }
     if (t === 'Pods' && spec.pods?.metric?.name) {
-      return currentMetrics.find((c) => c.type === 'Pods' && c.pods?.metric?.name === spec.pods!.metric!.name)
+      return currentMetrics.find(
+        (c) => c.type === 'Pods' && c.pods?.metric?.name === spec.pods!.metric!.name
+      )
     }
     if (t === 'Object' && spec.object?.metric?.name) {
-      return currentMetrics.find((c) => c.type === 'Object' && c.object?.metric?.name === spec.object!.metric!.name)
+      return currentMetrics.find(
+        (c) => c.type === 'Object' && c.object?.metric?.name === spec.object!.metric!.name
+      )
     }
     if (t === 'External' && spec.external?.metric?.name) {
       return currentMetrics.find(
@@ -329,7 +336,6 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
           minWidth: 180,
           formatter: (row: K8sHorizontalPodAutoscaler) => {
             const name = row.metadata?.name ?? '-'
-            const cluster = String(route.query.cluster ?? '')
             return h('div', { style: 'display:flex;align-items:center;gap:8px' }, [
               h(
                 ElLink,
@@ -406,7 +412,11 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
           label: '触发策略',
           minWidth: 200,
           formatter: (row: K8sHorizontalPodAutoscaler) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular);white-space:nowrap' }, formatTriggerSummary(row))
+            h(
+              'span',
+              { style: 'font-size:12px;color:var(--el-text-color-regular);white-space:nowrap' },
+              formatTriggerSummary(row)
+            )
         },
         {
           prop: 'status.currentMetrics',
@@ -424,14 +434,22 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
           label: '最小副本',
           width: 100,
           formatter: (row: K8sHorizontalPodAutoscaler) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, String(row.spec?.minReplicas ?? 1))
+            h(
+              'span',
+              { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+              String(row.spec?.minReplicas ?? 1)
+            )
         },
         {
           prop: 'spec.maxReplicas',
           label: '最大副本',
           width: 100,
           formatter: (row: K8sHorizontalPodAutoscaler) =>
-            h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, String(row.spec?.maxReplicas ?? '-'))
+            h(
+              'span',
+              { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+              String(row.spec?.maxReplicas ?? '-')
+            )
         },
         {
           prop: 'status.currentReplicas',
@@ -461,15 +479,22 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
           width: 120,
           fixed: 'right',
           formatter: (row: K8sHorizontalPodAutoscaler) =>
-            h('div', { style: 'display:flex;align-items:center;gap:8px;flex-wrap:nowrap;justify-content:flex-end' }, [
-              h(ArtButtonMore, {
-                list: [
-                  { key: 'yaml', label: '查看YAML', icon: 'ri:file-code-line' },
-                  { key: 'delete', label: '删除', icon: 'ri:delete-bin-4-line', color: '#409eff' }
-                ],
-                onClick: (item: ButtonMoreItem) => hpaMoreClick(item, row)
-              })
-            ])
+            h(
+              'div',
+              {
+                style:
+                  'display:flex;align-items:center;gap:8px;flex-wrap:nowrap;justify-content:flex-end'
+              },
+              [
+                h(ArtButtonMore, {
+                  list: [
+                    { key: 'yaml', label: '查看YAML', icon: 'ri:file-code-line' },
+                    { key: 'delete', label: '删除', icon: 'ri:delete-bin-4-line', color: '#409eff' }
+                  ],
+                  onClick: (item: ButtonMoreItem) => hpaMoreClick(item, row)
+                })
+              ]
+            )
         }
       ]
     }
@@ -499,6 +524,12 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     getData()
   }
 
+  function forceSearch() {
+    const name = (searchForm.value.name ?? '').trim() || undefined
+    replaceSearchParams({ name })
+    getData()
+  }
+
   function onRefresh() {
     refreshData()
   }
@@ -506,7 +537,9 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
   useSkipFirstActivatedRefresh(refreshData)
 
   function onCreateHpaHint() {
-    ElMessage.info('请通过集群详情页右上角「YAML创建」提交 HorizontalPodAutoscaler 资源（API 版本 autoscaling/v2）。')
+    ElMessage.info(
+      '请通过集群详情页右上角「YAML创建」提交 HorizontalPodAutoscaler 资源（API 版本 autoscaling/v2）。'
+    )
   }
 
   async function viewYaml(row: K8sHorizontalPodAutoscaler) {
@@ -519,7 +552,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       yamlText.value = yaml.dump(obj, { quotingType: '"' })
       yamlVisible.value = true
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '加载失败')
+      notifyError(e, '加载失败')
     }
   }
 
@@ -537,7 +570,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       yamlVisible.value = false
       refreshData()
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '保存失败')
+      notifyError(e, '保存失败')
     } finally {
       yamlSaving.value = false
     }
@@ -549,17 +582,21 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     const name = row.metadata?.name
     if (!cluster || !ns || !name) return
     try {
-      await ElMessageBox.confirm(`确定删除 HPA「${name}」吗？此操作不可恢复。`, '删除 HorizontalPodAutoscaler', {
-        type: 'warning',
-        confirmButtonText: '删除',
-        cancelButtonText: '取消'
-      })
+      await ElMessageBox.confirm(
+        `确定删除 HPA「${name}」吗？此操作不可恢复。`,
+        '删除 HorizontalPodAutoscaler',
+        {
+          type: 'warning',
+          confirmButtonText: '删除',
+          cancelButtonText: '取消'
+        }
+      )
       await deleteK8sHpa(cluster, ns, name)
       ElMessage.success('删除成功')
       onRefresh()
     } catch (e: unknown) {
       if (e === 'cancel') return
-      ElMessage.error(e instanceof Error ? e.message : '删除失败')
+      notifyError(e, '删除失败')
     }
   }
 
@@ -587,7 +624,6 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
 </style>
 
 <style scoped>
-
   .hpa-tabs :deep(.el-tabs__header) {
     margin: 0 0 4px;
     flex-shrink: 0;
@@ -616,7 +652,6 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
     height: 2px;
     border-radius: 2px 2px 0 0;
   }
-
 
   .hpa-tab-placeholder {
     padding: 32px 12px;

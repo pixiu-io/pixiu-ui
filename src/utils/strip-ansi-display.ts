@@ -20,7 +20,7 @@ export function stripAnsiSequences(input: string): string {
   // eslint-disable-next-line no-control-regex
   s = s.replace(/\x1b[\x30-\x5f]/g, '')
   // 兼容 UTF-8 下的 CSI 引导符 0x9B (C1)
-  // eslint-disable-next-line no-control-regex
+
   s = s.replace(/\u009b[\x30-\x3f]*[\x20-\x2f]*[\x40-\x7e]/gi, '')
   // 孤立 ESC，避免页面上残留「半个」序列
   // eslint-disable-next-line no-control-regex

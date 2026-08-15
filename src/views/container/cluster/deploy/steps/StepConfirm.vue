@@ -176,8 +176,13 @@
             {{ row.authType === 'password' ? '密码' : '密钥' }}
           </template>
         </ElTableColumn>
-        <ElTableColumn label="用户名" min-width="80">
-          <template #default>root</template>
+        <ElTableColumn label="SSH 用户" min-width="90">
+          <template #default="{ row }">
+            {{ row.authType === 'password' ? row.user || 'root' : 'root' }}
+          </template>
+        </ElTableColumn>
+        <ElTableColumn label="SSH 端口" min-width="90">
+          <template #default="{ row }">{{ row.port || 22 }}</template>
         </ElTableColumn>
       </ElTable>
     </section>
@@ -205,7 +210,7 @@
     if (props.form.execMode !== 'agent' || !props.form.deployAgentId) return
     try {
       const { items } = await fetchAgentList({ limit: 200 })
-      const agent = items.find(a => a.id === props.form.deployAgentId)
+      const agent = items.find((a) => a.id === props.form.deployAgentId)
       if (agent) {
         agentName.value = agent.name
       }
@@ -214,11 +219,14 @@
     }
   }
 
-  watch(() => props.form.deployAgentId, () => {
-    if (props.form.execMode === 'agent' && props.form.deployAgentId) {
-      loadAgentName()
+  watch(
+    () => props.form.deployAgentId,
+    () => {
+      if (props.form.execMode === 'agent' && props.form.deployAgentId) {
+        loadAgentName()
+      }
     }
-  })
+  )
 
   onMounted(() => {
     loadAgentName()

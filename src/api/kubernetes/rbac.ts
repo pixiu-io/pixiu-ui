@@ -171,40 +171,64 @@ export async function deleteK8sClusterRoleBinding(cluster: string, name: string)
   )
 }
 
-export async function fetchK8sRole(cluster: string, namespace: string, name: string): Promise<unknown> {
+export async function fetchK8sRole(
+  cluster: string,
+  namespace: string,
+  name: string
+): Promise<unknown> {
   const { data } = await kubeProxyAxios.get(
     `/pixiu/proxy/${encodeURIComponent(cluster)}/apis/rbac.authorization.k8s.io/v1/namespaces/${encodeURIComponent(namespace)}/roles/${encodeURIComponent(name)}`
   )
   return data
 }
 
-export async function deleteK8sRole(cluster: string, namespace: string, name: string): Promise<void> {
+export async function deleteK8sRole(
+  cluster: string,
+  namespace: string,
+  name: string
+): Promise<void> {
   await kubeProxyAxios.delete(
     `/pixiu/proxy/${encodeURIComponent(cluster)}/apis/rbac.authorization.k8s.io/v1/namespaces/${encodeURIComponent(namespace)}/roles/${encodeURIComponent(name)}`
   )
 }
 
-export async function fetchK8sRoleBinding(cluster: string, namespace: string, name: string): Promise<unknown> {
+export async function fetchK8sRoleBinding(
+  cluster: string,
+  namespace: string,
+  name: string
+): Promise<unknown> {
   const { data } = await kubeProxyAxios.get(
     `/pixiu/proxy/${encodeURIComponent(cluster)}/apis/rbac.authorization.k8s.io/v1/namespaces/${encodeURIComponent(namespace)}/rolebindings/${encodeURIComponent(name)}`
   )
   return data
 }
 
-export async function deleteK8sRoleBinding(cluster: string, namespace: string, name: string): Promise<void> {
+export async function deleteK8sRoleBinding(
+  cluster: string,
+  namespace: string,
+  name: string
+): Promise<void> {
   await kubeProxyAxios.delete(
     `/pixiu/proxy/${encodeURIComponent(cluster)}/apis/rbac.authorization.k8s.io/v1/namespaces/${encodeURIComponent(namespace)}/rolebindings/${encodeURIComponent(name)}`
   )
 }
 
-export async function fetchK8sServiceAccount(cluster: string, namespace: string, name: string): Promise<unknown> {
+export async function fetchK8sServiceAccount(
+  cluster: string,
+  namespace: string,
+  name: string
+): Promise<unknown> {
   const { data } = await kubeProxyAxios.get(
     `/pixiu/proxy/${encodeURIComponent(cluster)}/api/v1/namespaces/${encodeURIComponent(namespace)}/serviceaccounts/${encodeURIComponent(name)}`
   )
   return data
 }
 
-export async function deleteK8sServiceAccount(cluster: string, namespace: string, name: string): Promise<void> {
+export async function deleteK8sServiceAccount(
+  cluster: string,
+  namespace: string,
+  name: string
+): Promise<void> {
   await kubeProxyAxios.delete(
     `/pixiu/proxy/${encodeURIComponent(cluster)}/api/v1/namespaces/${encodeURIComponent(namespace)}/serviceaccounts/${encodeURIComponent(name)}`
   )

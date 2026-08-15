@@ -27,13 +27,16 @@ export async function fetchPodFileList(params: {
   container: string
   path?: string
 }): Promise<PodFileListResult> {
-  const res = await kubeProxyAxios.get(`${filesBase(params.cluster, params.namespace, params.pod)}/files`, {
-    params: {
-      container: params.container,
-      path: params.path || '/'
-    },
-    timeout: 60000
-  })
+  const res = await kubeProxyAxios.get(
+    `${filesBase(params.cluster, params.namespace, params.pod)}/files`,
+    {
+      params: {
+        container: params.container,
+        path: params.path || '/'
+      },
+      timeout: 60000
+    }
+  )
   const { code, result, message } = res.data ?? {}
   if (code !== 200) throw new Error(message || '获取文件列表失败')
   return {
@@ -74,8 +77,7 @@ export async function downloadPodFile(params: {
     throw new Error(msg)
   }
 
-  const filename =
-    params.filename || params.path.split('/').filter(Boolean).pop() || 'download'
+  const filename = params.filename || params.path.split('/').filter(Boolean).pop() || 'download'
   const blobUrl = URL.createObjectURL(res.data as Blob)
   const a = document.createElement('a')
   a.href = blobUrl

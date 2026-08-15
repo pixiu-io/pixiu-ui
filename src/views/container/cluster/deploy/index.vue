@@ -121,6 +121,7 @@
   import StepClusterConfig from './steps/StepClusterConfig.vue'
   import StepConfirm from './steps/StepConfirm.vue'
   import type { DeployClusterForm, NodeConfig } from './steps/StepBasic.vue'
+  import { notifyError } from '@/utils/sys/notify'
 
   defineOptions({ name: 'DeployClusterWizard' })
 
@@ -157,7 +158,6 @@
   const pageMode = computed(() =>
     queryMode.value ? queryMode.value : hasPlanId.value ? 'detail' : 'create'
   )
-  const isCreateMode = computed(() => !hasPlanId.value || pageMode.value === 'create')
   const isCopyMode = computed(() => hasPlanId.value && pageMode.value === 'copy')
   const isEditMode = computed(() => hasPlanId.value && pageMode.value === 'edit')
   const isDetailMode = computed(() => hasPlanId.value && pageMode.value === 'detail')
@@ -283,7 +283,8 @@
       role: (node?.role ?? []) as ('master' | 'node' | 'storage')[],
       ip: node?.ip ?? '',
       authType,
-      user: node?.auth?.password?.user ?? 'root',
+      user: node?.auth?.password?.user?.trim() || 'root',
+      port: Number(node?.auth?.port) || 22,
       password: node?.auth?.password?.password ?? '',
       privateKey: node?.auth?.key?.data ?? ''
     }
@@ -312,12 +313,10 @@
           : 6443
       const k8s = cfg.kubernetes ?? {}
       const dataDir = cfg.runtime?.data_dir ?? ''
-      const setHostname =
-        k8s.set_hostname ?? cfg.set_hostname ?? false
+      const setHostname = k8s.set_hostname ?? cfg.set_hostname ?? false
       const haproxy = (cfg.component as any)?.haproxy
       const selfLoadBalance =
-        highAvailability &&
-        Boolean(haproxy?.enable ?? (cfg.network as any)?.self_load_balance)
+        highAvailability && Boolean(haproxy?.enable ?? (cfg.network as any)?.self_load_balance)
       form.value = {
         name: detail.name ?? '',
         kubernetesVersion: k8s.kubernetes_version ?? '1.28.12',
@@ -344,7 +343,8 @@
           (cfg.network as any)?.api_server_address ?? (cfg.kubernetes as any)?.api_server ?? ''
         ),
         apiServerPort,
-        kubeProxyMode: (cfg.network as any)?.kube_proxy ?? (cfg.network as any)?.kube_proxy_mode ?? 'iptables',
+        kubeProxyMode:
+          (cfg.network as any)?.kube_proxy ?? (cfg.network as any)?.kube_proxy_mode ?? 'iptables',
         certificatePeriodEnabled: Boolean((cfg.component as any)?.certificate_period?.enable),
         certificateValidityPeriod: hoursToYears(
           (cfg.component as any)?.certificate_period?.certificate_validity_period,
@@ -369,7 +369,7 @@
       activeTabName.value = '0'
     } catch (e: unknown) {
       const err = e as Error
-      ElMessage.error(err.message || '加载部署详情失败')
+      notifyError(err, '加载部署详情失败')
     }
   }
 
@@ -421,30 +421,6 @@
     })
   }
 
-  function getErrorMessage(error: unknown, fallback: string): string {
-    if (error instanceof Error && error.message) return error.message
-    const maybe = error as {
-      message?: string
-      response?: { data?: { message?: string } | string }
-    }
-    const data = maybe?.response?.data
-    if (typeof data === 'string') {
-      try {
-        const parsed = JSON.parse(data) as { message?: string }
-        if (parsed?.message) return parsed.message
-      } catch {
-        // ignore parse failures
-      }
-      return data || fallback
-    }
-    if (data && typeof data === 'object' && 'message' in data) {
-      const msg = (data as { message?: string }).message
-      if (msg) return msg
-    }
-    if (maybe?.message) return maybe.message
-    return fallback
-  }
-
   async function startCurrentPlan() {
     if (!currentPlanId.value) return
     try {
@@ -462,7 +438,7 @@
       await loadPlanDetail(currentPlanId.value)
     } catch (e: unknown) {
       if (e === 'cancel' || e === 'close') return
-      ElMessage.error(getErrorMessage(e, '启动失败'))
+      notifyError(e, '启动失败')
     }
   }
 
@@ -475,8 +451,16 @@
       ip: n.ip,
       auth:
         n.authType === 'password'
-          ? { type: 'password' as const, password: { user: n.user, password: n.password } }
-          : { type: 'key' as const, key: { data: n.privateKey } }
+          ? {
+              type: 'password' as const,
+              ...(n.port !== 22 ? { port: n.port } : {}),
+              password: { user: (n.user || 'root').trim(), password: n.password }
+            }
+          : {
+              type: 'key' as const,
+              ...(n.port !== 22 ? { port: n.port } : {}),
+              key: { data: n.privateKey }
+            }
     }))
 
     return {
@@ -603,9 +587,7 @@
       }
     } catch (e: unknown) {
       const err = e as Error
-      ElMessage.error(
-        err.message || (shouldSubmitAsUpdate.value ? '修改失败，请重试' : '创建失败，请重试')
-      )
+      notifyError(err, shouldSubmitAsUpdate.value ? '修改失败，请重试' : '创建失败，请重试')
     } finally {
       submitting.value = false
     }

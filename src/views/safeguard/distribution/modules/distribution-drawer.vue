@@ -11,14 +11,26 @@
     <template #header>
       <div class="distribution-drawer-header">
         <span class="distribution-drawer-title">{{ isEdit ? '编辑系统' : '添加系统' }}</span>
-        <ElButton text circle class="distribution-drawer-icon-btn" title="关闭" @click="closeDrawer">
+        <ElButton
+          text
+          circle
+          class="distribution-drawer-icon-btn"
+          title="关闭"
+          @click="closeDrawer"
+        >
           <ElIcon :size="16"><Close /></ElIcon>
         </ElButton>
       </div>
     </template>
 
     <div v-loading="editLoading" class="distribution-drawer-body">
-      <ElForm :model="formData" :rules="rules" ref="formRef" label-width="100px" class="distribution-form">
+      <ElForm
+        :model="formData"
+        :rules="rules"
+        ref="formRef"
+        label-width="100px"
+        class="distribution-form"
+      >
         <ElFormItem label="系统家族" prop="family">
           <ElSelect
             v-model="formData.family"
@@ -41,10 +53,17 @@
                   class="os-option__logo"
                   :style="{ color: osBrandColors[formData.family] || '#606266' }"
                 />
-                <span class="os-option__name">{{ osFamilies.find(f => f.value === formData.family)?.label ?? formData.family }}</span>
+                <span class="os-option__name">{{
+                  osFamilies.find((f) => f.value === formData.family)?.label ?? formData.family
+                }}</span>
               </div>
             </template>
-            <ElOption v-for="item in osFamilies" :key="item.value" :label="item.label" :value="item.value">
+            <ElOption
+              v-for="item in osFamilies"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            >
               <div class="os-option">
                 <img
                   v-if="osLogoSrc(item.value)"
@@ -67,7 +86,15 @@
           <ElInput v-model="formData.name" placeholder="请输入系统名称" style="width: 100%" />
         </ElFormItem>
         <ElFormItem label="Runner" prop="runner">
-          <ElSelect v-model="formData.runner" placeholder="请选择 Runner" style="width: 100%" filterable clearable :loading="runnerListLoading" popper-class="distribution-runner-dropdown">
+          <ElSelect
+            v-model="formData.runner"
+            placeholder="请选择 Runner"
+            style="width: 100%"
+            filterable
+            clearable
+            :loading="runnerListLoading"
+            popper-class="distribution-runner-dropdown"
+          >
             <ElOption
               v-for="item in runnerList"
               :key="item.id"
@@ -91,6 +118,7 @@
 <script setup lang="ts">
   import { Close } from '@element-plus/icons-vue'
   import { ElIcon, ElMessage, type FormInstance, type FormRules } from 'element-plus'
+  import { notifyError } from '@/utils/sys/notify'
   import { computed, ref, watch } from 'vue'
   import {
     fetchCreateDistribution,
@@ -165,10 +193,6 @@
     return osIconMap[os] ?? 'ri:ubuntu-line'
   }
 
-  function osBrandColor(os: string) {
-    return osBrandColors[os] ?? '#606266'
-  }
-
   const rules: FormRules = {
     family: [{ required: true, message: '请输入操作系统家族', trigger: 'blur' }],
     name: [{ required: true, message: '请输入发行版名称', trigger: 'blur' }],
@@ -216,7 +240,7 @@
       }
       editResourceVersion.value = data.resourceVersion
     } catch (error) {
-      ElMessage.error(error instanceof Error ? error.message : '获取数据失败')
+      notifyError(error, '获取数据失败')
       closeDrawer()
     } finally {
       editLoading.value = false
@@ -255,7 +279,7 @@
           emit('success')
           closeDrawer()
         } catch (error) {
-          ElMessage.error(error instanceof Error ? error.message : '操作失败')
+          notifyError(error, '操作失败')
         } finally {
           submitting.value = false
         }

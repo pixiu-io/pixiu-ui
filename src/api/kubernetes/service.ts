@@ -53,18 +53,34 @@ export async function fetchK8sServiceList(
   })
 }
 
-export async function fetchK8sService(cluster: string, namespace: string, name: string, skipErrorNotification = false): Promise<K8sService> {
-  const { data } = await kubeProxyAxios.get<K8sService>(`${svcBase(cluster, namespace)}/${encodeURIComponent(name)}`, {
-    skipErrorNotification
-  })
+export async function fetchK8sService(
+  cluster: string,
+  namespace: string,
+  name: string,
+  skipErrorNotification = false
+): Promise<K8sService> {
+  const { data } = await kubeProxyAxios.get<K8sService>(
+    `${svcBase(cluster, namespace)}/${encodeURIComponent(name)}`,
+    {
+      skipErrorNotification
+    }
+  )
   return data
 }
 
-export async function deleteK8sService(cluster: string, namespace: string, name: string): Promise<void> {
+export async function deleteK8sService(
+  cluster: string,
+  namespace: string,
+  name: string
+): Promise<void> {
   await kubeProxyAxios.delete(`${svcBase(cluster, namespace)}/${encodeURIComponent(name)}`)
 }
 
-export async function createK8sService(cluster: string, namespace: string, body: object): Promise<K8sService> {
+export async function createK8sService(
+  cluster: string,
+  namespace: string,
+  body: object
+): Promise<K8sService> {
   const { data } = await kubeProxyAxios.post<K8sService>(svcBase(cluster, namespace), body)
   return data
 }

@@ -22,11 +22,7 @@
         <ElInput v-model="formData.group" placeholder="如 /pixiu/users" />
       </ElFormItem>
       <ElFormItem label="动作" prop="description">
-        <ElInput
-          v-model="formData.description"
-          type="textarea"
-          placeholder="请输入描述"
-        />
+        <ElInput v-model="formData.description" type="textarea" placeholder="请输入描述" />
       </ElFormItem>
     </ElForm>
     <template #footer>
@@ -49,10 +45,7 @@
 
   interface Emits {
     (e: 'update:visible', value: boolean): void
-    (
-      e: 'submit',
-      data: { method: string; path: string; group: string; description: string }
-    ): void
+    (e: 'submit', data: { method: string; path: string; group: string; description: string }): void
   }
 
   const props = defineProps<Props>()

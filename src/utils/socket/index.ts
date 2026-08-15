@@ -39,7 +39,9 @@ export default class WebSocketClient {
   private isReconnecting: boolean = false
 
   private constructor(options: WebSocketOptions) {
-    this.url = this.sanitizeWebSocketUrl(options.url || (process.env.VUE_APP_LOGIN_WEBSOCKET as string))
+    this.url = this.sanitizeWebSocketUrl(
+      options.url || (process.env.VUE_APP_LOGIN_WEBSOCKET as string)
+    )
     this.messageHandler = options.messageHandler
     this.reconnectInterval = options.reconnectInterval ?? 20 * 1000 // 默认20秒
     this.heartbeatInterval = options.heartbeatInterval ?? 5 * 1000 // 默认5秒
@@ -206,7 +208,7 @@ export default class WebSocketClient {
   }
 
   // 处理连接打开
-  private handleOpen(event: Event): void {
+  private handleOpen(_event: Event): void {
     this.clearTimer('connectionTimer') // 清除连接超时定时器
     this.isConnected = true
     this.isConnecting = false

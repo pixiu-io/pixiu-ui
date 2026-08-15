@@ -2,7 +2,9 @@
   <div class="art-card p-5 flex-b mb-5 max-sm:mb-4">
     <div>
       <h2 class="text-2xl font-medium">关于项目</h2>
-      <p class="text-g-700 mt-1">一个开源的企业级容器平台，为企业提供 Kubernetes 资源可视化部署和管理功能。</p>
+      <p class="text-g-700 mt-1"
+        >一个开源的企业级容器平台，为企业提供 Kubernetes 资源可视化部署和管理功能。</p
+      >
       <p class="text-g-700 mt-1">使用了 Vue3、TypeScript、Vite、Element Plus 等前沿技术</p>
 
       <div class="flex flex-wrap gap-3.5 max-w-150 mt-9">
@@ -30,10 +32,7 @@
 </template>
 
 <script setup lang="ts">
-  import AppConfig from '@/config'
   import { WEB_LINKS } from '@/utils/constants'
-
-  const systemName = AppConfig.systemInfo.name
 
   const linkList = [
     { label: '项目官网', url: WEB_LINKS.DOCS },

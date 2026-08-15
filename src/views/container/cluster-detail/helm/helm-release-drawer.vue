@@ -34,8 +34,12 @@
       </div>
 
       <div class="helm-release-drawer__actions">
-        <ElButton link type="primary" style="font-size: 12px" @click="emit('upgrade', release)">升级</ElButton>
-        <ElButton link type="primary" style="font-size: 12px" @click="emit('uninstall', release)">卸载</ElButton>
+        <ElButton link type="primary" style="font-size: 12px" @click="emit('upgrade', release)"
+          >升级</ElButton
+        >
+        <ElButton link type="primary" style="font-size: 12px" @click="emit('uninstall', release)"
+          >卸载</ElButton
+        >
       </div>
 
       <div class="helm-release-drawer__section">

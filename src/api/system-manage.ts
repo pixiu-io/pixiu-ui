@@ -3,7 +3,10 @@ import request from '@/utils/http'
 import { AppRouteRecord } from '@/types/router'
 import { pixiuAxios } from './container'
 
-type PixiuRequestOptions = Pick<AxiosRequestConfig, 'skipErrorNotification' | 'skipUnauthorizedRedirect'>
+type PixiuRequestOptions = Pick<
+  AxiosRequestConfig,
+  'skipErrorNotification' | 'skipUnauthorizedRedirect'
+>
 
 interface PixiuUserItem {
   id: number
@@ -187,7 +190,11 @@ export async function fetchChangePassword(params: ChangePasswordParams): Promise
   )
 }
 
-export async function fetchResetUserPassword(userId: number, resourceVersion: number, password: string): Promise<void> {
+export async function fetchResetUserPassword(
+  userId: number,
+  resourceVersion: number,
+  password: string
+): Promise<void> {
   const res = await pixiuAxios.put(`/pixiu/users/${userId}/password`, {
     old: '',
     new: password,
@@ -805,9 +812,11 @@ function mapPermissionItem(item: BackendPermission): PermissionListItem {
     updateTime: formatDateTime(item.gmt_modified),
     pType: item.p_type ?? 0,
     namespace: item.namespace || '',
-    targetNamespaces: (item.target_namespaces || []).filter((ns): ns is string => typeof ns === 'string' && ns != null),
+    targetNamespaces: (item.target_namespaces || []).filter(
+      (ns): ns is string => typeof ns === 'string' && ns != null
+    ),
     expirationSeconds: item.expiration_seconds ?? 0,
-    rules: (item.rules || []).filter(rule => rule != null)
+    rules: (item.rules || []).filter((rule) => rule != null)
   }
 }
 

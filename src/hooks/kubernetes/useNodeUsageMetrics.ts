@@ -70,11 +70,7 @@ export function useNodeUsageMetrics(
     cpuMetrics.value[2].data = usageMillicSeries.map((v) => +(v / 1000).toFixed(2))
   }
 
-  function applyMemoryChartData(
-    labels: string[],
-    totalBytes: number,
-    usageBytesSeries: number[]
-  ) {
+  function applyMemoryChartData(labels: string[], totalBytes: number, usageBytesSeries: number[]) {
     memoryTimeLabels.value = labels
     const totalGib = bytesToGib(totalBytes)
     memoryMetrics.value[0].data = usageBytesSeries.map(() => totalGib)

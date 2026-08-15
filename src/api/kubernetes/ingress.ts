@@ -1,5 +1,9 @@
 import { kubeProxyAxios } from '@/api/kubeProxy'
-import { discoverFromCandidates, discoverPreferredApi, invalidateApiDiscoveryCache } from './apiDiscovery'
+import {
+  discoverFromCandidates,
+  discoverPreferredApi,
+  invalidateApiDiscoveryCache
+} from './apiDiscovery'
 import { fetchKubeListPage } from './list'
 import {
   INGRESS_API_CANDIDATES,
@@ -123,7 +127,9 @@ export async function fetchK8sIngress(
   options?: ResolveIngressApiOptions
 ): Promise<K8sIngress> {
   const gv = await resolveIngressGroupVersion(cluster, options)
-  const { data } = await kubeProxyAxios.get<K8sIngress>(ingressItemPath(cluster, gv, namespace, name))
+  const { data } = await kubeProxyAxios.get<K8sIngress>(
+    ingressItemPath(cluster, gv, namespace, name)
+  )
   return normalizeIngressToV1(data as Record<string, any>) as K8sIngress
 }
 

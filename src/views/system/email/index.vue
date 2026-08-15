@@ -3,7 +3,12 @@
   <div class="email-page art-full-height" style="padding-top: 10px">
     <div
       class="email-toolbar"
-      style="margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between"
+      style="
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      "
     >
       <ElButton @click="showDialog('add')" v-ripple>新建邮件配置</ElButton>
       <div style="display: flex; align-items: center; gap: 8px">
@@ -112,8 +117,7 @@
           label: 'SMTP 服务器',
           width: 180,
           showOverflowTooltip: true,
-          formatter: (row) =>
-            h('span', { style: { fontSize: '12px' } }, row.smtp_host || '-')
+          formatter: (row) => h('span', { style: { fontSize: '12px' } }, row.smtp_host || '-')
         },
         {
           prop: 'smtp_port',
@@ -127,16 +131,14 @@
           label: '用户名',
           width: 140,
           showOverflowTooltip: true,
-          formatter: (row) =>
-            h('span', { style: { fontSize: '12px' } }, row.username || '-')
+          formatter: (row) => h('span', { style: { fontSize: '12px' } }, row.username || '-')
         },
         {
           prop: 'from_email',
           label: '发件人',
           minWidth: 200,
           showOverflowTooltip: true,
-          formatter: (row) =>
-            h('span', { style: { fontSize: '12px' } }, getSenderText(row))
+          formatter: (row) => h('span', { style: { fontSize: '12px' } }, getSenderText(row))
         },
         {
           prop: 'encryption',
@@ -150,10 +152,8 @@
           label: '启用状态',
           width: 90,
           formatter: (row) =>
-            h(
-              ElTag,
-              { type: row.enabled ? 'success' : 'info', size: 'small' },
-              () => (row.enabled ? '启用' : '停用')
+            h(ElTag, { type: row.enabled ? 'success' : 'info', size: 'small' }, () =>
+              row.enabled ? '启用' : '停用'
             )
         },
         {
@@ -161,10 +161,8 @@
           label: '默认',
           width: 90,
           formatter: (row) =>
-            h(
-              ElTag,
-              { type: row.is_default ? 'warning' : 'info', size: 'small' },
-              () => (row.is_default ? '默认' : '否')
+            h(ElTag, { type: row.is_default ? 'warning' : 'info', size: 'small' }, () =>
+              row.is_default ? '默认' : '否'
             )
         },
         {
@@ -228,15 +226,19 @@
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'error'
-    }).then(async () => {
-      try {
-        await fetchDeleteEmail(row.id)
-        ElMessage.success('删除成功')
-        await refreshData()
-      } catch {
-        // 错误提示由 HTTP 封装处理
-      }
     })
+      .then(async () => {
+        try {
+          await fetchDeleteEmail(row.id)
+          ElMessage.success('删除成功')
+          await refreshData()
+        } catch {
+          // 错误提示由 HTTP 封装处理
+        }
+      })
+      .catch(() => {
+        /* 用户取消或关闭，忽略 */
+      })
   }
 
   const handleTestSend = (row: EmailConfigItem): void => {

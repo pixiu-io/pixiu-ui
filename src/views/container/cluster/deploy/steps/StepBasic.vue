@@ -166,7 +166,9 @@
         <ElRadioButton value="local">本地模式</ElRadioButton>
         <ElRadioButton value="agent">Agent模式</ElRadioButton>
       </ElRadioGroup>
-      <div class="form-tip">本地模式由 Pixiu Server 直接执行部署，Agent模式由边缘 Agent 拉取任务执行</div>
+      <div class="form-tip"
+        >本地模式由 Pixiu Server 直接执行部署，Agent模式由边缘 Agent 拉取任务执行</div
+      >
     </ElFormItem>
     <ElFormItem v-if="form.execMode === 'agent'" label="执行Agent" prop="deployAgentId">
       <ElSelect
@@ -421,6 +423,7 @@
     ip: string
     authType: 'password' | 'key'
     user: string
+    port: number
     password: string
     privateKey: string
   }
@@ -467,7 +470,11 @@
     deployAgentId: number | undefined
   }
 
-  function validateDeployAgentId(_r: unknown, value: number | undefined, cb: (err?: Error) => void) {
+  function validateDeployAgentId(
+    _r: unknown,
+    value: number | undefined,
+    cb: (err?: Error) => void
+  ) {
     if (props.form.execMode === 'agent' && !value) {
       cb(new Error('请选择执行Agent'))
       return
@@ -551,14 +558,14 @@
 
   const osTypes = computed(() => {
     const uniqueFamilies = new Set<string>()
-    distributions.value.forEach(d => uniqueFamilies.add(d.family))
+    distributions.value.forEach((d) => uniqueFamilies.add(d.family))
     return Array.from(uniqueFamilies)
   })
 
   const currentOsImages = computed(() => {
     return distributions.value
-      .filter(d => d.family.toLowerCase() === (props.form.osType || '').toLowerCase())
-      .map(d => d.name)
+      .filter((d) => d.family.toLowerCase() === (props.form.osType || '').toLowerCase())
+      .map((d) => d.name)
   })
 
   onMounted(async () => {
@@ -569,13 +576,55 @@
       // 加载失败时使用默认值
       distributions.value = [
         { id: 1, resourceVersion: 1, family: 'CentOS', name: 'centos7', runner: 'runner-agent-v2' },
-        { id: 2, resourceVersion: 1, family: 'Ubuntu', name: 'ubuntu20.04', runner: 'runner-agent-v3' },
-        { id: 3, resourceVersion: 1, family: 'Ubuntu', name: 'ubuntu22.04', runner: 'runner-agent-v3' },
-        { id: 4, resourceVersion: 1, family: 'Debian', name: 'debian11', runner: 'runner-agent-v3' },
-        { id: 5, resourceVersion: 1, family: 'OpenEuler', name: 'openEuler22.03', runner: 'runner-agent-v3' },
-        { id: 6, resourceVersion: 1, family: 'OpenEuler', name: 'openEuler24.03', runner: 'runner-agent-v3' },
-        { id: 7, resourceVersion: 1, family: 'RockyLinux', name: 'rocky9.2', runner: 'runner-agent-v3' },
-        { id: 8, resourceVersion: 1, family: 'RockyLinux', name: 'rocky9.3', runner: 'runner-agent-v3' },
+        {
+          id: 2,
+          resourceVersion: 1,
+          family: 'Ubuntu',
+          name: 'ubuntu20.04',
+          runner: 'runner-agent-v3'
+        },
+        {
+          id: 3,
+          resourceVersion: 1,
+          family: 'Ubuntu',
+          name: 'ubuntu22.04',
+          runner: 'runner-agent-v3'
+        },
+        {
+          id: 4,
+          resourceVersion: 1,
+          family: 'Debian',
+          name: 'debian11',
+          runner: 'runner-agent-v3'
+        },
+        {
+          id: 5,
+          resourceVersion: 1,
+          family: 'OpenEuler',
+          name: 'openEuler22.03',
+          runner: 'runner-agent-v3'
+        },
+        {
+          id: 6,
+          resourceVersion: 1,
+          family: 'OpenEuler',
+          name: 'openEuler24.03',
+          runner: 'runner-agent-v3'
+        },
+        {
+          id: 7,
+          resourceVersion: 1,
+          family: 'RockyLinux',
+          name: 'rocky9.2',
+          runner: 'runner-agent-v3'
+        },
+        {
+          id: 8,
+          resourceVersion: 1,
+          family: 'RockyLinux',
+          name: 'rocky9.3',
+          runner: 'runner-agent-v3'
+        },
         { id: 9, resourceVersion: 1, family: 'Kylin', name: 'V10', runner: 'runner-agent-v3' }
       ]
     } finally {
@@ -585,15 +634,17 @@
     // 数据加载完成后，如果 osType 有值但 osImage 为空，自动设置第一个可用版本
     if (props.form.osType && !props.form.osImage) {
       const images = distributions.value
-        .filter(d => d.family.toLowerCase() === props.form.osType.toLowerCase())
-        .map(d => d.name)
+        .filter((d) => d.family.toLowerCase() === props.form.osType.toLowerCase())
+        .map((d) => d.name)
       if (images.length > 0) {
         // 确保 osType 使用正确的大小写格式
-        const correctFamily = distributions.value.find(d => d.family.toLowerCase() === props.form.osType.toLowerCase())?.family
-        emit('update:form', { 
-          ...props.form, 
+        const correctFamily = distributions.value.find(
+          (d) => d.family.toLowerCase() === props.form.osType.toLowerCase()
+        )?.family
+        emit('update:form', {
+          ...props.form,
           osType: correctFamily || props.form.osType,
-          osImage: images[0] 
+          osImage: images[0]
         })
       }
     }
@@ -605,14 +656,6 @@
 
   const agentLoading = ref(false)
   const agents = ref<AgentItem[]>([])
-
-  const agentNameMap = computed(() => {
-    const map: Record<number, string> = {}
-    for (const a of agents.value) {
-      map[a.id] = a.name
-    }
-    return map
-  })
 
   async function loadAgents() {
     agentLoading.value = true
@@ -627,28 +670,34 @@
   }
 
   // 当 execMode 从外部变更为 agent 时（如加载已有计划详情），自动拉取 agent 列表
-  watch(() => props.form.execMode, (mode) => {
-    if (mode === 'agent') {
-      if (agents.value.length === 0) {
-        loadAgents()
+  watch(
+    () => props.form.execMode,
+    (mode) => {
+      if (mode === 'agent') {
+        if (agents.value.length === 0) {
+          loadAgents()
+        }
+        nextTick(() => formRef.value?.validateField('deployAgentId'))
+      } else {
+        formRef.value?.clearValidate('deployAgentId')
       }
-      nextTick(() => formRef.value?.validateField('deployAgentId'))
-    } else {
-      formRef.value?.clearValidate('deployAgentId')
     }
-  })
+  )
 
-  function onExecModeChange(mode: string) {
-    emit('update:form', { ...props.form, execMode: mode, deployAgentId: mode === 'agent' ? props.form.deployAgentId : undefined })
-    if (mode === 'agent' && agents.value.length === 0) {
+  function onExecModeChange(mode: string | number | boolean | undefined) {
+    const execMode = String(mode ?? '')
+    emit('update:form', {
+      ...props.form,
+      execMode,
+      deployAgentId: execMode === 'agent' ? props.form.deployAgentId : undefined
+    })
+    if (execMode === 'agent' && agents.value.length === 0) {
       loadAgents()
     }
   }
 
   function onOsTypeChange(osType: string) {
-    const images = distributions.value
-      .filter(d => d.family === osType)
-      .map(d => d.name)
+    const images = distributions.value.filter((d) => d.family === osType).map((d) => d.name)
     emit('update:form', { ...props.form, osType, osImage: images[0] ?? '' })
   }
 
@@ -1219,22 +1268,48 @@
     margin-top: 0;
     margin-bottom: 0;
   }
-  .kube-mode-group :deep(.el-radio-button) { flex: 1 1 0; min-width: 0; display: flex; }
+  .kube-mode-group :deep(.el-radio-button) {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+  }
   .kube-mode-group :deep(.el-radio-button__inner) {
-    display: flex; flex: 1; align-items: center; justify-content: center;
-    width: 100%; box-sizing: border-box; text-align: center;
-    font-size: 12px; padding: 0 10px; line-height: 10px; font-weight: 400;
-    color: var(--el-text-color-regular); background: transparent;
-    border: 1px solid var(--el-border-color); border-radius: 0 !important;
-    transition: border-color 0.15s, color 0.15s, background-color 0.15s;
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    box-sizing: border-box;
+    text-align: center;
+    font-size: 12px;
+    padding: 0 10px;
+    line-height: 10px;
+    font-weight: 400;
+    color: var(--el-text-color-regular);
+    background: transparent;
+    border: 1px solid var(--el-border-color);
+    border-radius: 0 !important;
+    transition:
+      border-color 0.15s,
+      color 0.15s,
+      background-color 0.15s;
   }
   .kube-mode-group :deep(.el-radio-button:first-child .el-radio-button__inner),
-  .kube-mode-group :deep(.el-radio-button:last-child .el-radio-button__inner) { border-radius: 0 !important; }
-  .kube-mode-group :deep(.el-radio-button__inner:hover) { border-color: var(--el-color-primary); color: var(--el-color-primary); }
+  .kube-mode-group :deep(.el-radio-button:last-child .el-radio-button__inner) {
+    border-radius: 0 !important;
+  }
+  .kube-mode-group :deep(.el-radio-button__inner:hover) {
+    border-color: var(--el-color-primary);
+    color: var(--el-color-primary);
+  }
   .kube-mode-group :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
-    background-color: var(--el-bg-color-overlay) !important; color: var(--el-color-primary) !important;
-    font-weight: 500 !important; border-color: var(--el-color-primary) !important;
-    box-shadow: none !important; position: relative; z-index: 1;
+    background-color: var(--el-bg-color-overlay) !important;
+    color: var(--el-color-primary) !important;
+    font-weight: 500 !important;
+    border-color: var(--el-color-primary) !important;
+    box-shadow: none !important;
+    position: relative;
+    z-index: 1;
   }
 </style>
 

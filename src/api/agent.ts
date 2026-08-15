@@ -66,10 +66,14 @@ export interface AgentListParams {
   status?: number
 }
 
-export async function fetchAgentList(params: AgentListParams = {}): Promise<{ total: number; items: AgentItem[] }> {
+export async function fetchAgentList(
+  params: AgentListParams = {}
+): Promise<{ total: number; items: AgentItem[] }> {
   const page = params.page ?? 1
   const limit = params.limit ?? 10
-  const res = await pixiuAxios.get('/pixiu/agents', { params: { page, limit, nameSelector: params.nameSelector, status: params.status } })
+  const res = await pixiuAxios.get('/pixiu/agents', {
+    params: { page, limit, nameSelector: params.nameSelector, status: params.status }
+  })
   const { code, result, message } = res.data
   if (code !== 200) throw new Error(message || '获取代理列表失败')
   const data = result as BackendAgentListResponse
@@ -83,14 +87,25 @@ export async function fetchAgentDetail(id: number): Promise<AgentItem> {
   return toAgentItem(result as BackendAgent)
 }
 
-export async function fetchCreateAgent(name: string, type: number, description: string): Promise<void> {
+export async function fetchCreateAgent(
+  name: string,
+  type: number,
+  description: string
+): Promise<void> {
   const res = await pixiuAxios.post('/pixiu/agents', { name, type, description })
   const { code, message } = res.data
   if (code !== 200) throw new Error(message || '创建代理失败')
 }
 
-export async function fetchUpdateAgent(id: number, resourceVersion: number, updates: Record<string, unknown>): Promise<void> {
-  const res = await pixiuAxios.put(`/pixiu/agents/${id}`, { ...updates, resource_version: resourceVersion })
+export async function fetchUpdateAgent(
+  id: number,
+  resourceVersion: number,
+  updates: Record<string, unknown>
+): Promise<void> {
+  const res = await pixiuAxios.put(`/pixiu/agents/${id}`, {
+    ...updates,
+    resource_version: resourceVersion
+  })
   const { code, message } = res.data
   if (code !== 200) throw new Error(message || '更新代理失败')
 }

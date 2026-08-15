@@ -2,11 +2,19 @@
   <div class="appstore-page">
     <div class="appstore-header">
       <h1 class="appstore-title">应用商店</h1>
-      <p class="appstore-subtitle">一键部署和管理云原生组件，快速构建可观测、高可用的 Kubernetes 平台</p>
+      <p class="appstore-subtitle"
+        >一键部署和管理云原生组件，快速构建可观测、高可用的 Kubernetes 平台</p
+      >
     </div>
 
     <div class="appstore-toolbar">
-      <ElSelect v-model="filterCategory" placeholder="全部分类" clearable class="appstore-filter" @change="onSearch">
+      <ElSelect
+        v-model="filterCategory"
+        placeholder="全部分类"
+        clearable
+        class="appstore-filter"
+        @change="onSearch"
+      >
         <ElOption label="全部分类" value="" />
         <ElOption v-for="cat in categories" :key="cat" :label="cat" :value="cat" />
       </ElSelect>
@@ -24,12 +32,7 @@
     </div>
 
     <div class="appstore-grid">
-      <ElCard
-        v-for="app in filteredApps"
-        :key="app.name"
-        class="appstore-card"
-        shadow="hover"
-      >
+      <ElCard v-for="app in filteredApps" :key="app.name" class="appstore-card" shadow="hover">
         <div class="app-card__header">
           <div class="app-card__icon" :style="{ background: app.color }">
             <ArtSvgIcon :icon="app.icon" style="font-size: 28px; color: #fff" />
@@ -56,13 +59,18 @@
           >
             {{ app.installed ? '已安装' : '安装' }}
           </ElLink>
-          <ElLink type="primary" underline="never" style="font-size: 12px" @click="onDetail(app)">详情</ElLink>
+          <ElLink type="primary" underline="never" style="font-size: 12px" @click="onDetail(app)"
+            >详情</ElLink
+          >
         </div>
       </ElCard>
     </div>
 
     <div v-if="filteredApps.length === 0" class="appstore-empty">
-      <ArtSvgIcon icon="ri:store-2-line" style="font-size: 48px; color: var(--el-text-color-placeholder)" />
+      <ArtSvgIcon
+        icon="ri:store-2-line"
+        style="font-size: 48px; color: var(--el-text-color-placeholder)"
+      />
       <p>未找到匹配的应用</p>
     </div>
   </div>
@@ -233,7 +241,9 @@
     display: flex;
     flex-direction: column;
     border-radius: 10px;
-    transition: transform 0.15s, box-shadow 0.15s;
+    transition:
+      transform 0.15s,
+      box-shadow 0.15s;
   }
 
   .appstore-card:hover {

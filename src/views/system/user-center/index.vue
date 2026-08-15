@@ -5,7 +5,11 @@
       <div class="w-112 mr-5 max-md:w-full max-md:mr-0">
         <div class="art-card-sm relative p-9 pb-6 overflow-hidden text-center">
           <img class="absolute top-0 left-0 w-full h-50 object-cover" src="@imgs/user/bg.webp" />
-          <img class="user-center-avatar relative z-10 w-20 h-20 mt-30 mx-auto object-cover border-2 border-white rounded-full" :src="defaultAvatar" alt="avatar" />
+          <img
+            class="user-center-avatar relative z-10 w-20 h-20 mt-30 mx-auto object-cover border-2 border-white rounded-full"
+            :src="defaultAvatar"
+            alt="avatar"
+          />
           <h2 class="mt-5 text-xl font-normal">{{ userStore.getUserInfo?.userName || '-' }}</h2>
           <p class="mt-5 text-sm">{{ greeting }}</p>
 
@@ -50,7 +54,13 @@
               </ElFormItem>
             </ElRow>
             <ElFormItem label="描述" prop="description">
-              <ElInput type="textarea" :rows="4" v-model="form.description" :disabled="!isEdit" placeholder="请输入个人描述" />
+              <ElInput
+                type="textarea"
+                :rows="4"
+                v-model="form.description"
+                :disabled="!isEdit"
+                placeholder="请输入个人描述"
+              />
             </ElFormItem>
             <div class="flex-c justify-end [&_.el-button]:!w-27.5">
               <ElButton type="primary" class="w-22.5" v-ripple :loading="saving" @click="onSave">
@@ -63,7 +73,14 @@
         <!-- 更改密码 -->
         <div class="art-card-sm my-5">
           <h1 class="p-4 text-xl font-normal border-b border-g-300">更改密码</h1>
-          <ElForm ref="pwdFormRef" :model="pwdForm" :rules="pwdRules" class="box-border p-5" label-width="86px" label-position="top">
+          <ElForm
+            ref="pwdFormRef"
+            :model="pwdForm"
+            :rules="pwdRules"
+            class="box-border p-5"
+            label-width="86px"
+            label-position="top"
+          >
             <ElFormItem label="当前密码" prop="currentPassword">
               <ElInput
                 v-model="pwdForm.currentPassword"
@@ -85,10 +102,22 @@
               />
             </ElFormItem>
             <ElFormItem label="确认新密码" prop="confirmPassword">
-              <ElInput v-model="pwdForm.confirmPassword" type="password" :disabled="!isEditPwd" show-password placeholder="请再次输入新密码" />
+              <ElInput
+                v-model="pwdForm.confirmPassword"
+                type="password"
+                :disabled="!isEditPwd"
+                show-password
+                placeholder="请再次输入新密码"
+              />
             </ElFormItem>
             <div class="flex-c justify-end [&_.el-button]:!w-27.5">
-              <ElButton type="primary" class="w-22.5" v-ripple :loading="savingPwd" @click="onSavePwd">
+              <ElButton
+                type="primary"
+                class="w-22.5"
+                v-ripple
+                :loading="savingPwd"
+                @click="onSavePwd"
+              >
                 {{ isEditPwd ? '保存' : '编辑' }}
               </ElButton>
             </div>
@@ -104,6 +133,7 @@
   import type { FormInstance, FormRules } from 'element-plus'
   import defaultAvatar from '@imgs/user/default-avatar.svg'
   import { ElMessage } from 'element-plus'
+  import { notifyError } from '@/utils/sys/notify'
   import { PixiuApiError } from '@/api/container'
   import {
     fetchUpdateUser,
@@ -115,7 +145,7 @@
   /** 展示接口错误（拦截器已提示过的不再重复弹出） */
   function showRequestError(e: unknown, fallback: string) {
     if (e instanceof PixiuApiError && e.notified) return
-    ElMessage.error(e instanceof Error ? e.message : fallback)
+    notifyError(e, fallback)
   }
 
   defineOptions({ name: 'UserCenter' })
@@ -168,11 +198,21 @@
     newPassword: [
       { required: true, message: '请输入新密码', trigger: 'blur' },
       { min: 6, message: '密码至少6位', trigger: 'blur' },
-      { pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, message: '需包含大小写字母和数字', trigger: 'blur' }
+      {
+        pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+        message: '需包含大小写字母和数字',
+        trigger: 'blur'
+      }
     ],
     confirmPassword: [
       { required: true, message: '请确认新密码', trigger: 'blur' },
-      { validator: (_r, val, cb) => { if (val !== pwdForm.newPassword) cb(new Error('两次密码不一致')); else cb() }, trigger: 'blur' }
+      {
+        validator: (_r, val, cb) => {
+          if (val !== pwdForm.newPassword) cb(new Error('两次密码不一致'))
+          else cb()
+        },
+        trigger: 'blur'
+      }
     ]
   })
 
@@ -212,19 +252,29 @@
     }
   }
 
-  onMounted(() => { void loadUserInfo() })
+  onMounted(() => {
+    void loadUserInfo()
+  })
 
-  watch(userInfo, (info) => {
-    if (info) {
-      form.userName = info.userName || ''
-      form.email = info.email || ''
-    }
-  }, { immediate: true })
+  watch(
+    userInfo,
+    (info) => {
+      if (info) {
+        form.userName = info.userName || ''
+        form.email = info.email || ''
+      }
+    },
+    { immediate: true }
+  )
 
   async function onSave() {
     if (isEdit.value) {
       if (!ruleFormRef.value) return
-      try { await ruleFormRef.value.validate() } catch { return }
+      try {
+        await ruleFormRef.value.validate()
+      } catch {
+        return
+      }
       saving.value = true
       try {
         const u = userStore.getUserInfo
@@ -241,9 +291,12 @@
         isEdit.value = false
       } catch (e: unknown) {
         showRequestError(e, '保存失败')
+      } finally {
+        saving.value = false
       }
-      finally { saving.value = false }
-    } else { isEdit.value = true }
+    } else {
+      isEdit.value = true
+    }
   }
 
   async function onSavePwd() {
@@ -285,5 +338,7 @@
 </script>
 
 <style scoped>
-  .user-center-avatar { box-shadow: 0 0 0 1px rgb(37 99 235 / 18%); }
+  .user-center-avatar {
+    box-shadow: 0 0 0 1px rgb(37 99 235 / 18%);
+  }
 </style>

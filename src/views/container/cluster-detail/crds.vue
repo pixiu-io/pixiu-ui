@@ -75,11 +75,11 @@
       @save="onCreateYamlSave"
     />
   </div>
-
 </template>
 
 <script setup lang="ts">
-  import { ElButton, ElCard, ElInput, ElLink, ElMessage, ElTabPane, ElTabs } from 'element-plus'
+  import { ElButton, ElCard, ElInput, ElLink, ElMessage } from 'element-plus'
+  import { notifyError } from '@/utils/sys/notify'
   import { CopyDocument } from '@element-plus/icons-vue'
   import yaml from 'js-yaml'
   import { h, ref, watch } from 'vue'
@@ -110,12 +110,7 @@
   const createSubmitting = ref(false)
   const sortOrder = ref<'ascending' | 'descending' | null>(null)
 
-  function openCreateYaml() {
-    const cluster = String(route.query.cluster ?? '')
-    if (!cluster) {
-      ElMessage.warning('请先选择集群')
-      return
-    }
+  function goCreateCRD() {
     createYamlText.value = ''
     createYamlVisible.value = true
   }
@@ -130,7 +125,7 @@
       createYamlVisible.value = false
       onRefresh()
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '创建失败')
+      notifyError(e, '创建失败')
     } finally {
       createSubmitting.value = false
     }
@@ -222,7 +217,10 @@
             return sortOrder.value === 'ascending' ? ta.localeCompare(tb) : tb.localeCompare(ta)
           })
         }
-        return { code: 200 as const, data: { records: list, total, current: params.current, size: params.size } }
+        return {
+          code: 200 as const,
+          data: { records: list, total, current: params.current, size: params.size }
+        }
       },
       apiParams: { current: 1, size: 10, name: undefined },
       columnsFactory: () => [
@@ -231,8 +229,7 @@
           prop: 'metadata.name',
           label: '资源名称',
           minWidth: 220,
-          formatter: (row: K8sCustomResourceDefinition) =>
-            renderNameCell(row.metadata?.name ?? '-')
+          formatter: (row: K8sCustomResourceDefinition) => renderNameCell(row.metadata?.name ?? '-')
         },
         {
           prop: 'spec.names.shortNames',
@@ -323,7 +320,7 @@
       yamlText.value = yaml.dump(obj, { quotingType: '"' })
       yamlVisible.value = true
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '加载失败')
+      notifyError(e, '加载失败')
     }
   }
 
@@ -341,7 +338,7 @@
       yamlVisible.value = false
       refreshData()
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '保存失败')
+      notifyError(e, '保存失败')
     } finally {
       yamlSaving.value = false
     }

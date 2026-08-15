@@ -188,7 +188,10 @@ export function denormalizeIngressPatchFromV1(patch: AnyRecord, groupVersion: st
   if (patch.metadata) out.metadata = { ...patch.metadata }
   if (patch.spec) {
     // 复用完整对象转换逻辑
-    const converted = denormalizeIngressFromV1({ apiVersion: INGRESS_API_V1, kind: 'Ingress', spec: patch.spec }, groupVersion)
+    const converted = denormalizeIngressFromV1(
+      { apiVersion: INGRESS_API_V1, kind: 'Ingress', spec: patch.spec },
+      groupVersion
+    )
     out.spec = converted.spec
     if (converted.metadata?.annotations) {
       out.metadata = {

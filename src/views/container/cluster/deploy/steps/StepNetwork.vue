@@ -70,12 +70,7 @@
             @update:model-value="onSvcPartChange(2, $event)"
           />
           <span class="ip-dot">.</span>
-          <ElInput
-            :model-value="svcParts[3]"
-            class="ip-part"
-            maxlength="3"
-            disabled
-          />
+          <ElInput :model-value="svcParts[3]" class="ip-part" maxlength="3" disabled />
           <span class="ip-slash">/</span>
           <ElSelect
             :model-value="svcMask"
@@ -96,7 +91,8 @@
             class="hint-link"
             :disabled="readOnly"
             @click="applySvcHint(hint)"
-          >{{ hint }}</ElLink>
+            >{{ hint }}</ElLink
+          >
         </div>
         <div class="service-ip-warning">
           <ElIcon class="warning-icon"><WarningFilled /></ElIcon>
@@ -114,10 +110,9 @@
 
   defineOptions({ name: 'StepNetwork' })
 
-  const props = withDefaults(
-    defineProps<{ form: DeployClusterForm; readOnly?: boolean }>(),
-    { readOnly: false }
-  )
+  const props = withDefaults(defineProps<{ form: DeployClusterForm; readOnly?: boolean }>(), {
+    readOnly: false
+  })
   const emit = defineEmits<{ 'update:form': [DeployClusterForm] }>()
   const readOnly = computed(() => props.readOnly)
 
@@ -177,18 +172,10 @@
   }
 
   const rules: FormRules = {
-    networkInterface: [
-      { required: true, message: '请输入节点网口名称', trigger: 'blur' }
-    ],
-    cni: [
-      { required: true, message: '请选择容器网络插件', trigger: 'change' }
-    ],
-    podNetwork: [
-      { required: true, validator: validateCidr, trigger: 'blur' }
-    ],
-    serviceNetwork: [
-      { required: true, validator: validateCidr, trigger: 'change' }
-    ]
+    networkInterface: [{ required: true, message: '请输入节点网口名称', trigger: 'blur' }],
+    cni: [{ required: true, message: '请选择容器网络插件', trigger: 'change' }],
+    podNetwork: [{ required: true, validator: validateCidr, trigger: 'blur' }],
+    serviceNetwork: [{ required: true, validator: validateCidr, trigger: 'change' }]
   }
 
   async function validate(): Promise<boolean> {

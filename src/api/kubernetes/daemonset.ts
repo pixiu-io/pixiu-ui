@@ -51,27 +51,51 @@ export async function fetchK8sDaemonSetList(
   })
 }
 
-export async function fetchK8sDaemonSet(cluster: string, namespace: string, name: string): Promise<K8sDaemonSet> {
+export async function fetchK8sDaemonSet(
+  cluster: string,
+  namespace: string,
+  name: string
+): Promise<K8sDaemonSet> {
   const { data } = await kubeProxyAxios.get<K8sDaemonSet>(
     `${dsBase(cluster, namespace)}/${encodeURIComponent(name)}`
   )
   return data
 }
 
-export async function deleteK8sDaemonSet(cluster: string, namespace: string, name: string): Promise<void> {
-  await kubeProxyAxios.delete(`${dsBase(cluster, namespace)}/${encodeURIComponent(name)}`, { skipErrorNotification: true } as any)
+export async function deleteK8sDaemonSet(
+  cluster: string,
+  namespace: string,
+  name: string
+): Promise<void> {
+  await kubeProxyAxios.delete(`${dsBase(cluster, namespace)}/${encodeURIComponent(name)}`, {
+    skipErrorNotification: true
+  } as any)
 }
 
-export async function createK8sDaemonSet(cluster: string, namespace: string, body: object): Promise<K8sDaemonSet> {
-  const { data } = await kubeProxyAxios.post<K8sDaemonSet>(dsBase(cluster, namespace), body, { skipErrorNotification: true } as any)
+export async function createK8sDaemonSet(
+  cluster: string,
+  namespace: string,
+  body: object
+): Promise<K8sDaemonSet> {
+  const { data } = await kubeProxyAxios.post<K8sDaemonSet>(dsBase(cluster, namespace), body, {
+    skipErrorNotification: true
+  } as any)
   return data
 }
 
-export async function patchK8sDaemonSet(cluster: string, namespace: string, name: string, patch: object): Promise<K8sDaemonSet> {
+export async function patchK8sDaemonSet(
+  cluster: string,
+  namespace: string,
+  name: string,
+  patch: object
+): Promise<K8sDaemonSet> {
   const { data } = await kubeProxyAxios.patch<K8sDaemonSet>(
     `${dsBase(cluster, namespace)}/${encodeURIComponent(name)}`,
     patch,
-    { headers: { 'Content-Type': 'application/merge-patch+json' }, skipErrorNotification: true } as any
+    {
+      headers: { 'Content-Type': 'application/merge-patch+json' },
+      skipErrorNotification: true
+    } as any
   )
   return data
 }

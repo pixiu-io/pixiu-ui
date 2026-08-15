@@ -223,15 +223,19 @@
         cancelButtonText: '取消',
         type: 'error'
       }
-    ).then(async () => {
-      try {
-        await fetchDeleteAIAccount(row.id)
-        ElMessage.success('删除成功')
-        await refreshData()
-      } catch {
-        // HTTP 错误提示由统一封装处理
-      }
-    })
+    )
+      .then(async () => {
+        try {
+          await fetchDeleteAIAccount(row.id)
+          ElMessage.success('删除成功')
+          await refreshData()
+        } catch {
+          // HTTP 错误提示由统一封装处理
+        }
+      })
+      .catch(() => {
+        /* 用户取消或关闭，忽略 */
+      })
   }
 
   const handleDialogSubmit = async (data: {

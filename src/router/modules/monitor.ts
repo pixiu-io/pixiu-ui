@@ -13,6 +13,16 @@ export const monitorRoutes: AppRouteRecord = {
   },
   children: [
     {
+      path: 'dashboard',
+      name: 'MonitorDashboard',
+      component: '/safeguard/dashboard',
+      meta: {
+        title: 'menus.safeguard.dashboard',
+        icon: 'ri:dashboard-3-line',
+        menu: MenuCodes.MonitorRealtime
+      }
+    },
+    {
       path: 'realtime-query',
       name: 'MonitorRealtimeQuery',
       component: '/safeguard/realtime-query',

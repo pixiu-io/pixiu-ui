@@ -12,9 +12,6 @@ export const upgradeLogList = ref<UpgradeLog[]>([
     version: 'v2.0.1',
     title: '前端重构和体验优化',
     date: '2026-06-1',
-    detail: [
-      '优化：前端体验优化',
-      '修复：已知问题'
-    ]
-  },
+    detail: ['优化：前端体验优化', '修复：已知问题']
+  }
 ])

@@ -118,7 +118,7 @@
                       v-for="namespace in namespaceOptions"
                       :key="namespace"
                       :label="namespace"
-                      :value="namespace"
+                      :value="namespace!"
                     />
                   </ElSelect>
                 </ElFormItem>
@@ -139,7 +139,7 @@
                       v-for="service in serviceOptions"
                       :key="service.metadata?.uid || service.metadata?.name"
                       :label="service.metadata?.name"
-                      :value="service.metadata?.name"
+                      :value="service.metadata?.name!"
                     />
                   </ElSelect>
                 </ElFormItem>
@@ -157,7 +157,7 @@
                       v-for="port in servicePortOptions"
                       :key="`${port.name || 'port'}-${port.port}`"
                       :label="port.name ? `${port.name} (${port.port})` : String(port.port)"
-                      :value="port.port"
+                      :value="port.port!"
                     />
                   </ElSelect>
                 </ElFormItem>
@@ -387,6 +387,7 @@
 <script setup lang="ts">
   import { Plus } from '@element-plus/icons-vue'
   import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+  import { notifyError } from '@/utils/sys/notify'
   import { computed, reactive, ref, watch } from 'vue'
   import { kubeProxyAxios } from '@/api/kubeProxy'
   import {
@@ -422,7 +423,8 @@
 
   const logSubTypes: SubTypeOption[] = [
     { value: 'loki', label: 'Loki', icon: 'simple-icons:grafana', color: '#F46800' },
-    { value: 'es', label: 'Elasticsearch', icon: 'simple-icons:elasticsearch', color: '#005571' }
+    { value: 'es', label: 'Elasticsearch', icon: 'simple-icons:elasticsearch', color: '#005571' },
+    { value: 'nacos', label: 'Nacos', icon: 'ri:settings-3-line', color: '#3A78FF' }
   ]
   const alertSubTypes: SubTypeOption[] = [
     {
@@ -631,6 +633,7 @@
         nodeCount: 0,
         isProtected: false,
         permissionId: 0,
+        connectMode: 0,
         createTime: '-'
       })
     }
@@ -742,7 +745,7 @@
       })
       clusterServices.value = items
     } catch (error) {
-      ElMessage.error(error instanceof Error ? error.message : '获取 Service 列表失败')
+      notifyError(error, '获取 Service 列表失败')
     } finally {
       serviceListLoading.value = false
     }
@@ -980,7 +983,7 @@
       editResourceVersion.value = data.resourceVersion
     } catch (error) {
       if (!(error instanceof PixiuApiError) || !error.notified) {
-        ElMessage.error(error instanceof Error ? error.message : '获取数据失败')
+        notifyError(error, '获取数据失败')
       }
       closeDialog()
     } finally {
@@ -1004,6 +1007,7 @@
   function datasourceTestPath(): string {
     if (formData.sub_type === 'loki') return '/loki/api/v1/labels'
     if (formData.sub_type === 'es') return '/_cluster/health'
+    if (formData.sub_type === 'nacos') return '/nacos/v1/console/server/state'
     return '/-/ready'
   }
 
@@ -1035,7 +1039,7 @@
       }
       return true
     } catch (error) {
-      ElMessage.error(error instanceof Error ? error.message : '连接测试失败')
+      notifyError(error, '连接测试失败')
       return false
     }
   }
@@ -1124,7 +1128,7 @@
       closeDialog()
     } catch (error) {
       if (!(error instanceof PixiuApiError) || !error.notified) {
-        ElMessage.error(error instanceof Error ? error.message : '操作失败')
+        notifyError(error, '操作失败')
       }
     } finally {
       submitting.value = false

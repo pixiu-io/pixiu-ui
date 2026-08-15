@@ -57,6 +57,7 @@
   import { h, ref } from 'vue'
   import { useTable } from '@/hooks/core/useTable'
   import { ElAlert, ElButton, ElInput, ElLink, ElMessage, ElMessageBox, ElTag } from 'element-plus'
+  import { notifyError } from '@/utils/sys/notify'
   import {
     fetchDatasourceList,
     fetchDeleteDatasource,
@@ -77,6 +78,7 @@
     es: { icon: 'simple-icons:elasticsearch', color: '#005571' },
     prometheus: { icon: 'simple-icons:prometheus', color: '#E6522C' },
     redis: { icon: 'simple-icons:redis', color: '#DC382D' }
+    nacos: { icon: 'ri:settings-3-line', color: '#3A78FF' }
   }
 
   function getSubTypeIcon(subType: string) {
@@ -245,7 +247,7 @@
           label: '类型',
           minWidth: 80,
           formatter: (row: any) =>
-            h('span', { style: { fontSize: '12px' } }, DatasourceTypeMap[row.type]?.label || '未知')
+            h('span', { style: { fontSize: '12px' } }, DatasourceTypeMap[row.type as 0 | 1]?.label || '未知')
         },
         {
           prop: 'gmtCreate',
@@ -313,7 +315,7 @@
       refreshData()
     } catch (error) {
       if (error !== 'cancel' && (!(error instanceof PixiuApiError) || !error.notified)) {
-        ElMessage.error(error instanceof Error ? error.message : '删除失败')
+        notifyError(error, '删除失败')
       }
     }
   }
@@ -327,7 +329,6 @@
     flex-direction: column;
     overflow: hidden;
   }
-
 
   .datasource-page :deep(.art-table) {
     display: flex;

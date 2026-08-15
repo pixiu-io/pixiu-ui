@@ -18,10 +18,14 @@
           <span class="dd-cluster-value">{{ clusterDisplayName }}</span>
         </div>
         <div class="dd-hd-actions">
-          <ElButton v-ripple :disabled="pod?.status?.phase !== 'Running'" @click="openLogin">登录</ElButton>
+          <ElButton v-ripple :disabled="pod?.status?.phase !== 'Running'" @click="openLogin"
+            >登录</ElButton
+          >
           <ElButton v-ripple @click="openYamlEditor">YAML</ElButton>
           <ArtButtonMore
-            :list="[{ key: 'delete', label: '删除', icon: 'ri:delete-bin-4-line', color: '#409eff' }]"
+            :list="[
+              { key: 'delete', label: '删除', icon: 'ri:delete-bin-4-line', color: '#409eff' }
+            ]"
             @click="onMoreClick"
           />
         </div>
@@ -43,7 +47,14 @@
             <span class="dd-k">命名空间</span>
             <span class="dd-v">
               {{ namespace }}
-              <el-tag v-if="isSystemNamespace" size="small" type="info" effect="light" style="margin-left:6px">系统</el-tag>
+              <el-tag
+                v-if="isSystemNamespace"
+                size="small"
+                type="info"
+                effect="light"
+                style="margin-left: 6px"
+                >系统</el-tag
+              >
             </span>
           </div>
           <div class="dd-info-cell">
@@ -77,14 +88,16 @@
                   type="primary"
                   effect="plain"
                   class="mono-tag"
-                >{{ item.key }}:{{ item.value }}</el-tag>
+                  >{{ item.key }}:{{ item.value }}</el-tag
+                >
                 <el-button
                   v-if="hasMoreAnnotations"
                   link
                   type="primary"
                   class="dd-more-btn"
                   @click="showAllAnnotations = !showAllAnnotations"
-                >{{ showAllAnnotations ? '收起' : '更多' }}</el-button>
+                  >{{ showAllAnnotations ? '收起' : '更多' }}</el-button
+                >
               </template>
               <span v-else class="dd-empty">-</span>
             </div>
@@ -100,14 +113,16 @@
                   type="primary"
                   effect="plain"
                   class="mono-tag"
-                >{{ item.key }}:{{ item.value }}</el-tag>
+                  >{{ item.key }}:{{ item.value }}</el-tag
+                >
                 <el-button
                   v-if="hasMoreLabels"
                   link
                   type="primary"
                   class="dd-more-btn"
                   @click="showAllLabels = !showAllLabels"
-                >{{ showAllLabels ? '收起' : '更多' }}</el-button>
+                  >{{ showAllLabels ? '收起' : '更多' }}</el-button
+                >
               </template>
               <span v-else class="dd-empty">-</span>
             </div>
@@ -118,128 +133,136 @@
 
     <!-- Tabs card（间距与 Deployment 详情 workloads 区一致） -->
     <div v-if="pod && !loading" class="dd-workloads-copy">
-    <ElCard class="dd-card dd-card--tabs">
-      <el-tabs v-model="activeTab" class="dd-tabs">
-
-        <!-- 容器管理 -->
-        <el-tab-pane label="容器管理" name="containers">
-          <div class="ct-grid">
-            <div v-for="container in containers" :key="container.name" class="ct-card">
-            <div class="ct-card__head">
-              <span class="ct-name">{{ container.name }}</span>
-              <el-tag size="small" type="info" effect="plain">容器</el-tag>
-            </div>
-            <div class="ct-body">
-              <div class="ct-row">
-                <span class="ct-k">镜像</span>
-                <span class="ct-v mono">{{ container.image }}</span>
+      <ElCard class="dd-card dd-card--tabs">
+        <el-tabs v-model="activeTab" class="dd-tabs">
+          <!-- 容器管理 -->
+          <el-tab-pane label="容器管理" name="containers">
+            <div class="ct-grid">
+              <div v-for="container in containers" :key="container.name" class="ct-card">
+                <div class="ct-card__head">
+                  <span class="ct-name">{{ container.name }}</span>
+                  <el-tag size="small" type="info" effect="plain">容器</el-tag>
+                </div>
+                <div class="ct-body">
+                  <div class="ct-row">
+                    <span class="ct-k">镜像</span>
+                    <span class="ct-v mono">{{ container.image }}</span>
+                  </div>
+                  <template v-if="container.resources">
+                    <div class="ct-divider" />
+                    <div class="ct-row ct-row--top">
+                      <span class="ct-k">资源配额</span>
+                      <div class="ct-v">
+                        <el-table
+                          :data="containerResources(container)"
+                          size="small"
+                          class="res-table"
+                        >
+                          <el-table-column prop="type" width="80" />
+                          <el-table-column label="CPU" prop="cpu" />
+                          <el-table-column label="内存" prop="memory" />
+                        </el-table>
+                      </div>
+                    </div>
+                  </template>
+                  <template v-if="container.env?.length">
+                    <div class="ct-divider" />
+                    <div class="ct-row ct-row--top">
+                      <span class="ct-k">环境变量</span>
+                      <div class="ct-v">
+                        <div v-for="e in container.env" :key="e.name" class="env-row">
+                          <span class="env-k">{{ e.name }}</span>
+                          <span class="env-eq">=</span>
+                          <span class="mono env-v">{{
+                            e.value ?? (e.valueFrom ? '[来自引用]' : '')
+                          }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </template>
+                  <template v-if="container.volumeMounts?.length">
+                    <div class="ct-divider" />
+                    <div class="ct-row ct-row--top">
+                      <span class="ct-k">挂载卷</span>
+                      <div class="ct-v">
+                        <div v-for="m in container.volumeMounts" :key="m.name" class="mount-row">
+                          <span class="mono mount-name">{{ m.name }}</span>
+                          <span class="mount-arrow">→</span>
+                          <span class="mount-path">{{ m.mountPath }}</span>
+                          <el-tag v-if="m.readOnly" size="small" type="info">只读</el-tag>
+                        </div>
+                      </div>
+                    </div>
+                  </template>
+                  <template v-if="container.livenessProbe || container.readinessProbe">
+                    <div class="ct-divider" />
+                    <div class="ct-row ct-row--top">
+                      <span class="ct-k">健康检查</span>
+                      <div class="ct-v">
+                        <div v-if="container.livenessProbe" class="probe-row">
+                          <el-tag size="small" type="success">存活探针</el-tag>
+                          <span class="mono probe-desc">{{
+                            probeDesc(container.livenessProbe)
+                          }}</span>
+                        </div>
+                        <div v-if="container.readinessProbe" class="probe-row">
+                          <el-tag size="small" type="warning">就绪探针</el-tag>
+                          <span class="mono probe-desc">{{
+                            probeDesc(container.readinessProbe)
+                          }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </template>
+                </div>
               </div>
-              <template v-if="container.resources">
-                <div class="ct-divider" />
-                <div class="ct-row ct-row--top">
-                  <span class="ct-k">资源配额</span>
-                  <div class="ct-v">
-                    <el-table :data="containerResources(container)" size="small" class="res-table">
-                      <el-table-column prop="type" width="80" />
-                      <el-table-column label="CPU" prop="cpu" />
-                      <el-table-column label="内存" prop="memory" />
-                    </el-table>
-                  </div>
-                </div>
-              </template>
-              <template v-if="container.env?.length">
-                <div class="ct-divider" />
-                <div class="ct-row ct-row--top">
-                  <span class="ct-k">环境变量</span>
-                  <div class="ct-v">
-                    <div v-for="e in container.env" :key="e.name" class="env-row">
-                      <span class="env-k">{{ e.name }}</span>
-                      <span class="env-eq">=</span>
-                      <span class="mono env-v">{{ e.value ?? (e.valueFrom ? '[来自引用]' : '') }}</span>
-                    </div>
-                  </div>
-                </div>
-              </template>
-              <template v-if="container.volumeMounts?.length">
-                <div class="ct-divider" />
-                <div class="ct-row ct-row--top">
-                  <span class="ct-k">挂载卷</span>
-                  <div class="ct-v">
-                    <div v-for="m in container.volumeMounts" :key="m.name" class="mount-row">
-                      <span class="mono mount-name">{{ m.name }}</span>
-                      <span class="mount-arrow">→</span>
-                      <span class="mount-path">{{ m.mountPath }}</span>
-                      <el-tag v-if="m.readOnly" size="small" type="info">只读</el-tag>
-                    </div>
-                  </div>
-                </div>
-              </template>
-              <template v-if="container.livenessProbe || container.readinessProbe">
-                <div class="ct-divider" />
-                <div class="ct-row ct-row--top">
-                  <span class="ct-k">健康检查</span>
-                  <div class="ct-v">
-                    <div v-if="container.livenessProbe" class="probe-row">
-                      <el-tag size="small" type="success">存活探针</el-tag>
-                      <span class="mono probe-desc">{{ probeDesc(container.livenessProbe) }}</span>
-                    </div>
-                    <div v-if="container.readinessProbe" class="probe-row">
-                      <el-tag size="small" type="warning">就绪探针</el-tag>
-                      <span class="mono probe-desc">{{ probeDesc(container.readinessProbe) }}</span>
-                    </div>
-                  </div>
-                </div>
-              </template>
             </div>
-          </div>
-          </div>
-          <div v-if="!containers.length" class="dd-empty-tip">暂无容器信息</div>
-        </el-tab-pane>
+            <div v-if="!containers.length" class="dd-empty-tip">暂无容器信息</div>
+          </el-tab-pane>
 
-        <!-- 事件 -->
-        <el-tab-pane label="事件" name="events">
-          <K8sResourceEventsPane
-            :cluster="cluster"
-            :namespace="namespace"
-            :resource-name="podName"
-            kind="Pod"
-            :active="activeTab === 'events'"
-          />
-        </el-tab-pane>
+          <!-- 事件 -->
+          <el-tab-pane label="事件" name="events">
+            <K8sResourceEventsPane
+              :cluster="cluster"
+              :namespace="namespace"
+              :resource-name="podName"
+              kind="Pod"
+              :active="activeTab === 'events'"
+            />
+          </el-tab-pane>
 
-        <!-- 监控指标 -->
-        <el-tab-pane label="监控指标" name="workloadMetrics">
-          <WorkloadMetricsPane
-            :cluster="cluster"
-            :namespace="namespace"
-            :pod-names="metricsPodNames"
-            :active="activeTab === 'workloadMetrics'"
-          />
-        </el-tab-pane>
+          <!-- 监控指标 -->
+          <el-tab-pane label="监控指标" name="workloadMetrics">
+            <WorkloadMetricsPane
+              :cluster="cluster"
+              :namespace="namespace"
+              :pod-names="metricsPodNames"
+              :active="activeTab === 'workloadMetrics'"
+            />
+          </el-tab-pane>
 
-        <!-- 日志 -->
-        <el-tab-pane label="日志" name="logs">
-          <K8sPodLogsPane
-            :cluster="cluster"
-            :namespace="namespace"
-            :pod-name="podName"
-            :active="activeTab === 'logs'"
-          />
-        </el-tab-pane>
+          <!-- 日志 -->
+          <el-tab-pane label="日志" name="logs">
+            <K8sPodLogsPane
+              :cluster="cluster"
+              :namespace="namespace"
+              :pod-name="podName"
+              :active="activeTab === 'logs'"
+            />
+          </el-tab-pane>
 
-        <!-- 文件浏览 -->
-        <el-tab-pane label="文件浏览" name="files">
-          <K8sPodFilesPane
-            :cluster="cluster"
-            :namespace="namespace"
-            :pod-name="podName"
-            :phase="pod?.status?.phase || ''"
-            :active="activeTab === 'files'"
-          />
-        </el-tab-pane>
-
-      </el-tabs>
-    </ElCard>
+          <!-- 文件浏览 -->
+          <el-tab-pane label="文件浏览" name="files">
+            <K8sPodFilesPane
+              :cluster="cluster"
+              :namespace="namespace"
+              :pod-name="podName"
+              :phase="pod?.status?.phase || ''"
+              :active="activeTab === 'files'"
+            />
+          </el-tab-pane>
+        </el-tabs>
+      </ElCard>
     </div>
 
     <K8sYamlDialog
@@ -263,7 +286,9 @@
   import { ElMessage, ElMessageBox } from 'element-plus'
   import { computed, inject, onMounted, ref, watch } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
-  import ArtButtonMore, { type ButtonMoreItem } from '@/components/core/forms/art-button-more/index.vue'
+  import ArtButtonMore, {
+    type ButtonMoreItem
+  } from '@/components/core/forms/art-button-more/index.vue'
   import PodRemoteWebshell from '../components/pod-remote-webshell.vue'
   import K8sPodLogsPane from '../components/k8s-pod-logs-pane.vue'
   import K8sPodFilesPane from '../components/k8s-pod-files-pane.vue'
@@ -276,6 +301,7 @@
   import { formatPodDisplayStatus, podStatusTagType } from '@/utils/kubernetes/podDisplay'
   import { updateK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
   import YAML from 'js-yaml'
+  import { notifyError } from '@/utils/sys/notify'
 
   defineOptions({ name: 'PodDetail' })
 
@@ -286,10 +312,11 @@
   const namespace = computed(() => String(route.query.namespace ?? ''))
   const podName = computed(() => String(route.query.pod ?? ''))
   const metricsPodNames = computed(() => (podName.value ? [podName.value] : []))
-  const isSystemNamespace = computed(() => namespace.value === 'default' || namespace.value.startsWith('kube-'))
+  const isSystemNamespace = computed(
+    () => namespace.value === 'default' || namespace.value.startsWith('kube-')
+  )
 
   const clusterCtx = inject(clusterDetailContextKey, undefined)
-  const clusterAlias = computed(() => clusterCtx?.value?.aliasName || cluster.value)
   const clusterDisplayName = computed(() => {
     const name = cluster.value
     const alias = clusterCtx?.value?.aliasName
@@ -312,7 +339,9 @@
   const phaseTagType = computed(() => podStatusTagType(podDisplayStatus.value))
 
   const containers = computed<any[]>(() => pod.value?.spec?.containers ?? [])
-  const containerNames = computed<string[]>(() => containers.value.map((c: any) => c.name).filter(Boolean))
+  const containerNames = computed<string[]>(() =>
+    containers.value.map((c: any) => c.name).filter(Boolean)
+  )
 
   const readyCount = computed(() => {
     const statuses: any[] = pod.value?.status?.containerStatuses ?? []
@@ -327,25 +356,41 @@
   const showAllLabels = ref(false)
   const showAllAnnotations = ref(false)
   const labelEntries = computed(() =>
-    Object.entries((pod.value?.metadata?.labels ?? {}) as Record<string, string>).map(([key, value]) => ({ key, value }))
+    Object.entries((pod.value?.metadata?.labels ?? {}) as Record<string, string>).map(
+      ([key, value]) => ({ key, value })
+    )
   )
   const annotationEntries = computed(() =>
-    Object.entries((pod.value?.metadata?.annotations ?? {}) as Record<string, string>).map(([key, value]) => ({ key, value }))
+    Object.entries((pod.value?.metadata?.annotations ?? {}) as Record<string, string>).map(
+      ([key, value]) => ({ key, value })
+    )
   )
   const hasMoreLabels = computed(() => labelEntries.value.length > 3)
   const hasMoreAnnotations = computed(() => annotationEntries.value.length > 3)
   const visibleLabelEntries = computed(() =>
-    showAllLabels.value || !hasMoreLabels.value ? labelEntries.value : labelEntries.value.slice(0, 2)
+    showAllLabels.value || !hasMoreLabels.value
+      ? labelEntries.value
+      : labelEntries.value.slice(0, 2)
   )
   const visibleAnnotationEntries = computed(() =>
-    showAllAnnotations.value || !hasMoreAnnotations.value ? annotationEntries.value : annotationEntries.value.slice(0, 2)
+    showAllAnnotations.value || !hasMoreAnnotations.value
+      ? annotationEntries.value
+      : annotationEntries.value.slice(0, 2)
   )
 
   // ── Container helpers ──
   function containerResources(c: any) {
     return [
-      { type: 'Request', cpu: c.resources?.requests?.cpu || '无限制', memory: c.resources?.requests?.memory || '无限制' },
-      { type: 'Limit', cpu: c.resources?.limits?.cpu || '无限制', memory: c.resources?.limits?.memory || '无限制' }
+      {
+        type: 'Request',
+        cpu: c.resources?.requests?.cpu || '无限制',
+        memory: c.resources?.requests?.memory || '无限制'
+      },
+      {
+        type: 'Limit',
+        cpu: c.resources?.limits?.cpu || '无限制',
+        memory: c.resources?.limits?.memory || '无限制'
+      }
     ]
   }
 
@@ -391,7 +436,7 @@
       yamlVisible.value = false
       pod.value = await fetchK8sPod(cluster.value, namespace.value, podName.value)
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '保存失败')
+      notifyError(e, '保存失败')
     } finally {
       yamlSaving.value = false
     }
@@ -401,7 +446,10 @@
   const podWebshellRef = ref<InstanceType<typeof PodRemoteWebshell> | null>(null)
   function openLogin() {
     const names = containerNames.value
-    if (!names.length) { ElMessage.warning('容器信息不完整'); return }
+    if (!names.length) {
+      ElMessage.warning('容器信息不完整')
+      return
+    }
     void podWebshellRef.value?.open({
       cluster: cluster.value,
       namespace: namespace.value,
@@ -771,9 +819,17 @@
     font-size: 12px;
     padding: 2px 0;
   }
-  .env-k { color: var(--el-color-primary); min-width: 140px; }
-  .env-eq { color: var(--el-text-color-placeholder); }
-  .env-v { color: var(--el-text-color-primary); word-break: break-all; }
+  .env-k {
+    color: var(--el-color-primary);
+    min-width: 140px;
+  }
+  .env-eq {
+    color: var(--el-text-color-placeholder);
+  }
+  .env-v {
+    color: var(--el-text-color-primary);
+    word-break: break-all;
+  }
   .mount-row {
     display: flex;
     align-items: center;
@@ -781,9 +837,16 @@
     font-size: 13px;
     padding: 2px 0;
   }
-  .mount-name { color: var(--el-color-primary); }
-  .mount-arrow { color: var(--el-text-color-placeholder); font-size: 12px; }
-  .mount-path { color: var(--el-text-color-secondary); }
+  .mount-name {
+    color: var(--el-color-primary);
+  }
+  .mount-arrow {
+    color: var(--el-text-color-placeholder);
+    font-size: 12px;
+  }
+  .mount-path {
+    color: var(--el-text-color-secondary);
+  }
   .probe-row {
     display: flex;
     align-items: center;
@@ -791,7 +854,9 @@
     font-size: 13px;
     padding: 2px 0;
   }
-  .probe-desc { color: var(--el-text-color-regular); }
+  .probe-desc {
+    color: var(--el-text-color-regular);
+  }
 
   /* ── Misc ── */
   .mono {

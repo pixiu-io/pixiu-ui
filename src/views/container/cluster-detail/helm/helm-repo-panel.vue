@@ -57,10 +57,20 @@
               <p>{{ selectedRepo.url }}</p>
             </div>
             <div class="helm-repo-main__actions">
-              <ElButton type="primary" link class="helm-repo-main__action" @click="emit('edit', selectedRepo)">
+              <ElButton
+                type="primary"
+                link
+                class="helm-repo-main__action"
+                @click="emit('edit', selectedRepo)"
+              >
                 编辑
               </ElButton>
-              <ElButton type="danger" link class="helm-repo-main__action" @click="emit('delete', selectedRepo)">
+              <ElButton
+                type="danger"
+                link
+                class="helm-repo-main__action"
+                @click="emit('delete', selectedRepo)"
+              >
                 删除
               </ElButton>
             </div>
@@ -94,7 +104,12 @@
             description="当前版本支持仓库管理与 Release 部署。后续可在此区域扩展 Chart 浏览与可视化 Values 表单"
           />
         </template>
-        <ElEmpty v-else description="请选择左侧仓库查看详情" :image-size="60" class="helm-repo-empty helm-repo-empty--main" />
+        <ElEmpty
+          v-else
+          description="请选择左侧仓库查看详情"
+          :image-size="60"
+          class="helm-repo-empty helm-repo-empty--main"
+        />
       </main>
     </div>
   </section>
@@ -107,7 +122,6 @@
 
   defineProps<{
     loading: boolean
-    search: string
     repos: HelmRepository[]
     selectedRepo: HelmRepository | null
   }>()

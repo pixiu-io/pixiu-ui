@@ -259,6 +259,7 @@
 <script setup lang="ts">
   import type { FormInstance, FormRules } from 'element-plus'
   import { ElMessage } from 'element-plus'
+  import { notifyError } from '@/utils/sys/notify'
   import { ArrowLeft, Close, Refresh } from '@element-plus/icons-vue'
   import { computed, onMounted, ref } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
@@ -340,15 +341,11 @@
   })
 
   function isTlsSecretUsed(secret: string, currentIdx: number) {
-    return form.value.tlsEntries.some(
-      (t, i) => i !== currentIdx && t.secretName.trim() === secret
-    )
+    return form.value.tlsEntries.some((t, i) => i !== currentIdx && t.secretName.trim() === secret)
   }
 
   function isTlsHostUsed(host: string, currentIdx: number) {
-    return form.value.tlsEntries.some(
-      (t, i) => i !== currentIdx && t.hosts.trim() === host
-    )
+    return form.value.tlsEntries.some((t, i) => i !== currentIdx && t.hosts.trim() === host)
   }
 
   function clearTlsError(idx: number, field: keyof TlsError) {
@@ -650,7 +647,7 @@
       }
       goBack()
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : isEdit.value ? '更新失败' : '创建失败')
+      notifyError(e, isEdit.value ? '更新失败' : '创建失败')
     } finally {
       submitting.value = false
     }
@@ -738,7 +735,7 @@
       await loadServices(form.value.namespace)
       await loadTlsSecrets()
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '加载 Ingress 失败')
+      notifyError(e, '加载 Ingress 失败')
     }
   }
 

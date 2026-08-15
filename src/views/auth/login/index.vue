@@ -15,7 +15,7 @@
             :model="formData"
             :rules="rules"
             :key="formKey"
-            @keyup.enter="handleSubmit"
+            @submit.prevent="handleSubmit"
             style="margin-top: 25px"
           >
             <ElFormItem prop="username">
@@ -49,6 +49,7 @@
               <ElButton
                 class="w-full custom-height"
                 type="primary"
+                native-type="button"
                 @click="handleSubmit"
                 :loading="loading"
                 v-ripple
@@ -79,6 +80,7 @@
   import { resetRouteInitState } from '@/router/guards/beforeEach'
   import { resolveLoginRedirect } from '@/utils/navigation/login-redirect'
   import { ElNotification, ElMessage, type FormInstance, type FormRules } from 'element-plus'
+  import { notifyError } from '@/utils/sys/notify'
 
   defineOptions({ name: 'Login' })
 
@@ -120,7 +122,7 @@
 
   // 登录
   const handleSubmit = async () => {
-    if (!formRef.value) return
+    if (!formRef.value || loading.value) return
 
     clearLoginSuccessNotice()
 
@@ -188,7 +190,7 @@
         userStore.setToken('')
       }
       if (error instanceof HttpError) {
-        ElMessage.error(error.message || '登录失败，请稍后重试')
+        notifyError(error, '登录失败，请稍后重试')
       } else {
         ElMessage.error('登录失败，请稍后重试')
         console.error('[Login] Unexpected error:', error)

@@ -99,9 +99,7 @@ export const usePermissionStore = defineStore('permissionStore', () => {
 
   /** 某资源类型下被授权访问的 resource_id 集合 */
   function authorizedResourceIds(resourceType: string): number[] {
-    return scopes.value
-      .filter((s) => s.resource_type === resourceType)
-      .map((s) => s.resource_id)
+    return scopes.value.filter((s) => s.resource_type === resourceType).map((s) => s.resource_id)
   }
 
   return {

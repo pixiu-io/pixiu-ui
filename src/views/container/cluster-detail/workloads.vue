@@ -1,61 +1,163 @@
 <template>
   <div class="workloads-page">
     <div v-if="kind === 'deploy'" class="cluster-toolbar">
-      <ElButton v-if="deployDataMode === 'deployment'" v-ripple @click="goCreateDeployment">新建 Deployment</ElButton>
+      <ElButton v-if="deployDataMode === 'deployment'" v-ripple @click="goCreateDeployment"
+        >新建 Deployment</ElButton
+      >
       <div class="cluster-toolbar__right">
-        <ElInput v-model="deplSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runDeplSearch" @clear="runDeplSearch" />
-        <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceDeplSearch" @keyup.enter="forceDeplSearch">
+        <ElInput
+          v-model="deplSearchForm.name"
+          clearable
+          placeholder="请输入名称"
+          class="cluster-toolbar__search"
+          @keyup.enter="runDeplSearch"
+          @clear="runDeplSearch"
+        />
+        <div
+          class="cluster-toolbar-search-btn"
+          role="button"
+          tabindex="0"
+          title="搜索"
+          @click="forceDeplSearch"
+          @keyup.enter="forceDeplSearch"
+        >
           <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
         </div>
-        <ArtTableHeader v-model:columns="deplColumnChecks" :loading="deplLoading" layout="size,columns,settings" @refresh="onDeplRefresh" />
+        <ArtTableHeader
+          v-model:columns="deplColumnChecks"
+          :loading="deplLoading"
+          layout="size,columns,settings"
+          @refresh="onDeplRefresh"
+        />
       </div>
     </div>
     <div v-else-if="kind === 'sts'" class="cluster-toolbar">
-      <ElButton v-if="stsDataMode === 'statefulset'" v-ripple @click="goCreateSts">新建 StatefulSet</ElButton>
+      <ElButton v-if="stsDataMode === 'statefulset'" v-ripple @click="goCreateSts"
+        >新建 StatefulSet</ElButton
+      >
       <div class="cluster-toolbar__right">
-        <ElInput v-model="stsSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runStsSearch" @clear="runStsSearch" />
-        <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceStsSearch" @keyup.enter="forceStsSearch">
+        <ElInput
+          v-model="stsSearchForm.name"
+          clearable
+          placeholder="请输入名称"
+          class="cluster-toolbar__search"
+          @keyup.enter="runStsSearch"
+          @clear="runStsSearch"
+        />
+        <div
+          class="cluster-toolbar-search-btn"
+          role="button"
+          tabindex="0"
+          title="搜索"
+          @click="forceStsSearch"
+          @keyup.enter="forceStsSearch"
+        >
           <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
         </div>
-        <ArtTableHeader v-model:columns="stsColumnChecks" :loading="stsLoading" layout="size,columns,settings" @refresh="onStsRefresh" />
+        <ArtTableHeader
+          v-model:columns="stsColumnChecks"
+          :loading="stsLoading"
+          layout="size,columns,settings"
+          @refresh="onStsRefresh"
+        />
       </div>
     </div>
     <div v-else-if="kind === 'ds'" class="cluster-toolbar">
-      <ElButton v-if="dsDataMode === 'daemonset'" v-ripple @click="goCreateDs">新建 DaemonSet</ElButton>
+      <ElButton v-if="dsDataMode === 'daemonset'" v-ripple @click="goCreateDs"
+        >新建 DaemonSet</ElButton
+      >
       <div class="cluster-toolbar__right">
-        <ElInput v-model="dsSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runDsSearch" @clear="runDsSearch" />
-        <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceDsSearch" @keyup.enter="forceDsSearch">
+        <ElInput
+          v-model="dsSearchForm.name"
+          clearable
+          placeholder="请输入名称"
+          class="cluster-toolbar__search"
+          @keyup.enter="runDsSearch"
+          @clear="runDsSearch"
+        />
+        <div
+          class="cluster-toolbar-search-btn"
+          role="button"
+          tabindex="0"
+          title="搜索"
+          @click="forceDsSearch"
+          @keyup.enter="forceDsSearch"
+        >
           <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
         </div>
-        <ArtTableHeader v-model:columns="dsColumnChecks" :loading="dsLoading" layout="size,columns,settings" @refresh="onDsRefresh" />
+        <ArtTableHeader
+          v-model:columns="dsColumnChecks"
+          :loading="dsLoading"
+          layout="size,columns,settings"
+          @refresh="onDsRefresh"
+        />
       </div>
     </div>
     <div v-else-if="kind === 'cj'" class="cluster-toolbar">
-      <ElButton v-if="cjDataMode === 'cronjob'" v-ripple @click="goCreateCronJob">新建 CronJob</ElButton>
+      <ElButton v-if="cjDataMode === 'cronjob'" v-ripple @click="goCreateCronJob"
+        >新建 CronJob</ElButton
+      >
       <div class="cluster-toolbar__right">
-        <ElInput v-model="cjSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runCjSearch" @clear="runCjSearch" />
-        <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceCjSearch" @keyup.enter="forceCjSearch">
+        <ElInput
+          v-model="cjSearchForm.name"
+          clearable
+          placeholder="请输入名称"
+          class="cluster-toolbar__search"
+          @keyup.enter="runCjSearch"
+          @clear="runCjSearch"
+        />
+        <div
+          class="cluster-toolbar-search-btn"
+          role="button"
+          tabindex="0"
+          title="搜索"
+          @click="forceCjSearch"
+          @keyup.enter="forceCjSearch"
+        >
           <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
         </div>
-        <ArtTableHeader v-model:columns="cjColumnChecks" :loading="cjLoading" layout="size,columns,settings" @refresh="onCjRefresh" />
+        <ArtTableHeader
+          v-model:columns="cjColumnChecks"
+          :loading="cjLoading"
+          layout="size,columns,settings"
+          @refresh="onCjRefresh"
+        />
       </div>
     </div>
     <div v-else-if="kind === 'job'" class="cluster-toolbar">
       <ElButton v-if="jobDataMode === 'job'" v-ripple @click="goCreateJob">新建 Job</ElButton>
       <div class="cluster-toolbar__right">
-        <ElInput v-model="jobSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runJobSearch" @clear="runJobSearch" />
-        <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceJobSearch" @keyup.enter="forceJobSearch">
+        <ElInput
+          v-model="jobSearchForm.name"
+          clearable
+          placeholder="请输入名称"
+          class="cluster-toolbar__search"
+          @keyup.enter="runJobSearch"
+          @clear="runJobSearch"
+        />
+        <div
+          class="cluster-toolbar-search-btn"
+          role="button"
+          tabindex="0"
+          title="搜索"
+          @click="forceJobSearch"
+          @keyup.enter="forceJobSearch"
+        >
           <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
         </div>
-        <ArtTableHeader v-model:columns="jobColumnChecks" :loading="jobLoading" layout="size,columns,settings" @refresh="onJobRefresh" />
+        <ArtTableHeader
+          v-model:columns="jobColumnChecks"
+          :loading="jobLoading"
+          layout="size,columns,settings"
+          @refresh="onJobRefresh"
+        />
       </div>
     </div>
 
-<ElCard class="art-table-card">
+    <ElCard class="art-table-card">
       <ElTabs v-model="kind" class="workloads-tabs">
         <!-- ── Deployment Tab ── -->
         <ElTabPane :label="deployTabLabel" name="deploy">
-
           <ArtTable
             :show-table-header="false"
             row-key="rowKey"
@@ -68,10 +170,10 @@
             @pagination:size-change="deplHandleSizeChange"
             @pagination:current-change="deplHandleCurrentChange"
             @sort-change="onDeplSortChange"
->
-        <template #empty>
-          <ClusterTableEmpty />
-        </template>
+          >
+            <template #empty>
+              <ClusterTableEmpty />
+            </template>
           </ArtTable>
         </ElTabPane>
 
@@ -88,10 +190,10 @@
             @pagination:size-change="stsHandleSizeChange"
             @pagination:current-change="stsHandleCurrentChange"
             @sort-change="onStsSortChange"
->
-        <template #empty>
-          <ClusterTableEmpty />
-        </template>
+          >
+            <template #empty>
+              <ClusterTableEmpty />
+            </template>
           </ArtTable>
         </ElTabPane>
 
@@ -112,10 +214,10 @@
             @pagination:size-change="dsHandleSizeChange"
             @pagination:current-change="dsHandleCurrentChange"
             @sort-change="onDsSortChange"
->
-        <template #empty>
-          <ClusterTableEmpty />
-        </template>
+          >
+            <template #empty>
+              <ClusterTableEmpty />
+            </template>
           </ArtTable>
         </ElTabPane>
 
@@ -133,10 +235,10 @@
             @pagination:size-change="jobHandleSizeChange"
             @pagination:current-change="jobHandleCurrentChange"
             @sort-change="onJobSortChange"
->
-        <template #empty>
-          <ClusterTableEmpty />
-        </template>
+          >
+            <template #empty>
+              <ClusterTableEmpty />
+            </template>
           </ArtTable>
         </ElTabPane>
 
@@ -153,10 +255,10 @@
             @pagination:size-change="cjHandleSizeChange"
             @pagination:current-change="cjHandleCurrentChange"
             @sort-change="onCjSortChange"
->
-        <template #empty>
-          <ClusterTableEmpty />
-        </template>
+          >
+            <template #empty>
+              <ClusterTableEmpty />
+            </template>
           </ArtTable>
         </ElTabPane>
 
@@ -217,11 +319,7 @@
           />
         </ElTabPane>
 
-        <ElTabPane
-          v-if="props.showWorkloadMetricsTab"
-          label="监控"
-          name="workloadMetrics"
-        >
+        <ElTabPane v-if="props.showWorkloadMetricsTab" label="监控" name="workloadMetrics">
           <WorkloadMetricsPane
             :cluster="String(route.query.cluster ?? '')"
             :namespace="props.metricsNamespace || props.deployNamespace || ''"
@@ -394,7 +492,6 @@
       @updated="onImageDialogUpdated"
     />
   </div>
-
 </template>
 
 <script setup lang="ts">
@@ -494,6 +591,7 @@
   import { formatPodDisplayStatus, podStatusTagType } from '@/utils/kubernetes/podDisplay'
   import { createK8sEventMessageColumn } from '@/utils/kubernetes/eventDisplay'
   import K8sYamlDialog from '@/components/kubernetes/k8s-yaml-dialog.vue'
+  import { notifyError, isErrorNotified } from '@/utils/sys/notify'
 
   defineOptions({ name: 'ClusterDetailWorkloads' })
   const props = withDefaults(
@@ -656,7 +754,6 @@
   const deplSearchForm = ref<{ name?: string }>({})
   const deplSelectedRows = ref<Array<(K8sDeployment | K8sPod) & { rowKey: string }>>([])
   const deplSortOrder = ref<'ascending' | 'descending' | null>(null)
-  const deplBatchDeleting = ref(false)
   const isDeployPodMode = computed(() => props.deployDataMode === 'pod')
 
   // ── StatefulSet tab state ──
@@ -784,28 +881,6 @@
             '系统'
           )
         : null
-    ])
-  }
-
-  // 通用名称列（name + copy icon）
-  function renderNameCell(name: string) {
-    return h('div', { style: 'display:flex;align-items:center;gap:8px' }, [
-      h('span', { style: 'font-size:12px;color:var(--el-text-color-primary)' }, name),
-      h(
-        'span',
-        {
-          class: 'icon-action',
-          style:
-            'cursor:pointer;color:var(--el-text-color-secondary);display:inline-flex;align-items:center',
-          title: '复制',
-          onClick: (e: MouseEvent) => {
-            e.stopPropagation()
-            navigator.clipboard.writeText(name)
-            ElMessage.success('已复制')
-          }
-        },
-        [h(CopyDocument, { style: 'width:12px;height:12px' })]
-      )
     ])
   }
 
@@ -1078,7 +1153,12 @@
         }
         return {
           code: 200,
-          data: { records: list, total: filtered.length, current: params.current, size: params.size }
+          data: {
+            records: list,
+            total: filtered.length,
+            current: params.current,
+            size: params.size
+          }
         }
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
@@ -1320,11 +1400,6 @@
     stsColumns.value.filter((c: any) => !(globalNamespace.value && c.prop === 'metadata.namespace'))
   )
 
-  function onStsNsChange() {
-    const ns = globalNamespace.value || undefined
-    replaceStsSearchParams({ namespace: ns })
-    getStsData()
-  }
   function runStsSearch() {
     const name = (stsSearchForm.value.name ?? '').trim() || undefined
     const ns = globalNamespace.value || undefined
@@ -1429,7 +1504,12 @@
         }
         return {
           code: 200,
-          data: { records: list, total: filtered.length, current: params.current, size: params.size }
+          data: {
+            records: list,
+            total: filtered.length,
+            current: params.current,
+            size: params.size
+          }
         }
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
@@ -1630,7 +1710,11 @@
                           underline: 'never',
                           style: 'font-size:12px',
                           onClick: () =>
-                            void openSharedYamlDialog('ds', row.metadata?.namespace ?? '', row.metadata?.name ?? '')
+                            void openSharedYamlDialog(
+                              'ds',
+                              row.metadata?.namespace ?? '',
+                              row.metadata?.name ?? ''
+                            )
                         },
                         () => '编辑YAML'
                       ),
@@ -1657,11 +1741,6 @@
     dsColumns.value.filter((c: any) => !(globalNamespace.value && c.prop === 'metadata.namespace'))
   )
 
-  function onDsNsChange() {
-    const ns = globalNamespace.value || undefined
-    replaceDsSearchParams({ namespace: ns })
-    getDsData()
-  }
   function runDsSearch() {
     const name = (dsSearchForm.value.name ?? '').trim() || undefined
     const ns = globalNamespace.value || undefined
@@ -1855,7 +1934,7 @@
         } else if (typeof e === 'string') {
           errorMessage = e
         }
-        ElMessage.error(errorMessage)
+        if (!isErrorNotified(e)) ElMessage.error(errorMessage)
       }
     } finally {
       if (!silent) dsLogLoading.value = false
@@ -1884,13 +1963,7 @@
   })
 
   watch(
-    () =>
-      [
-        dsLogPod.value,
-        dsLogContainer.value,
-        dsLogTailLines.value,
-        dsLogMode.value
-      ] as const,
+    () => [dsLogPod.value, dsLogContainer.value, dsLogTailLines.value, dsLogMode.value] as const,
     () => {
       if (dsLogAutoRefresh.value && dsLogMode.value === 'realtime') {
         connectDsLogStream()
@@ -1975,12 +2048,7 @@
           const aggregateKind = getAggregatedEventKind(eventKind)
           const { items } =
             aggregateKind && namespaced && ns
-              ? await fetchAggregatedEventList(
-                  cluster,
-                  ns,
-                  props.mirrorResourceName,
-                  aggregateKind
-                )
+              ? await fetchAggregatedEventList(cluster, ns, props.mirrorResourceName, aggregateKind)
               : await fetchKubeRawEventList(cluster, {
                   namespace: namespaced ? ns : undefined,
                   name: props.mirrorResourceName,
@@ -2047,7 +2115,12 @@
         }
         return {
           code: 200,
-          data: { records: list, total: filtered.length, current: params.current, size: params.size }
+          data: {
+            records: list,
+            total: filtered.length,
+            current: params.current,
+            size: params.size
+          }
         }
       },
       apiParams: { current: 1, size: 10, name: undefined, type: undefined, namespace: undefined },
@@ -2096,7 +2169,8 @@
                   h(
                     'span',
                     { style: 'font-size:12px;color:var(--el-text-color-regular)' },
-                    `${row.involvedObject?.kind ?? ''}/${row.involvedObject?.name ?? ''}` || '-'
+                    `${row.involvedObject?.kind ?? ''}${row.involvedObject?.name ? `/${row.involvedObject.name}` : ''}` ||
+                      '-'
                   )
               },
               { prop: 'count', label: '出现次数', width: 100 },
@@ -2312,11 +2386,6 @@
     jobColumns.value.filter((c: any) => !(globalNamespace.value && c.prop === 'metadata.namespace'))
   )
 
-  function onJobNsChange() {
-    const ns = globalNamespace.value || undefined
-    replaceJobSearchParams({ namespace: ns })
-    getJobData()
-  }
   function runJobSearch() {
     const name = (jobSearchForm.value.name ?? '').trim() || undefined
     const type = (jobSearchForm.value.type ?? '').trim() || undefined
@@ -2365,38 +2434,7 @@
       onJobRefresh()
     } catch (e: unknown) {
       if (e === 'cancel') return
-      ElMessage.error(e instanceof Error ? e.message : '删除失败')
-    }
-  }
-
-  async function batchDeleteMirrorEvents() {
-    if (!jobSelectedRows.value.length) {
-      ElMessage.warning('未选择待删除事件')
-      return
-    }
-    try {
-      await ElMessageBox.confirm(
-        `确定批量删除 ${jobSelectedRows.value.length} 条事件吗？`,
-        '批量删除事件',
-        {
-          type: 'warning',
-          confirmButtonText: '删除',
-          cancelButtonText: '取消'
-        }
-      )
-      const cluster = String(route.query.cluster ?? '')
-      for (const ev of jobSelectedRows.value) {
-        const ns = ev.metadata?.namespace ?? 'default'
-        const name = ev.metadata?.name
-        if (!name) continue
-        await deleteK8sEvent(cluster, ns, name)
-      }
-      ElMessage.success('批量删除事件成功')
-      jobSelectedRows.value = []
-      onJobRefresh()
-    } catch (e: unknown) {
-      if (e === 'cancel') return
-      ElMessage.error(e instanceof Error ? e.message : '删除失败')
+      notifyError(e, '删除失败')
     }
   }
 
@@ -2513,7 +2551,12 @@
         }
         return {
           code: 200,
-          data: { records: list, total: filtered.length, current: params.current, size: params.size }
+          data: {
+            records: list,
+            total: filtered.length,
+            current: params.current,
+            size: params.size
+          }
         }
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
@@ -2777,11 +2820,6 @@
     cjColumns.value.filter((c: any) => !(globalNamespace.value && c.prop === 'metadata.namespace'))
   )
 
-  function onCjNsChange() {
-    const ns = globalNamespace.value || undefined
-    replaceCjSearchParams({ namespace: ns })
-    getCjData()
-  }
   function runCjSearch() {
     const name = (cjSearchForm.value.name ?? '').trim() || undefined
     const ns = globalNamespace.value || undefined
@@ -2830,7 +2868,7 @@
       onCjRefresh()
     } catch (e: unknown) {
       if (e === 'cancel') return
-      ElMessage.error(e instanceof Error ? e.message : '回滚失败')
+      notifyError(e, '回滚失败')
     }
   }
 
@@ -2841,11 +2879,17 @@
     const name = row.metadata?.name
     if (!cluster || !ns || !name) return
     try {
-      await patchK8sCronJob(cluster, ns, name, { spec: { suspend: !row.spec?.suspend } }, cronJobApiVersion.value)
+      await patchK8sCronJob(
+        cluster,
+        ns,
+        name,
+        { spec: { suspend: !row.spec?.suspend } },
+        cronJobApiVersion.value
+      )
       ElMessage.success(row.spec?.suspend ? '已恢复' : '已暂停')
       onCjRefresh()
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '操作失败')
+      notifyError(e, '操作失败')
     }
   }
 
@@ -2963,7 +3007,12 @@
         }
         return {
           code: 200,
-          data: { records: list, total: filtered.length, current: params.current, size: params.size }
+          data: {
+            records: list,
+            total: filtered.length,
+            current: params.current,
+            size: params.size
+          }
         }
       },
       apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
@@ -3089,7 +3138,8 @@
                         style: 'font-size:12px;line-height:1',
                         onClick: () =>
                           openPodDetailLogs(
-                            (row.metadata?.namespace ?? props.deployNamespace) || globalNamespace.value,
+                            (row.metadata?.namespace ?? props.deployNamespace) ||
+                              globalNamespace.value,
                             row.metadata?.name ?? ''
                           )
                       },
@@ -3290,47 +3340,13 @@
   })
 
   const deplVisibleColumns = computed(() =>
-    deplColumns.value.filter((c: any) => !(globalNamespace.value && c.prop === 'metadata.namespace'))
+    deplColumns.value.filter(
+      (c: any) => !(globalNamespace.value && c.prop === 'metadata.namespace')
+    )
   )
 
   function onDeplSelectionChange(rows: Array<(K8sDeployment | K8sPod) & { rowKey: string }>) {
     deplSelectedRows.value = rows
-  }
-
-  async function batchDeletePods() {
-    if (!isDeployPodMode.value || deplSelectedRows.value.length === 0) return
-    const cluster = String(route.query.cluster ?? '')
-    if (!cluster) return
-    const rows = deplSelectedRows.value as Array<K8sPod & { rowKey: string }>
-    const names = rows.map((row) => row.metadata?.name).filter(Boolean) as string[]
-    try {
-      await ElMessageBox.confirm(`确定删除选中的 ${names.length} 个容器组吗？`, '批量删除确认', {
-        type: 'warning',
-        confirmButtonText: '删除',
-        cancelButtonText: '取消'
-      })
-    } catch {
-      return
-    }
-    deplBatchDeleting.value = true
-    try {
-      await Promise.all(
-        rows.map(async (row) => {
-          const podName = row.metadata?.name
-          const podNamespace =
-            row.metadata?.namespace || props.deployNamespace || globalNamespace.value
-          if (!podName || !podNamespace) return
-          await deleteK8sPod(cluster, podNamespace, podName)
-        })
-      )
-      ElMessage.success('批量删除成功')
-      deplSelectedRows.value = []
-      await getDeplData()
-    } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '批量删除失败')
-    } finally {
-      deplBatchDeleting.value = false
-    }
   }
 
   function openPodRemoteLogin(row: K8sPod) {
@@ -3416,7 +3432,7 @@
       yamlSourceKind.value = 'pod'
       yamlVisible.value = true
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '加载失败')
+      notifyError(e, '加载失败')
     }
   }
 
@@ -3432,11 +3448,6 @@
     if (!isDeployPodMode.value) return globalNamespace.value || undefined
     if (props.deployNamespace) return props.deployNamespace.trim() || undefined
     return deplNamespace.value.trim() || undefined
-  }
-
-  function onDeplNamespaceChange() {
-    replaceDeplSearchParams({ namespace: getDeplNamespaceParam() })
-    getDeplData()
   }
 
   function runDeplSearch() {
@@ -3495,39 +3506,6 @@
         tab: 'sts'
       })
     })
-  }
-
-  function goCreateService() {
-    const cluster = String(route.query.cluster ?? '')
-    if (!cluster) {
-      ElMessage.warning('缺少集群参数')
-      return
-    }
-    const namespace =
-      String(route.query.namespace ?? '') ||
-      props.mirrorNamespace ||
-      props.deployNamespace ||
-      globalNamespace.value ||
-      nsOptions.value[0] ||
-      ''
-    router.push({
-      path: '/container/service-create',
-      query: buildClusterRouteQuery(route, {
-        ...(namespace ? { namespace } : {}),
-        returnPath: route.path,
-        returnName: String(route.query.name ?? props.mirrorResourceName ?? ''),
-        returnNamespace: String(route.query.namespace ?? props.mirrorNamespace ?? props.deployNamespace ?? namespace),
-        tab: 'services'
-      })
-    })
-  }
-
-  function onStsCreateClick() {
-    if (props.stsDataMode === 'services') {
-      goCreateService()
-      return
-    }
-    goCreateSts()
   }
 
   function goCreateDs() {
@@ -3619,7 +3597,7 @@
       ElMessage.success('Pod数量更新成功')
       scaleVisible.value = false
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '操作失败')
+      notifyError(e, '操作失败')
     } finally {
       scaleSubmitting.value = false
     }
@@ -3644,7 +3622,7 @@
       yamlSourceKind.value = 'deploy'
       yamlVisible.value = true
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '加载失败')
+      notifyError(e, '加载失败')
     }
   }
 
@@ -3679,7 +3657,7 @@
       yamlVisible.value = false
       refreshYamlSourceList()
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '更新失败')
+      notifyError(e, '更新失败')
     } finally {
       yamlSubmitting.value = false
     }
@@ -3709,13 +3687,14 @@
       if (kind === 'sts') await deleteK8sStatefulSet(cluster, namespace, name)
       else if (kind === 'ds') await deleteK8sDaemonSet(cluster, namespace, name)
       else if (kind === 'job') await deleteK8sJob(cluster, namespace, name)
-      else if (kind === 'cj') await deleteK8sCronJob(cluster, namespace, name, cronJobApiVersion.value)
+      else if (kind === 'cj')
+        await deleteK8sCronJob(cluster, namespace, name, cronJobApiVersion.value)
       else if (kind === 'pod') await deleteK8sPod(cluster, namespace, name)
       ElMessage.success('删除成功')
       refresh()
     } catch (e: unknown) {
       if (e === 'cancel' || e === 'close') return
-      ElMessage.error(e instanceof Error ? e.message : '删除失败')
+      notifyError(e, '删除失败')
     }
   }
 
@@ -3738,7 +3717,7 @@
       yamlSourceKind.value = kind
       yamlVisible.value = true
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '加载失败')
+      notifyError(e, '加载失败')
     }
   }
 
@@ -3758,7 +3737,7 @@
       onDeplRefresh()
     } catch (e: unknown) {
       if (e === 'cancel' || e === 'close') return
-      ElMessage.error(e instanceof Error ? e.message : '删除失败')
+      notifyError(e, '删除失败')
     }
   }
 
@@ -3780,7 +3759,7 @@
       ElMessage.success('重新部署已触发')
       onDeplRefresh()
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '操作失败')
+      notifyError(e, '操作失败')
     }
   }
 
@@ -3889,7 +3868,7 @@
       onJobRefresh()
     } catch (e: unknown) {
       if (e === 'cancel') return
-      ElMessage.error(e instanceof Error ? e.message : '重新执行失败')
+      notifyError(e, '重新执行失败')
     }
   }
 
@@ -3940,7 +3919,7 @@
       ElMessage.success('重新部署已触发')
       onStsRefresh()
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '操作失败')
+      notifyError(e, '操作失败')
     }
   }
 
@@ -3991,7 +3970,7 @@
       ElMessage.success('重新部署已触发')
       onDsRefresh()
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '操作失败')
+      notifyError(e, '操作失败')
     }
   }
 
@@ -4056,7 +4035,7 @@
       onCjRefresh()
     } catch (e: unknown) {
       if (e === 'cancel') return
-      ElMessage.error(e instanceof Error ? e.message : '操作失败')
+      notifyError(e, '操作失败')
     }
   }
 
@@ -4318,7 +4297,6 @@
     font-size: 14px;
   }
 
-
   .workloads-tabs :deep(.el-tabs__header) {
     margin: 0 0 4px;
     flex-shrink: 0;
@@ -4347,7 +4325,6 @@
     height: 2px;
     border-radius: 2px 2px 0 0;
   }
-
 
   .workloads-tabs :deep(.el-tabs__content) {
     padding-top: 0;

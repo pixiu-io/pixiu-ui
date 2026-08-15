@@ -3,55 +3,150 @@
     <div v-if="kind === 'clusterrole'" class="cluster-toolbar">
       <ElButton v-ripple @click="onRbacGenerator">新建 ClusterRole</ElButton>
       <div class="cluster-toolbar__right">
-        <ElInput v-model="crSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runCrSearch" @clear="runCrSearch" />
-        <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceCrSearch" @keyup.enter="forceCrSearch">
+        <ElInput
+          v-model="crSearchForm.name"
+          clearable
+          placeholder="请输入名称"
+          class="cluster-toolbar__search"
+          @keyup.enter="runCrSearch"
+          @clear="runCrSearch"
+        />
+        <div
+          class="cluster-toolbar-search-btn"
+          role="button"
+          tabindex="0"
+          title="搜索"
+          @click="forceCrSearch"
+          @keyup.enter="forceCrSearch"
+        >
           <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
         </div>
-        <ArtTableHeader v-model:columns="crColumnChecks" :loading="crLoading" layout="size,columns,settings" @refresh="onCrRefresh" />
+        <ArtTableHeader
+          v-model:columns="crColumnChecks"
+          :loading="crLoading"
+          layout="size,columns,settings"
+          @refresh="onCrRefresh"
+        />
       </div>
     </div>
     <div v-else-if="kind === 'clusterrolebinding'" class="cluster-toolbar">
       <ElButton v-ripple @click="onRbacGenerator">新建 ClusterRoleBinding</ElButton>
       <div class="cluster-toolbar__right">
-        <ElInput v-model="crbSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runCrbSearch" @clear="runCrbSearch" />
-        <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceCrbSearch" @keyup.enter="forceCrbSearch">
+        <ElInput
+          v-model="crbSearchForm.name"
+          clearable
+          placeholder="请输入名称"
+          class="cluster-toolbar__search"
+          @keyup.enter="runCrbSearch"
+          @clear="runCrbSearch"
+        />
+        <div
+          class="cluster-toolbar-search-btn"
+          role="button"
+          tabindex="0"
+          title="搜索"
+          @click="forceCrbSearch"
+          @keyup.enter="forceCrbSearch"
+        >
           <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
         </div>
-        <ArtTableHeader v-model:columns="crbColumnChecks" :loading="crbLoading" layout="size,columns,settings" @refresh="onCrbRefresh" />
+        <ArtTableHeader
+          v-model:columns="crbColumnChecks"
+          :loading="crbLoading"
+          layout="size,columns,settings"
+          @refresh="onCrbRefresh"
+        />
       </div>
     </div>
     <div v-else-if="kind === 'role'" class="cluster-toolbar">
       <ElButton v-ripple @click="onRbacGenerator">新建 Role</ElButton>
       <div class="cluster-toolbar__right">
-        <ElInput v-model="roleSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runRoleSearch" @clear="runRoleSearch" />
-        <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceRoleSearch" @keyup.enter="forceRoleSearch">
+        <ElInput
+          v-model="roleSearchForm.name"
+          clearable
+          placeholder="请输入名称"
+          class="cluster-toolbar__search"
+          @keyup.enter="runRoleSearch"
+          @clear="runRoleSearch"
+        />
+        <div
+          class="cluster-toolbar-search-btn"
+          role="button"
+          tabindex="0"
+          title="搜索"
+          @click="forceRoleSearch"
+          @keyup.enter="forceRoleSearch"
+        >
           <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
         </div>
-        <ArtTableHeader v-model:columns="roleColumnChecks" :loading="roleLoading" layout="size,columns,settings" @refresh="onRoleRefresh" />
+        <ArtTableHeader
+          v-model:columns="roleColumnChecks"
+          :loading="roleLoading"
+          layout="size,columns,settings"
+          @refresh="onRoleRefresh"
+        />
       </div>
     </div>
     <div v-else-if="kind === 'rolebinding'" class="cluster-toolbar">
       <ElButton v-ripple @click="onRbacGenerator">新建 RoleBinding</ElButton>
       <div class="cluster-toolbar__right">
-        <ElInput v-model="rbSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runRbSearch" @clear="runRbSearch" />
-        <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceRbSearch" @keyup.enter="forceRbSearch">
+        <ElInput
+          v-model="rbSearchForm.name"
+          clearable
+          placeholder="请输入名称"
+          class="cluster-toolbar__search"
+          @keyup.enter="runRbSearch"
+          @clear="runRbSearch"
+        />
+        <div
+          class="cluster-toolbar-search-btn"
+          role="button"
+          tabindex="0"
+          title="搜索"
+          @click="forceRbSearch"
+          @keyup.enter="forceRbSearch"
+        >
           <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
         </div>
-        <ArtTableHeader v-model:columns="rbColumnChecks" :loading="rbLoading" layout="size,columns,settings" @refresh="onRbRefresh" />
+        <ArtTableHeader
+          v-model:columns="rbColumnChecks"
+          :loading="rbLoading"
+          layout="size,columns,settings"
+          @refresh="onRbRefresh"
+        />
       </div>
     </div>
     <div v-else class="cluster-toolbar">
       <ElButton v-ripple @click="onRbacGenerator">新建 ServiceAccount</ElButton>
       <div class="cluster-toolbar__right">
-        <ElInput v-model="saSearchForm.name" clearable placeholder="请输入名称" class="cluster-toolbar__search" @keyup.enter="runSaSearch" @clear="runSaSearch" />
-        <div class="cluster-toolbar-search-btn" role="button" tabindex="0" title="搜索" @click="forceSaSearch" @keyup.enter="forceSaSearch">
+        <ElInput
+          v-model="saSearchForm.name"
+          clearable
+          placeholder="请输入名称"
+          class="cluster-toolbar__search"
+          @keyup.enter="runSaSearch"
+          @clear="runSaSearch"
+        />
+        <div
+          class="cluster-toolbar-search-btn"
+          role="button"
+          tabindex="0"
+          title="搜索"
+          @click="forceSaSearch"
+          @keyup.enter="forceSaSearch"
+        >
           <ArtSvgIcon icon="ri:search-line" class="text-g-700" />
         </div>
-        <ArtTableHeader v-model:columns="saColumnChecks" :loading="saLoading" layout="size,columns,settings" @refresh="onSaRefresh" />
+        <ArtTableHeader
+          v-model:columns="saColumnChecks"
+          :loading="saLoading"
+          layout="size,columns,settings"
+          @refresh="onSaRefresh"
+        />
       </div>
     </div>
 
-<ElCard class="art-table-card">
+    <ElCard class="art-table-card">
       <ElTabs v-model="kind" class="auth-tabs">
         <ElTabPane label="ClusterRole" name="clusterrole">
           <ArtTable
@@ -64,10 +159,10 @@
             :pagination-options="CLUSTER_TABLE_PAGINATION_OPTIONS"
             @pagination:size-change="crHandleSizeChange"
             @pagination:current-change="crHandleCurrentChange"
->
-        <template #empty>
-          <ClusterTableEmpty />
-        </template>
+          >
+            <template #empty>
+              <ClusterTableEmpty />
+            </template>
           </ArtTable>
         </ElTabPane>
 
@@ -82,10 +177,10 @@
             :pagination-options="CLUSTER_TABLE_PAGINATION_OPTIONS"
             @pagination:size-change="crbHandleSizeChange"
             @pagination:current-change="crbHandleCurrentChange"
->
-        <template #empty>
-          <ClusterTableEmpty />
-        </template>
+          >
+            <template #empty>
+              <ClusterTableEmpty />
+            </template>
           </ArtTable>
         </ElTabPane>
 
@@ -100,10 +195,10 @@
             :pagination-options="CLUSTER_TABLE_PAGINATION_OPTIONS"
             @pagination:size-change="roleHandleSizeChange"
             @pagination:current-change="roleHandleCurrentChange"
->
-        <template #empty>
-          <ClusterTableEmpty />
-        </template>
+          >
+            <template #empty>
+              <ClusterTableEmpty />
+            </template>
           </ArtTable>
         </ElTabPane>
 
@@ -118,10 +213,10 @@
             :pagination-options="CLUSTER_TABLE_PAGINATION_OPTIONS"
             @pagination:size-change="rbHandleSizeChange"
             @pagination:current-change="rbHandleCurrentChange"
->
-        <template #empty>
-          <ClusterTableEmpty />
-        </template>
+          >
+            <template #empty>
+              <ClusterTableEmpty />
+            </template>
           </ArtTable>
         </ElTabPane>
 
@@ -136,10 +231,10 @@
             :pagination-options="CLUSTER_TABLE_PAGINATION_OPTIONS"
             @pagination:size-change="saHandleSizeChange"
             @pagination:current-change="saHandleCurrentChange"
->
-        <template #empty>
-          <ClusterTableEmpty />
-        </template>
+          >
+            <template #empty>
+              <ClusterTableEmpty />
+            </template>
           </ArtTable>
         </ElTabPane>
       </ElTabs>
@@ -156,7 +251,6 @@
       @save="onYamlSave"
     />
   </div>
-
 </template>
 
 <script setup lang="ts">
@@ -171,9 +265,10 @@
     ElTabPane,
     ElTabs
   } from 'element-plus'
+  import { notifyError } from '@/utils/sys/notify'
   import { h, computed, inject, ref, watch } from 'vue'
-import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
-import ClusterTableEmpty from './components/cluster-table-empty.vue'
+  import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
+  import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute } from 'vue-router'
   import { useTable } from '@/hooks/core/useTable'
   import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
@@ -215,9 +310,17 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
 
   const route = useRoute()
   const router = useRouter()
-  const authTabs: AuthTab[] = ['clusterrole', 'clusterrolebinding', 'role', 'rolebinding', 'serviceaccount']
+  const authTabs: AuthTab[] = [
+    'clusterrole',
+    'clusterrolebinding',
+    'role',
+    'rolebinding',
+    'serviceaccount'
+  ]
   const kind = ref<AuthTab>(
-    (authTabs as string[]).includes(route.query.tab as string) ? (route.query.tab as AuthTab) : 'clusterrole'
+    (authTabs as string[]).includes(route.query.tab as string)
+      ? (route.query.tab as AuthTab)
+      : 'clusterrole'
   )
   const globalNs = inject(clusterDetailNamespaceKey)
   const selectedNamespace = computed(() => globalNs?.namespace.value ?? '')
@@ -381,7 +484,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       yamlText.value = yaml.dump(obj, { quotingType: '"' })
       yamlVisible.value = true
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '加载失败')
+      notifyError(e, '加载失败')
     }
   }
 
@@ -403,7 +506,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       else if (currentYamlTab.value === 'rolebinding') onRbRefresh()
       else onSaRefresh()
     } catch (e: unknown) {
-      ElMessage.error(e instanceof Error ? e.message : '保存失败')
+      notifyError(e, '保存失败')
     } finally {
       yamlSaving.value = false
     }
@@ -436,7 +539,7 @@ import ClusterTableEmpty from './components/cluster-table-empty.vue'
       refresh()
     } catch (e: unknown) {
       if (e === 'cancel') return
-      ElMessage.error(e instanceof Error ? e.message : '删除失败')
+      notifyError(e, '删除失败')
     }
   }
 

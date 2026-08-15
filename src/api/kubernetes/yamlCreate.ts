@@ -42,18 +42,23 @@ const KIND_RESOURCE_MAP: Record<string, string> = {
   NetworkPolicy: 'networkpolicies',
   ResourceQuota: 'resourcequotas',
   LimitRange: 'limitranges',
-  Event: 'events',
+  Event: 'events'
 }
 
 // cluster-scoped resources (don't need namespace)
 const CLUSTER_SCOPED_KINDS = new Set([
-  'Namespace', 'Node', 'PersistentVolume', 'ClusterRole', 'ClusterRoleBinding',
-  'StorageClass', 'CustomResourceDefinition',
+  'Namespace',
+  'Node',
+  'PersistentVolume',
+  'ClusterRole',
+  'ClusterRoleBinding',
+  'StorageClass',
+  'CustomResourceDefinition'
 ])
 
 function kindToResource(kind: string): string {
   if (KIND_RESOURCE_MAP[kind]) return KIND_RESOURCE_MAP[kind]
-  return (kind.endsWith('s') ? kind.toLowerCase() : kind.toLowerCase() + 's')
+  return kind.endsWith('s') ? kind.toLowerCase() : kind.toLowerCase() + 's'
 }
 
 function resolveResourceUrl(yamlData: Record<string, unknown>): {
@@ -71,9 +76,7 @@ function resolveResourceUrl(yamlData: Record<string, unknown>): {
 
   const apiVersionStr = apiVersion as string
   // v1 → /api/v1, {group}/{version} → /apis/{group}/{version}
-  const groupPath = apiVersionStr.includes('/')
-    ? `/apis/${apiVersionStr}`
-    : `/api/${apiVersionStr}`
+  const groupPath = apiVersionStr.includes('/') ? `/apis/${apiVersionStr}` : `/api/${apiVersionStr}`
 
   const resource = kindToResource(kind as string)
   let url = `${groupPath}/${resource}`
@@ -105,7 +108,11 @@ function parseYamlDocuments(yamlText: string): Record<string, unknown>[] {
     }
     return docs
   } catch (e) {
-    if (e instanceof Error && (e.message.includes('YAML') || e.message.includes('对象') || e.message.includes('Kubernetes'))) throw e
+    if (
+      e instanceof Error &&
+      (e.message.includes('YAML') || e.message.includes('对象') || e.message.includes('Kubernetes'))
+    )
+      throw e
     throw new Error(e instanceof Error ? e.message : 'YAML 解析失败')
   }
 }
@@ -122,14 +129,23 @@ export async function createK8sResourceFromYaml(cluster: string, yamlText: strin
   return postOneResource(cluster, docs[0])
 }
 
-async function postOneResource(cluster: string, yamlData: Record<string, unknown>, opts?: { ignoreExisting?: boolean }): Promise<void> {
+async function postOneResource(
+  cluster: string,
+  yamlData: Record<string, unknown>,
+  opts?: { ignoreExisting?: boolean }
+): Promise<void> {
   const { url } = resolveResourceUrl(yamlData)
   const base = `/pixiu/proxy/${encodeURIComponent(cluster)}`
   try {
     await kubeProxyAxios.post(`${base}${url}`, yamlData, { skipErrorNotification: true } as any)
   } catch (postErr) {
     if (opts?.ignoreExisting && isAxiosError(postErr) && postErr.response?.status === 409) return
-    if (opts?.ignoreExisting && postErr instanceof PixiuApiError && /already exists/i.test(postErr.message)) return
+    if (
+      opts?.ignoreExisting &&
+      postErr instanceof PixiuApiError &&
+      /already exists/i.test(postErr.message)
+    )
+      return
     if (postErr instanceof PixiuApiError) throw postErr
     if (isAxiosError(postErr) && postErr.response?.status === 409) {
       throw new Error(k8sErrorMessage(postErr) || '资源已存在')
@@ -141,14 +157,17 @@ async function postOneResource(cluster: string, yamlData: Record<string, unknown
 /**
  * 批量创建多个 Kubernetes 资源（使用 --- 分隔的 YAML 多文档）
  */
-async function createK8sResourcesFromYaml(cluster: string, docs: Record<string, unknown>[]): Promise<void> {
+async function createK8sResourcesFromYaml(
+  cluster: string,
+  docs: Record<string, unknown>[]
+): Promise<void> {
   const errors: string[] = []
   for (const yamlData of docs) {
     try {
       await postOneResource(cluster, yamlData, { ignoreExisting: true })
     } catch (postErr) {
       if (postErr instanceof PixiuApiError) throw postErr
-      const kind = yamlData.kind as string ?? 'Unknown'
+      const kind = (yamlData.kind as string) ?? 'Unknown'
       const name = (yamlData.metadata as { name?: string })?.name ?? ''
       errors.push(`${kind}/${name}: ${k8sErrorMessage(postErr)}`)
     }
@@ -170,7 +189,9 @@ export async function updateK8sResourceFromYaml(cluster: string, yamlText: strin
   const { url, name } = resolveResourceUrl(yamlData)
   const base = `/pixiu/proxy/${encodeURIComponent(cluster)}`
   try {
-    await kubeProxyAxios.put(`${base}${url}/${encodeURIComponent(name)}`, yamlData, { skipErrorNotification: true } as any)
+    await kubeProxyAxios.put(`${base}${url}/${encodeURIComponent(name)}`, yamlData, {
+      skipErrorNotification: true
+    } as any)
   } catch (e) {
     if (e instanceof PixiuApiError) throw e
     throw new Error(k8sErrorMessage(e))

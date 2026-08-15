@@ -22,7 +22,11 @@
           @keyup.enter="handleSearch(searchForm)"
           @clear="handleSearch(searchForm)"
         />
-        <ArtTableHeader v-model:columns="columnChecks" :loading="loading" @refresh="handleTableRefresh" />
+        <ArtTableHeader
+          v-model:columns="columnChecks"
+          :loading="loading"
+          @refresh="handleTableRefresh"
+        />
       </div>
     </div>
 
@@ -67,20 +71,23 @@
           <ElInput v-model="addNodeForm.ip" clearable />
         </ElFormItem>
         <ElFormItem label="认证方式" prop="authType">
-          <ElRadioGroup v-model="addNodeForm.authType">
+          <ElRadioGroup v-model="addNodeForm.authType" class="host-node-auth-group">
             <ElRadio value="password">密码</ElRadio>
             <ElRadio value="key">密钥</ElRadio>
           </ElRadioGroup>
         </ElFormItem>
-        <ElFormItem label="用户名">
-          <span class="host-add-node-fixed-user">root</span>
-        </ElFormItem>
         <template v-if="addNodeForm.authType === 'password'">
-          <ElFormItem label="密码" prop="password">
+          <ElFormItem label="SSH 用户" prop="user">
+            <ElInput v-model="addNodeForm.user" clearable placeholder="请输入 SSH 登录用户" />
+          </ElFormItem>
+          <ElFormItem label="SSH 密码" prop="password">
             <ElInput v-model="addNodeForm.password" type="password" show-password />
           </ElFormItem>
         </template>
         <template v-else>
+          <ElFormItem label="SSH 用户">
+            <ElInput model-value="root" disabled />
+          </ElFormItem>
           <ElFormItem label="私钥" prop="privateKey">
             <ElInput
               v-model="addNodeForm.privateKey"
@@ -88,6 +95,39 @@
               :rows="6"
               placeholder="请粘贴 SSH 私钥内容（PEM 格式）"
               spellcheck="false"
+            />
+          </ElFormItem>
+        </template>
+        <ElFormItem class="host-node-advanced-toggle-item">
+          <template #label>
+            <ElButton link type="primary" @click="addNodeAdvancedVisible = !addNodeAdvancedVisible">
+              高级选项
+              <ArtSvgIcon
+                :icon="addNodeAdvancedVisible ? 'ri:arrow-up-s-line' : 'ri:arrow-down-s-line'"
+                class="host-node-advanced-toggle__icon"
+              />
+            </ElButton>
+          </template>
+        </ElFormItem>
+        <template v-if="addNodeAdvancedVisible">
+          <ElFormItem label="SSH 端口" prop="port">
+            <ElInputNumber
+              v-model="addNodeForm.port"
+              :min="1"
+              :max="65535"
+            />
+          </ElFormItem>
+          <ElFormItem
+            v-if="addNodeForm.authType === 'password' && addNodeForm.user.trim() !== 'root'"
+            label-width="0"
+            class="host-node-sudo-tip"
+          >
+            <ElAlert
+              type="info"
+              :closable="false"
+              show-icon
+              class="quota-alert"
+              description="非 root 用户须具备 sudo 权限（免密或密码与 SSH 密码相同）。"
             />
           </ElFormItem>
         </template>
@@ -124,20 +164,23 @@
           <ElInput v-model="editNodeForm.ip" clearable />
         </ElFormItem>
         <ElFormItem label="认证方式" prop="authType">
-          <ElRadioGroup v-model="editNodeForm.authType">
+          <ElRadioGroup v-model="editNodeForm.authType" class="host-node-auth-group">
             <ElRadio value="password">密码</ElRadio>
             <ElRadio value="key">密钥</ElRadio>
           </ElRadioGroup>
         </ElFormItem>
-        <ElFormItem label="用户名">
-          <span class="host-add-node-fixed-user">root</span>
-        </ElFormItem>
         <template v-if="editNodeForm.authType === 'password'">
-          <ElFormItem label="密码" prop="password">
+          <ElFormItem label="SSH 用户" prop="user">
+            <ElInput v-model="editNodeForm.user" clearable placeholder="请输入 SSH 登录用户" />
+          </ElFormItem>
+          <ElFormItem label="SSH 密码" prop="password">
             <ElInput v-model="editNodeForm.password" type="password" show-password />
           </ElFormItem>
         </template>
         <template v-else>
+          <ElFormItem label="SSH 用户">
+            <ElInput model-value="root" disabled />
+          </ElFormItem>
           <ElFormItem label="私钥" prop="privateKey">
             <ElInput
               v-model="editNodeForm.privateKey"
@@ -148,10 +191,45 @@
             />
           </ElFormItem>
         </template>
+        <ElFormItem class="host-node-advanced-toggle-item">
+          <template #label>
+            <ElButton link type="primary" @click="editNodeAdvancedVisible = !editNodeAdvancedVisible">
+              高级选项
+              <ArtSvgIcon
+                :icon="editNodeAdvancedVisible ? 'ri:arrow-up-s-line' : 'ri:arrow-down-s-line'"
+                class="host-node-advanced-toggle__icon"
+              />
+            </ElButton>
+          </template>
+        </ElFormItem>
+        <template v-if="editNodeAdvancedVisible">
+          <ElFormItem label="SSH 端口" prop="port">
+            <ElInputNumber
+              v-model="editNodeForm.port"
+              :min="1"
+              :max="65535"
+            />
+          </ElFormItem>
+          <ElFormItem
+            v-if="editNodeForm.authType === 'password' && editNodeForm.user.trim() !== 'root'"
+            label-width="0"
+            class="host-node-sudo-tip"
+          >
+            <ElAlert
+              type="info"
+              :closable="false"
+              show-icon
+              class="quota-alert"
+              description="非 root 用户须具备 sudo 权限（免密或密码与 SSH 密码相同）。"
+            />
+          </ElFormItem>
+        </template>
       </ElForm>
       <template #footer>
         <ElButton @click="editNodeVisible = false">取消</ElButton>
-        <ElButton type="primary" :loading="editNodeSubmitting" @click="submitEditNode">确定</ElButton>
+        <ElButton type="primary" :loading="editNodeSubmitting" @click="submitEditNode"
+          >确定</ElButton
+        >
       </template>
     </ElDialog>
 
@@ -164,7 +242,9 @@
   import { CopyDocument } from '@element-plus/icons-vue'
   import { ElAlert, ElInput, ElLink, ElMessage, ElMessageBox } from 'element-plus'
   import type { FormInstance, FormRules } from 'element-plus'
-  import ArtButtonMore, { type ButtonMoreItem } from '@/components/core/forms/art-button-more/index.vue'
+  import ArtButtonMore, {
+    type ButtonMoreItem
+  } from '@/components/core/forms/art-button-more/index.vue'
   import { useTable } from '@/hooks/core/useTable'
   import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
   import {
@@ -207,37 +287,56 @@
 
   function parseAuthForForm(authStr: string): {
     authType: 'password' | 'key'
+    user: string
+    port: number
     password: string
     privateKey: string
   } {
     try {
       const o = JSON.parse(authStr) as {
         type?: string
+        port?: number
         password?: { user?: string; password?: string }
         key?: { data?: string }
       }
       if (o.type === 'key') {
-        return { authType: 'key', password: '', privateKey: o.key?.data ?? '' }
+        return {
+          authType: 'key',
+          user: 'root',
+          port: normalizeSSHPort(o.port),
+          password: '',
+          privateKey: o.key?.data ?? ''
+        }
       }
       return {
         authType: 'password',
+        user: o.password?.user?.trim() || 'root',
+        port: normalizeSSHPort(o.port),
         password: o.password?.password ?? '',
         privateKey: ''
       }
     } catch {
-      return { authType: 'password', password: '', privateKey: '' }
+      return { authType: 'password', user: 'root', port: 22, password: '', privateKey: '' }
     }
+  }
+
+  function normalizeSSHPort(port: unknown): number {
+    const value = Number(port)
+    return Number.isInteger(value) && value >= 1 && value <= 65535 ? value : 22
   }
 
   /** -- 新增节点 -- */
   const addNodeVisible = ref(false)
   const addNodeFormRef = ref<FormInstance>()
   const addNodeSubmitting = ref(false)
+  const addNodeAdvancedVisible = ref(false)
 
   const addNodeEmpty = () => ({
     name: '',
     ip: '',
     authType: 'password' as 'password' | 'key',
+    user: 'root',
+    port: 22,
     password: '',
     privateKey: ''
   })
@@ -277,18 +376,38 @@
       }
     ],
     authType: [{ required: true, message: '请选择认证方式', trigger: 'change' }],
+    user: [
+      {
+        validator: (_r, value: string, cb) => {
+          if (String(value ?? '').trim()) cb()
+          else cb(new Error('请输入 SSH 登录用户'))
+        },
+        trigger: 'blur'
+      }
+    ],
+    port: [
+      {
+        validator: (_r, value: number, cb) => {
+          if (Number.isInteger(value) && value >= 1 && value <= 65535) cb()
+          else cb(new Error('请输入 1-65535 之间的 SSH 端口'))
+        },
+        trigger: 'change'
+      }
+    ],
     password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
     privateKey: [{ required: true, message: '请粘贴私钥内容', trigger: 'blur' }]
   }
 
   function openAddNodeDialog() {
     Object.assign(addNodeForm, addNodeEmpty())
+    addNodeAdvancedVisible.value = false
     addNodeVisible.value = true
     nextTick(() => addNodeFormRef.value?.clearValidate())
   }
 
   function resetAddNodeForm() {
     Object.assign(addNodeForm, addNodeEmpty())
+    addNodeAdvancedVisible.value = false
     addNodeFormRef.value?.clearValidate()
   }
 
@@ -307,9 +426,14 @@
         addNodeForm.authType === 'password'
           ? {
               type: 'password' as const,
-              password: { user: 'root', password: addNodeForm.password }
+              ...(addNodeForm.port !== 22 ? { port: addNodeForm.port } : {}),
+              password: { user: addNodeForm.user.trim() || 'root', password: addNodeForm.password }
             }
-          : { type: 'key' as const, key: { data: addNodeForm.privateKey } }
+          : {
+              type: 'key' as const,
+              ...(addNodeForm.port !== 22 ? { port: addNodeForm.port } : {}),
+              key: { data: addNodeForm.privateKey }
+            }
 
       await fetchCreatePixiuNode({
         name: addNodeForm.name.trim(),
@@ -337,6 +461,7 @@
   const editNodeVisible = ref(false)
   const editNodeFormRef = ref<FormInstance>()
   const editNodeSubmitting = ref(false)
+  const editNodeAdvancedVisible = ref(false)
   const editingNodeId = ref(0)
   const editingResourceVersion = ref(0)
 
@@ -344,6 +469,8 @@
     name: '',
     ip: '',
     authType: 'password' as 'password' | 'key',
+    user: 'root',
+    port: 22,
     password: '',
     privateKey: ''
   })
@@ -363,6 +490,24 @@
       }
     ],
     authType: [{ required: true, message: '请选择认证方式', trigger: 'change' }],
+    user: [
+      {
+        validator: (_r, value: string, cb) => {
+          if (String(value ?? '').trim()) cb()
+          else cb(new Error('请输入 SSH 登录用户'))
+        },
+        trigger: 'blur'
+      }
+    ],
+    port: [
+      {
+        validator: (_r, value: number, cb) => {
+          if (Number.isInteger(value) && value >= 1 && value <= 65535) cb()
+          else cb(new Error('请输入 1-65535 之间的 SSH 端口'))
+        },
+        trigger: 'change'
+      }
+    ],
     password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
     privateKey: [{ required: true, message: '请粘贴私钥内容', trigger: 'blur' }]
   }
@@ -370,22 +515,25 @@
   function openEditNodeDialog(row: PixiuNodeItem) {
     editingNodeId.value = row.id
     const rv = row.resource_version
-    editingResourceVersion.value =
-      typeof rv === 'number' && !Number.isNaN(rv) ? rv : 0
+    editingResourceVersion.value = typeof rv === 'number' && !Number.isNaN(rv) ? rv : 0
     const parsed = parseAuthForForm(row.auth || '{}')
     Object.assign(editNodeForm, {
       name: row.name,
       ip: row.ip,
       authType: parsed.authType,
+      user: parsed.user,
+      port: parsed.port,
       password: parsed.password,
       privateKey: parsed.privateKey
     })
+    editNodeAdvancedVisible.value = parsed.port !== 22
     editNodeVisible.value = true
     nextTick(() => editNodeFormRef.value?.clearValidate())
   }
 
   function resetEditNodeForm() {
     Object.assign(editNodeForm, editNodeEmpty())
+    editNodeAdvancedVisible.value = false
     editingNodeId.value = 0
     editingResourceVersion.value = 0
     editNodeFormRef.value?.clearValidate()
@@ -405,9 +553,14 @@
         editNodeForm.authType === 'password'
           ? {
               type: 'password' as const,
-              password: { user: 'root', password: editNodeForm.password }
+              ...(editNodeForm.port !== 22 ? { port: editNodeForm.port } : {}),
+              password: { user: editNodeForm.user.trim() || 'root', password: editNodeForm.password }
             }
-          : { type: 'key' as const, key: { data: editNodeForm.privateKey } }
+          : {
+              type: 'key' as const,
+              ...(editNodeForm.port !== 22 ? { port: editNodeForm.port } : {}),
+              key: { data: editNodeForm.privateKey }
+            }
 
       await fetchUpdatePixiuNode(editingNodeId.value, {
         resource_version:
@@ -462,7 +615,6 @@
     pagination,
     getData,
     replaceSearchParams,
-    resetSearchParams,
     handleSizeChange,
     handleCurrentChange,
     refreshData
@@ -610,10 +762,6 @@
     void getData()
   }
 
-  function handleReset() {
-    void resetSearchParams()
-  }
-
   async function handleTableRefresh() {
     await refreshData()
   }
@@ -653,6 +801,34 @@
   }
   .host-add-node-fixed-user {
     color: var(--el-text-color-regular);
+  }
+  .host-node-auth-group :deep(.el-radio__label) {
+    font-size: 12px;
+  }
+  .host-node-advanced-toggle-item {
+    margin-bottom: 12px;
+  }
+  .host-node-advanced-toggle-item :deep(.el-form-item__content) {
+    display: none;
+  }
+  .host-node-advanced-toggle-item :deep(.el-button) {
+    font-size: 12px;
+    height: auto;
+    padding: 0;
+  }
+  .host-node-advanced-toggle__icon {
+    margin-left: 2px;
+    font-size: 12px;
+  }
+  .host-node-form .el-input-number {
+    width: 100%;
+  }
+  .host-node-sudo-tip {
+    margin-bottom: 0;
+  }
+  .host-node-sudo-tip :deep(.quota-alert.el-alert) {
+    margin: 0;
+    width: 100%;
   }
 </style>
 

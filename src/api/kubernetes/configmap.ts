@@ -32,21 +32,40 @@ export async function fetchK8sConfigMapList(
   })
 }
 
-export async function fetchK8sConfigMap(cluster: string, namespace: string, name: string): Promise<K8sConfigMap> {
-  const { data } = await kubeProxyAxios.get<K8sConfigMap>(`${cmBase(cluster, namespace)}/${encodeURIComponent(name)}`)
+export async function fetchK8sConfigMap(
+  cluster: string,
+  namespace: string,
+  name: string
+): Promise<K8sConfigMap> {
+  const { data } = await kubeProxyAxios.get<K8sConfigMap>(
+    `${cmBase(cluster, namespace)}/${encodeURIComponent(name)}`
+  )
   return data
 }
 
-export async function deleteK8sConfigMap(cluster: string, namespace: string, name: string): Promise<void> {
+export async function deleteK8sConfigMap(
+  cluster: string,
+  namespace: string,
+  name: string
+): Promise<void> {
   await kubeProxyAxios.delete(`${cmBase(cluster, namespace)}/${encodeURIComponent(name)}`)
 }
 
-export async function createK8sConfigMap(cluster: string, namespace: string, body: object): Promise<K8sConfigMap> {
+export async function createK8sConfigMap(
+  cluster: string,
+  namespace: string,
+  body: object
+): Promise<K8sConfigMap> {
   const { data } = await kubeProxyAxios.post<K8sConfigMap>(cmBase(cluster, namespace), body)
   return data
 }
 
-export async function patchK8sConfigMap(cluster: string, namespace: string, name: string, patch: object): Promise<K8sConfigMap> {
+export async function patchK8sConfigMap(
+  cluster: string,
+  namespace: string,
+  name: string,
+  patch: object
+): Promise<K8sConfigMap> {
   const { data } = await kubeProxyAxios.patch<K8sConfigMap>(
     `${cmBase(cluster, namespace)}/${encodeURIComponent(name)}`,
     patch,
