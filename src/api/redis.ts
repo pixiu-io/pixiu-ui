@@ -24,17 +24,11 @@ export interface RedisInfoResult {
   raw: string
 }
 
-/** SCAN 扫描出的 key 概览 */
+/** SCAN 扫描出的 key 概览（列表仅元数据，不含 value） */
 export interface RedisKeyItem {
   key: string
   type: string
   ttl: number
-  /** 值预览：string 为截断后的值文本，集合类为空 */
-  valuePreview?: string
-  /** 预览是否被截断 */
-  previewTruncated?: boolean
-  /** string 为字节长度，集合类为元素数量 */
-  length?: number
 }
 
 /** SCAN 扫描结果（cursor 为 0 表示已扫描到底，无下一页） */
@@ -87,9 +81,6 @@ interface BackendRedisKeyItem {
   key?: string
   type?: string
   ttl?: number
-  value_preview?: string
-  preview_truncated?: boolean
-  length?: number
 }
 
 interface BackendRedisScan {
@@ -193,10 +184,7 @@ export async function fetchRedisKeys(
     keys: (data?.keys ?? []).map((item) => ({
       key: item.key ?? '',
       type: item.type ?? 'unknown',
-      ttl: item.ttl ?? -1,
-      valuePreview: item.value_preview ?? '',
-      previewTruncated: Boolean(item.preview_truncated),
-      length: item.length ?? 0
+      ttl: item.ttl ?? -1
     }))
   }
 }

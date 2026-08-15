@@ -158,7 +158,7 @@
             :stripe="isZebra"
             :border="isBorder"
             :header-cell-style="headerCellStyle"
-            empty-text="请先选择 Redis 数据源"
+            :empty-text="selectedDsId ? '暂无数据' : '请先选择 Redis 数据源'"
             v-loading="keysLoading"
             @selection-change="onSelectionChange"
             @row-click="handleViewKey"
@@ -310,9 +310,15 @@
       </div>
     </ElDrawer>
 
-    <!-- 新增 Key 弹窗 -->
-    <ElDialog v-model="createVisible" title="新增 Key" width="480px" destroy-on-close>
-      <ElForm label-width="90px" label-position="left">
+    <!-- 新增 Key 弹窗（样式与编辑弹窗对齐） -->
+    <ElDialog
+      v-model="createVisible"
+      title="新增 Key"
+      width="520px"
+      destroy-on-close
+      body-class="redis-key-dialog-body"
+    >
+      <ElForm label-width="60px" label-position="left">
         <ElFormItem label="Key" required>
           <ElInput
             v-model="createForm.key"
@@ -326,19 +332,21 @@
           <ElInput
             v-model="createForm.value"
             type="textarea"
-            :rows="6"
+            :rows="4"
             placeholder="可选，string 类型的值"
           />
         </ElFormItem>
-        <ElFormItem label="TTL（秒）">
-          <ElInputNumber
-            v-model="createForm.ttl"
-            :min="0"
-            :max="31536000"
-            controls-position="right"
-            class="redis-num-input"
-          />
-          <div class="redis-form-hint">0 表示永不过期</div>
+        <ElFormItem label="TTL">
+          <div class="redis-ttl-field">
+            <ElInputNumber
+              v-model="createForm.ttl"
+              :min="0"
+              :max="31536000"
+              controls-position="right"
+              class="redis-num-input redis-num-input--compact"
+            />
+            <span class="redis-form-hint-inline">秒，0 表示永不过期</span>
+          </div>
         </ElFormItem>
       </ElForm>
       <template #footer>
@@ -348,22 +356,31 @@
     </ElDialog>
 
     <!-- 修改 TTL 弹窗 -->
-    <ElDialog v-model="ttlVisible" title="修改 TTL" width="440px" destroy-on-close>
-      <ElForm label-width="90px">
-        <ElFormItem label="过期策略">
+    <ElDialog
+      v-model="ttlVisible"
+      title="修改 TTL"
+      width="440px"
+      destroy-on-close
+      body-class="redis-key-dialog-body"
+    >
+      <ElForm label-width="60px" label-position="left">
+        <ElFormItem label="策略">
           <ElRadioGroup v-model="ttlForm.mode" class="redis-ttl-mode">
             <ElRadioButton value="expire">设置时间</ElRadioButton>
             <ElRadioButton value="persist">永不过期</ElRadioButton>
           </ElRadioGroup>
         </ElFormItem>
         <ElFormItem v-if="ttlForm.mode === 'expire'" label="TTL">
-          <ElInputNumber
-            v-model="ttlForm.seconds"
-            :min="1"
-            :max="31536000"
-            style="width: 120px"
-          />
-          <span style="font-size: 12px; color: var(--el-text-color-regular); margin-left: 4px">秒</span>
+          <div class="redis-ttl-field">
+            <ElInputNumber
+              v-model="ttlForm.seconds"
+              :min="1"
+              :max="31536000"
+              controls-position="right"
+              class="redis-num-input redis-num-input--compact"
+            />
+            <span class="redis-form-hint-inline">秒</span>
+          </div>
         </ElFormItem>
       </ElForm>
       <template #footer>
@@ -373,7 +390,13 @@
     </ElDialog>
 
     <!-- 编辑 Key 值弹窗（仅 string，保持原 TTL） -->
-    <ElDialog v-model="editVisible" title="编辑 Key 值" width="520px" destroy-on-close body-class="redis-edit-dialog-body">
+    <ElDialog
+      v-model="editVisible"
+      title="编辑 Key 值"
+      width="520px"
+      destroy-on-close
+      body-class="redis-key-dialog-body"
+    >
       <ElForm label-width="60px" label-position="left">
         <ElFormItem label="Key">
           <ElInput :model-value="editForm.key" disabled />
@@ -1501,12 +1524,19 @@ async function submitTtl() {
   margin: 0 0 12px;
 }
 
-/* ---- 写操作弹窗 ---- */
-.redis-form-hint {
+/* ---- 写操作弹窗（新增 / 编辑 / TTL 共用） ---- */
+.redis-ttl-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.redis-form-hint-inline {
   font-size: 12px;
   color: var(--el-text-color-secondary);
+  white-space: nowrap;
   line-height: 1.4;
-  margin-top: 4px;
 }
 
 .redis-ttl-mode {
@@ -1579,6 +1609,11 @@ async function submitTtl() {
   }
 }
 
+.redis-num-input--compact {
+  width: 140px;
+  flex-shrink: 0;
+}
+
 /* 新增/编辑/TTL 弹窗内字体统一 12px */
 .redis-page :deep(.el-dialog .el-form-item__label),
 .redis-page :deep(.el-dialog .el-input__inner),
@@ -1586,24 +1621,24 @@ async function submitTtl() {
   font-size: 12px;
 }
 
-/* 编辑 Key 值弹窗：间距与输入框留白优化。
+/* Key 相关弹窗：间距与输入框留白优化。
    ElDialog inheritAttrs:false 不透传 class，需用 body-class（Element Plus 官方，加在 el-dialog__body 上）
    + :global 高特异性选择器覆盖全局 padding:25px 0 !important */
-:global(.el-dialog__body.redis-edit-dialog-body) {
+:global(.el-dialog__body.redis-key-dialog-body) {
   padding: 16px 32px 4px 20px !important;
 }
 
-:global(.redis-edit-dialog-body .el-form-item) {
+:global(.redis-key-dialog-body .el-form-item) {
   margin-bottom: 16px;
 }
 
-:global(.redis-edit-dialog-body .el-form-item__label) {
+:global(.redis-key-dialog-body .el-form-item__label) {
   padding-right: 12px;
   color: var(--el-text-color-primary);
 }
 
-:global(.redis-edit-dialog-body .el-input__inner),
-:global(.redis-edit-dialog-body .el-textarea__inner) {
+:global(.redis-key-dialog-body .el-input__inner),
+:global(.redis-key-dialog-body .el-textarea__inner) {
   font-size: 12px;
 }
 
