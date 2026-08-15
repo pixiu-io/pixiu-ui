@@ -30,8 +30,9 @@ export const middlewareRoutes: AppRouteRecord = {
         title: 'Redis',
         icon: 'ri:database-2-line',
         menu: MenuCodes.MiddlewareRedis
-      },
-      {
+      }
+    },
+    {
       path: 'nacos',
       name: 'MiddlewareNacos',
       component: '/middleware/nacos',

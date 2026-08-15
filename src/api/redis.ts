@@ -37,11 +37,9 @@ export interface RedisKeyItem {
   length?: number
 }
 
-/** SCAN 分页结果 */
+/** SCAN 扫描结果（cursor 为 0 表示已扫描到底，无下一页） */
 export interface RedisScanResult {
-  page: number
-  pageSize: number
-  hasMore: boolean
+  cursor: number
   keys: RedisKeyItem[]
 }
 
@@ -57,10 +55,9 @@ export interface RedisKeyDetail {
 }
 
 interface RedisScanParams {
-  session: string
-  page?: number
-  pageSize?: number
+  cursor: number
   match?: string
+  count?: number
   db?: number
 }
 
@@ -96,9 +93,7 @@ interface BackendRedisKeyItem {
 }
 
 interface BackendRedisScan {
-  page?: number
-  page_size?: number
-  has_more?: boolean
+  cursor?: number
   keys?: BackendRedisKeyItem[] | null
 }
 
@@ -120,7 +115,7 @@ function unwrap<T>(res: { data: { code: number; result?: T; message?: string } }
 
 /** 连接探测 */
 export async function fetchRedisPing(datasourceId: number): Promise<RedisPingResult> {
-  const res = await pixiuAxios.get(`/pixiu/redis/${datasourceId}/ping`)
+  const res = await pixiuAxios.get(`/pixiu/extension/redis/${datasourceId}/ping`)
   const data = unwrap<BackendRedisPing>(res, 'Redis 连接探测失败')
   return normalizePing(data)
 }
@@ -135,7 +130,7 @@ export async function fetchRedisPingAdhoc(payload: {
   sentinelPassword?: string
   db?: number
 }): Promise<RedisPingResult> {
-  const res = await pixiuAxios.post('/pixiu/redis/ping', {
+  const res = await pixiuAxios.post('/pixiu/extension/redis/ping', {
     mode: payload.mode ?? 'standalone',
     address: payload.address ?? '',
     addresses: payload.addresses ?? [],
@@ -161,7 +156,7 @@ function normalizePing(data: BackendRedisPing | undefined): RedisPingResult {
 
 /** 实例概览（db 缺省为数据源配置的默认库） */
 export async function fetchRedisInfo(datasourceId: number, db?: number): Promise<RedisInfoResult> {
-  const res = await pixiuAxios.get(`/pixiu/redis/${datasourceId}/info`, {
+  const res = await pixiuAxios.get(`/pixiu/extension/redis/${datasourceId}/info`, {
     params: { db }
   })
   const data = unwrap<BackendRedisInfo>(res, '获取 Redis 实例信息失败')
@@ -179,25 +174,22 @@ export async function fetchRedisInfo(datasourceId: number, db?: number): Promise
   }
 }
 
-/** SCAN 会话式分页扫描 key */
+/** SCAN cursor 透传顺序扫描 key */
 export async function fetchRedisKeys(
   datasourceId: number,
   params: RedisScanParams
 ): Promise<RedisScanResult> {
-  const res = await pixiuAxios.get(`/pixiu/redis/${datasourceId}/keys`, {
+  const res = await pixiuAxios.get(`/pixiu/extension/redis/${datasourceId}/keys`, {
     params: {
-      session: params.session,
-      page: params.page ?? 1,
-      page_size: params.pageSize ?? 10,
+      cursor: params.cursor ?? 0,
       match: params.match ?? undefined,
+      count: params.count ?? 100,
       db: params.db
     }
   })
   const data = unwrap<BackendRedisScan>(res, '扫描 Redis Key 失败')
   return {
-    page: data?.page ?? 1,
-    pageSize: data?.page_size ?? 10,
-    hasMore: Boolean(data?.has_more),
+    cursor: data?.cursor ?? 0,
     keys: (data?.keys ?? []).map((item) => ({
       key: item.key ?? '',
       type: item.type ?? 'unknown',
@@ -211,7 +203,7 @@ export async function fetchRedisKeys(
 
 /** 查看单个 key 详情 */
 export async function fetchRedisKeyDetail(datasourceId: number, key: string, db?: number): Promise<RedisKeyDetail> {
-  const res = await pixiuAxios.get(`/pixiu/redis/${datasourceId}/key`, {
+  const res = await pixiuAxios.get(`/pixiu/extension/redis/${datasourceId}/key`, {
     params: { key, db }
   })
   const data = unwrap<BackendRedisKeyDetail>(res, '获取 Key 详情失败')
@@ -231,7 +223,7 @@ export async function fetchRedisCreateKey(
   datasourceId: number,
   payload: { key: string; value?: string; ttl?: number; db?: number }
 ): Promise<void> {
-  const res = await pixiuAxios.post(`/pixiu/redis/${datasourceId}/key`, {
+  const res = await pixiuAxios.post(`/pixiu/extension/redis/${datasourceId}/key`, {
     key: payload.key,
     value: payload.value ?? '',
     ttl: payload.ttl ?? 0,
@@ -242,7 +234,7 @@ export async function fetchRedisCreateKey(
 
 /** 删除 Key */
 export async function fetchRedisDeleteKey(datasourceId: number, key: string, db?: number): Promise<void> {
-  const res = await pixiuAxios.delete(`/pixiu/redis/${datasourceId}/key`, {
+  const res = await pixiuAxios.delete(`/pixiu/extension/redis/${datasourceId}/key`, {
     params: { key, db }
   })
   unwrap(res, '删除 Key 失败')
@@ -254,7 +246,7 @@ export async function fetchRedisDeleteKeys(
   keys: string[],
   db?: number
 ): Promise<number> {
-  const res = await pixiuAxios.delete(`/pixiu/redis/${datasourceId}/keys`, {
+  const res = await pixiuAxios.delete(`/pixiu/extension/redis/${datasourceId}/keys`, {
     params: { db },
     data: { keys }
   })
@@ -267,7 +259,7 @@ export async function fetchRedisUpdateKeyValue(
   datasourceId: number,
   payload: { key: string; value: string; db?: number }
 ): Promise<void> {
-  const res = await pixiuAxios.put(`/pixiu/redis/${datasourceId}/key`, {
+  const res = await pixiuAxios.put(`/pixiu/extension/redis/${datasourceId}/key`, {
     key: payload.key,
     value: payload.value,
     db: payload.db
@@ -280,6 +272,6 @@ export async function fetchRedisSetKeyTTL(
   datasourceId: number,
   payload: { key: string; ttl: number; db?: number }
 ): Promise<void> {
-  const res = await pixiuAxios.post(`/pixiu/redis/${datasourceId}/key/ttl`, payload)
+  const res = await pixiuAxios.post(`/pixiu/extension/redis/${datasourceId}/key/ttl`, payload)
   unwrap(res, '修改 TTL 失败')
 }

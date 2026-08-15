@@ -442,6 +442,7 @@
   const subTypeToType: Record<DatasourceSubType, DatasourceType> = {
     loki: 0,
     es: 0,
+    nacos: 0,
     prometheus: 1,
     redis: 2
   }

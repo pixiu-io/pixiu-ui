@@ -334,85 +334,6 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onBeforeUnmount, onMounted, nextTick, type CSSProperties } from 'vue'
-import { useQueryHistory, type QueryHistoryRecord } from './useQueryHistory'
-import QueryHistoryDropdown from './modules/QueryHistoryDropdown.vue'
-
-const promqlInputStyle: CSSProperties = {
-  fontSize: '12px',
-  lineHeight: '1.5',
-  color: 'var(--el-text-color-primary)',
-}
-import { Search } from '@element-plus/icons-vue'
-import {
-  ElAlert,
-  ElAutocomplete,
-  ElButton,
-  ElCheckbox,
-  ElInput,
-  ElOption,
-  ElSelect,
-  ElTable,
-  ElTableColumn
-} from 'element-plus'
-import { useChart } from '@/hooks/core/useChart'
-import { echarts, type EChartsOption } from '@/plugins/echarts'
-import {
-  fetchDatasourceList,
-  resolveDatasourceUrl,
-  type DatasourceHeader,
-  type DatasourceItem,
-  type DatasourceSubType
-} from '@/api/datasource'
-import {
-  fetchPrometheusInstantQuery,
-  fetchPrometheusRangeQuery,
-  type PrometheusInstantResult
-} from '@/api/kubernetes/prometheus'
-import { usePromqlAutocomplete } from './usePromqlAutocomplete'
-
-defineOptions({ name: 'MonitorRealtimeQuery' })
-const alertVisible = ref(true)
-
-// ---- 指标来源/数据源（与日志页保持同构）----
-const dsLoading = ref(false)
-const datasourceOptions = ref<DatasourceItem[]>([])
-const allDatasourceItems = ref<DatasourceItem[]>([])
-const selectedDsId = ref<number>()
-const sourceFilter = ref<'internal' | 'external'>('external')
-const subTypeMeta: Record<DatasourceSubType, { label: string; icon: string }> = {
-  loki: { label: 'Loki', icon: 'simple-icons:grafana' },
-  es: { label: 'Elasticsearch', icon: 'simple-icons:elasticsearch' },
-  prometheus: { label: 'Prometheus', icon: 'simple-icons:prometheus' },
-  redis: { label: 'Redis', icon: 'simple-icons:redis' }
-}
-
-const sourceOptions = computed(() => {
-  const hasInternal = allDatasourceItems.value.some((item) => !item.external)
-  const hasExternal = allDatasourceItems.value.some((item) => item.external)
-  const options: { label: string; value: 'internal' | 'external' }[] = []
-  if (hasInternal) options.push({ label: '内部数据源', value: 'internal' })
-  if (hasExternal) options.push({ label: '外部数据源', value: 'external' })
-  return options
-})
-
-const filteredDsList = computed(() => {
-  if (sourceFilter.value === 'internal') {
-    return datasourceOptions.value.filter((item) => !item.external)
-  }
-  return datasourceOptions.value.filter((item) => item.external)
-})
-
-const selectedDatasource = computed<DatasourceItem | null>(() => {
-  const id = selectedDsId.value
-  if (!id) return null
-  return (
-    datasourceOptions.value.find((item) => item.id === id) ??
-    filteredDsList.value.find((item) => item.id === id) ??
-    null
-  )
-})
-
   import {
     ref,
     computed,
@@ -471,6 +392,7 @@ const selectedDatasource = computed<DatasourceItem | null>(() => {
     loki: { label: 'Loki', icon: 'simple-icons:grafana' },
     es: { label: 'Elasticsearch', icon: 'simple-icons:elasticsearch' },
     prometheus: { label: 'Prometheus', icon: 'simple-icons:prometheus' },
+    redis: { label: 'Redis', icon: 'simple-icons:redis' },
     nacos: { label: 'Nacos', icon: 'ri:settings-3-line' }
   }
 

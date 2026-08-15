@@ -13,7 +13,7 @@ export const DatasourceSubTypeMap: Record<DatasourceSubType, string> = {
   loki: 'Loki',
   es: 'Elasticsearch',
   prometheus: 'Prometheus',
-  redis: 'Redis'
+  redis: 'Redis',
   nacos: 'Nacos'
 }
 
