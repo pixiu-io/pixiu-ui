@@ -163,65 +163,52 @@
             @selection-change="onSelectionChange"
             @row-click="handleViewKey"
           >
-            <ElTableColumn type="selection" width="42" />
+            <ElTableColumn type="selection" width="30" />
             <ElTableColumn
               v-if="isKeyColVisible('key')"
               prop="key"
               label="Key"
-              min-width="320"
+              min-width="180"
               show-overflow-tooltip
             />
-            <ElTableColumn v-if="isKeyColVisible('value')" label="Value" min-width="260">
-              <template #default="{ row }">
-                <span v-if="(row as RedisKeyItem).type === 'string'" class="redis-preview-mono">
-                  {{ (row as RedisKeyItem).valuePreview }}{{ (row as RedisKeyItem).previewTruncated ? '…' : '' }}
-                </span>
-                <span v-else-if="(row as RedisKeyItem).length" class="redis-preview-count">
-                  {{ (row as RedisKeyItem).length }} 个元素
-                </span>
-                <span v-else class="redis-preview-empty">-</span>
-              </template>
-            </ElTableColumn>
             <ElTableColumn v-if="isKeyColVisible('type')" prop="type" label="类型" width="110">
-              <template #default="{ row }">
-                <ElTag size="small" :type="typeTagMap[row.type] ?? 'info'" effect="plain">
-                  {{ row.type }}
-                </ElTag>
-              </template>
+              <template #default="{ row }">{{ row.type }}</template>
             </ElTableColumn>
             <ElTableColumn v-if="isKeyColVisible('ttl')" label="TTL" width="140">
               <template #default="{ row }">{{ formatTTL(row.ttl) }}</template>
             </ElTableColumn>
-            <ElTableColumn label="操作" width="200" fixed="right">
+            <ElTableColumn label="操作" width="160" fixed="right">
               <template #default="{ row }">
-                <ElLink type="primary" underline="never" style="font-size:12px" @click.stop="handleViewKey(row as RedisKeyItem)">
-                  查看
-                </ElLink>
-                <ElLink
-                  v-if="(row as RedisKeyItem).type === 'string'"
-                  type="primary"
-                  underline="never"
-                  style="font-size:12px; margin-left:12px"
-                  @click.stop="openEditDialog(row as RedisKeyItem)"
-                >
-                  编辑
-                </ElLink>
-                <ElLink
-                  type="primary"
-                  underline="never"
-                  style="font-size:12px; margin-left:12px"
-                  @click.stop="openTtlDialog(row as RedisKeyItem)"
-                >
-                  TTL
-                </ElLink>
-                <ElLink
-                  type="primary"
-                  underline="never"
-                  style="font-size:12px; margin-left:12px"
-                  @click.stop="handleDeleteKey(row as RedisKeyItem)"
-                >
-                  删除
-                </ElLink>
+                <div class="redis-ops">
+                  <ElLink type="primary" underline="never" style="font-size:12px" @click.stop="handleViewKey(row as RedisKeyItem)">
+                    查看
+                  </ElLink>
+                  <ElLink
+                    v-if="(row as RedisKeyItem).type === 'string'"
+                    type="primary"
+                    underline="never"
+                    style="font-size:12px"
+                    @click.stop="openEditDialog(row as RedisKeyItem)"
+                  >
+                    编辑
+                  </ElLink>
+                  <ElLink
+                    type="primary"
+                    underline="never"
+                    style="font-size:12px"
+                    @click.stop="openTtlDialog(row as RedisKeyItem)"
+                  >
+                    TTL
+                  </ElLink>
+                  <ElLink
+                    type="primary"
+                    underline="never"
+                    style="font-size:12px"
+                    @click.stop="handleDeleteKey(row as RedisKeyItem)"
+                  >
+                    删除
+                  </ElLink>
+                </div>
               </template>
             </ElTableColumn>
           </ElTable>
@@ -365,18 +352,18 @@
       <ElForm label-width="90px">
         <ElFormItem label="过期策略">
           <ElRadioGroup v-model="ttlForm.mode" class="redis-ttl-mode">
-            <ElRadio value="expire">设置过期时间</ElRadio>
-            <ElRadio value="persist">永久化（移除过期时间）</ElRadio>
+            <ElRadioButton value="expire">设置时间</ElRadioButton>
+            <ElRadioButton value="persist">永不过期</ElRadioButton>
           </ElRadioGroup>
         </ElFormItem>
-        <ElFormItem v-if="ttlForm.mode === 'expire'" label="TTL（秒）">
+        <ElFormItem v-if="ttlForm.mode === 'expire'" label="TTL">
           <ElInputNumber
             v-model="ttlForm.seconds"
             :min="1"
             :max="31536000"
-            controls-position="right"
-            class="redis-num-input"
+            style="width: 120px"
           />
+          <span style="font-size: 12px; color: var(--el-text-color-regular); margin-left: 4px">秒</span>
         </ElFormItem>
       </ElForm>
       <template #footer>
@@ -386,8 +373,8 @@
     </ElDialog>
 
     <!-- 编辑 Key 值弹窗（仅 string，保持原 TTL） -->
-    <ElDialog v-model="editVisible" title="编辑 Key 值" width="520px" destroy-on-close>
-      <ElForm label-width="90px" label-position="left">
+    <ElDialog v-model="editVisible" title="编辑 Key 值" width="520px" destroy-on-close body-class="redis-edit-dialog-body">
+      <ElForm label-width="60px" label-position="left">
         <ElFormItem label="Key">
           <ElInput :model-value="editForm.key" disabled />
         </ElFormItem>
@@ -395,7 +382,7 @@
           <ElInput
             v-model="editForm.value"
             type="textarea"
-            :rows="8"
+            :rows="4"
             placeholder="string 类型的值"
           />
         </ElFormItem>
@@ -598,17 +585,8 @@ const paginationTotal = computed(() => {
   return scanned + 1
 })
 
-const typeTagMap: Record<string, 'primary' | 'success' | 'warning' | 'danger' | 'info'> = {
-  string: 'primary',
-  hash: 'success',
-  list: 'warning',
-  set: 'danger',
-  zset: 'info'
-}
-
 const keyColumnChecks = ref<ColumnOption[]>([
   { prop: 'key', label: 'Key', checked: true },
-  { prop: 'value', label: 'Value', checked: true },
   { prop: 'type', label: '类型', checked: true },
   { prop: 'ttl', label: 'TTL', checked: true }
 ])
@@ -1305,27 +1283,27 @@ async function submitTtl() {
   margin-right: -4px;
   padding-right: 4px;
 
-  /* 细滚动条：平时隐藏，悬停显示 */
+  /* 细滚动条：平时隐藏滑块（覆盖全局 !important），悬停列表时显示 */
   &::-webkit-scrollbar {
     width: 4px !important;
   }
 
   &::-webkit-scrollbar-track {
-    background: transparent;
+    background-color: transparent !important;
   }
 
   &::-webkit-scrollbar-thumb {
-    background-color: transparent;
+    background-color: transparent !important;
     border-radius: 2px;
     transition: background-color 0.2s ease;
   }
 
   &:hover::-webkit-scrollbar-thumb {
-    background-color: rgb(0 0 0 / 0.18);
+    background-color: rgb(0 0 0 / 0.18) !important;
   }
 
   &::-webkit-scrollbar-thumb:hover {
-    background-color: rgb(0 0 0 / 0.28);
+    background-color: rgb(0 0 0 / 0.28) !important;
   }
 }
 
@@ -1415,6 +1393,14 @@ async function submitTtl() {
 
 .redis-keys-table {
   width: 100%;
+}
+
+/* 操作列按钮间距对齐集群页面：flex + gap 12px */
+.redis-ops {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: nowrap;
 }
 
 .redis-page :deep(.redis-keys-table th),
@@ -1524,10 +1510,65 @@ async function submitTtl() {
 }
 
 .redis-ttl-mode {
+  --el-radio-button-checked-border-color: var(--el-color-primary);
+  --el-radio-button-checked-bg-color: var(--el-bg-color-overlay);
+  --el-radio-button-checked-text-color: var(--el-color-primary);
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
+  width: 200px;
+  min-width: 200px;
+  max-width: 200px;
+  overflow: hidden;
+  box-sizing: border-box;
+  margin-top: 0;
+  margin-bottom: 0;
+
+  :deep(.el-radio-button) {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+  }
+
+  :deep(.el-radio-button__inner) {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    box-sizing: border-box;
+    text-align: center;
+    font-size: 12px;
+    padding: 0 10px;
+    line-height: 10px;
+    font-weight: 400;
+    color: var(--el-text-color-regular);
+    background: transparent;
+    border: 1px solid var(--el-border-color);
+    border-radius: 0 !important;
+    transition:
+      border-color 0.15s,
+      color 0.15s,
+      background-color 0.15s;
+  }
+
+  :deep(.el-radio-button:first-child .el-radio-button__inner),
+  :deep(.el-radio-button:last-child .el-radio-button__inner) {
+    border-radius: 0 !important;
+  }
+
+  :deep(.el-radio-button__inner:hover) {
+    border-color: var(--el-color-primary);
+    color: var(--el-color-primary);
+  }
+
+  :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
+    background-color: var(--el-bg-color-overlay) !important;
+    color: var(--el-color-primary) !important;
+    font-weight: 500 !important;
+    border-color: var(--el-color-primary) !important;
+    box-shadow: none !important;
+    position: relative;
+    z-index: 1;
+  }
 }
 
 .redis-num-input {
@@ -1538,24 +1579,32 @@ async function submitTtl() {
   }
 }
 
-/* ---- 值预览列 ---- */
-.redis-preview-mono {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
-  font-family: 'JetBrains Mono', Consolas, Menlo, monospace;
+/* 新增/编辑/TTL 弹窗内字体统一 12px */
+.redis-page :deep(.el-dialog .el-form-item__label),
+.redis-page :deep(.el-dialog .el-input__inner),
+.redis-page :deep(.el-dialog .el-radio__label) {
   font-size: 12px;
-  color: var(--el-text-color-regular);
-  word-break: break-all;
 }
 
-.redis-preview-count {
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
+/* 编辑 Key 值弹窗：间距与输入框留白优化。
+   ElDialog inheritAttrs:false 不透传 class，需用 body-class（Element Plus 官方，加在 el-dialog__body 上）
+   + :global 高特异性选择器覆盖全局 padding:25px 0 !important */
+:global(.el-dialog__body.redis-edit-dialog-body) {
+  padding: 16px 32px 4px 20px !important;
 }
 
-.redis-preview-empty {
-  color: var(--el-text-color-placeholder);
+:global(.redis-edit-dialog-body .el-form-item) {
+  margin-bottom: 16px;
 }
+
+:global(.redis-edit-dialog-body .el-form-item__label) {
+  padding-right: 12px;
+  color: var(--el-text-color-primary);
+}
+
+:global(.redis-edit-dialog-body .el-input__inner),
+:global(.redis-edit-dialog-body .el-textarea__inner) {
+  font-size: 12px;
+}
+
 </style>
