@@ -310,8 +310,14 @@
       </div>
     </ElDrawer>
 
-    <!-- 新增 Key 弹窗 -->
-    <ElDialog v-model="createVisible" title="新增 Key" width="480px" destroy-on-close>
+    <!-- 新增 Key 弹窗（样式与编辑弹窗对齐） -->
+    <ElDialog
+      v-model="createVisible"
+      title="新增 Key"
+      width="520px"
+      destroy-on-close
+      body-class="redis-key-dialog-body"
+    >
       <ElForm label-width="90px" label-position="left">
         <ElFormItem label="Key" required>
           <ElInput
@@ -326,19 +332,24 @@
           <ElInput
             v-model="createForm.value"
             type="textarea"
-            :rows="6"
+            :rows="4"
             placeholder="可选，string 类型的值"
           />
         </ElFormItem>
-        <ElFormItem label="TTL（秒）">
+        <ElFormItem label="过期策略">
+          <ElRadioGroup v-model="createForm.ttlMode" class="redis-ttl-mode">
+            <ElRadioButton value="expire">设置时间</ElRadioButton>
+            <ElRadioButton value="persist">永不过期</ElRadioButton>
+          </ElRadioGroup>
+        </ElFormItem>
+        <ElFormItem v-if="createForm.ttlMode === 'expire'" label="TTL">
           <ElInputNumber
             v-model="createForm.ttl"
-            :min="0"
+            :min="1"
             :max="31536000"
-            controls-position="right"
-            class="redis-num-input"
+            style="width: 120px"
           />
-          <div class="redis-form-hint">0 表示永不过期</div>
+          <span class="redis-ttl-unit">秒</span>
         </ElFormItem>
       </ElForm>
       <template #footer>
@@ -363,7 +374,7 @@
             :max="31536000"
             style="width: 120px"
           />
-          <span style="font-size: 12px; color: var(--el-text-color-regular); margin-left: 4px">秒</span>
+          <span class="redis-ttl-unit">秒</span>
         </ElFormItem>
       </ElForm>
       <template #footer>
@@ -373,7 +384,13 @@
     </ElDialog>
 
     <!-- 编辑 Key 值弹窗（仅 string，保持原 TTL） -->
-    <ElDialog v-model="editVisible" title="编辑 Key 值" width="520px" destroy-on-close body-class="redis-edit-dialog-body">
+    <ElDialog
+      v-model="editVisible"
+      title="编辑 Key 值"
+      width="520px"
+      destroy-on-close
+      body-class="redis-key-dialog-body"
+    >
       <ElForm label-width="60px" label-position="left">
         <ElFormItem label="Key">
           <ElInput :model-value="editForm.key" disabled />
@@ -768,10 +785,15 @@ function refreshAfterWrite() {
 // 新增 Key
 const createVisible = ref(false)
 const createLoading = ref(false)
-const createForm = ref({ key: '', value: '', ttl: 0 })
+const createForm = ref<{ key: string; value: string; ttlMode: 'expire' | 'persist'; ttl: number }>({
+  key: '',
+  value: '',
+  ttlMode: 'persist',
+  ttl: 3600
+})
 
 function openCreateDialog() {
-  createForm.value = { key: '', value: '', ttl: 0 }
+  createForm.value = { key: '', value: '', ttlMode: 'persist', ttl: 3600 }
   createVisible.value = true
 }
 
@@ -782,12 +804,17 @@ async function submitCreateKey() {
     ElMessage.warning('请输入 Key 名称')
     return
   }
+  if (createForm.value.ttlMode === 'expire' && (!createForm.value.ttl || createForm.value.ttl < 1)) {
+    ElMessage.warning('请输入有效的 TTL 秒数')
+    return
+  }
   createLoading.value = true
   try {
     await fetchRedisCreateKey(ds.id, {
       key,
       value: createForm.value.value,
-      ttl: createForm.value.ttl || 0,
+      // 后端约定：<=0 表示永不过期
+      ttl: createForm.value.ttlMode === 'persist' ? 0 : createForm.value.ttl,
       db: currentDb.value
     })
     ElMessage.success('Key 创建成功')
@@ -1502,11 +1529,10 @@ async function submitTtl() {
 }
 
 /* ---- 写操作弹窗 ---- */
-.redis-form-hint {
+.redis-ttl-unit {
   font-size: 12px;
-  color: var(--el-text-color-secondary);
-  line-height: 1.4;
-  margin-top: 4px;
+  color: var(--el-text-color-regular);
+  margin-left: 4px;
 }
 
 .redis-ttl-mode {
@@ -1586,24 +1612,24 @@ async function submitTtl() {
   font-size: 12px;
 }
 
-/* 编辑 Key 值弹窗：间距与输入框留白优化。
+/* 新增/编辑 Key 弹窗共用：间距与输入框留白优化。
    ElDialog inheritAttrs:false 不透传 class，需用 body-class（Element Plus 官方，加在 el-dialog__body 上）
    + :global 高特异性选择器覆盖全局 padding:25px 0 !important */
-:global(.el-dialog__body.redis-edit-dialog-body) {
+:global(.el-dialog__body.redis-key-dialog-body) {
   padding: 16px 32px 4px 20px !important;
 }
 
-:global(.redis-edit-dialog-body .el-form-item) {
+:global(.redis-key-dialog-body .el-form-item) {
   margin-bottom: 16px;
 }
 
-:global(.redis-edit-dialog-body .el-form-item__label) {
+:global(.redis-key-dialog-body .el-form-item__label) {
   padding-right: 12px;
   color: var(--el-text-color-primary);
 }
 
-:global(.redis-edit-dialog-body .el-input__inner),
-:global(.redis-edit-dialog-body .el-textarea__inner) {
+:global(.redis-key-dialog-body .el-input__inner),
+:global(.redis-key-dialog-body .el-textarea__inner) {
   font-size: 12px;
 }
 
