@@ -85,7 +85,7 @@
             :disabled="!isConnected || keysLoading || selectedRows.length === 0"
             @click="handleBatchDelete"
           >
-            批量删除{{ selectedRows.length ? `（${selectedRows.length}）` : '' }}
+            批量删除
           </ElButton>
         </div>
         <div class="redis-keys-toolbar__right">
@@ -168,7 +168,7 @@
               v-if="isKeyColVisible('key')"
               prop="key"
               label="Key"
-              min-width="180"
+              min-width="140"
               show-overflow-tooltip
             />
             <ElTableColumn v-if="isKeyColVisible('type')" prop="type" label="类型" width="110">
