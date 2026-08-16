@@ -86,11 +86,17 @@
     DashboardSeries
   } from '@/api/dashboard'
 
-  const props = defineProps<{
-    panel: DashboardPanelDefinition
-    result?: DashboardPanelResult
-    loading?: boolean
-  }>()
+  const props = withDefaults(
+    defineProps<{
+      panel: DashboardPanelDefinition
+      result?: DashboardPanelResult
+      loading?: boolean
+      showLegend?: boolean
+    }>(),
+    {
+      showLegend: true
+    }
+  )
   const emit = defineEmits<{
     timeRangeSelect: [range: { start: number; end: number }]
   }>()
@@ -217,6 +223,16 @@
     const textColor = isDark.value ? '#c8ccd4' : '#5c6370'
     const splitColor = isDark.value ? '#30343b' : '#edf0f3'
     const colors = ['#2878d4', '#2e9b62', '#d99a2b', '#8c62c7', '#d45f75', '#2c9ea0']
+    const legend = {
+      show: props.showLegend,
+      type: 'scroll' as const,
+      top: 4,
+      right: 8,
+      icon: 'roundRect',
+      itemWidth: 12,
+      itemHeight: 8,
+      textStyle: { color: textColor, fontSize: 11 }
+    }
     const tooltip = (unit?: string) =>
       getTooltipStyle('axis', {
         appendTo: 'body',
@@ -240,7 +256,8 @@
         color: colors,
         animationDuration: 450,
         tooltip: tooltip(props.panel.unit),
-        grid: { left: 14, right: 18, top: 24, bottom: 30, containLabel: true },
+        legend,
+        grid: { left: 14, right: 18, top: 34, bottom: 30, containLabel: true },
         xAxis: {
           type: 'time',
           axisLine: { lineStyle: { color: splitColor } },
@@ -276,10 +293,11 @@
       color: colors,
       animationDuration: 450,
       tooltip: tooltip(props.panel.unit),
+      legend,
       grid: {
         left: 168,
         right: 30,
-        top: 16,
+        top: 32,
         bottom: 22
       },
       xAxis: {
@@ -308,7 +326,7 @@
       series: [
         {
           type: 'bar',
-          data: rows.map((item) => item.value),
+          data: rows.map((item) => ({ name: item.name, value: item.value })),
           barMaxWidth: 18,
           itemStyle: { borderRadius: [0, 3, 3, 0] }
         }
@@ -440,9 +458,13 @@
     window.removeEventListener('resize', hideChartTooltip)
     window.removeEventListener('scroll', hideChartTooltip, true)
   })
-  watch(() => [props.result, props.panel.id, props.loading, isDark.value], renderChart, {
-    deep: true
-  })
+  watch(
+    () => [props.result, props.panel.id, props.loading, props.showLegend, isDark.value],
+    renderChart,
+    {
+      deep: true
+    }
+  )
 </script>
 
 <style scoped lang="scss">
@@ -506,7 +528,7 @@
   .dashboard-panel__heading h3 {
     margin: 0;
     overflow: hidden;
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 600;
     line-height: 20px;
     color: var(--el-text-color-primary);
@@ -545,7 +567,7 @@
   }
 
   .dashboard-panel__state strong {
-    font-size: 14px;
+    font-size: 12px;
     color: var(--el-text-color-primary);
   }
 

@@ -171,8 +171,9 @@
 
           <ElSubMenu index="group-monitor">
             <template #title>
-              <span>事件管理</span>
+              <span>监控告警</span>
             </template>
+            <ElMenuItem index="prometheus">Prometheus 监控</ElMenuItem>
             <ElMenuItem index="events">事件</ElMenuItem>
           </ElSubMenu>
         </ElMenu>
@@ -244,6 +245,7 @@
     'auth',
     'crds',
     'apiservices',
+    'prometheus',
     'events'
   ])
 
@@ -946,8 +948,13 @@
 
   .cluster-detail-menu :deep(.el-sub-menu__title),
   .cluster-detail-menu :deep(.el-menu-item) {
-    height: 40px;
-    line-height: 40px;
+    height: 35px;
+    line-height: 35px;
+  }
+
+  .cluster-detail-menu :deep(.el-menu-item.is-active) {
+    color: var(--el-color-primary);
+    background-color: var(--el-color-primary-light-9);
   }
 
   .cluster-detail-main {

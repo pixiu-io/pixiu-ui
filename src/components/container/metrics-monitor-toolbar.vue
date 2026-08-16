@@ -4,27 +4,29 @@
     <div class="metrics-monitor-toolbar__bar">
       <MetricsTimeRangePicker v-model="timeRangeModel" class="metrics-monitor-toolbar__time" />
 
-      <span class="metrics-monitor-toolbar__divider" aria-hidden="true" />
+      <template v-if="showGranularity">
+        <span class="metrics-monitor-toolbar__divider" aria-hidden="true" />
 
-      <div class="metrics-monitor-toolbar__group">
-        <span class="metrics-monitor-toolbar__group-label">
-          <ElIcon class="metrics-monitor-toolbar__group-icon"><Clock /></ElIcon>
-          时间粒度
-        </span>
-        <ElSelect
-          v-model="granularityKey"
-          class="metrics-monitor-toolbar__select"
-          size="small"
-          @change="onGranularityChange"
-        >
-          <ElOption
-            v-for="opt in METRICS_GRANULARITY_OPTIONS"
-            :key="opt.key"
-            :label="opt.label"
-            :value="opt.key"
-          />
-        </ElSelect>
-      </div>
+        <div class="metrics-monitor-toolbar__group">
+          <span class="metrics-monitor-toolbar__group-label">
+            <ElIcon class="metrics-monitor-toolbar__group-icon"><Clock /></ElIcon>
+            时间粒度
+          </span>
+          <ElSelect
+            v-model="granularityKey"
+            class="metrics-monitor-toolbar__select"
+            size="small"
+            @change="onGranularityChange"
+          >
+            <ElOption
+              v-for="opt in METRICS_GRANULARITY_OPTIONS"
+              :key="opt.key"
+              :label="opt.label"
+              :value="opt.key"
+            />
+          </ElSelect>
+        </div>
+      </template>
 
       <span class="metrics-monitor-toolbar__divider" aria-hidden="true" />
 
@@ -48,11 +50,13 @@
         </ElSelect>
       </div>
 
-      <span class="metrics-monitor-toolbar__divider" aria-hidden="true" />
+      <template v-if="showLegend">
+        <span class="metrics-monitor-toolbar__divider" aria-hidden="true" />
 
-      <ElCheckbox v-model="showLegendModel" class="metrics-monitor-toolbar__legend">
-        显示图例
-      </ElCheckbox>
+        <ElCheckbox v-model="showLegendModel" class="metrics-monitor-toolbar__legend">
+          显示图例
+        </ElCheckbox>
+      </template>
 
       <ElButton
         v-if="showMoreMenu"
@@ -97,9 +101,13 @@
   withDefaults(
     defineProps<{
       showMoreMenu?: boolean
+      showGranularity?: boolean
+      showLegend?: boolean
     }>(),
     {
-      showMoreMenu: false
+      showMoreMenu: false,
+      showGranularity: true,
+      showLegend: true
     }
   )
   const emit = defineEmits<{
@@ -135,12 +143,12 @@
   .metrics-monitor-toolbar__bar {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
     gap: 12px 14px;
+    align-items: center;
     padding: 12px 14px;
+    background: var(--el-fill-color-lighter);
     border: 1px solid var(--el-border-color-lighter);
     border-radius: 8px;
-    background: var(--el-fill-color-lighter);
   }
 
   .metrics-monitor-toolbar__time {
@@ -158,15 +166,15 @@
 
   .metrics-monitor-toolbar__group {
     display: inline-flex;
-    align-items: center;
-    gap: 8px;
     flex-shrink: 0;
+    gap: 8px;
+    align-items: center;
   }
 
   .metrics-monitor-toolbar__group-label {
     display: inline-flex;
-    align-items: center;
     gap: 4px;
+    align-items: center;
     font-size: 13px;
     color: var(--el-text-color-secondary);
     white-space: nowrap;
@@ -189,8 +197,8 @@
   .metrics-monitor-toolbar__select :deep(.el-select__wrapper) {
     min-height: 32px;
     padding: 0 11px;
-    border-radius: 6px;
     background: var(--el-bg-color);
+    border-radius: 6px;
     box-shadow: 0 0 0 1px var(--el-border-color) inset;
   }
 
@@ -216,28 +224,28 @@
   }
 
   .metrics-monitor-toolbar__legend :deep(.el-checkbox__label) {
-    font-size: 13px;
     padding-left: 6px;
+    font-size: 13px;
   }
 
   .metrics-monitor-toolbar__more-btn {
     width: 32px;
     height: 32px;
-    margin-left: -4px;
     padding: 0;
+    margin-left: -4px;
     color: var(--el-text-color-regular);
+    background: var(--el-bg-color);
     border: 1px solid var(--el-border-color);
     border-radius: 2px;
-    background: var(--el-bg-color);
   }
 
   .metrics-monitor-toolbar__more-btn:hover {
     color: var(--el-text-color-primary);
-    border-color: var(--el-color-primary-light-5);
     background: var(--el-color-primary-light-9);
+    border-color: var(--el-color-primary-light-5);
   }
 
-  @media (max-width: 640px) {
+  @media (width <= 640px) {
     .metrics-monitor-toolbar__bar {
       align-items: flex-start;
     }

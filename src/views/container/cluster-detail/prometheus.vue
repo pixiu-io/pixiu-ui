@@ -1,28 +1,1170 @@
 <template>
-  <ElCard shadow="never">
-    <template #header>
-      <span class="page-hd">Prometheus 监控</span>
+  <div class="prometheus-dashboard" :style="{ '--prom-nav-color': menuTheme.textColor }">
+    <template v-if="datasources.length > 0">
+      <div class="prometheus-dashboard__source-bar">
+        <label>Prometheus 实例:</label>
+        <span class="prometheus-dashboard__source-value">{{
+          selectedDatasource?.name || '—'
+        }}</span>
+        <div class="prometheus-dashboard__summary">
+          <span class="prometheus-dashboard__health-dot" :class="pageHealth" />
+          <span>{{ pageHealthLabel }}</span>
+          <span class="prometheus-dashboard__updated">更新于 {{ lastUpdatedLabel }}</span>
+        </div>
+      </div>
     </template>
-    <div class="prometheus-placeholder">
-      <ElEmpty description="开发中，敬请期待" />
+
+    <ElAlert
+      v-if="pageError"
+      class="prometheus-dashboard__alert"
+      type="error"
+      :title="pageError"
+      show-icon
+      closable
+      @close="pageError = ''"
+    />
+
+    <div v-if="!datasources.length" class="prometheus-dashboard__onboarding">
+      <div class="prometheus-onboarding__inner">
+        <section class="prometheus-onboarding__hero">
+          <div class="prometheus-onboarding__hero-content">
+            <h1 class="prometheus-onboarding__hero-title">Prometheus，打造容器监控最佳方案</h1>
+            <!-- prettier-ignore -->
+            <p class="prometheus-onboarding__hero-desc">Prometheus 数据模型与集群内采集服务，为云原生用户提供开箱即用的容器监控运维能力，提供免搭建的高效运维能力，减少开发运维成本，提供100多个免费的基本指标供使用。</p>
+            <ul class="prometheus-onboarding__hero-points">
+              <li
+                ><ElIcon><Check /></ElIcon>数据模型兼容开源 Prometheus，
+                预设监控大盘，提供一百多个免费的容器基础指标。</li
+              >
+              <li
+                ><ElIcon><Check /></ElIcon>秒级采集 毫秒级查询</li
+              >
+              <li
+                ><ElIcon><Check /></ElIcon
+                >开箱即用，一键采集监控数据，并提供丰富的组件监控能力，支持快速安装</li
+              >
+            </ul>
+            <div class="prometheus-onboarding__hero-actions">
+              <ElButton type="primary" @click="associateVisible = true">
+                关联已有 Prometheus 实例
+              </ElButton>
+            </div>
+          </div>
+        </section>
+
+        <section class="prometheus-onboarding__body">
+          <div class="prometheus-onboarding__features">
+            <div class="prometheus-onboarding__feature-card">
+              <ElIcon><Monitor /></ElIcon>
+              <div>
+                <h3>容器预设监控大盘</h3>
+                <p>针对主流业务场景，提供多套开箱即用的容器监控大盘</p>
+              </div>
+            </div>
+            <div class="prometheus-onboarding__feature-card">
+              <ElIcon><Connection /></ElIcon>
+              <div>
+                <h3>Prometheus 集成中心</h3>
+                <p>支持按场景灵活集成多种上报链路，实现业务全链路一体化监控</p>
+              </div>
+            </div>
+            <div class="prometheus-onboarding__feature-card">
+              <ElIcon><Bell /></ElIcon>
+              <div>
+                <h3>Prometheus 灵活告警</h3>
+                <p>基于告警通道，灵活配置告警策略，及时感知业务异常</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="prometheus-onboarding__mockup">
+            <div class="prometheus-onboarding__mockup-header">
+              <span>容器服务 · 监控视图</span>
+              <span class="prometheus-onboarding__mockup-controls"><i /><i /><i /></span>
+            </div>
+            <div class="prometheus-onboarding__mockup-stats">
+              <div class="prometheus-onboarding__mockup-stat">
+                <span class="prometheus-onboarding__mockup-stat-label">CPU 使用率</span>
+                <span class="prometheus-onboarding__mockup-stat-value"
+                  >42<span class="prometheus-onboarding__mockup-stat-unit">%</span></span
+                >
+              </div>
+              <div class="prometheus-onboarding__mockup-stat">
+                <span class="prometheus-onboarding__mockup-stat-label">内存使用</span>
+                <span class="prometheus-onboarding__mockup-stat-value"
+                  >3.8<span class="prometheus-onboarding__mockup-stat-unit">Gi</span></span
+                >
+              </div>
+              <div class="prometheus-onboarding__mockup-stat">
+                <span class="prometheus-onboarding__mockup-stat-label">网络吞吐</span>
+                <span class="prometheus-onboarding__mockup-stat-value"
+                  >1.2<span class="prometheus-onboarding__mockup-stat-unit">Mbps</span></span
+                >
+              </div>
+            </div>
+            <div class="prometheus-onboarding__mockup-chart">
+              <div class="prometheus-onboarding__mockup-bars">
+                <i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i />
+              </div>
+              <svg class="prometheus-onboarding__mockup-line" viewBox="0 0 300 60">
+                <polygon
+                  points="0,50 25,42 50,46 75,30 100,36 125,22 150,28 175,16 200,24 225,12 250,20 275,14 300,8 300,60 0,60"
+                />
+                <polyline
+                  points="0,50 25,42 50,46 75,30 100,36 125,22 150,28 175,16 200,24 225,12 250,20 275,14 300,8"
+                />
+              </svg>
+            </div>
+          </div>
+        </section>
+      </div>
     </div>
-  </ElCard>
+
+    <div v-else-if="!selectedDatasourceId" class="prometheus-dashboard__empty">
+      <ElEmpty description="请选择 Prometheus 数据源" :image-size="96" />
+    </div>
+
+    <div v-else class="prometheus-dashboard__monitor-card">
+      <div class="prometheus-dashboard__monitor-tabs">
+        <div class="prometheus-dashboard__monitor-tab is-active">监控详情</div>
+      </div>
+
+      <div class="prometheus-dashboard__workspace">
+        <aside class="prometheus-dashboard__nav" aria-label="仪表盘分组">
+          <div
+            v-for="section in definition.sections"
+            :key="section.id"
+            class="prometheus-dashboard__nav-group"
+          >
+            <button
+              type="button"
+              class="prometheus-dashboard__nav-heading"
+              :aria-expanded="isNavGroupExpanded(section.id)"
+              @click="toggleNavGroup(section.id)"
+            >
+              <ElIcon
+                class="prometheus-dashboard__nav-chevron"
+                :class="{ 'is-expanded': isNavGroupExpanded(section.id) }"
+              >
+                <CaretRight />
+              </ElIcon>
+              <span>{{ section.title }}</span>
+            </button>
+            <div v-show="isNavGroupExpanded(section.id)" class="prometheus-dashboard__nav-items">
+              <button
+                v-if="!section.children?.length"
+                type="button"
+                class="prometheus-dashboard__nav-item"
+                :class="{ 'is-active': activeSection === section.id }"
+                @click="selectSection(section.id)"
+              >
+                {{ section.title }}
+              </button>
+              <button
+                v-for="child in section.children"
+                v-else
+                :key="child"
+                type="button"
+                class="prometheus-dashboard__nav-item"
+                :class="{ 'is-active': activeSection === child }"
+                @click="selectSection(child)"
+              >
+                {{ sectionNames[child] || child }}
+              </button>
+            </div>
+          </div>
+        </aside>
+
+        <main class="prometheus-dashboard__content">
+          <MetricsMonitorToolbar
+            v-model:timeRange="timeRange"
+            v-model:granularity="granularity"
+            v-model:autoRefresh="autoRefresh"
+            v-model:showLegend="showLegend"
+            :show-granularity="false"
+            :show-legend="false"
+            class="prometheus-dashboard__toolbar"
+          />
+
+          <div class="prometheus-dashboard__panel-grid">
+            <DashboardPanel
+              v-for="panel in currentPanels"
+              :key="`${panel.id}:${resultMap[panel.id]?.status ?? 'pending'}`"
+              :panel="panel"
+              :result="resultMap[panel.id]"
+              :loading="queryLoading"
+              :show-legend="showLegend"
+              @time-range-select="handleChartTimeRangeSelect"
+            />
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <AssociatePrometheusDialog
+      v-model="associateVisible"
+      :cluster-name="clusterName"
+      @associated="handleAssociated"
+    />
+  </div>
 </template>
 
 <script setup lang="ts">
-  defineOptions({ name: 'ClusterDetailPrometheus' })
-</script>
+  import { Bell, CaretRight, Check, Connection, Monitor } from '@element-plus/icons-vue'
+  import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+  import { useRoute } from 'vue-router'
+  import { useSettingStore } from '@/store/modules/setting'
+  import MetricsMonitorToolbar from '@/components/container/metrics-monitor-toolbar.vue'
+  import {
+    fetchDashboardDefinition,
+    fetchDashboardQuery,
+    type DashboardDefinition,
+    type DashboardFilters,
+    type DashboardPanelResult
+  } from '@/api/dashboard'
+  import { fetchDatasourceList, type DatasourceItem } from '@/api/datasource'
+  import {
+    fromDateTimePickerValue,
+    getDefaultMetricsTimeRange,
+    METRICS_TIME_PRESETS,
+    type MetricsTimeRange
+  } from '@/utils/metrics/time-range'
+  import {
+    getDefaultMetricsAutoRefresh,
+    type MetricsAutoRefreshOption
+  } from '@/utils/metrics/auto-refresh'
+  import {
+    getDefaultMetricsGranularity,
+    type MetricsGranularityOption
+  } from '@/utils/metrics/granularity'
+  import DashboardPanel from '@/views/safeguard/dashboard/modules/DashboardPanel.vue'
+  import AssociatePrometheusDialog from './associate-prometheus-dialog.vue'
 
-<style scoped>
-  .page-hd {
-    font-size: 15px;
-    font-weight: 600;
+  defineOptions({ name: 'ClusterDetailPrometheus' })
+
+  const route = useRoute()
+  const settingStore = useSettingStore()
+  const menuTheme = computed(() => settingStore.getMenuTheme)
+
+  const clusterName = computed(() => String(route.query.cluster ?? ''))
+
+  const definition = ref<DashboardDefinition>({ sections: [], panels: [] })
+  const datasources = ref<DatasourceItem[]>([])
+  const selectedDatasourceId = ref<number>()
+  const filters = reactive<DashboardFilters>({})
+  const activeSection = ref('cluster')
+  const expandedNavGroups = ref<string[]>([])
+  const resultMap = reactive<Record<string, DashboardPanelResult>>({})
+  const datasourceLoading = ref(false)
+  const queryLoading = ref(false)
+  const pageError = ref('')
+  const associateVisible = ref(false)
+  const lastUpdated = ref<Date>()
+  const timeRange = ref<MetricsTimeRange>(getDefaultMetricsTimeRange())
+  const granularity = ref<MetricsGranularityOption>(getDefaultMetricsGranularity())
+  const autoRefresh = ref<MetricsAutoRefreshOption>(getDefaultMetricsAutoRefresh())
+  const showLegend = ref(true)
+  let refreshTimer: number | undefined
+  let querySequence = 0
+
+  const sectionNames: Record<string, string> = {
+    cluster: '集群监控概览',
+    namespace: 'Namespace 大盘',
+    kubelet: 'Kubelet',
+    'control-plane': '控制面组件',
+    'node-resource': '集群节点监控详情',
+    'node-pod': '节点 Pod 监控',
+    workload: '工作负载监控概览',
+    pod: '集群 Pod 监控'
   }
 
-  .prometheus-placeholder {
+  const selectedDatasource = computed(() =>
+    datasources.value.find((item) => item.id === selectedDatasourceId.value)
+  )
+  const currentPanels = computed(() =>
+    definition.value.panels.filter((panel) => panel.section === activeSection.value)
+  )
+  const resultValues = computed(() =>
+    currentPanels.value.map((panel) => resultMap[panel.id]).filter(Boolean)
+  )
+  const pageHealth = computed(() => {
+    if (!selectedDatasourceId.value) return 'idle'
+    if (queryLoading.value) return 'loading'
+    if (resultValues.value.some((item) => item.status === 'error')) return 'warning'
+    return 'healthy'
+  })
+  const pageHealthLabel = computed(() => {
+    if (pageHealth.value === 'idle') return '未选择数据源'
+    if (pageHealth.value === 'loading') return '查询中'
+    if (pageHealth.value === 'warning') return '部分面板异常'
+    return '数据源正常'
+  })
+  const lastUpdatedLabel = computed(() =>
+    lastUpdated.value
+      ? lastUpdated.value.toLocaleTimeString('zh-CN', { hour12: false })
+      : '--:--:--'
+  )
+
+  async function loadInitialData() {
+    datasourceLoading.value = true
+    pageError.value = ''
+    try {
+      const [dashboardDefinition, datasourceResult] = await Promise.all([
+        fetchDashboardDefinition(),
+        fetchDatasourceList({ page: 1, limit: 200, type: 1, subType: 'prometheus' })
+      ])
+      definition.value = dashboardDefinition
+      const initialNavGroup = dashboardDefinition.sections.find(
+        (section) =>
+          section.id === activeSection.value || section.children?.includes(activeSection.value)
+      )
+      expandedNavGroups.value = initialNavGroup ? [initialNavGroup.id] : []
+      datasources.value = datasourceResult.items.filter(
+        (item) =>
+          item.type === 1 && item.subType === 'prometheus' && item.clusterName === clusterName.value
+      )
+      const preferred = datasources.value.find((item) => item.isDefault) ?? datasources.value[0]
+      selectedDatasourceId.value = preferred?.id
+      if (preferred) {
+        await queryCurrentSection()
+      }
+    } catch (error) {
+      pageError.value = error instanceof Error ? error.message : '监控面板加载失败'
+    } finally {
+      datasourceLoading.value = false
+    }
+  }
+
+  function normalizedTimeRange(): MetricsTimeRange {
+    const preset = METRICS_TIME_PRESETS.find((item) => item.key === timeRange.value.presetKey)
+    if (
+      !preset ||
+      timeRange.value.presetKey === 'custom' ||
+      timeRange.value.presetKey === 'yesterday'
+    ) {
+      return timeRange.value
+    }
+    return preset.getRange(new Date())
+  }
+
+  function handleChartTimeRangeSelect(range: { start: number; end: number }) {
+    const next = fromDateTimePickerValue([new Date(range.start), new Date(range.end)])
+    if (!next) return
+    timeRange.value = next
+  }
+
+  async function queryCurrentSection() {
+    const datasource = selectedDatasource.value
+    if (!datasource || !currentPanels.value.length) return
+    const sequence = ++querySequence
+    queryLoading.value = true
+    pageError.value = ''
+    try {
+      const range = normalizedTimeRange()
+      const durationSeconds = Math.max(
+        1,
+        Math.floor((range.end.getTime() - range.start.getTime()) / 1000)
+      )
+      const step = Math.max(
+        Math.ceil(granularity.value.stepMs / 1000),
+        Math.ceil(durationSeconds / 600)
+      )
+      const response = await fetchDashboardQuery(datasource, {
+        panelIds: currentPanels.value.map((panel) => panel.id),
+        start: Math.floor(range.start.getTime() / 1000),
+        end: Math.floor(range.end.getTime() / 1000),
+        step,
+        filters
+      })
+      if (sequence !== querySequence) return
+      for (const result of response.results) resultMap[result.id] = result
+      lastUpdated.value = new Date()
+    } catch (error) {
+      if (sequence !== querySequence) return
+      pageError.value = error instanceof Error ? error.message : '面板查询失败'
+    } finally {
+      if (sequence === querySequence) queryLoading.value = false
+    }
+  }
+
+  function selectSection(section: string) {
+    if (section === activeSection.value) return
+    activeSection.value = section
+    queryCurrentSection()
+  }
+
+  function isNavGroupExpanded(sectionId: string) {
+    return expandedNavGroups.value.includes(sectionId)
+  }
+
+  function toggleNavGroup(sectionId: string) {
+    expandedNavGroups.value = isNavGroupExpanded(sectionId)
+      ? expandedNavGroups.value.filter((item) => item !== sectionId)
+      : [...expandedNavGroups.value, sectionId]
+  }
+
+  async function handleAssociated() {
+    await loadInitialData()
+  }
+
+  watch(
+    () =>
+      [
+        timeRange.value.start.getTime(),
+        timeRange.value.end.getTime(),
+        granularity.value.key
+      ] as const,
+    () => {
+      queryCurrentSection()
+    }
+  )
+  watch(
+    () => autoRefresh.value.intervalMs,
+    (intervalMs) => {
+      if (refreshTimer) window.clearInterval(refreshTimer)
+      refreshTimer = undefined
+      if (intervalMs && intervalMs > 0) {
+        refreshTimer = window.setInterval(() => queryCurrentSection(), intervalMs)
+      }
+    },
+    { immediate: true }
+  )
+  onMounted(async () => {
+    await loadInitialData()
+  })
+  onBeforeUnmount(() => {
+    if (refreshTimer) window.clearInterval(refreshTimer)
+  })
+</script>
+
+<style scoped lang="scss">
+  .prometheus-dashboard {
     display: flex;
-    justify-content: center;
+    flex-direction: column;
+    min-width: 0;
+    height: 100%;
+    color: var(--el-text-color-primary);
+  }
+
+  .prometheus-dashboard__source-bar {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 10px;
     align-items: center;
-    min-height: 320px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+  }
+
+  .prometheus-dashboard__source-bar label {
+    flex: 0 0 auto;
+    font-size: 13px;
+    line-height: 20px;
+    color: var(--el-text-color-regular);
+  }
+
+  .prometheus-dashboard__source-value {
+    flex: 0 0 auto;
+    font-size: 13px;
+    line-height: 20px;
+    color: var(--el-text-color-regular);
+  }
+
+  .prometheus-dashboard__source-bar .prometheus-dashboard__summary {
+    flex: 0 0 auto;
+    margin-left: auto;
+    line-height: 20px;
+  }
+
+  .prometheus-dashboard__summary {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 8px;
+    align-items: center;
+    font-size: 12px;
+    color: var(--el-text-color-regular);
+  }
+
+  .prometheus-dashboard__health-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--el-text-color-placeholder);
+    border-radius: 50%;
+  }
+
+  .prometheus-dashboard__health-dot.healthy {
+    background: #2e9b62;
+  }
+
+  .prometheus-dashboard__health-dot.warning {
+    background: #d99a2b;
+  }
+
+  .prometheus-dashboard__health-dot.loading {
+    background: #2878d4;
+  }
+
+  .prometheus-dashboard__updated {
+    margin-left: 4px;
+    color: var(--el-text-color-regular);
+  }
+
+  .prometheus-dashboard__toolbar {
+    margin-bottom: 12px;
+  }
+
+  /* 工具栏视觉压缩：贴近集群监控抽屉样式 */
+  .prometheus-dashboard__toolbar :deep(.metrics-monitor-toolbar) {
+    margin-bottom: 0;
+  }
+
+  .prometheus-dashboard__toolbar :deep(.metrics-monitor-toolbar__bar) {
+    gap: 8px;
+    justify-content: flex-end;
+    padding: 0 10px 0 0;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+  }
+
+  .prometheus-dashboard__toolbar :deep(.metrics-monitor-toolbar__time) {
+    flex: 0 0 auto;
+  }
+
+  .prometheus-dashboard__toolbar :deep(.metrics-monitor-toolbar__divider) {
+    height: 24px;
+    margin: 0 2px;
+    background: var(--el-border-color-light);
+    opacity: 1;
+  }
+
+  .prometheus-dashboard__toolbar :deep(.metrics-time-range-picker) {
+    width: 240px;
+    min-width: 240px;
+    max-width: 240px;
+    transition: width 0.2s ease;
+  }
+
+  .prometheus-dashboard__toolbar :deep(.metrics-time-range-picker.is-custom-range) {
+    width: 340px;
+    min-width: 340px;
+    max-width: 340px;
+  }
+
+  .prometheus-dashboard__toolbar :deep(.metrics-time-range-picker__trigger) {
+    min-height: 32px;
+    padding: 0 12px;
+    font-size: 12px;
+    background: var(--el-bg-color);
+    border-color: var(--el-border-color);
+    border-radius: 2px;
+  }
+
+  /* 隐藏内部 DatePicker 输入框，只保留自定义触发按钮 */
+  .prometheus-dashboard__toolbar :deep(.metrics-time-range-picker__picker) {
+    display: none !important;
+  }
+
+  .prometheus-dashboard__toolbar :deep(.metrics-monitor-toolbar__select .el-select__wrapper) {
+    min-height: 32px;
+    padding: 0 10px;
+    background: var(--el-bg-color);
+    border-radius: 2px;
+    box-shadow: 0 0 0 1px var(--el-border-color) inset;
+  }
+
+  .prometheus-dashboard__toolbar :deep(.metrics-monitor-toolbar__group) {
+    gap: 6px;
+    align-items: center;
+  }
+
+  .prometheus-dashboard__toolbar :deep(.metrics-monitor-toolbar__group-label) {
+    display: inline-flex;
+    gap: 0;
+    align-items: center;
+    font-size: 12px;
+    color: var(--el-text-color-regular);
+  }
+
+  .prometheus-dashboard__toolbar :deep(.metrics-monitor-toolbar__group-icon) {
+    display: none;
+  }
+
+  .prometheus-dashboard__toolbar :deep(.metrics-monitor-toolbar__select) {
+    width: 92px;
+  }
+
+  .prometheus-dashboard__toolbar :deep(.metrics-monitor-toolbar__select--refresh) {
+    width: 86px;
+  }
+
+  .prometheus-dashboard__toolbar :deep(.metrics-monitor-toolbar__legend) {
+    display: inline-flex;
+    align-items: center;
+    height: 32px;
+    margin-left: 6px;
+    font-size: 12px;
+  }
+
+  .prometheus-dashboard__toolbar :deep(.metrics-monitor-toolbar__legend .el-checkbox__inner) {
+    width: 14px;
+    height: 14px;
+    border-color: var(--el-border-color);
+    border-radius: 2px;
+  }
+
+  .prometheus-dashboard__toolbar :deep(.metrics-monitor-toolbar__legend .el-checkbox__label) {
+    padding-left: 5px;
+    font-size: 12px;
+    color: var(--el-text-color-primary);
+  }
+
+  .prometheus-dashboard__alert {
+    margin-top: 12px;
+  }
+
+  .prometheus-dashboard__empty {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+    padding: 24px 16px;
+  }
+
+  .prometheus-dashboard__monitor-card {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+    margin-top: 10px;
+    overflow: hidden;
+    background: var(--el-bg-color);
+    border: 1px solid var(--el-border-color-lighter);
+    border-radius: 6px;
+  }
+
+  .prometheus-dashboard__monitor-tabs {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: flex-start;
+    height: 40px;
+    padding: 10px 12px 0;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+  }
+
+  .prometheus-dashboard__monitor-tab {
+    position: relative;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--el-text-color-regular);
+  }
+
+  .prometheus-dashboard__monitor-tab.is-active {
+    color: var(--theme-color);
+
+    &::after {
+      position: absolute;
+      right: 0;
+      bottom: -11px;
+      left: 0;
+      height: 2px;
+      content: '';
+      background: var(--theme-color);
+    }
+  }
+
+  .prometheus-dashboard__workspace {
+    display: grid;
+    flex: 1;
+    grid-template-columns: 170px minmax(0, 1fr);
+    min-height: 0;
+    padding-top: 12px;
+  }
+
+  .prometheus-dashboard__nav {
+    min-height: 0;
+    padding: 8px 6px 16px 10px;
+    overflow-y: auto;
+    border-right: 1px solid var(--el-border-color-lighter);
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: transparent;
+      border-radius: 3px;
+    }
+
+    &:hover {
+      scrollbar-color: rgb(0 0 0 / 25%) transparent;
+
+      &::-webkit-scrollbar-thumb {
+        background: rgb(0 0 0 / 25%);
+      }
+    }
+  }
+
+  .prometheus-dashboard__nav-group + .prometheus-dashboard__nav-group {
+    margin-top: 4px;
+  }
+
+  .prometheus-dashboard__nav-heading {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    width: 100%;
+    height: 32px;
+    padding: 0 10px;
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--prom-nav-color);
+    text-align: left;
+    cursor: pointer;
+    background: transparent;
+    border: 0;
+  }
+
+  .prometheus-dashboard__nav-heading:hover {
+    color: var(--theme-color);
+    background: var(--el-fill-color-light);
+  }
+
+  .prometheus-dashboard__nav-chevron {
+    flex: 0 0 auto;
+    font-size: 11px;
+    transition: transform 0.16s ease;
+  }
+
+  .prometheus-dashboard__nav-chevron.is-expanded {
+    transform: rotate(90deg);
+  }
+
+  .prometheus-dashboard__nav-items {
+    display: block;
+  }
+
+  .prometheus-dashboard__nav-item {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 34px;
+    padding: 0 10px 0 30px;
+    overflow: hidden;
+    font-size: 12px;
+    color: var(--prom-nav-color);
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+    background: transparent;
+    border: 0;
+  }
+
+  .prometheus-dashboard__nav-item:hover {
+    color: var(--theme-color);
+    background: var(--el-fill-color-light);
+  }
+
+  .prometheus-dashboard__nav-item.is-active {
+    font-weight: 600;
+    color: var(--theme-color);
+    background: var(--el-color-primary-light-9);
+  }
+
+  .prometheus-dashboard__content {
+    min-width: 0;
+    padding: 0 0 4px;
+    overflow: auto;
+  }
+
+  .prometheus-dashboard__panel-grid {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  @media (width <= 768px) {
+    .prometheus-dashboard__workspace {
+      display: block;
+    }
+
+    .prometheus-dashboard__nav {
+      display: flex;
+      padding: 8px 0;
+      overflow-x: auto;
+      border-right: 0;
+      border-bottom: 1px solid var(--el-border-color-lighter);
+    }
+
+    .prometheus-dashboard__nav-group {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+    }
+
+    .prometheus-dashboard__nav-group + .prometheus-dashboard__nav-group {
+      margin: 0 0 0 8px;
+    }
+
+    .prometheus-dashboard__nav-heading {
+      width: auto;
+      min-width: max-content;
+      padding: 0 8px;
+    }
+
+    .prometheus-dashboard__nav-items {
+      display: flex;
+    }
+
+    .prometheus-dashboard__nav-item {
+      width: auto;
+      min-width: max-content;
+      height: 32px;
+      padding: 0 10px;
+      border-radius: 3px;
+    }
+
+    .prometheus-dashboard__nav-item.is-active::before {
+      display: none;
+    }
+
+    .prometheus-dashboard__content {
+      padding: 12px 0 4px;
+    }
+  }
+
+  @media (width <= 520px) {
+    .prometheus-dashboard__header {
+      align-items: flex-start;
+    }
+
+    .prometheus-dashboard__summary {
+      flex-direction: column;
+      gap: 3px;
+      align-items: flex-end;
+    }
+
+    .prometheus-dashboard__health-dot {
+      display: none;
+    }
+
+    .prometheus-dashboard__updated {
+      margin-left: 0;
+    }
+  }
+
+  /* ---- Prometheus 落地页（未绑定数据源） ---- */
+  .prometheus-dashboard__onboarding {
+    flex: 1;
+    min-height: 0;
+    padding: 20px;
+    overflow: auto;
+  }
+
+  .prometheus-onboarding__inner {
+    width: 100%;
+  }
+
+  .prometheus-onboarding__hero {
+    position: relative;
+    display: flex;
+    gap: 36px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 32px 48px 40px;
+    overflow: hidden;
+    background:
+      radial-gradient(720px 320px at 88% 20%, var(--el-color-primary-light-8), transparent 65%),
+      linear-gradient(
+        120deg,
+        var(--el-color-primary-light-9),
+        var(--el-color-primary-light-8) 60%,
+        var(--el-color-primary-light-9)
+      );
+    border: 1px solid var(--el-color-primary-light-7);
+    border-radius: 10px;
+  }
+
+  .prometheus-onboarding__hero-content {
+    position: relative;
+    z-index: 1;
+    max-width: 640px;
+  }
+
+  .prometheus-onboarding__hero-title {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.35;
+    color: var(--el-text-color-primary);
+  }
+
+  .prometheus-onboarding__hero-desc {
+    margin: 12px 0 0;
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--el-text-color-regular);
+  }
+
+  .prometheus-onboarding__hero-points {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 0;
+    margin: 20px 0 0;
+    list-style: none;
+  }
+
+  .prometheus-onboarding__hero-points li {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+    font-size: 12px;
+    color: var(--el-text-color-regular);
+  }
+
+  .prometheus-onboarding__hero-points .el-icon {
+    flex: 0 0 auto;
+    font-size: 15px;
+    color: #2e9b62;
+  }
+
+  .prometheus-onboarding__hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 20px;
+    margin-bottom: -10px;
+  }
+
+  .prometheus-onboarding__hero-actions .el-button {
+    font-size: 12px;
+  }
+
+  .prometheus-onboarding__body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+    gap: 24px;
+    margin-top: 18px;
+  }
+
+  .prometheus-onboarding__features {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .prometheus-onboarding__feature-card {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    padding: 20px;
+    background: var(--el-bg-color);
+    border: 1px solid var(--el-border-color-lighter);
+    border-radius: 8px;
+    transition:
+      border-color 0.2s ease,
+      box-shadow 0.2s ease;
+  }
+
+  .prometheus-onboarding__feature-card:hover {
+    border-color: var(--el-color-primary-light-5);
+    box-shadow: 0 6px 18px rgb(31 45 61 / 8%);
+  }
+
+  .prometheus-onboarding__feature-card .el-icon {
+    display: inline-flex;
+    flex: 0 0 42px;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    font-size: 20px;
+    color: var(--el-color-primary);
+    background: var(--el-color-primary-light-9);
+    border-radius: 8px;
+  }
+
+  .prometheus-onboarding__feature-card h3 {
+    margin: 2px 0 0;
+    font-size: 14px;
+    font-weight: 650;
+    color: var(--el-text-color-primary);
+  }
+
+  .prometheus-onboarding__feature-card p {
+    margin: 6px 0 0;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--el-text-color-secondary);
+  }
+
+  .prometheus-onboarding__mockup {
+    display: flex;
+    flex-direction: column;
+    padding: 20px 22px 22px;
+    background: var(--el-fill-color-light);
+    border: 1px solid var(--el-border-color-lighter);
+    border-radius: 8px;
+  }
+
+  .prometheus-onboarding__mockup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 14px;
+    margin-bottom: 16px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--el-text-color-primary);
+    border-bottom: 1px dashed var(--el-border-color-lighter);
+  }
+
+  .prometheus-onboarding__mockup-controls {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .prometheus-onboarding__mockup-controls i {
+    width: 6px;
+    height: 6px;
+    background: var(--el-color-primary-light-5);
+    border-radius: 50%;
+  }
+
+  .prometheus-onboarding__mockup-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .prometheus-onboarding__mockup-stat {
+    padding: 12px 14px;
+    background: var(--el-bg-color);
+    border: 1px solid var(--el-border-color-lighter);
+    border-radius: 6px;
+  }
+
+  .prometheus-onboarding__mockup-stat-label {
+    display: block;
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+  }
+
+  .prometheus-onboarding__mockup-stat-value {
+    display: block;
+    margin-top: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--el-color-primary);
+  }
+
+  .prometheus-onboarding__mockup-stat-unit {
+    margin-left: 2px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--el-text-color-secondary);
+  }
+
+  .prometheus-onboarding__mockup-stat:nth-child(2) .prometheus-onboarding__mockup-stat-value {
+    color: #2e9b62;
+  }
+
+  .prometheus-onboarding__mockup-stat:nth-child(3) .prometheus-onboarding__mockup-stat-value {
+    color: #d99a2b;
+  }
+
+  .prometheus-onboarding__mockup-chart {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-height: 150px;
+    padding: 16px 16px 8px;
+    background:
+      repeating-linear-gradient(
+        180deg,
+        transparent 0 23px,
+        var(--el-border-color-extra-light) 23px 24px
+      ),
+      var(--el-bg-color);
+    border: 1px solid var(--el-border-color-lighter);
+    border-radius: 6px;
+  }
+
+  .prometheus-onboarding__mockup-bars {
+    display: flex;
+    gap: 6px;
+    align-items: flex-end;
+    height: 64px;
+  }
+
+  .prometheus-onboarding__mockup-bars i {
+    flex: 1 1 0;
+    background: linear-gradient(
+      180deg,
+      var(--el-color-primary-light-4),
+      var(--el-color-primary-light-7)
+    );
+    border-radius: 2px 2px 0 0;
+  }
+
+  .prometheus-onboarding__mockup-bars i:nth-child(3n + 1) {
+    height: 46%;
+  }
+
+  .prometheus-onboarding__mockup-bars i:nth-child(3n + 2) {
+    height: 68%;
+  }
+
+  .prometheus-onboarding__mockup-bars i:nth-child(3n) {
+    height: 32%;
+  }
+
+  .prometheus-onboarding__mockup-line {
+    display: block;
+    width: 100%;
+    height: 52px;
+    margin-top: 14px;
+  }
+
+  .prometheus-onboarding__mockup-line polyline {
+    fill: none;
+    stroke: var(--el-color-primary);
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 2;
+  }
+
+  .prometheus-onboarding__mockup-line polygon {
+    opacity: 0.45;
+    fill: var(--el-color-primary-light-8);
+  }
+
+  @media (width <= 768px) {
+    .prometheus-dashboard__onboarding {
+      padding: 20px 16px 32px;
+    }
+
+    .prometheus-onboarding__hero {
+      flex-direction: column;
+      gap: 24px;
+      align-items: flex-start;
+      padding: 28px 24px;
+    }
+
+    .prometheus-onboarding__body {
+      grid-template-columns: 1fr;
+    }
   }
 </style>
