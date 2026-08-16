@@ -1,6 +1,6 @@
 <!-- 角色管理页面 -->
 <template>
-  <div class="role-page art-full-height" style="padding-top: 10px">
+  <div class="role-page art-full-height">
     <ElAlert
       type="info"
       :closable="false"
@@ -20,12 +20,7 @@
     >
       <div style="display: flex; gap: 8px">
         <ElButton @click="showDialog('add')" v-ripple>创建角色</ElButton>
-        <ElButton
-          v-ripple
-          :disabled="selectedRoles.length === 0"
-          @click="batchDeleteRoles"
-          type="danger"
-        >
+        <ElButton v-ripple :disabled="selectedRoles.length === 0" @click="batchDeleteRoles">
           批量删除
         </ElButton>
       </div>
@@ -153,18 +148,14 @@
         ...searchForm.value
       },
       columnsFactory: () => [
-      {
-        type: 'selection',
-        width: 50,
-        align: 'center'
-      },
-      {
-        prop: 'roleName',
-        label: '角色名称',
-        width: 160,
-        formatter: (row) =>
-          h('span', { class: 'role-name', style: { fontSize: '12px' } }, row.roleName)
-      },
+        { type: 'selection', width: 30 },
+        {
+          prop: 'roleName',
+          label: '角色名称',
+          width: 160,
+          formatter: (row) =>
+            h('span', { class: 'role-name', style: { fontSize: '12px' } }, row.roleName)
+        },
         {
           prop: 'tenantId',
           label: '租户',

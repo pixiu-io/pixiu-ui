@@ -6,6 +6,7 @@
       closable
       show-icon
       class="quota-alert"
+      style="margin: 5px 0 20px 0"
       description="支持查询内部/外部 Prometheus 数据源；外部源会自动透传认证与自定义请求头。请先选择数据源，再输入 PromQL 与时间范围进行查询。"
       @close="alertVisible = false"
     />
@@ -1117,7 +1118,6 @@
 
   .quota-alert {
     flex-shrink: 0;
-    margin: 0 0 12px;
   }
 
   /* ---- 顶部卡片 ---- */
