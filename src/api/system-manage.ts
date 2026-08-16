@@ -497,6 +497,14 @@ export async function fetchDeleteTenant(tenantId: number): Promise<void> {
   if (code !== 200) throw new Error(message || '删除租户失败')
 }
 
+export async function fetchBatchDeleteTenants(tenantIds: number[]): Promise<void> {
+  for (const tenantId of tenantIds) {
+    const res = await pixiuAxios.delete(`/pixiu/tenants/${tenantId}`)
+    const { code, message } = res.data
+    if (code !== 200) throw new Error(message || `删除租户 ${tenantId} 失败`)
+  }
+}
+
 /**
  * 系统邮件 SMTP（与后端 types.Email 对齐）。
  * 密码明文落库但不回显，password_set 表示是否已配置密码。

@@ -10,7 +10,17 @@
         justify-content: space-between;
       "
     >
-      <ElButton @click="showDialog('add')" v-ripple>创建租户</ElButton>
+      <div style="display: flex; gap: 8px">
+        <ElButton @click="showDialog('add')" v-ripple>创建租户</ElButton>
+        <ElButton
+          v-ripple
+          :disabled="selectedTenants.length === 0"
+          @click="batchDeleteTenants"
+          type="danger"
+        >
+          批量删除
+        </ElButton>
+      </div>
       <div style="display: flex; align-items: center; gap: 8px">
         <ElInput
           v-model="searchForm.tenantName"
@@ -32,6 +42,7 @@
         :columns="columns"
         :pagination="pagination"
         :pagination-options="{ align: 'right', hideOnEmpty: false }"
+        @selection-change="onSelectionChange"
         @pagination:size-change="handleSizeChange"
         @pagination:current-change="handleCurrentChange"
       />
@@ -49,6 +60,7 @@
 <script setup lang="ts">
   import { useTable } from '@/hooks/core/useTable'
   import {
+    fetchBatchDeleteTenants,
     fetchCreateTenant,
     fetchDeleteTenant,
     fetchGetTenantList,
@@ -69,6 +81,9 @@
   const searchForm = ref({
     tenantName: undefined as string | undefined
   })
+
+  /** 选中的租户 */
+  const selectedTenants = ref<TenantListItem[]>([])
 
   const {
     columns,
@@ -91,6 +106,11 @@
         ...searchForm.value
       },
       columnsFactory: () => [
+        {
+          type: 'selection',
+          width: 50,
+          align: 'center'
+        },
         {
           prop: 'tenantName',
           label: '租户名称',
@@ -178,6 +198,45 @@
       })
       .catch(() => {
         /* 用户取消或关闭，忽略 */
+      })
+  }
+
+  function onSelectionChange(rows: TenantListItem[]) {
+    selectedTenants.value = rows
+  }
+
+  const batchDeleteTenants = (): void => {
+    if (selectedTenants.value.length === 0) {
+      ElMessage.warning('请选择要删除的租户')
+      return
+    }
+
+    ElMessageBox.confirm(
+      `确定批量删除 ${selectedTenants.value.length} 个租户吗？`,
+      '批量删除租户',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+      .then(async () => {
+        try {
+          // 收集所有租户 ID
+          const tenantIds = selectedTenants.value.map(t => t.id)
+          
+          // 一次性批量删除
+          await fetchBatchDeleteTenants(tenantIds)
+          
+          ElMessage.success(`删除成功 ${selectedTenants.value.length} 个`)
+          selectedTenants.value = []
+          await refreshData()
+        } catch (e: any) {
+          notifyError(e, '批量删除失败')
+        }
+      })
+      .catch(() => {
+        // 用户取消，忽略
       })
   }
 
