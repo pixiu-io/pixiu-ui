@@ -53,7 +53,12 @@
           />
 
           <div class="metrics-time-range-picker__actions">
-            <ElButton type="primary" :disabled="!canApplyAbsolute" @click="applyAbsoluteRange">
+            <ElButton
+              type="primary"
+              size="small"
+              :disabled="!canApplyAbsolute"
+              @click="applyAbsoluteRange"
+            >
               应用时间范围
             </ElButton>
           </div>
@@ -269,7 +274,14 @@
     grid-template-rows: minmax(0, 1fr) 40px;
     grid-template-columns: minmax(0, 3fr) minmax(190px, 2fr);
     max-height: calc(100vh - 110px);
+    font-size: 12px;
     color: var(--el-text-color-regular);
+  }
+
+  .metrics-time-range-picker__panel .el-input__inner,
+  .metrics-time-range-picker__panel .el-input__inner::placeholder,
+  .metrics-time-range-picker__panel .el-button {
+    font-size: 12px;
   }
 
   .metrics-time-range-picker__absolute,
@@ -294,7 +306,7 @@
   .metrics-time-range-picker__absolute label {
     display: block;
     margin: 9px 0 5px;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     color: var(--el-text-color-secondary);
   }
@@ -315,7 +327,8 @@
   }
 
   .metrics-time-range-picker__actions .el-button {
-    height: 34px;
+    --el-button-size: 28px;
+
     border-radius: 2px;
   }
 
@@ -328,7 +341,7 @@
     width: 100%;
     padding: 5px 0;
     overflow: hidden;
-    font-size: 11px;
+    font-size: 12px;
     line-height: 16px;
     color: var(--el-text-color-secondary);
     text-align: left;
@@ -380,7 +393,7 @@
     gap: 8px;
     align-items: center;
     padding: 0 12px;
-    font-size: 11px;
+    font-size: 12px;
     color: var(--el-text-color-secondary);
     border-top: 1px solid var(--el-border-color);
   }

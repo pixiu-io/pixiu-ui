@@ -111,7 +111,10 @@ function resolvePrometheusContext(datasource: DatasourceItem): PrometheusDatasou
   }
   return {
     url,
-    options: buildPrometheusRequestOptions(datasource)
+    options: {
+      ...buildPrometheusRequestOptions(datasource),
+      skipErrorNotification: true
+    }
   }
 }
 

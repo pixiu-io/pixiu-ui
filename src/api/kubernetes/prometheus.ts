@@ -30,6 +30,8 @@ export interface PrometheusQueryOptions {
    * 传入后走 /pixiu/proxy/{cluster}/.../services/.../proxy，而不是 /pixiu/external。
    */
   clusterName?: string
+  /** 为 true 时跳过 axios 拦截器的错误 toast（监控面板由页面内提示） */
+  skipErrorNotification?: boolean
 }
 
 function buildBasicAuth(datasource: DatasourceItem): string {
@@ -79,12 +81,13 @@ function appendSearchParams(path: string, params: URLSearchParams): string {
 
 async function getPrometheusJson<T>(path: string, opts?: PrometheusQueryOptions): Promise<T> {
   const headers = buildRequestHeaders(opts)
+  const config = { headers, skipErrorNotification: opts?.skipErrorNotification }
   const useClusterProxy = Boolean(opts?.clusterName?.trim())
   if (useClusterProxy) {
-    const res = await kubeProxyAxios.get<T>(path, { headers })
+    const res = await kubeProxyAxios.get<T>(path, config)
     return res.data
   }
-  const res = await pixiuAxios.get<T>(path, { headers })
+  const res = await pixiuAxios.get<T>(path, config)
   return res.data
 }
 
