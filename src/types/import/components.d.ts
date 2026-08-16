@@ -145,6 +145,7 @@ declare module 'vue' {
     MetricChartPanel: typeof import('./../../components/container/metric-chart-panel.vue')['default']
     MetricsMonitorToolbar: typeof import('./../../components/container/metrics-monitor-toolbar.vue')['default']
     MetricsTimeRangePicker: typeof import('./../../components/container/metrics-time-range-picker.vue')['default']
+    PrometheusOnboarding: typeof import('./../../components/monitor/prometheus-onboarding.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SectionTitle: typeof import('./../../components/core/layouts/art-settings-panel/widget/SectionTitle.vue')['default']

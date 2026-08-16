@@ -1,241 +1,186 @@
 <template>
-  <div class="monitor-dashboard art-full-height">
-    <header class="monitor-dashboard__topbar">
-      <div class="monitor-dashboard__identity">
-        <div class="monitor-dashboard__mark"><ArtSvgIcon icon="ri:pulse-line" /></div>
-        <div>
-          <h1>Prometheus 监控</h1>
-          <p>{{ selectedDatasource?.clusterName || 'Kubernetes 集群' }}</p>
-        </div>
-      </div>
-      <div class="monitor-dashboard__summary">
-        <span class="monitor-dashboard__health-dot" :class="pageHealth" />
-        <span>{{ pageHealthLabel }}</span>
-        <span class="monitor-dashboard__updated">更新于 {{ lastUpdatedLabel }}</span>
-      </div>
-    </header>
-
-    <section class="monitor-dashboard__filters">
-      <div class="monitor-dashboard__filter-group is-source">
-        <label>数据源</label>
-        <ElSelect
-          v-model="selectedDatasourceId"
-          placeholder="选择 Prometheus"
-          filterable
-          :loading="datasourceLoading"
-          @change="handleDatasourceChange"
-        >
-          <ElOption v-for="item in datasources" :key="item.id" :label="item.name" :value="item.id">
-            <div class="monitor-dashboard__datasource-option">
-              <ArtSvgIcon icon="simple-icons:prometheus" />
-              <span>{{ item.name }}</span>
-              <small>{{ item.clusterName || (item.external ? '外部' : '内部') }}</small>
-            </div>
-          </ElOption>
-        </ElSelect>
-      </div>
-
-      <div class="monitor-dashboard__filter-group">
-        <label>Namespace</label>
-        <ElSelect
-          v-model="filters.namespace"
-          clearable
-          filterable
-          placeholder="全部"
-          :loading="variablesLoading"
-          @change="handleNamespaceChange"
-        >
-          <ElOption v-for="item in variables.namespaces" :key="item" :label="item" :value="item" />
-        </ElSelect>
-      </div>
-
-      <div class="monitor-dashboard__filter-group">
-        <label>Node</label>
-        <ElSelect
-          v-model="filters.node"
-          clearable
-          filterable
-          placeholder="全部"
-          :loading="variablesLoading"
-          @change="handleNodeChange"
-        >
-          <ElOption v-for="item in variables.nodes" :key="item" :label="item" :value="item" />
-        </ElSelect>
-      </div>
-
-      <div class="monitor-dashboard__filter-group">
-        <label>工作负载</label>
-        <ElSelect
-          v-model="selectedWorkload"
-          clearable
-          filterable
-          placeholder="全部"
-          :loading="variablesLoading"
-          @change="handleWorkloadChange"
-        >
-          <ElOption
-            v-for="item in variables.workloads"
-            :key="`${item.kind}/${item.name}`"
-            :label="`${item.kind} / ${item.name}`"
-            :value="`${item.kind}/${item.name}`"
-          />
-        </ElSelect>
-      </div>
-
-      <div class="monitor-dashboard__filter-group">
-        <label>Pod</label>
-        <ElSelect
-          v-model="filters.pod"
-          clearable
-          filterable
-          placeholder="全部"
-          :loading="variablesLoading"
-          @change="queryCurrentSection"
-        >
-          <ElOption v-for="item in variables.pods" :key="item" :label="item" :value="item" />
-        </ElSelect>
-      </div>
-
-      <div class="monitor-dashboard__time-controls">
-        <MetricsTimeRangePicker v-model="timeRange" />
-        <div class="monitor-dashboard__refresh-control">
-          <ElButton
-            class="monitor-dashboard__refresh-action"
-            :icon="Refresh"
-            :loading="queryLoading"
-            title="刷新"
-            @click="refreshDashboard"
-          >
-            刷新
-          </ElButton>
-          <ElDropdown
-            trigger="click"
-            popper-class="monitor-dashboard__refresh-menu"
-            @command="handleAutoRefreshCommand"
-          >
-            <button type="button" class="monitor-dashboard__refresh-interval">
-              <span>{{ autoRefreshLabel }}</span>
-              <ElIcon><ArrowDown /></ElIcon>
-            </button>
-            <template #dropdown>
-              <ElDropdownMenu>
-                <ElDropdownItem
-                  v-for="item in METRICS_AUTO_REFRESH_OPTIONS"
-                  :key="item.key"
-                  :command="item.key"
-                  :class="{ 'is-active': autoRefreshKey === item.key }"
-                >
-                  {{ item.label }}
-                </ElDropdownItem>
-              </ElDropdownMenu>
-            </template>
-          </ElDropdown>
-        </div>
-      </div>
-    </section>
-
-    <ElAlert
-      v-if="pageError"
-      class="monitor-dashboard__alert"
-      type="error"
-      :title="pageError"
-      show-icon
-      closable
-      @close="pageError = ''"
+  <div
+    class="prometheus-dashboard art-full-height"
+    :style="{ '--prom-nav-color': menuTheme.textColor }"
+  >
+    <PrometheusOnboarding
+      v-if="!datasources.length && !datasourceLoading"
+      action-text="创建 Prometheus 实例"
+      @associate="goAddDatasource"
     />
 
-    <div class="monitor-dashboard__workspace">
-      <aside class="monitor-dashboard__nav" aria-label="仪表盘分组">
-        <div
-          v-for="section in definition.sections"
-          :key="section.id"
-          class="monitor-dashboard__nav-group"
-        >
-          <button
-            type="button"
-            class="monitor-dashboard__nav-heading"
-            :aria-expanded="isNavGroupExpanded(section.id)"
-            @click="toggleNavGroup(section.id)"
+    <template v-else-if="datasources.length > 0">
+      <ElAlert
+        v-if="alertVisible"
+        type="info"
+        closable
+        show-icon
+        class="quota-alert"
+        description="查看 Prometheus 监控大盘，支持内部与外部数据源；请先选择数据源，再按预设分组浏览集群、节点与工作负载等监控面板。"
+        @close="alertVisible = false"
+      />
+
+      <section class="md-top-card">
+        <div class="md-rule-bar">
+          <div class="md-rule-main">
+            <div class="md-rule-left">
+              <span class="md-rule-label">Prometheus 实例</span>
+              <span class="md-datasource-wrap">
+                <ElSelect
+                  v-model="selectedDatasourceId"
+                  class="md-rule-select md-ds-select"
+                  placeholder="请选择 Prometheus 实例"
+                  :loading="datasourceLoading"
+                  clearable
+                  filterable
+                  @change="handleDatasourceChange"
+                >
+                  <template #label="{ value }">
+                    <span v-if="value && getDatasourceById(Number(value))" class="md-ds-option">
+                      <span class="md-ds-logo is-prometheus">
+                        <ArtSvgIcon icon="simple-icons:prometheus" class="md-ds-logo-icon" />
+                      </span>
+                      <span class="md-ds-option-name">
+                        {{ getDatasourceById(Number(value))?.name }}
+                      </span>
+                    </span>
+                  </template>
+                  <ElOption v-for="ds in datasources" :key="ds.id" :label="ds.name" :value="ds.id">
+                    <span class="md-ds-option">
+                      <span class="md-ds-logo is-prometheus">
+                        <ArtSvgIcon icon="simple-icons:prometheus" class="md-ds-logo-icon" />
+                      </span>
+                      <span class="md-ds-option-name">{{ ds.name }}</span>
+                    </span>
+                  </ElOption>
+                </ElSelect>
+                <ElTag
+                  v-if="selectedDatasource && !selectedDatasource.external"
+                  class="md-ds-cluster-tag"
+                  size="small"
+                  effect="light"
+                >
+                  {{ selectedDatasource.clusterName || '-' }}
+                </ElTag>
+              </span>
+            </div>
+            <div class="md-rule-right">
+              <span class="prometheus-dashboard__health-dot" :class="pageHealth" />
+              <span class="md-rule-health">{{ pageHealthLabel }}</span>
+              <span class="md-rule-updated">更新于 {{ lastUpdatedLabel }}</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <ElAlert
+        v-if="pageError"
+        class="prometheus-dashboard__alert"
+        type="error"
+        :title="pageError"
+        show-icon
+        closable
+        @close="pageError = ''"
+      />
+
+      <div v-if="!selectedDatasourceId" class="prometheus-dashboard__empty">
+        <ElEmpty description="请选择 Prometheus 实例" :image-size="96" />
+      </div>
+
+      <div v-else class="prometheus-dashboard__monitor-card">
+        <div class="prometheus-dashboard__monitor-tabs">
+          <button type="button" class="prometheus-dashboard__monitor-tab is-active"
+            >监控详情</button
           >
-            <ElIcon
-              class="monitor-dashboard__nav-chevron"
-              :class="{ 'is-expanded': isNavGroupExpanded(section.id) }"
-            >
-              <CaretRight />
-            </ElIcon>
-            <ArtSvgIcon :icon="section.icon" />
-            <span>{{ section.title }}</span>
-          </button>
-          <div v-show="isNavGroupExpanded(section.id)" class="monitor-dashboard__nav-items">
-            <button
-              v-if="!section.children?.length"
-              type="button"
-              class="monitor-dashboard__nav-item"
-              :class="{ 'is-active': activeSection === section.id }"
-              @click="selectSection(section.id)"
-            >
-              {{ section.title }}
-            </button>
-            <button
-              v-for="child in section.children"
-              v-else
-              :key="child"
-              type="button"
-              class="monitor-dashboard__nav-item"
-              :class="{ 'is-active': activeSection === child }"
-              @click="selectSection(child)"
-            >
-              {{ sectionNames[child] || child }}
-            </button>
-          </div>
-        </div>
-      </aside>
-
-      <main class="monitor-dashboard__content">
-        <div class="monitor-dashboard__section-title">
-          <div>
-            <span>监控详情</span>
-            <h2>{{ currentSectionTitle }}</h2>
-          </div>
-          <div class="monitor-dashboard__legend">
-            <span><i class="healthy" />正常</span>
-            <span><i class="missing" />指标未采集</span>
-            <span><i class="failed" />查询失败</span>
-          </div>
         </div>
 
-        <ElEmpty
-          v-if="!selectedDatasourceId && !datasourceLoading"
-          description="请先添加或选择 Prometheus 数据源"
-          :image-size="72"
-        />
-        <div v-else class="monitor-dashboard__panel-grid">
-          <DashboardPanel
-            v-for="panel in currentPanels"
-            :key="`${panel.id}:${resultMap[panel.id]?.status ?? 'pending'}`"
-            :panel="panel"
-            :result="resultMap[panel.id]"
-            :loading="queryLoading"
-            @time-range-select="handleChartTimeRangeSelect"
-          />
+        <div class="prometheus-dashboard__workspace">
+          <aside class="prometheus-dashboard__nav" aria-label="监控大盘分组">
+            <div
+              v-for="section in definition.sections"
+              :key="section.id"
+              class="prometheus-dashboard__nav-group"
+            >
+              <button
+                type="button"
+                class="prometheus-dashboard__nav-heading"
+                :aria-expanded="isNavGroupExpanded(section.id)"
+                @click="toggleNavGroup(section.id)"
+              >
+                <ElIcon
+                  class="prometheus-dashboard__nav-chevron"
+                  :class="{ 'is-expanded': isNavGroupExpanded(section.id) }"
+                >
+                  <CaretRight />
+                </ElIcon>
+                <span>{{ section.title }}</span>
+              </button>
+              <div v-show="isNavGroupExpanded(section.id)" class="prometheus-dashboard__nav-items">
+                <button
+                  v-if="!section.children?.length"
+                  type="button"
+                  class="prometheus-dashboard__nav-item"
+                  :class="{ 'is-active': activeSection === section.id }"
+                  @click="selectSection(section.id)"
+                >
+                  {{ section.title }}
+                </button>
+                <button
+                  v-for="child in section.children"
+                  v-else
+                  :key="child"
+                  type="button"
+                  class="prometheus-dashboard__nav-item"
+                  :class="{ 'is-active': activeSection === child }"
+                  @click="selectSection(child)"
+                >
+                  {{ sectionNames[child] || child }}
+                </button>
+              </div>
+            </div>
+          </aside>
+
+          <main class="prometheus-dashboard__content">
+            <MetricsMonitorToolbar
+              v-model:timeRange="timeRange"
+              v-model:granularity="granularity"
+              v-model:autoRefresh="autoRefresh"
+              v-model:showLegend="showLegend"
+              :show-granularity="false"
+              :show-legend="false"
+              class="prometheus-dashboard__toolbar"
+            />
+
+            <div class="prometheus-dashboard__panel-grid">
+              <DashboardPanel
+                v-for="panel in currentPanels"
+                :key="`${panel.id}:${resultMap[panel.id]?.status ?? 'pending'}`"
+                :panel="panel"
+                :result="resultMap[panel.id]"
+                :loading="queryLoading"
+                :show-legend="showLegend"
+                @time-range-select="handleChartTimeRangeSelect"
+              />
+            </div>
+          </main>
         </div>
-      </main>
-    </div>
+      </div>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
-  import { ArrowDown, CaretRight, Refresh } from '@element-plus/icons-vue'
-  import { ElMessage } from 'element-plus'
-  import MetricsTimeRangePicker from '@/components/container/metrics-time-range-picker.vue'
+  import { CaretRight } from '@element-plus/icons-vue'
+  import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+  import { useRouter } from 'vue-router'
+  import { useSettingStore } from '@/store/modules/setting'
+  import MetricsMonitorToolbar from '@/components/container/metrics-monitor-toolbar.vue'
+  import PrometheusOnboarding from '@/components/monitor/prometheus-onboarding.vue'
   import {
     fetchDashboardDefinition,
     fetchDashboardQuery,
-    fetchDashboardVariables,
     type DashboardDefinition,
-    type DashboardFilters,
-    type DashboardPanelResult,
-    type DashboardVariables
+    type DashboardPanelResult
   } from '@/api/dashboard'
   import { fetchDatasourceList, type DatasourceItem } from '@/api/datasource'
   import {
@@ -246,35 +191,35 @@
   } from '@/utils/metrics/time-range'
   import {
     getDefaultMetricsAutoRefresh,
-    METRICS_AUTO_REFRESH_OPTIONS
+    type MetricsAutoRefreshOption
   } from '@/utils/metrics/auto-refresh'
+  import {
+    getDefaultMetricsGranularity,
+    type MetricsGranularityOption
+  } from '@/utils/metrics/granularity'
   import DashboardPanel from './modules/DashboardPanel.vue'
 
   defineOptions({ name: 'MonitorDashboard' })
 
-  const emptyVariables = (): DashboardVariables => ({
-    namespaces: [],
-    nodes: [],
-    workloads: [],
-    pods: []
-  })
+  const router = useRouter()
+  const settingStore = useSettingStore()
+  const menuTheme = computed(() => settingStore.getMenuTheme)
+  const alertVisible = ref(true)
 
   const definition = ref<DashboardDefinition>({ sections: [], panels: [] })
   const datasources = ref<DatasourceItem[]>([])
   const selectedDatasourceId = ref<number>()
-  const variables = ref<DashboardVariables>(emptyVariables())
-  const filters = reactive<DashboardFilters>({})
-  const selectedWorkload = ref('')
   const activeSection = ref('cluster')
   const expandedNavGroups = ref<string[]>([])
   const resultMap = reactive<Record<string, DashboardPanelResult>>({})
   const datasourceLoading = ref(false)
-  const variablesLoading = ref(false)
   const queryLoading = ref(false)
   const pageError = ref('')
   const lastUpdated = ref<Date>()
   const timeRange = ref<MetricsTimeRange>(getDefaultMetricsTimeRange())
-  const autoRefreshKey = ref(getDefaultMetricsAutoRefresh().key)
+  const granularity = ref<MetricsGranularityOption>(getDefaultMetricsGranularity())
+  const autoRefresh = ref<MetricsAutoRefreshOption>(getDefaultMetricsAutoRefresh())
+  const showLegend = ref(true)
   let refreshTimer: number | undefined
   let querySequence = 0
 
@@ -292,15 +237,18 @@
   const selectedDatasource = computed(() =>
     datasources.value.find((item) => item.id === selectedDatasourceId.value)
   )
+
+  function getDatasourceById(id: number): DatasourceItem | undefined {
+    return datasources.value.find((item) => item.id === id)
+  }
+
+  function goAddDatasource() {
+    router.push({ name: 'MonitorDatasource' })
+  }
+
   const currentPanels = computed(() =>
     definition.value.panels.filter((panel) => panel.section === activeSection.value)
   )
-  const currentSectionTitle = computed(() => {
-    if (sectionNames[activeSection.value]) return sectionNames[activeSection.value]
-    return (
-      definition.value.sections.find((item) => item.id === activeSection.value)?.title || '监控概览'
-    )
-  })
   const resultValues = computed(() =>
     currentPanels.value.map((panel) => resultMap[panel.id]).filter(Boolean)
   )
@@ -316,15 +264,15 @@
     if (pageHealth.value === 'warning') return '部分面板异常'
     return '数据源正常'
   })
-  const autoRefreshLabel = computed(
-    () =>
-      METRICS_AUTO_REFRESH_OPTIONS.find((item) => item.key === autoRefreshKey.value)?.label || '1m'
-  )
   const lastUpdatedLabel = computed(() =>
     lastUpdated.value
       ? lastUpdated.value.toLocaleTimeString('zh-CN', { hour12: false })
       : '--:--:--'
   )
+
+  function preferDatasourceId(list: DatasourceItem[]) {
+    return list.find((item) => item.isDefault)?.id ?? list[0]?.id
+  }
 
   async function loadInitialData() {
     datasourceLoading.value = true
@@ -335,39 +283,18 @@
         fetchDatasourceList({ page: 1, limit: 200, type: 1, subType: 'prometheus' })
       ])
       definition.value = dashboardDefinition
-      const initialNavGroup = dashboardDefinition.sections.find(
-        (section) =>
-          section.id === activeSection.value || section.children?.includes(activeSection.value)
-      )
-      expandedNavGroups.value = initialNavGroup ? [initialNavGroup.id] : []
+      expandedNavGroups.value = dashboardDefinition.sections.map((section) => section.id)
       datasources.value = datasourceResult.items.filter(
         (item) => item.type === 1 && item.subType === 'prometheus'
       )
-      const preferred = datasources.value.find((item) => item.isDefault) ?? datasources.value[0]
-      selectedDatasourceId.value = preferred?.id
-      if (preferred) {
-        await Promise.all([loadVariables(), queryCurrentSection()])
+      selectedDatasourceId.value = preferDatasourceId(datasources.value)
+      if (selectedDatasourceId.value) {
+        await queryCurrentSection()
       }
     } catch (error) {
-      pageError.value = error instanceof Error ? error.message : '仪表盘加载失败'
+      pageError.value = error instanceof Error ? error.message : '监控大盘加载失败'
     } finally {
       datasourceLoading.value = false
-    }
-  }
-
-  async function loadVariables() {
-    const datasource = selectedDatasource.value
-    if (!datasource) {
-      variables.value = emptyVariables()
-      return
-    }
-    variablesLoading.value = true
-    try {
-      variables.value = await fetchDashboardVariables(datasource, filters)
-    } catch (error) {
-      pageError.value = error instanceof Error ? error.message : '筛选项加载失败'
-    } finally {
-      variablesLoading.value = false
     }
   }
 
@@ -401,13 +328,16 @@
         1,
         Math.floor((range.end.getTime() - range.start.getTime()) / 1000)
       )
-      const step = Math.max(15, Math.ceil(durationSeconds / 600))
+      const step = Math.max(
+        Math.ceil(granularity.value.stepMs / 1000),
+        Math.ceil(durationSeconds / 600)
+      )
       const response = await fetchDashboardQuery(datasource, {
         panelIds: currentPanels.value.map((panel) => panel.id),
         start: Math.floor(range.start.getTime() / 1000),
         end: Math.floor(range.end.getTime() / 1000),
         step,
-        filters
+        filters: {}
       })
       if (sequence !== querySequence) return
       for (const result of response.results) resultMap[result.id] = result
@@ -422,36 +352,8 @@
 
   async function handleDatasourceChange() {
     Object.keys(resultMap).forEach((key) => delete resultMap[key])
-    Object.assign(filters, {
-      namespace: undefined,
-      node: undefined,
-      workload_kind: undefined,
-      workload_name: undefined,
-      pod: undefined
-    })
-    selectedWorkload.value = ''
-    await Promise.all([loadVariables(), queryCurrentSection()])
-  }
-
-  async function handleNamespaceChange() {
-    filters.workload_kind = undefined
-    filters.workload_name = undefined
-    filters.pod = undefined
-    selectedWorkload.value = ''
-    await Promise.all([loadVariables(), queryCurrentSection()])
-  }
-
-  async function handleNodeChange() {
-    filters.pod = undefined
-    await Promise.all([loadVariables(), queryCurrentSection()])
-  }
-
-  async function handleWorkloadChange(value: string) {
-    const separator = value.indexOf('/')
-    filters.workload_kind = separator > 0 ? value.slice(0, separator) : undefined
-    filters.workload_name = separator > 0 ? value.slice(separator + 1) : undefined
-    filters.pod = undefined
-    await Promise.all([loadVariables(), queryCurrentSection()])
+    if (!selectedDatasourceId.value) return
+    await queryCurrentSection()
   }
 
   function selectSection(section: string) {
@@ -470,49 +372,30 @@
       : [...expandedNavGroups.value, sectionId]
   }
 
-  function refreshDashboard() {
-    Promise.all([loadVariables(), queryCurrentSection()]).then(() => {
-      if (!pageError.value) ElMessage.success('仪表盘已刷新')
-    })
-  }
-
-  function handleAutoRefreshCommand(command: string | number | boolean | undefined) {
-    if (typeof command !== 'string') return
-    autoRefreshKey.value = command
-    configureAutoRefresh()
-  }
-
-  function getAutoRefreshIntervalMs() {
-    const durationMs = timeRange.value.end.getTime() - timeRange.value.start.getTime()
-    if (durationMs <= 60 * 60 * 1000) return 30_000
-    if (durationMs <= 6 * 60 * 60 * 1000) return 60_000
-    if (durationMs <= 24 * 60 * 60 * 1000) return 3 * 60_000
-    if (durationMs <= 7 * 24 * 60 * 60 * 1000) return 5 * 60_000
-    return 15 * 60_000
-  }
-
-  function configureAutoRefresh() {
-    if (refreshTimer) window.clearInterval(refreshTimer)
-    const option = METRICS_AUTO_REFRESH_OPTIONS.find((item) => item.key === autoRefreshKey.value)
-    const intervalMs = option?.key === 'auto' ? getAutoRefreshIntervalMs() : option?.intervalMs
-    if (intervalMs) {
-      refreshTimer = window.setInterval(() => queryCurrentSection(), intervalMs)
-    } else {
-      refreshTimer = undefined
-    }
-  }
-
   watch(
-    timeRange,
+    () =>
+      [
+        timeRange.value.start.getTime(),
+        timeRange.value.end.getTime(),
+        granularity.value.key
+      ] as const,
     () => {
       queryCurrentSection()
-      if (autoRefreshKey.value === 'auto') configureAutoRefresh()
+    }
+  )
+  watch(
+    () => autoRefresh.value.intervalMs,
+    (intervalMs) => {
+      if (refreshTimer) window.clearInterval(refreshTimer)
+      refreshTimer = undefined
+      if (intervalMs && intervalMs > 0) {
+        refreshTimer = window.setInterval(() => queryCurrentSection(), intervalMs)
+      }
     },
-    { deep: true }
+    { immediate: true }
   )
   onMounted(async () => {
     await loadInitialData()
-    configureAutoRefresh()
   })
   onBeforeUnmount(() => {
     if (refreshTimer) window.clearInterval(refreshTimer)
@@ -520,263 +403,399 @@
 </script>
 
 <style scoped lang="scss">
-  .monitor-dashboard {
+  .prometheus-dashboard {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
     min-width: 0;
+    height: 100%;
     color: var(--el-text-color-primary);
-    background: var(--el-bg-color-page);
   }
 
-  .monitor-dashboard__topbar {
+  .quota-alert {
+    flex-shrink: 0;
+    margin: 5px 0 8px;
+  }
+
+  .md-top-card {
+    flex-shrink: 0;
+    padding: 12px 16px;
+    background: var(--el-fill-color-blank);
+    border: 1px solid var(--el-border-color-lighter);
+    border-radius: 8px;
+  }
+
+  .md-rule-bar {
     display: flex;
-    gap: 20px;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .md-rule-main {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
     align-items: center;
     justify-content: space-between;
-    min-height: 72px;
-    padding: 14px 20px;
-    background: var(--el-bg-color);
-    border-bottom: 1px solid var(--el-border-color-lighter);
   }
 
-  .monitor-dashboard__identity {
+  .md-rule-left {
     display: flex;
-    gap: 12px;
+    flex-wrap: wrap;
+    gap: 10px;
     align-items: center;
-    min-width: 0;
   }
 
-  .monitor-dashboard__mark {
-    display: grid;
-    flex: 0 0 38px;
-    place-items: center;
-    width: 38px;
-    height: 38px;
-    font-size: 21px;
-    color: #fff;
-    background: #2878d4;
-    border-radius: 6px;
-  }
-
-  .monitor-dashboard__identity h1 {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 650;
-    line-height: 24px;
-  }
-
-  .monitor-dashboard__identity p {
-    margin: 1px 0 0;
-    font-size: 12px;
-    color: var(--el-text-color-secondary);
-  }
-
-  .monitor-dashboard__summary {
+  .md-rule-right {
     display: flex;
+    flex-shrink: 0;
     gap: 8px;
     align-items: center;
     font-size: 12px;
     color: var(--el-text-color-regular);
   }
 
-  .monitor-dashboard__health-dot {
+  .md-rule-label {
+    flex-shrink: 0;
+    font-size: 13px;
+    color: var(--el-text-color-regular);
+    white-space: nowrap;
+  }
+
+  .md-rule-select {
+    min-width: 120px;
+  }
+
+  .md-ds-select {
+    width: 220px;
+    max-width: 100%;
+  }
+
+  .md-datasource-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .md-ds-option {
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .md-ds-option-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .md-ds-logo {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    color: var(--el-text-color-secondary);
+    background: var(--el-fill-color-light);
+    border-radius: 4px;
+  }
+
+  .md-ds-logo.is-prometheus {
+    color: #f97316;
+    background: #fff7ed;
+  }
+
+  .md-ds-logo-icon {
+    width: 14px;
+    height: 14px;
+  }
+
+  .md-ds-cluster-tag {
+    position: absolute;
+    top: -8px;
+    right: 28px;
+    z-index: 1;
+  }
+
+  .md-rule-updated {
+    color: var(--el-text-color-regular);
+  }
+
+  .prometheus-dashboard__health-dot {
     width: 8px;
     height: 8px;
     background: var(--el-text-color-placeholder);
     border-radius: 50%;
   }
 
-  .monitor-dashboard__health-dot.healthy {
+  .prometheus-dashboard__health-dot.healthy {
     background: #2e9b62;
   }
 
-  .monitor-dashboard__health-dot.warning {
+  .prometheus-dashboard__health-dot.warning {
     background: #d99a2b;
   }
 
-  .monitor-dashboard__health-dot.loading {
+  .prometheus-dashboard__health-dot.loading {
     background: #2878d4;
   }
 
-  .monitor-dashboard__updated {
-    margin-left: 8px;
-    color: var(--el-text-color-secondary);
+  .prometheus-dashboard__toolbar {
+    margin-bottom: 12px;
   }
 
-  .monitor-dashboard__filters {
-    display: grid;
-    grid-template-columns: minmax(176px, 1.25fr) repeat(4, minmax(122px, 1fr));
-    gap: 10px;
-    align-items: flex-end;
-    padding: 12px 20px 14px;
-    background: var(--el-bg-color);
-    border-bottom: 1px solid var(--el-border-color-lighter);
+  .prometheus-dashboard__toolbar :deep(.metrics-monitor-toolbar) {
+    margin-bottom: 0;
   }
 
-  .monitor-dashboard__filter-group {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    min-width: 0;
-  }
-
-  .monitor-dashboard__filter-group.is-source {
-    min-width: 0;
-  }
-
-  .monitor-dashboard__filter-group label {
-    font-size: 11px;
-    color: var(--el-text-color-secondary);
-  }
-
-  .monitor-dashboard__filter-group :deep(.el-select__wrapper),
-  .monitor-dashboard__time-controls :deep(.el-select__wrapper) {
-    min-height: 34px;
-    border-radius: 4px;
-  }
-
-  .monitor-dashboard__datasource-option {
-    display: grid;
-    grid-template-columns: 18px minmax(0, 1fr) auto;
+  .prometheus-dashboard__toolbar :deep(.metrics-monitor-toolbar__bar) {
     gap: 8px;
-    align-items: center;
-  }
-
-  .monitor-dashboard__datasource-option small {
-    color: var(--el-text-color-placeholder);
-  }
-
-  .monitor-dashboard__time-controls {
-    display: flex;
-    grid-column: 1 / -1;
-    gap: 8px;
-    align-items: center;
     justify-content: flex-end;
-    min-width: 0;
-    padding-top: 2px;
-    margin-left: auto;
-  }
-
-  .monitor-dashboard__time-controls :deep(.metrics-time-range-picker) {
-    flex: 0 1 620px;
-    min-width: 440px;
-  }
-
-  .monitor-dashboard__refresh-control {
-    display: inline-flex;
-    flex: 0 0 auto;
-    align-items: stretch;
-  }
-
-  .monitor-dashboard__refresh-action,
-  .monitor-dashboard__refresh-interval {
-    box-sizing: border-box;
-    height: var(--el-component-custom-height, 36px);
-    min-height: var(--el-component-custom-height, 36px);
-    color: var(--el-text-color-primary);
-    background: var(--el-bg-color);
-    border: 1px solid var(--el-border-color);
+    padding: 0 10px 0 0;
+    background: transparent;
+    border: none;
     border-radius: 0;
   }
 
-  .monitor-dashboard__refresh-action {
-    margin-right: -1px;
-    border-radius: 4px 0 0 4px;
+  .prometheus-dashboard__toolbar :deep(.metrics-monitor-toolbar__time) {
+    flex: 0 0 auto;
   }
 
-  .monitor-dashboard__refresh-action:hover,
-  .monitor-dashboard__refresh-action:focus-visible,
-  .monitor-dashboard__refresh-interval:hover,
-  .monitor-dashboard__refresh-interval:focus-visible {
-    position: relative;
-    z-index: 1;
-    color: var(--el-color-primary);
-    border-color: var(--el-color-primary);
+  .prometheus-dashboard__toolbar :deep(.metrics-monitor-toolbar__divider) {
+    height: 24px;
+    margin: 0 2px;
+    background: var(--el-border-color-light);
+    opacity: 1;
   }
 
-  .monitor-dashboard__refresh-interval {
-    display: inline-flex;
-    gap: 8px;
+  .prometheus-dashboard__toolbar :deep(.metrics-time-range-picker) {
+    width: 240px;
+    min-width: 240px;
+    max-width: 240px;
+    transition: width 0.2s ease;
+  }
+
+  .prometheus-dashboard__toolbar :deep(.metrics-time-range-picker.is-custom-range) {
+    width: 340px;
+    min-width: 340px;
+    max-width: 340px;
+  }
+
+  .prometheus-dashboard__toolbar :deep(.metrics-time-range-picker__trigger) {
+    min-height: 32px;
+    padding: 0 12px;
+    font-size: 12px;
+    background: var(--el-bg-color);
+    border-color: var(--el-border-color);
+    border-radius: 2px;
+  }
+
+  .prometheus-dashboard__toolbar :deep(.metrics-time-range-picker__picker) {
+    display: none !important;
+  }
+
+  .prometheus-dashboard__toolbar :deep(.metrics-monitor-toolbar__select .el-select__wrapper) {
+    min-height: 32px;
+    padding: 0 10px;
+    background: var(--el-bg-color);
+    border-radius: 2px;
+    box-shadow: 0 0 0 1px var(--el-border-color) inset;
+  }
+
+  .prometheus-dashboard__toolbar :deep(.metrics-monitor-toolbar__group) {
+    gap: 6px;
     align-items: center;
-    justify-content: space-between;
-    min-width: 70px;
-    padding: 0 9px;
-    font-size: 13px;
-    line-height: 1;
-    cursor: pointer;
-    border-radius: 0 4px 4px 0;
   }
 
-  .monitor-dashboard__refresh-interval :deep(.el-icon) {
+  .prometheus-dashboard__toolbar :deep(.metrics-monitor-toolbar__group-label) {
+    display: inline-flex;
+    gap: 0;
+    align-items: center;
+    font-size: 12px;
+    color: var(--el-text-color-regular);
+  }
+
+  .prometheus-dashboard__toolbar :deep(.metrics-monitor-toolbar__group-icon) {
+    display: none;
+  }
+
+  .prometheus-dashboard__toolbar :deep(.metrics-monitor-toolbar__select) {
+    width: 92px;
+  }
+
+  .prometheus-dashboard__toolbar :deep(.metrics-monitor-toolbar__select--refresh) {
+    width: 86px;
+  }
+
+  .prometheus-dashboard__toolbar :deep(.metrics-monitor-toolbar__legend) {
+    display: inline-flex;
+    align-items: center;
+    height: 32px;
+    margin-left: 6px;
     font-size: 12px;
   }
 
-  .monitor-dashboard__alert {
-    margin: 12px 20px 0;
+  .prometheus-dashboard__toolbar :deep(.metrics-monitor-toolbar__legend .el-checkbox__inner) {
+    width: 14px;
+    height: 14px;
+    border-color: var(--el-border-color);
+    border-radius: 2px;
   }
 
-  .monitor-dashboard__workspace {
-    display: grid;
-    grid-template-columns: 220px minmax(0, 1fr);
-    min-height: calc(100vh - 230px);
+  .prometheus-dashboard__toolbar :deep(.metrics-monitor-toolbar__legend .el-checkbox__label) {
+    padding-left: 5px;
+    font-size: 12px;
+    color: var(--el-text-color-primary);
   }
 
-  .monitor-dashboard__nav {
-    padding: 14px 0 24px;
-    background: var(--el-bg-color);
-    border-right: 1px solid var(--el-border-color-lighter);
+  .prometheus-dashboard__alert {
+    margin-top: 0;
   }
 
-  .monitor-dashboard__nav-group + .monitor-dashboard__nav-group {
-    margin-top: 8px;
-  }
-
-  .monitor-dashboard__nav-heading {
+  .prometheus-dashboard__empty {
     display: flex;
-    gap: 7px;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+    padding: 24px 16px;
+  }
+
+  .prometheus-dashboard__monitor-card {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--el-bg-color);
+    border: 1px solid var(--el-border-color-lighter);
+    border-radius: 6px;
+  }
+
+  .prometheus-dashboard__monitor-tabs {
+    display: flex;
+    flex-shrink: 0;
+    gap: 20px;
+    align-items: flex-end;
+    padding: 12px 16px 0 12px;
+    background: var(--el-fill-color-blank);
+    border-bottom: 1px solid var(--el-border-color-lighter);
+  }
+
+  .prometheus-dashboard__monitor-tab {
+    position: relative;
+    padding: 0 0 10px;
+    font-size: 13px;
+    color: var(--el-text-color-regular);
+    cursor: pointer;
+    background: transparent;
+    border: none;
+  }
+
+  .prometheus-dashboard__monitor-tab.is-active {
+    font-weight: 500;
+    color: var(--el-color-primary);
+
+    &::after {
+      position: absolute;
+      right: 0;
+      bottom: -1px;
+      left: 0;
+      height: 2px;
+      content: '';
+      background: var(--el-color-primary);
+    }
+  }
+
+  .prometheus-dashboard__workspace {
+    display: grid;
+    flex: 1;
+    grid-template-columns: 200px minmax(0, 1fr);
+    min-height: 0;
+    padding-top: 12px;
+  }
+
+  .prometheus-dashboard__nav {
+    min-height: 0;
+    padding: 8px 6px 16px 10px;
+    overflow-y: auto;
+    border-right: 1px solid var(--el-border-color-lighter);
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: transparent;
+      border-radius: 3px;
+    }
+
+    &:hover {
+      scrollbar-color: rgb(0 0 0 / 25%) transparent;
+
+      &::-webkit-scrollbar-thumb {
+        background: rgb(0 0 0 / 25%);
+      }
+    }
+  }
+
+  .prometheus-dashboard__nav-group + .prometheus-dashboard__nav-group {
+    margin-top: 4px;
+  }
+
+  .prometheus-dashboard__nav-heading {
+    display: flex;
+    gap: 6px;
     align-items: center;
     width: 100%;
-    height: 34px;
-    padding: 0 14px;
+    height: 32px;
+    padding: 0 10px;
     font-size: 12px;
-    font-weight: 600;
-    color: var(--el-text-color-secondary);
+    font-weight: 400;
+    color: var(--prom-nav-color, var(--art-gray-800));
     text-align: left;
     cursor: pointer;
     background: transparent;
     border: 0;
   }
 
-  .monitor-dashboard__nav-heading:hover {
-    color: var(--el-text-color-primary);
+  .prometheus-dashboard__nav-heading:hover {
+    color: var(--theme-color);
     background: var(--el-fill-color-light);
   }
 
-  .monitor-dashboard__nav-chevron {
+  .prometheus-dashboard__nav-chevron {
     flex: 0 0 auto;
     font-size: 11px;
     transition: transform 0.16s ease;
   }
 
-  .monitor-dashboard__nav-chevron.is-expanded {
+  .prometheus-dashboard__nav-chevron.is-expanded {
     transform: rotate(90deg);
   }
 
-  .monitor-dashboard__nav-heading > :deep(svg) {
-    font-size: 16px;
-  }
-
-  .monitor-dashboard__nav-items {
+  .prometheus-dashboard__nav-items {
     display: block;
   }
 
-  .monitor-dashboard__nav-item {
+  .prometheus-dashboard__nav-item {
     position: relative;
     display: block;
     width: 100%;
-    height: 36px;
-    padding: 0 18px 0 42px;
+    height: 34px;
+    padding: 0 10px 0 30px;
     overflow: hidden;
-    font-size: 13px;
-    color: var(--el-text-color-regular);
+    font-size: 12px;
+    color: var(--prom-nav-color, var(--art-gray-800));
     text-align: left;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -785,220 +804,72 @@
     border: 0;
   }
 
-  .monitor-dashboard__nav-item:hover {
-    color: var(--el-color-primary);
+  .prometheus-dashboard__nav-item:hover {
+    color: var(--theme-color);
     background: var(--el-fill-color-light);
   }
 
-  .monitor-dashboard__nav-item.is-active {
+  .prometheus-dashboard__nav-item.is-active {
     font-weight: 600;
-    color: var(--el-color-primary);
+    color: var(--theme-color);
     background: var(--el-color-primary-light-9);
   }
 
-  .monitor-dashboard__nav-item.is-active::before {
-    position: absolute;
-    inset: 0 auto 0 0;
-    width: 3px;
-    content: '';
-    background: var(--el-color-primary);
-  }
-
-  .monitor-dashboard__content {
+  .prometheus-dashboard__content {
     min-width: 0;
-    padding: 18px 20px 30px;
+    padding: 0 0 4px;
+    overflow: auto;
   }
 
-  .monitor-dashboard__section-title {
-    display: flex;
-    gap: 20px;
-    align-items: flex-start;
-    justify-content: space-between;
-    min-height: 50px;
-    margin-bottom: 12px;
-  }
-
-  .monitor-dashboard__section-title span {
-    font-size: 11px;
-    color: var(--el-text-color-secondary);
-  }
-
-  .monitor-dashboard__section-title h2 {
-    margin: 3px 0 0;
-    font-size: 17px;
-    font-weight: 650;
-  }
-
-  .monitor-dashboard__legend {
-    display: flex;
-    gap: 14px;
-    align-items: center;
-    padding-top: 12px;
-  }
-
-  .monitor-dashboard__legend span {
-    display: inline-flex;
-    gap: 5px;
-    align-items: center;
-  }
-
-  .monitor-dashboard__legend i {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-  }
-
-  .monitor-dashboard__legend i.healthy {
-    background: #2e9b62;
-  }
-
-  .monitor-dashboard__legend i.missing {
-    background: #d99a2b;
-  }
-
-  .monitor-dashboard__legend i.failed {
-    background: #e45757;
-  }
-
-  .monitor-dashboard__panel-grid {
+  .prometheus-dashboard__panel-grid {
     display: grid;
     grid-template-columns: repeat(12, minmax(0, 1fr));
     gap: 12px;
   }
 
-  @media (width <= 960px) {
-    .monitor-dashboard__filters {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .monitor-dashboard__filter-group.is-source {
-      grid-column: 1 / -1;
-    }
-
-    .monitor-dashboard__workspace {
+  @media (width <= 768px) {
+    .prometheus-dashboard__workspace {
       display: block;
     }
 
-    .monitor-dashboard__nav {
+    .prometheus-dashboard__nav {
       display: flex;
-      padding: 8px;
+      padding: 8px 0;
       overflow-x: auto;
       border-right: 0;
       border-bottom: 1px solid var(--el-border-color-lighter);
     }
 
-    .monitor-dashboard__nav-group {
+    .prometheus-dashboard__nav-group {
       display: flex;
       flex: 0 0 auto;
       align-items: center;
     }
 
-    .monitor-dashboard__nav-group + .monitor-dashboard__nav-group {
+    .prometheus-dashboard__nav-group + .prometheus-dashboard__nav-group {
       margin: 0 0 0 8px;
     }
 
-    .monitor-dashboard__nav-heading {
+    .prometheus-dashboard__nav-heading {
       width: auto;
       min-width: max-content;
-      padding: 0 10px;
+      padding: 0 8px;
     }
 
-    .monitor-dashboard__nav-items {
+    .prometheus-dashboard__nav-items {
       display: flex;
     }
 
-    .monitor-dashboard__nav-item {
+    .prometheus-dashboard__nav-item {
       width: auto;
       min-width: max-content;
-      height: 34px;
-      padding: 0 12px;
+      height: 32px;
+      padding: 0 10px;
       border-radius: 3px;
     }
 
-    .monitor-dashboard__nav-item.is-active::before {
-      display: none;
+    .prometheus-dashboard__content {
+      padding: 12px 0 4px;
     }
-  }
-
-  @media (width <= 640px) {
-    .monitor-dashboard__topbar {
-      align-items: flex-start;
-      padding: 12px;
-    }
-
-    .monitor-dashboard__summary {
-      flex-direction: column;
-      gap: 3px;
-      align-items: flex-end;
-    }
-
-    .monitor-dashboard__health-dot {
-      display: none;
-    }
-
-    .monitor-dashboard__updated {
-      margin-left: 0;
-    }
-
-    .monitor-dashboard__filters {
-      padding: 12px;
-    }
-
-    .monitor-dashboard__filter-group {
-      min-width: 0;
-    }
-
-    .monitor-dashboard__filter-group.is-source {
-      min-width: 0;
-    }
-
-    .monitor-dashboard__time-controls {
-      flex-wrap: wrap;
-      width: 100%;
-      min-width: 0;
-    }
-
-    .monitor-dashboard__time-controls :deep(.metrics-time-range-picker) {
-      flex: 1 1 100%;
-      width: 100%;
-      min-width: 0;
-      max-width: none;
-    }
-
-    .monitor-dashboard__refresh-control {
-      margin-left: auto;
-    }
-
-    .monitor-dashboard__content {
-      padding: 14px 12px 24px;
-    }
-
-    .monitor-dashboard__section-title {
-      flex-direction: column;
-      gap: 4px;
-      align-items: flex-start;
-    }
-
-    .monitor-dashboard__legend {
-      flex-wrap: wrap;
-      padding-top: 4px;
-    }
-  }
-</style>
-
-<style lang="scss">
-  .monitor-dashboard__refresh-menu.el-popper {
-    min-width: 104px;
-    padding: 5px 0;
-  }
-
-  .monitor-dashboard__refresh-menu .el-dropdown-menu__item {
-    justify-content: space-between;
-    padding: 0 14px;
-  }
-
-  .monitor-dashboard__refresh-menu .el-dropdown-menu__item.is-active {
-    color: var(--el-color-primary);
-    background: var(--el-fill-color-light);
   }
 </style>

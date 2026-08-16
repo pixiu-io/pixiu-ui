@@ -94,14 +94,15 @@ export default [
   // 忽略文件
   {
     ignores: [
-      'node_modules',
-      'dist',
-      'public',
+      'node_modules/**',
+      'dist/**',
+      'public/**',
       '.vscode/**',
       'src/assets/**',
       'src/utils/sys/console.ts',
       'src/utils/sys/logger.ts',
-      // unplugin-vue-components 自动生成文件，不参与 lint
+      // unplugin-vue-components / auto-import 自动生成文件，不参与 lint
+      'src/types/import/auto-imports.d.ts',
       'src/types/import/components.d.ts'
     ]
   },

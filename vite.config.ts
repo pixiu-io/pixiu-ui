@@ -28,17 +28,24 @@ export default ({ mode }: { mode: string }) => {
     VITE_PIXIU_PROXY_URL
   } = env
 
-  console.log(`🚀 API_URL = ${VITE_API_URL}`)
-  console.log(`🚀 VERSION = ${VITE_VERSION}`)
-
   const logger = createLogger()
+  logger.info(`🚀 API_URL = ${VITE_API_URL}`, { timestamp: true })
+  logger.info(`🚀 VERSION = ${VITE_VERSION}`, { timestamp: true })
   const loggerWarn = logger.warn
   logger.warn = (msg, options) => {
-    if (msg.includes('new dependencies optimized') || msg.includes('optimized dependencies changed')) return
+    if (
+      msg.includes('new dependencies optimized') ||
+      msg.includes('optimized dependencies changed')
+    )
+      return
     loggerWarn(msg, options)
   }
   logger.info = (msg, options) => {
-    if (msg.includes('new dependencies optimized') || msg.includes('optimized dependencies changed')) return
+    if (
+      msg.includes('new dependencies optimized') ||
+      msg.includes('optimized dependencies changed')
+    )
+      return
     createLogger().info(msg, options)
   }
 
@@ -119,7 +126,6 @@ export default ({ mode }: { mode: string }) => {
               id.includes('dayjs') ||
               id.includes('nprogress') ||
               id.includes('js-yaml') ||
-              id.includes('crypto-js') ||
               id.includes('lodash') ||
               id.includes('mitt') ||
               id.includes('ohash')
@@ -181,7 +187,6 @@ export default ({ mode }: { mode: string }) => {
         'echarts/components',
         'echarts/renderers',
         'xgplayer',
-        'crypto-js',
         'file-saver',
         'vue-img-cutter',
         'element-plus/es',
