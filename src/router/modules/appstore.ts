@@ -10,6 +10,5 @@ export const appstoreRoutes: AppRouteRecord = {
     icon: 'ri:store-2-line',
     keepAlive: true,
     menu: MenuCodes.Appstore
-  },
-  children: []
+  }
 }

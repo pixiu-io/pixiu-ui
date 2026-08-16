@@ -24,7 +24,6 @@
           v-ripple
           :disabled="selectedPermissions.length === 0"
           @click="batchDeletePermissions"
-          type="danger"
         >
           批量删除
         </ElButton>
@@ -160,11 +159,7 @@
         ...searchForm.value
       },
       columnsFactory: () => [
-        {
-          type: 'selection',
-          width: 50,
-          align: 'center'
-        },
+        { type: 'selection', width: 30 },
         {
           prop: 'clusterAliasName',
           label: '集群',

@@ -15,8 +15,7 @@
     "lint:stylelint": "stylelint  \"**/*.{css,scss,vue}\" --fix",
     "lint:lint-staged": "lint-staged",
     "commit": "git-cz",
-    "clean:dev": "tsx scripts/clean-dev.ts",
-    "prepare": "husky || true"
+    "clean:dev": "tsx scripts/clean-dev.ts"
   },
   "config": {
     "commitizen": {
