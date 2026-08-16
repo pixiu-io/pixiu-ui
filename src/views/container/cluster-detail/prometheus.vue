@@ -314,11 +314,7 @@
         fetchDatasourceList({ page: 1, limit: 200, type: 1, subType: 'prometheus' })
       ])
       definition.value = dashboardDefinition
-      const initialNavGroup = dashboardDefinition.sections.find(
-        (section) =>
-          section.id === activeSection.value || section.children?.includes(activeSection.value)
-      )
-      expandedNavGroups.value = initialNavGroup ? [initialNavGroup.id] : []
+      expandedNavGroups.value = dashboardDefinition.sections.map((section) => section.id)
       datasources.value = datasourceResult.items.filter(
         (item) =>
           item.type === 1 && item.subType === 'prometheus' && item.clusterName === clusterName.value
@@ -676,7 +672,7 @@
   .prometheus-dashboard__workspace {
     display: grid;
     flex: 1;
-    grid-template-columns: 170px minmax(0, 1fr);
+    grid-template-columns: 190px minmax(0, 1fr);
     min-height: 0;
     padding-top: 12px;
   }
