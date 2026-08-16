@@ -110,7 +110,7 @@
   import { Lock, Unlock } from '@element-plus/icons-vue'
   import type { FormInstance, FormRules } from 'element-plus'
   import { useI18n } from 'vue-i18n'
-  import CryptoJS from 'crypto-js'
+  import { encryptLockPassword, verifyLockPassword } from '@/utils/crypto/lock-password'
   import { useUserStore } from '@/store/modules/user'
   import { mittBus } from '@/utils/sys'
 
@@ -322,12 +322,12 @@
   }
 
   // 工具函数
-  const verifyPassword = (inputPassword: string, storedPassword: string): boolean => {
+  const verifyPassword = async (
+    inputPassword: string,
+    storedPassword: string
+  ): Promise<boolean> => {
     try {
-      const decryptedPassword = CryptoJS.AES.decrypt(storedPassword, ENCRYPT_KEY).toString(
-        CryptoJS.enc.Utf8
-      )
-      return inputPassword === decryptedPassword
+      return await verifyLockPassword(inputPassword, storedPassword, ENCRYPT_KEY)
     } catch (error) {
       console.error('密码解密失败:', error)
       return false
@@ -351,52 +351,50 @@
   const handleLock = async () => {
     if (!formRef.value) return
 
-    await formRef.value.validate((valid, fields) => {
-      if (valid) {
-        const encryptedPassword = CryptoJS.AES.encrypt(formData.password, ENCRYPT_KEY).toString()
-        userStore.setLockStatus(true)
-        userStore.setLockPassword(encryptedPassword)
-        visible.value = false
-        formData.password = ''
-      } else {
-        console.error('表单验证失败:', fields)
-      }
-    })
+    try {
+      await formRef.value.validate()
+      const encryptedPassword = await encryptLockPassword(formData.password, ENCRYPT_KEY)
+      userStore.setLockStatus(true)
+      userStore.setLockPassword(encryptedPassword)
+      visible.value = false
+      formData.password = ''
+    } catch (fields) {
+      console.error('表单验证失败:', fields)
+    }
   }
 
   const handleUnlock = async () => {
     if (!unlockFormRef.value) return
 
-    await unlockFormRef.value.validate((valid, fields) => {
-      if (valid) {
-        const isValid = verifyPassword(unlockForm.password, lockPassword.value)
+    try {
+      await unlockFormRef.value.validate()
+      const isValid = await verifyPassword(unlockForm.password, lockPassword.value)
 
-        if (isValid) {
-          try {
-            userStore.setLockStatus(false)
-            userStore.setLockPassword('')
-            unlockForm.password = ''
-            visible.value = false
-            showDevToolsWarning.value = false
-          } catch (error) {
-            console.error('更新store失败:', error)
-          }
-        } else {
-          // 触发抖动动画
-          const inputElement = unlockInputRef.value?.$el
-          if (inputElement) {
-            inputElement.classList.add('shake-animation')
-            setTimeout(() => {
-              inputElement.classList.remove('shake-animation')
-            }, 300)
-          }
-          ElMessage.error(t('lockScreen.pwdError'))
+      if (isValid) {
+        try {
+          userStore.setLockStatus(false)
+          userStore.setLockPassword('')
           unlockForm.password = ''
+          visible.value = false
+          showDevToolsWarning.value = false
+        } catch (error) {
+          console.error('更新store失败:', error)
         }
       } else {
-        console.error('表单验证失败:', fields)
+        // 触发抖动动画
+        const inputElement = unlockInputRef.value?.$el
+        if (inputElement) {
+          inputElement.classList.add('shake-animation')
+          setTimeout(() => {
+            inputElement.classList.remove('shake-animation')
+          }, 300)
+        }
+        ElMessage.error(t('lockScreen.pwdError'))
+        unlockForm.password = ''
       }
-    })
+    } catch (fields) {
+      console.error('表单验证失败:', fields)
+    }
   }
 
   const toLogin = () => {

@@ -114,7 +114,7 @@ const appConfig: SystemConfig = {
       background: 'var(--default-box-color)',
       systemNameColor: '#DDDDDD',
       iconColor: '#BABBBD',
-      textColor: 'rgba(#FFFFFF, 0.7)'
+      textColor: 'var(--art-gray-800)'
     }
   ],
   // 系统主色

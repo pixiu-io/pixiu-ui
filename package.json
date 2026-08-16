@@ -3,8 +3,7 @@
   "version": "0.0.0",
   "type": "module",
   "engines": {
-    "node": ">=20.19.0",
-    "pnpm": ">=8.8.0"
+    "node": "^20.19.0 || ^22.13.0 || >=24"
   },
   "scripts": {
     "dev": "vite --open",
@@ -17,7 +16,7 @@
     "lint:lint-staged": "lint-staged",
     "commit": "git-cz",
     "clean:dev": "tsx scripts/clean-dev.ts",
-    "prepare": "husky"
+    "prepare": "husky || true"
   },
   "config": {
     "commitizen": {
@@ -26,14 +25,14 @@
   },
   "lint-staged": {
     "*.{js,ts,mjs,mts,tsx}": [
-      "eslint --fix",
+      "eslint --fix --no-warn-ignored",
       "prettier --write"
     ],
     "*.{cjs,json,jsonc}": [
       "prettier --write"
     ],
     "*.vue": [
-      "eslint --fix",
+      "eslint --fix --no-warn-ignored",
       "stylelint --fix --allow-empty-input",
       "prettier --write"
     ],
@@ -62,7 +61,6 @@
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
     "axios": "^1.12.2",
-    "crypto-js": "^4.2.0",
     "echarts": "^6.0.0",
     "element-plus": "^2.11.2",
     "exceljs": "^4.4.0",
@@ -100,6 +98,7 @@
     "eslint-plugin-prettier": "^5.2.1",
     "eslint-plugin-vue": "^9.27.0",
     "globals": "^15.9.0",
+    "husky": "^9.1.7",
     "less": "^4.6.6",
     "lint-staged": "^15.5.2",
     "prettier": "^3.5.3",

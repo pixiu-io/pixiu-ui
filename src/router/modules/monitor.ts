@@ -18,7 +18,7 @@ export const monitorRoutes: AppRouteRecord = {
       component: '/safeguard/dashboard',
       meta: {
         title: 'menus.safeguard.dashboard',
-        icon: 'ri:dashboard-3-line',
+        icon: 'ri:bar-chart-grouped-line',
         menu: MenuCodes.MonitorRealtime
       }
     },
