@@ -18,7 +18,17 @@
         justify-content: space-between;
       "
     >
-      <ElButton @click="showGrantDrawer" v-ripple>添加权限</ElButton>
+      <div style="display: flex; gap: 8px">
+        <ElButton @click="showGrantDrawer" v-ripple>添加权限</ElButton>
+        <ElButton
+          v-ripple
+          :disabled="selectedPermissions.length === 0"
+          @click="batchDeletePermissions"
+          type="danger"
+        >
+          批量删除
+        </ElButton>
+      </div>
       <div style="display: flex; align-items: center; gap: 8px">
         <ElInput
           v-model="searchForm.clusterName"
@@ -44,6 +54,7 @@
           hideOnEmpty: false,
           layout: 'total, prev, pager, next, sizes, jumper'
         }"
+        @selection-change="onSelectionChange"
         @pagination:size-change="handleSizeChange"
         @pagination:current-change="handleCurrentChange"
       />
@@ -63,6 +74,7 @@
   import { ElAlert, ElButton, ElInput, ElLink, ElMessage, ElMessageBox, ElTag } from 'element-plus'
   import { notifyError } from '@/utils/sys/notify'
   import {
+    fetchBatchDeletePermissions,
     fetchDeletePermission,
     fetchPermissionList,
     fetchGetClusterKubeconfig,
@@ -75,6 +87,7 @@
   const searchForm = ref({ clusterName: undefined as string | undefined })
   const grantDrawerVisible = ref(false)
   const editPermissionId = ref<number | undefined>(undefined)
+  const selectedPermissions = ref<PermissionListItem[]>([])
 
   const formatExpiration = (seconds: number) => {
     if (!seconds || seconds <= 0) return '-'
@@ -147,6 +160,11 @@
         ...searchForm.value
       },
       columnsFactory: () => [
+        {
+          type: 'selection',
+          width: 50,
+          align: 'center'
+        },
         {
           prop: 'clusterAliasName',
           label: '集群',
@@ -363,6 +381,45 @@
       if (e.notified) return
       notifyError(e, '删除失败')
     }
+  }
+
+  function onSelectionChange(rows: PermissionListItem[]) {
+    selectedPermissions.value = rows
+  }
+
+  const batchDeletePermissions = (): void => {
+    if (selectedPermissions.value.length === 0) {
+      ElMessage.warning('请选择要删除的授权')
+      return
+    }
+
+    ElMessageBox.confirm(
+      `确定批量删除 ${selectedPermissions.value.length} 条授权吗？`,
+      '批量删除授权',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+      .then(async () => {
+        try {
+          // 收集所有权限 ID
+          const permissionIds = selectedPermissions.value.map(p => p.id)
+          
+          // 一次性批量删除
+          await fetchBatchDeletePermissions(permissionIds)
+          
+          ElMessage.success(`删除成功 ${selectedPermissions.value.length} 条`)
+          selectedPermissions.value = []
+          await refreshData()
+        } catch (e: any) {
+          notifyError(e, '批量删除失败')
+        }
+      })
+      .catch(() => {
+        // 用户取消，忽略
+      })
   }
 </script>
 

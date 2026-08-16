@@ -18,7 +18,17 @@
         justify-content: space-between;
       "
     >
-      <ElButton @click="showDialog('add')" v-ripple>创建角色</ElButton>
+      <div style="display: flex; gap: 8px">
+        <ElButton @click="showDialog('add')" v-ripple>创建角色</ElButton>
+        <ElButton
+          v-ripple
+          :disabled="selectedRoles.length === 0"
+          @click="batchDeleteRoles"
+          type="danger"
+        >
+          批量删除
+        </ElButton>
+      </div>
       <div style="display: flex; align-items: center; gap: 8px">
         <ElInput
           v-model="searchForm.roleName"
@@ -40,6 +50,7 @@
         :columns="columns"
         :pagination="pagination"
         :pagination-options="{ align: 'right', hideOnEmpty: false }"
+        @selection-change="onSelectionChange"
         @pagination:size-change="handleSizeChange"
         @pagination:current-change="handleCurrentChange"
       />
@@ -89,6 +100,7 @@
   })
 
   const tenantNameMap = ref<Record<number, string>>({})
+  const selectedRoles = ref<RoleListItem[]>([])
 
   async function loadTenantMap() {
     try {
@@ -104,6 +116,10 @@
     } catch {
       // ignore
     }
+  }
+
+  function onSelectionChange(rows: RoleListItem[]) {
+    selectedRoles.value = rows
   }
   onMounted(() => {
     void loadTenantMap()
@@ -137,13 +153,18 @@
         ...searchForm.value
       },
       columnsFactory: () => [
-        {
-          prop: 'roleName',
-          label: '角色名称',
-          width: 160,
-          formatter: (row) =>
-            h('span', { class: 'role-name', style: { fontSize: '12px' } }, row.roleName)
-        },
+      {
+        type: 'selection',
+        width: 50,
+        align: 'center'
+      },
+      {
+        prop: 'roleName',
+        label: '角色名称',
+        width: 160,
+        formatter: (row) =>
+          h('span', { class: 'role-name', style: { fontSize: '12px' } }, row.roleName)
+      },
         {
           prop: 'tenantId',
           label: '租户',
@@ -282,6 +303,52 @@
     } catch (e: any) {
       notifyError(e, '操作失败')
     }
+  }
+
+  const batchDeleteRoles = (): void => {
+    if (selectedRoles.value.length === 0) {
+      ElMessage.warning('请选择要删除的角色')
+      return
+    }
+
+    ElMessageBox.confirm(
+      `确定批量删除 ${selectedRoles.value.length} 个角色吗？`,
+      '批量删除角色',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+      .then(async () => {
+        try {
+          let successCount = 0
+          const failedRoles: string[] = []
+          for (const role of selectedRoles.value) {
+            try {
+              await fetchDeleteRole(role.id!)
+              successCount++
+            } catch (e: any) {
+              failedRoles.push(role.roleName)
+            }
+          }
+
+          if (successCount > 0) {
+            ElMessage.success(`删除成功 ${successCount}/${selectedRoles.value.length}`)
+          }
+          if (failedRoles.length > 0) {
+            ElMessage.error(`以下角色删除失败：${failedRoles.join(', ')}`)
+          }
+
+          selectedRoles.value = []
+          await refreshData()
+        } catch (e: any) {
+          notifyError(e, '批量删除失败')
+        }
+      })
+      .catch(() => {
+        // 用户取消，忽略
+      })
   }
 </script>
 
