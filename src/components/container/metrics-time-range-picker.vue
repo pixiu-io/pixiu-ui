@@ -1,108 +1,113 @@
 <template>
-  <div class="metrics-time-range-picker">
-    <ElPopover
-      v-model:visible="panelVisible"
-      trigger="click"
-      placement="bottom-end"
-      :width="548"
-      :show-arrow="false"
-      popper-class="metrics-time-range-picker__popover"
-      @show="syncDraftFromModel"
+  <div class="metrics-time-range-picker" :class="{ 'is-custom-range': isCustomRange }">
+    <button
+      ref="triggerRef"
+      type="button"
+      class="metrics-time-range-picker__trigger"
+      :class="{ 'is-active': panelVisible }"
+      aria-haspopup="dialog"
+      :aria-expanded="panelVisible"
+      @click="togglePanel"
     >
-      <template #reference>
-        <button
-          type="button"
-          class="metrics-time-range-picker__trigger"
-          :class="{ 'is-active': panelVisible }"
-          aria-haspopup="dialog"
-          :aria-expanded="panelVisible"
+      <ElIcon class="metrics-time-range-picker__clock"><Clock /></ElIcon>
+      <span class="metrics-time-range-picker__range">{{ displayRangeLabel }}</span>
+      <ElIcon class="metrics-time-range-picker__caret">
+        <ArrowUp v-if="panelVisible" />
+        <ArrowDown v-else />
+      </ElIcon>
+    </button>
+
+    <Teleport to="body">
+      <Transition name="el-zoom-in-top">
+        <div
+          v-if="panelVisible"
+          ref="panelRef"
+          class="metrics-time-range-picker__popover"
+          :style="panelStyle"
         >
-          <ElIcon class="metrics-time-range-picker__clock"><Clock /></ElIcon>
-          <span class="metrics-time-range-picker__range">{{ displayRangeLabel }}</span>
-          <ElIcon class="metrics-time-range-picker__caret">
-            <ArrowUp v-if="panelVisible" />
-            <ArrowDown v-else />
-          </ElIcon>
-        </button>
-      </template>
+          <div class="metrics-time-range-picker__panel">
+            <section class="metrics-time-range-picker__absolute">
+              <h3>绝对时间范围</h3>
 
-      <div class="metrics-time-range-picker__panel">
-        <section class="metrics-time-range-picker__absolute">
-          <h3>绝对时间范围</h3>
+              <label for="metrics-range-start">开始</label>
+              <ElDatePicker
+                id="metrics-range-start"
+                v-model="absoluteStart"
+                type="datetime"
+                format="YYYY-MM-DD HH:mm:ss"
+                placeholder="开始时间"
+                :clearable="false"
+                :show-now="true"
+                :show-confirm="true"
+                popper-class="metrics-time-range-picker__date-popper"
+              />
 
-          <label for="metrics-range-start">开始</label>
-          <ElDatePicker
-            id="metrics-range-start"
-            v-model="absoluteStart"
-            type="datetime"
-            format="YYYY-MM-DD HH:mm:ss"
-            placeholder="开始时间"
-            :clearable="false"
-            :teleported="true"
-          />
+              <label for="metrics-range-end">结束</label>
+              <ElDatePicker
+                id="metrics-range-end"
+                v-model="absoluteEnd"
+                type="datetime"
+                format="YYYY-MM-DD HH:mm:ss"
+                placeholder="结束时间"
+                :clearable="false"
+                :show-now="true"
+                :show-confirm="true"
+                popper-class="metrics-time-range-picker__date-popper"
+              />
 
-          <label for="metrics-range-end">结束</label>
-          <ElDatePicker
-            id="metrics-range-end"
-            v-model="absoluteEnd"
-            type="datetime"
-            format="YYYY-MM-DD HH:mm:ss"
-            placeholder="结束时间"
-            :clearable="false"
-            :teleported="true"
-          />
+              <div class="metrics-time-range-picker__actions">
+                <ElButton
+                  type="primary"
+                  size="small"
+                  :disabled="!canApplyAbsolute"
+                  @click="applyAbsoluteRange"
+                >
+                  应用时间范围
+                </ElButton>
+              </div>
 
-          <div class="metrics-time-range-picker__actions">
-            <ElButton
-              type="primary"
-              size="small"
-              :disabled="!canApplyAbsolute"
-              @click="applyAbsoluteRange"
-            >
-              应用时间范围
-            </ElButton>
+              <div v-if="recentRanges.length" class="metrics-time-range-picker__recent">
+                <h3>最近使用的绝对范围</h3>
+                <button
+                  v-for="range in recentRanges"
+                  :key="`${range.start.getTime()}-${range.end.getTime()}`"
+                  type="button"
+                  @click="applyRecentRange(range)"
+                >
+                  {{ formatRange(range) }}
+                </button>
+              </div>
+            </section>
+
+            <section class="metrics-time-range-picker__quick">
+              <ElInput v-model="quickSearch" clearable placeholder="搜索快速范围">
+                <template #prefix>
+                  <ElIcon><Search /></ElIcon>
+                </template>
+              </ElInput>
+
+              <div class="metrics-time-range-picker__quick-list">
+                <button
+                  v-for="preset in filteredPresets"
+                  :key="preset.key"
+                  type="button"
+                  :class="{ 'is-active': model.presetKey === preset.key }"
+                  @click="applyPreset(preset)"
+                >
+                  {{ preset.label }}
+                </button>
+              </div>
+            </section>
+
+            <footer class="metrics-time-range-picker__footer">
+              <span>浏览器时间</span>
+              <strong>{{ browserTimeZone }}</strong>
+              <span>{{ utcOffset }}</span>
+            </footer>
           </div>
-
-          <div v-if="recentRanges.length" class="metrics-time-range-picker__recent">
-            <h3>最近使用的绝对范围</h3>
-            <button
-              v-for="range in recentRanges"
-              :key="`${range.start.getTime()}-${range.end.getTime()}`"
-              type="button"
-              @click="applyRecentRange(range)"
-            >
-              {{ formatRange(range) }}
-            </button>
-          </div>
-        </section>
-
-        <section class="metrics-time-range-picker__quick">
-          <ElInput v-model="quickSearch" clearable placeholder="搜索快速范围">
-            <template #prefix>
-              <ElIcon><Search /></ElIcon>
-            </template>
-          </ElInput>
-
-          <div class="metrics-time-range-picker__quick-list">
-            <button
-              v-for="preset in filteredPresets"
-              :key="preset.key"
-              type="button"
-              :class="{ 'is-active': model.presetKey === preset.key }"
-              @click="applyPreset(preset)"
-            >
-              {{ preset.label }}
-            </button>
-          </div>
-        </section>
-
-        <footer class="metrics-time-range-picker__footer">
-          <span>浏览器时间</span>
-          <strong>{{ browserTimeZone }}</strong>
-          <span>{{ utcOffset }}</span>
-        </footer>
-      </div>
-    </ElPopover>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -112,22 +117,32 @@
     formatDateTime,
     fromDateTimePickerValue,
     METRICS_TIME_PRESETS,
+    getMetricsTimeRangeLabel,
     type MetricsTimePreset,
     type MetricsTimeRange
   } from '@/utils/metrics/time-range'
 
   const model = defineModel<MetricsTimeRange>({ required: true })
 
+  const triggerRef = ref<HTMLElement>()
+  const panelRef = ref<HTMLElement>()
+  const panelStyle = ref<Record<string, string>>({})
   const panelVisible = ref(false)
   const absoluteStart = ref<Date>()
   const absoluteEnd = ref<Date>()
   const quickSearch = ref('')
   const recentRanges = ref<MetricsTimeRange[]>([])
 
-  const displayRangeLabel = computed(() => formatRange(model.value))
+  const displayRangeLabel = computed(() => getMetricsTimeRangeLabel(model.value))
+  const isCustomRange = computed(
+    () => !METRICS_TIME_PRESETS.some((p) => p.key === model.value.presetKey)
+  )
   const canApplyAbsolute = computed(() => {
-    if (!absoluteStart.value || !absoluteEnd.value) return false
-    return absoluteStart.value.getTime() < absoluteEnd.value.getTime()
+    const start = absoluteStart.value
+    const end = absoluteEnd.value
+    // 防御：datetime picker 可能返回非 Date 值（如字符串），避免 getTime 崩溃
+    if (!(start instanceof Date) || !(end instanceof Date)) return false
+    return start.getTime() < end.getTime()
   })
   const filteredPresets = computed(() => {
     const keyword = quickSearch.value.trim().toLowerCase()
@@ -148,8 +163,66 @@
 
   watch(model, syncDraftFromModel, { immediate: true, deep: true })
 
+  useEventListener(window, 'resize', () => {
+    if (panelVisible.value) void updatePanelPosition()
+  })
+  useEventListener(
+    window,
+    'scroll',
+    () => {
+      if (panelVisible.value) void updatePanelPosition()
+    },
+    true
+  )
+  useEventListener(window, 'pointerdown', handleGlobalPointerDown)
+
+  async function updatePanelPosition() {
+    const trigger = triggerRef.value
+    if (!trigger || !panelVisible.value) return
+    const rect = trigger.getBoundingClientRect()
+    const viewportWidth = document.documentElement.clientWidth
+    const viewportHeight = document.documentElement.clientHeight
+    const panelWidth = Math.min(548, viewportWidth - 24)
+    let left = Math.max(12, Math.min(rect.right - panelWidth, viewportWidth - panelWidth - 12))
+    let top = rect.bottom + 4
+    await nextTick()
+    const panelHeight = panelRef.value?.offsetHeight ?? 0
+    if (top + panelHeight > viewportHeight - 12) {
+      top = Math.max(12, viewportHeight - panelHeight - 12)
+    }
+    panelStyle.value = {
+      // position/z-index 由 CSS 保证，这里只更新定位
+      top: `${top}px`,
+      left: `${left}px`,
+      width: `${panelWidth}px`
+    }
+  }
+
+  function togglePanel() {
+    if (panelVisible.value) {
+      panelVisible.value = false
+      return
+    }
+    syncDraftFromModel()
+    panelVisible.value = true
+    void updatePanelPosition()
+  }
+
+  function handleGlobalPointerDown(event: PointerEvent) {
+    if (!panelVisible.value) return
+    const target = event.target as Node
+    if (triggerRef.value?.contains(target)) return
+    if (panelRef.value?.contains(target)) return
+    const path = event.composedPath?.() ?? []
+    const isDatePopper = path.some(
+      (el) => el instanceof Element && el.matches('.metrics-time-range-picker__date-popper')
+    )
+    if (isDatePopper) return
+    panelVisible.value = false
+  }
+
   function formatRange(range: MetricsTimeRange): string {
-    return `${formatDateTime(range.start)} 至 ${formatDateTime(range.end)}`
+    return `${formatDateTime(range.start)} ~ ${formatDateTime(range.end)}`
   }
 
   function syncDraftFromModel() {
@@ -233,8 +306,7 @@
     min-width: 0;
     overflow: hidden;
     font-size: 12px;
-    font-weight: 600;
-    color: var(--el-text-color-primary);
+    color: var(--el-text-color-regular);
     text-align: left;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -258,9 +330,15 @@
 </style>
 
 <style lang="scss">
-  .metrics-time-range-picker__popover.el-popper {
-    width: min(548px, calc(100vw - 24px)) !important;
-    max-width: calc(100vw - 24px);
+  /* ElDatePicker 日历 popper 需高于时间面板(4000)，避免选择日期时被面板遮挡 */
+  .metrics-time-range-picker__date-popper {
+    z-index: 4100 !important;
+  }
+
+  .metrics-time-range-picker__popover {
+    /* fixed + 高 z-index 由 CSS 保证，不依赖 JS panelStyle（避免 JS 未及时设置时被 ElDrawer 遮罩盖住） */
+    position: fixed;
+    z-index: 4000;
     padding: 0;
     overflow: hidden;
     background: var(--el-bg-color);
@@ -272,7 +350,7 @@
   .metrics-time-range-picker__panel {
     display: grid;
     grid-template-rows: minmax(0, 1fr) 40px;
-    grid-template-columns: minmax(0, 3fr) minmax(190px, 2fr);
+    grid-template-columns: minmax(0, 4.6fr) minmax(190px, 5fr);
     max-height: calc(100vh - 110px);
     font-size: 12px;
     color: var(--el-text-color-regular);
@@ -295,8 +373,7 @@
     border-right: 1px solid var(--el-border-color);
   }
 
-  .metrics-time-range-picker__absolute h3,
-  .metrics-time-range-picker__recent h3 {
+  .metrics-time-range-picker__absolute h3 {
     margin: 0 0 10px;
     font-size: 12px;
     font-weight: 600;

@@ -91,6 +91,7 @@ export function useChart(options: UseChartOptions = {}) {
   const chartRef = ref<HTMLElement>()
   let chart: echarts.ECharts | null = null
   let intersectionObserver: IntersectionObserver | null = null
+  let resizeObserver: ResizeObserver | null = null
   let pendingOptions: EChartsOption | null = null
   let resizeTimeoutId: number | null = null
   let resizeFrameId: number | null = null
@@ -118,6 +119,25 @@ export function useChart(options: UseChartOptions = {}) {
       handleResize()
       resizeFrameId = null
     })
+  }
+
+  // 监听图表容器自身尺寸变化（ElDrawer 动画、抽屉宽度变化等不触发 window resize 的场景）
+  const setupResizeObserver = () => {
+    if (resizeObserver || !chartRef.value || typeof ResizeObserver === 'undefined') return
+
+    resizeObserver = new ResizeObserver(() => {
+      // 复用 RAF 合并，避免频繁触发
+      requestAnimationResize()
+    })
+    resizeObserver.observe(chartRef.value)
+  }
+
+  // 清理 ResizeObserver
+  const cleanupResizeObserver = () => {
+    if (resizeObserver) {
+      resizeObserver.disconnect()
+      resizeObserver = null
+    }
   }
 
   // 防抖的resize处理（用于窗口resize事件）
@@ -462,7 +482,7 @@ export function useChart(options: UseChartOptions = {}) {
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        font-size: 12px;
+        font-size: 11px;
         color: ${isDark.value ? '#555555' : '#B3B2B2'};
         background: transparent;
         z-index: 10;
@@ -576,6 +596,7 @@ export function useChart(options: UseChartOptions = {}) {
     cleanupThemeWatcher()
     emptyStateManager.remove()
     cleanupIntersectionObserver()
+    cleanupResizeObserver()
     clearTimers()
     clearStyleCache()
     pendingOptions = null
@@ -589,10 +610,12 @@ export function useChart(options: UseChartOptions = {}) {
 
   onMounted(() => {
     window.addEventListener('resize', debouncedResize)
+    setupResizeObserver()
   })
 
   onBeforeUnmount(() => {
     window.removeEventListener('resize', debouncedResize)
+    cleanupResizeObserver()
   })
 
   onUnmounted(() => {

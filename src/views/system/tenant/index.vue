@@ -68,6 +68,7 @@
   } from '@/api/system-manage'
   import TenantDialog from './modules/tenant-dialog.vue'
   import { ElLink, ElMessage, ElMessageBox } from 'element-plus'
+  import { notifyError } from '@/utils/sys/notify'
   import { DialogType } from '@/types'
 
   defineOptions({ name: 'Tenant' })

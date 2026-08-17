@@ -110,7 +110,7 @@ export function getMetricsTimeRangeLabel(range: MetricsTimeRange | null | undefi
   if (!range) return '1小时'
   const preset = METRICS_TIME_PRESETS.find((p) => p.key === range.presetKey)
   if (preset) return preset.label
-  return `${formatDateTime(range.start)} 至 ${formatDateTime(range.end)}`
+  return `${formatDateTime(range.start)} ~ ${formatDateTime(range.end)}`
 }
 
 export function formatDateTime(d: Date): string {

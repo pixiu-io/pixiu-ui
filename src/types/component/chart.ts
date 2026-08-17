@@ -172,6 +172,10 @@ export interface LineChartProps extends BaseChartProps, AxisDisplayProps, Intera
   animationDelay?: number
   /** 数据更新时跳过入场动画，仅刷新曲线 */
   silentUpdate?: boolean
+  /** 坐标轴标签字号（px），缺省时沿用默认值 */
+  axisFontSize?: number
+  /** x 轴标签最大显示数量，数据点超过时按 interval 智能抽样 */
+  maxXAxisLabels?: number
 }
 
 // 雷达图数据项接口
@@ -212,6 +216,16 @@ export interface RingChartProps extends BaseChartProps, InteractionProps {
   centerTextFontSize?: number
   /** 是否显示标签 */
   showLabel?: boolean
+}
+
+// 仪表盘 Props 接口 - 纯 CSS conic-gradient 圆环（颜色分档内置，无需 color）
+export interface GaugeChartProps extends BaseChartProps {
+  /** 仪表值（0 ~ max 的百分比值） */
+  value: number
+  /** 仪表最大值，默认 100 */
+  max?: number
+  /** 中心数字小数位，默认 1 */
+  decimals?: number
 }
 
 // K线图数据项接口

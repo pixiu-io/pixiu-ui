@@ -13,7 +13,7 @@
         ref="formRef"
         :model="formData"
         :rules="rules"
-        label-width="88px"
+        label-width="92px"
         class="datasource-create-form"
       >
         <section class="datasource-form-section">
@@ -103,7 +103,7 @@
               </ElFormItem>
             </ElCol>
 
-            <template v-if="isInternalLogDatasource">
+            <template v-if="isInternalSvcDatasource">
               <ElCol :span="12">
                 <ElFormItem label="命名空间" prop="service_namespace">
                   <ElSelect
@@ -262,7 +262,7 @@
           <ElFormItem v-if="!isRedisDatasource" label="接入地址" prop="url">
             <ElInput
               v-model="formData.url"
-              :readonly="isInternalLogDatasource"
+              :readonly="isInternalSvcDatasource"
               :placeholder="
                 formData.external
                   ? '请输入接入地址，如: http://192.168.100.210:30442'
@@ -588,7 +588,9 @@
   }
 
   const currentSubTypeOptions = computed(() => allSubTypes)
-  const isInternalLogDatasource = computed(() => formData.type === 0 && !formData.external)
+  const isInternalSvcDatasource = computed(
+    () => (formData.type === 0 || formData.type === 1) && !formData.external
+  )
   const isRedisDatasource = computed(() => formData.type === 2)
   // 选中 Redis 时类型锁定为「缓存」
   const isRedisSubType = computed(() => formData.sub_type === 'redis')
@@ -711,7 +713,7 @@
     if (clearNamespace) formData.service_namespace = ''
     formData.service_name = ''
     formData.service_port = undefined
-    if (isInternalLogDatasource.value) formData.url = ''
+    if (isInternalSvcDatasource.value) formData.url = ''
   }
 
   function onServiceNamespaceChange() {
@@ -725,7 +727,7 @@
   }
 
   function syncInternalDatasourceUrl() {
-    if (!isInternalLogDatasource.value) return
+    if (!isInternalSvcDatasource.value) return
     const { service_name: service, service_namespace: namespace, service_port: port } = formData
     formData.url =
       service && namespace && port
@@ -736,7 +738,7 @@
   async function loadServices() {
     clearServiceSelection()
     clusterServices.value = []
-    if (!isInternalLogDatasource.value || !formData.cluster_name) return
+    if (!isInternalSvcDatasource.value || !formData.cluster_name) return
     serviceListLoading.value = true
     try {
       const { items } = await fetchK8sServiceList(formData.cluster_name, {
@@ -962,7 +964,7 @@
         headers: [{ key: '', value: '' }]
       })
       fillFormFromConfig(data.config)
-      if (data.type === 0 && !data.external) {
+      if ((data.type === 0 || data.type === 1) && !data.external) {
         const savedUrl = formData.url
         try {
           const parsed = new URL(savedUrl)
@@ -997,11 +999,17 @@
   }
 
   function buildServiceProxyUrl(): string {
+    const servicePath =
+      formData.sub_type === 'loki'
+        ? '/loki/api/v1/labels'
+        : formData.sub_type === 'prometheus'
+          ? '/-/ready'
+          : '/_cluster/health'
     return (
       `/pixiu/proxy/${encodeURIComponent(formData.cluster_name)}` +
       `/api/v1/namespaces/${encodeURIComponent(formData.service_namespace)}` +
       `/services/${encodeURIComponent(formData.service_name)}:${formData.service_port}/proxy` +
-      (formData.sub_type === 'loki' ? '/loki/api/v1/labels' : '/_cluster/health')
+      servicePath
     )
   }
 
@@ -1070,7 +1078,7 @@
       return
     }
 
-    if (!isInternalLogDatasource.value && !formData.external) {
+    if (!isInternalSvcDatasource.value && !formData.external) {
       ElMessage.warning('当前配置暂不支持连通性测试，请改为内部日志数据源或外部数据源后再试')
       return
     }

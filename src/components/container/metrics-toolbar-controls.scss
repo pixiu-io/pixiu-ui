@@ -5,10 +5,12 @@
   gap: 8px;
   align-items: center;
   justify-content: space-between;
-  height: var(--el-component-custom-height, 36px);
-  min-height: var(--el-component-custom-height, 36px);
-  padding: 0 11px;
-  font-size: 13px;
+  // 注意：全局 :root 已将 --el-component-custom-height 固定为 36px，
+  // 因此这里必须显式声明高度（与工具栏 size=small 的 ElSelect 24px 对齐），不能用变量 fallback。
+  height: 32px;
+  min-height: 32px;
+  padding: 0 8px;
+  font-size: 12px;
   line-height: 1;
   color: var(--el-text-color-primary);
   background: var(--el-bg-color);

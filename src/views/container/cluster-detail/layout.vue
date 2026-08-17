@@ -964,6 +964,34 @@
     overflow: auto;
   }
 
+  /* 集群详情主区滚动条：细条，悬停时才显示 */
+  .cluster-detail-main {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+
+  .cluster-detail-main::-webkit-scrollbar {
+    width: 4px !important;
+    height: 4px !important;
+  }
+
+  .cluster-detail-main::-webkit-scrollbar-track {
+    background: transparent !important;
+  }
+
+  .cluster-detail-main::-webkit-scrollbar-thumb {
+    border-radius: 2px !important;
+    background-color: transparent !important;
+  }
+
+  .cluster-detail-main:hover::-webkit-scrollbar-thumb {
+    background-color: rgb(0 0 0 / 25%) !important;
+  }
+
+  .cluster-detail-main:hover::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(0 0 0 / 35%) !important;
+  }
+
   .fade-slide-enter-active,
   .fade-slide-leave-active {
     transition:

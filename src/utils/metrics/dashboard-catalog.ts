@@ -362,6 +362,86 @@ const panelSpecs: DashboardPanelSpec[] = [
     false,
     clusterMemoryUsage
   ),
+  // 集群概览用量趋势面板（近 24h，供 overview 复用；不进入 sections 导航）
+  panel(
+    'cluster',
+    'cluster.cpu_total_trend',
+    'CPU 总配置',
+    'line',
+    'cores',
+    4,
+    [],
+    true,
+    () => `sum(count by (instance)(node_cpu_seconds_total{mode="idle"}))`
+  ),
+  panel(
+    'cluster',
+    'cluster.cpu_usage_trend',
+    'CPU 使用率',
+    'line',
+    'percent',
+    4,
+    [],
+    true,
+    (filters) =>
+      `100 * sum(${containerExpr('container_cpu_usage_seconds_total', filters, true)}) / sum(count by (instance)(node_cpu_seconds_total{mode="idle"}))`
+  ),
+  panel(
+    'cluster',
+    'cluster.memory_total_trend',
+    '内存总量',
+    'line',
+    'bytes',
+    4,
+    [],
+    true,
+    () => `sum(node_memory_MemTotal_bytes)`
+  ),
+  panel(
+    'cluster',
+    'cluster.memory_usage_trend',
+    '内存使用率',
+    'line',
+    'percent',
+    4,
+    [],
+    true,
+    (filters) =>
+      `100 * sum(${containerExpr('container_memory_working_set_bytes', filters, false)}) / sum(node_memory_MemTotal_bytes)`
+  ),
+  panel(
+    'cluster',
+    'cluster.cpu_usage_cores_trend',
+    'CPU 使用量',
+    'line',
+    'cores',
+    4,
+    ['container_cpu_usage_seconds_total'],
+    true,
+    (filters) => `sum(${containerExpr('container_cpu_usage_seconds_total', filters, true)})`
+  ),
+  panel(
+    'cluster',
+    'cluster.memory_usage_bytes_trend',
+    '内存使用量',
+    'line',
+    'bytes',
+    4,
+    ['container_memory_working_set_bytes'],
+    true,
+    (filters) => `sum(${containerExpr('container_memory_working_set_bytes', filters, false)})`
+  ),
+  panel(
+    'cluster',
+    'cluster.memory_usage_bytes_with_cache_trend',
+    '内存使用量(含Cache)',
+    'line',
+    'bytes',
+    4,
+    ['container_memory_usage_bytes'],
+    true,
+    (filters) => `sum(${containerExpr('container_memory_usage_bytes', filters, false)})`
+  ),
 
   panel(
     'namespace',
@@ -675,6 +755,54 @@ const panelSpecs: DashboardPanelSpec[] = [
     true,
     networkTransmitTrend
   ),
+  panel(
+    'network',
+    'network.transmit_rate_mb_trend',
+    '网络出流量',
+    'line',
+    'MBytes',
+    4,
+    ['container_network_transmit_bytes_total'],
+    true,
+    (filters) =>
+      `sum(${containerExpr('container_network_transmit_bytes_total', filters, true)}) / 1024 / 1024`
+  ),
+  panel(
+    'network',
+    'network.receive_rate_mb_trend',
+    '网络入流量',
+    'line',
+    'MBytes',
+    4,
+    ['container_network_receive_bytes_total'],
+    true,
+    (filters) =>
+      `sum(${containerExpr('container_network_receive_bytes_total', filters, true)}) / 1024 / 1024`
+  ),
+  panel(
+    'network',
+    'network.bandwidth_trend',
+    '网络带宽',
+    'line',
+    'Mbps',
+    4,
+    ['container_network_transmit_bytes_total', 'container_network_receive_bytes_total'],
+    true,
+    (filters) =>
+      `(sum(${containerExpr('container_network_transmit_bytes_total', filters, true)}) + sum(${containerExpr('container_network_receive_bytes_total', filters, true)})) * 8 / 1000 / 1000`
+  ),
+  panel(
+    'network',
+    'network.packet_rate_trend',
+    '网络包容量',
+    'line',
+    'pps',
+    4,
+    ['container_network_transmit_packets_total', 'container_network_receive_packets_total'],
+    true,
+    (filters) =>
+      `sum(${containerExpr('container_network_transmit_packets_total', filters, true)}) + sum(${containerExpr('container_network_receive_packets_total', filters, true)})`
+  ),
 
   panel(
     'storage',
@@ -697,6 +825,50 @@ const panelSpecs: DashboardPanelSpec[] = [
     ['container_fs_usage_bytes'],
     false,
     containerFS
+  ),
+  panel(
+    'storage',
+    'storage.disk_reads_trend',
+    '块设备 读取次数',
+    'line',
+    'ops',
+    4,
+    ['node_disk_reads_completed_total'],
+    true,
+    fixed('sum(rate(node_disk_reads_completed_total[5m]))')
+  ),
+  panel(
+    'storage',
+    'storage.disk_write_bytes_trend',
+    '块设备 写入大小',
+    'line',
+    'MBytes',
+    4,
+    ['node_disk_written_bytes_total'],
+    true,
+    fixed('sum(rate(node_disk_written_bytes_total[5m])) / 1024 / 1024')
+  ),
+  panel(
+    'storage',
+    'storage.disk_writes_trend',
+    '块设备 写入次数',
+    'line',
+    'ops',
+    4,
+    ['node_disk_writes_completed_total'],
+    true,
+    fixed('sum(rate(node_disk_writes_completed_total[5m]))')
+  ),
+  panel(
+    'storage',
+    'storage.disk_read_bytes_trend',
+    '块设备 读取大小',
+    'line',
+    'MBytes',
+    4,
+    ['node_disk_read_bytes_total'],
+    true,
+    fixed('sum(rate(node_disk_read_bytes_total[5m])) / 1024 / 1024')
   ),
 
   unavailablePanel('gpu', 'gpu.utilization', 'GPU 使用率', 'percent', 4, 'DCGM_FI_DEV_GPU_UTIL'),

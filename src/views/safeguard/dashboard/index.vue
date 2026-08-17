@@ -145,7 +145,6 @@
               v-model:timeRange="timeRange"
               v-model:granularity="granularity"
               v-model:autoRefresh="autoRefresh"
-              v-model:showLegend="showLegend"
               :show-granularity="false"
               :show-legend="false"
               class="prometheus-dashboard__toolbar"
@@ -586,7 +585,7 @@
 
   .prometheus-dashboard__toolbar :deep(.metrics-time-range-picker__trigger) {
     min-height: 32px;
-    padding: 0 12px;
+    padding: 0 8px;
     font-size: 12px;
     background: var(--el-bg-color);
     border-color: var(--el-border-color);

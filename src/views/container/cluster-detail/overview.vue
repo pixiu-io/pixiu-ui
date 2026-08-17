@@ -3,10 +3,10 @@
   <div class="cluster-overview">
     <ElTabs v-model="innerTab" class="cluster-overview-tabs">
       <ElTabPane label="概览" name="main">
-        <section class="section-title">资源概览</section>
+        <section class="section-title" style="margin-top: 10px">资源概览</section>
         <ElRow :gutter="16">
           <ElCol :xs="24" :lg="12">
-            <ElCard shadow="never" class="resource-card" v-loading="resourceOverviewLoading">
+            <ElCard shadow="never" class="resource-card">
               <div class="resource-card__head">
                 <span class="resource-card__title">节点</span>
                 <ElLink
@@ -20,12 +20,12 @@
               <div class="resource-card__body">
                 <div class="resource-card__chart">
                   <ArtRingChart
-                    height="152px"
+                    height="100px"
                     :data="nodeRingData"
                     :radius="['48%', '66%']"
                     :border-radius="7"
                     :center-text="nodeCenterText"
-                    :center-text-font-size="14"
+                    :center-text-font-size="12"
                     :show-label="false"
                   />
                 </div>
@@ -46,7 +46,7 @@
             </ElCard>
           </ElCol>
           <ElCol :xs="24" :lg="12">
-            <ElCard shadow="never" class="resource-card" v-loading="resourceOverviewLoading">
+            <ElCard shadow="never" class="resource-card">
               <div class="resource-card__head">
                 <span class="resource-card__title">工作负载</span>
                 <ElLink
@@ -60,12 +60,12 @@
               <div class="resource-card__body">
                 <div class="resource-card__chart">
                   <ArtRingChart
-                    height="152px"
+                    height="100px"
                     :data="wlRingData"
                     :radius="['48%', '66%']"
                     :border-radius="7"
                     :center-text="wlCenterText"
-                    :center-text-font-size="14"
+                    :center-text-font-size="12"
                     :show-label="false"
                   />
                 </div>
@@ -87,8 +87,82 @@
           </ElCol>
         </ElRow>
 
-        <section class="section-title mt-6">用量概览（近 24 小时）</section>
-        <ElCard v-loading="usageOverviewInitialLoading" shadow="never" class="usage-overview-card">
+        <section class="section-title mt-6">用量概览</section>
+        <ElCard
+          v-if="usageDatasourceMissing"
+          shadow="never"
+          class="usage-status-card usage-empty-card"
+        >
+          <div class="usage-empty-state">
+            <span class="usage-empty-state__icon"><ArtSvgIcon icon="ri:inbox-line" /></span>
+          </div>
+        </ElCard>
+        <ElCard v-else shadow="never" class="usage-status-card">
+          <div class="usage-overview-head">
+            <div class="usage-overview-head__sub">过去24小时内每小时平均数据</div>
+            <ElLink type="primary" underline="never" @click="go('prometheus')">查看监控详情</ElLink>
+          </div>
+          <ElRow :gutter="16">
+            <ElCol :xs="24" :lg="12" class="usage-overview-col">
+              <div class="usage-col">
+                <div class="usage-col__title">CPU利用率</div>
+                <div class="usage-col__value">{{ fmt(cpuUtilPercent, '%', 2) }}</div>
+                <ul class="usage-col__stats usage-col__stats--row">
+                  <li>
+                    <span>CPU使用量</span>
+                    <strong>{{ fmt(cpuUsageCores, '核', 2) }}</strong>
+                  </li>
+                  <li>
+                    <span>CPU总核数</span>
+                    <strong>{{ fmt(cpuTotalCores, '核', 2) }}</strong>
+                  </li>
+                  <li>
+                    <span>CPU分配率</span>
+                    <strong>{{ fmtGauge(cpuRequestCommitPercent, '%', 2) }}</strong>
+                  </li>
+                </ul>
+              </div>
+            </ElCol>
+            <ElCol :xs="24" :lg="12" class="usage-overview-col">
+              <div class="usage-col">
+                <div class="usage-col__title">内存利用率（含Cache）</div>
+                <div class="usage-col__value">{{ fmt(memUtilWithCachePercent, '%', 2) }}</div>
+                <ul class="usage-col__stats usage-col__stats--row">
+                  <li>
+                    <span>内存使用量（含Cache）</span>
+                    <strong>{{ fmt(memUsageWithCacheGib, 'GB', 2) }}</strong>
+                  </li>
+                  <li>
+                    <span>内存使用量（不含Cache）</span>
+                    <strong>{{ fmt(memUsageGib, 'GB', 2) }}</strong>
+                  </li>
+                </ul>
+                <ul class="usage-col__stats usage-col__stats--row usage-col__stats--row-sub">
+                  <li>
+                    <span>内存利用率（不含Cache）</span>
+                    <strong>{{ fmt(memUtilPercent, '%', 2) }}</strong>
+                  </li>
+                  <li>
+                    <span>内存总和</span>
+                    <strong>{{ fmt(memTotalGib, 'GB', 2) }}</strong>
+                  </li>
+                </ul>
+              </div>
+            </ElCol>
+          </ElRow>
+        </ElCard>
+
+        <section class="section-title mt-6">用量趋势（近 24 小时）</section>
+        <ElCard
+          v-if="usageDatasourceMissing"
+          shadow="never"
+          class="usage-overview-card usage-empty-card"
+        >
+          <div class="usage-empty-state">
+            <span class="usage-empty-state__icon"><ArtSvgIcon icon="ri:inbox-line" /></span>
+          </div>
+        </ElCard>
+        <ElCard v-else shadow="never" class="usage-overview-card">
           <div class="usage-overview-grid">
             <MetricChartPanel
               title="CPU 利用率（%）"
@@ -96,17 +170,23 @@
               :x-axis-data="cpuUtilLabels"
               :is-empty="!cpuUtilPercent.length"
               :silent-update="usageChartSilentUpdate"
-              height="160px"
+              :axis-font-size="10"
+              height="120px"
               plain
+              :expand-time-range="usageTimeRange"
+              @expand-time-range-change="onUsageTimeRangeChange"
             />
             <MetricChartPanel
               title="内存利用率（%）"
               :data="memUtilPercent"
-              :x-axis-data="memUtilLabels"
+              :x-axis-data="cpuUtilLabels"
               :is-empty="!memUtilPercent.length"
               :silent-update="usageChartSilentUpdate"
-              height="160px"
+              :axis-font-size="10"
+              height="120px"
               plain
+              :expand-time-range="usageTimeRange"
+              @expand-time-range-change="onUsageTimeRangeChange"
             />
             <MetricChartPanel
               title="CPU 使用量（核）"
@@ -114,43 +194,25 @@
               :x-axis-data="cpuUtilLabels"
               :is-empty="!cpuUsageCores.length"
               :silent-update="usageChartSilentUpdate"
-              height="160px"
+              :axis-font-size="10"
+              height="120px"
               plain
+              :expand-time-range="usageTimeRange"
+              @expand-time-range-change="onUsageTimeRangeChange"
             />
             <MetricChartPanel
               title="内存使用量（GB）"
               :data="memUsageGib"
-              :x-axis-data="memUtilLabels"
+              :x-axis-data="cpuUtilLabels"
               :is-empty="!memUsageGib.length"
               :silent-update="usageChartSilentUpdate"
-              height="160px"
+              :axis-font-size="10"
+              height="120px"
               plain
+              :expand-time-range="usageTimeRange"
+              @expand-time-range-change="onUsageTimeRangeChange"
             />
           </div>
-        </ElCard>
-
-        <section class="section-title mt-6">已安装组件</section>
-        <ElCard shadow="never" class="components-card">
-          <ElRow :gutter="16">
-            <ElCol :span="8">
-              <div class="comp-stat">
-                <span class="comp-stat__label">组件总数</span>
-                <span class="comp-stat__value">{{ compSummary.total }}</span>
-              </div>
-            </ElCol>
-            <ElCol :span="8">
-              <div class="comp-stat">
-                <span class="comp-stat__label">运行中</span>
-                <span class="comp-stat__value text-success">{{ compSummary.running }}</span>
-              </div>
-            </ElCol>
-            <ElCol :span="8">
-              <div class="comp-stat">
-                <span class="comp-stat__label">可升级</span>
-                <span class="comp-stat__value text-warning">{{ compSummary.upgradable }}</span>
-              </div>
-            </ElCol>
-          </ElRow>
         </ElCard>
       </ElTabPane>
 
@@ -481,6 +543,13 @@
           </ElCard>
         </div>
       </ElTabPane>
+
+      <ElTabPane label="监控" name="monitor">
+        <ClusterMonitorMetrics
+          v-if="innerTab === 'monitor' && isOverviewRoute"
+          :cluster-name="ctx.name"
+        />
+      </ElTabPane>
     </ElTabs>
 
     <ElDialog v-model="proxyDialogVisible" title="启用外部访问" width="460px" destroy-on-close>
@@ -527,14 +596,20 @@
   import {
     fetchClusterBasicNetwork,
     fetchClusterDetailInfo,
-    fetchClusterOverviewK8sStats,
     type ClusterBasicNetwork,
     type ClusterDetailInfo,
     type ClusterOverviewK8sStats
   } from '@/api/kubernetes/cluster-overview-stats'
-  import { useClusterNodesUsageMetrics } from '@/hooks/kubernetes/useClusterNodesUsageMetrics'
+  import { useClusterUsagePrometheus } from '@/hooks/kubernetes/useClusterUsagePrometheus'
+  import {
+    getDefaultMetricsTimeRange,
+    METRICS_TIME_PRESETS,
+    type MetricsTimeRange
+  } from '@/utils/metrics/time-range'
+  import { fetchClusterResourceOverviewFromPrometheus } from '@/hooks/kubernetes/useClusterResourceOverviewPrometheus'
   import MetricChartPanel from '@/components/container/metric-chart-panel.vue'
   import ArtRingChart from '@/components/core/charts/art-ring-chart/index.vue'
+  import ClusterMonitorMetrics from '@/views/container/cluster/modules/cluster-monitor-metrics.vue'
   import { clusterDetailContextKey, clusterDetailRefreshKey } from './context'
   import { getCronJobApiVersion } from '@/utils/kubernetes/cronjob'
   import { notifyError } from '@/utils/sys/notify'
@@ -553,7 +628,7 @@
   const OVERVIEW_ROUTE_NAME = 'ClusterDetailOverview'
   const isOverviewRoute = computed(() => route.name === OVERVIEW_ROUTE_NAME)
 
-  const OVERVIEW_TAB_NAMES = new Set(['main', 'basic', 'api'])
+  const OVERVIEW_TAB_NAMES = new Set(['main', 'basic', 'api', 'monitor'])
 
   watch(
     () => route.query.overviewTab,
@@ -591,7 +666,7 @@
 
     resourceOverviewLoading.value = true
     try {
-      const stats = await fetchClusterOverviewK8sStats(cluster, force, cronJobApiVersion.value)
+      const stats = await fetchClusterResourceOverviewFromPrometheus(cluster)
       k8sOverview.value = stats
       loadedOverviewCluster.value = cluster
     } catch {
@@ -639,7 +714,7 @@
     // 并行发起统计和网络信息请求
     try {
       const [stats, network] = await Promise.all([
-        fetchClusterOverviewK8sStats(cluster, force, cronJobApiVersion.value),
+        fetchClusterResourceOverviewFromPrometheus(cluster),
         fetchClusterBasicNetwork(cluster)
       ])
       k8sOverview.value = stats
@@ -940,8 +1015,6 @@
     }
   }
 
-  const seed = computed(() => ctx.value.seed)
-
   const nodeRingData = computed(() => {
     const { controlPlane, worker } = k8sOverview.value.nodes
     return [
@@ -995,25 +1068,53 @@
 
   const clusterName = computed(() => ctx.value.name)
 
+  /** 用量趋势时间范围：默认最近 24 小时；最大化弹窗内可调整，由 hook 内 watch 触发重新查询 */
+  const usageTimeRange = ref<MetricsTimeRange>(
+    METRICS_TIME_PRESETS.find((p) => p.key === '24h')?.getRange(new Date()) ??
+      getDefaultMetricsTimeRange()
+  )
+
   const {
-    loading: usageOverviewLoading,
     chartReady: usageChartReady,
+    datasourceMissing: usageDatasourceMissing,
     cpuTimeLabels: cpuUtilLabels,
-    memoryTimeLabels: memUtilLabels,
     cpuUtilPercent,
-    cpuUsageCores,
     memUtilPercent,
+    cpuUsageCores,
     memUsageGib,
+    cpuTotalCores,
+    memTotalGib,
+    memUsageWithCacheGib,
+    memUtilWithCachePercent,
+    cpuRequestCommitPercent,
     startRefresh: startUsageOverviewRefresh,
     stopRefresh: stopUsageOverviewRefresh,
     resetCharts: resetUsageOverviewCharts
-  } = useClusterNodesUsageMetrics(clusterName)
+  } = useClusterUsagePrometheus(clusterName, usageTimeRange)
 
-  const usageOverviewInitialLoading = computed(
-    () => usageOverviewLoading.value && !usageChartReady.value
-  )
+  /** 取数组最后一项作为当前值；空或非数字返回 null */
+  function lastOf(arr: number[]): number | null {
+    const n = arr[arr.length - 1]
+    return Number.isFinite(n) ? n : null
+  }
+
+  /** 格式化趋势数组末项当前值：数据未就绪显示 '-'，否则数值 + 单位 */
+  function fmt(arr: number[], unit: string, digits = 2): string {
+    const v = lastOf(arr)
+    return v === null ? '-' : `${v.toFixed(digits)}${unit}`
+  }
+
+  /** 格式化 gauge 标量当前值：0 视为未就绪显示 '-'（cluster.cpu_requests 空面板返回 0） */
+  function fmtGauge(v: number, unit: string, digits = 2): string {
+    return v === 0 ? '-' : `${v.toFixed(digits)}${unit}`
+  }
 
   const usageChartSilentUpdate = ref(true)
+
+  /** 最大化弹窗内调整时间范围：更新 usageTimeRange，hook 内 watch 触发静默刷新 */
+  function onUsageTimeRangeChange(range: MetricsTimeRange) {
+    usageTimeRange.value = range
+  }
 
   watch(usageChartReady, () => {})
 
@@ -1074,12 +1175,6 @@
     stopOverviewBackgroundLoads()
   })
 
-  const compSummary = computed(() => ({
-    total: 18 + (seed.value % 7),
-    running: 16 + (seed.value % 5),
-    upgradable: 2
-  }))
-
   function go(path: string) {
     router.push({ path: `/container/${path}`, query: { ...route.query } })
   }
@@ -1122,7 +1217,7 @@
 
   .section-title {
     margin: 0 0 12px;
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 600;
     color: var(--el-text-color-primary);
   }
@@ -1130,21 +1225,23 @@
   .resource-card {
     border-radius: 8px;
     overflow: visible;
+    height: 100%;
   }
 
   .resource-card :deep(.el-card__body) {
     overflow: visible;
+    padding-bottom: 12px;
   }
 
   .resource-card__head {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
   }
 
   .resource-card__title {
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 600;
   }
 
@@ -1157,9 +1254,9 @@
   }
 
   .resource-card__chart {
-    flex: 0 0 152px;
-    width: 152px;
-    margin-left: 12px;
+    flex: 0 0 100px;
+    width: 100px;
+    margin-left: 8px;
     overflow: visible;
   }
 
@@ -1177,7 +1274,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
   }
 
   .resource-card__stats li:last-child {
@@ -1204,8 +1301,8 @@
   }
 
   .resource-card__foot {
-    margin-top: 8px;
-    padding-top: 8px;
+    margin-top: 6px;
+    padding-top: 4px;
     border-top: 1px dashed var(--el-border-color-lighter);
   }
 
@@ -1248,34 +1345,161 @@
     margin-top: -2px;
   }
 
-  .components-card {
+  .usage-status-card {
+    border-radius: 8px;
+    border: 1px solid var(--el-border-color-light);
+    background: var(--el-bg-color);
+  }
+
+  .usage-status-card :deep(.el-card__body) {
+    padding: 16px;
+    padding-bottom: 5px;
+  }
+
+  .usage-empty-card :deep(.el-card__body) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 156px;
+    padding: 16px;
+  }
+
+  .usage-overview-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+
+  .usage-overview-head__sub {
+    margin-top: 2px;
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+  }
+
+  .usage-overview-head :deep(.el-link__inner) {
+    font-size: 12px;
+  }
+
+  .usage-col {
+    padding: 12px 16px;
     border-radius: 8px;
   }
 
-  .comp-stat {
-    text-align: center;
-    padding: 12px 0;
-  }
-
-  .comp-stat__label {
-    display: block;
+  .usage-col__title {
     font-size: 12px;
-    color: var(--el-text-color-secondary);
-    margin-bottom: 8px;
+    font-weight: 500;
+    color: var(--el-text-color-regular);
   }
 
-  .comp-stat__value {
-    font-size: 22px;
+  .usage-col__value {
+    margin-top: 6px;
+    font-size: 28px;
     font-weight: 600;
+    line-height: 1.3;
     color: var(--el-text-color-primary);
   }
 
-  .text-success {
-    color: var(--el-color-success);
+  .usage-col__stats {
+    margin: 12px 0 0;
+    padding: 0;
+    list-style: none;
   }
 
-  .text-warning {
-    color: var(--el-color-warning);
+  .usage-col__stats li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 28px;
+    font-size: 12px;
+    color: var(--el-text-color-regular);
+  }
+
+  .usage-col__stats li + li {
+    border-top: 1px dashed var(--el-border-color-lighter);
+  }
+
+  .usage-col__stats strong {
+    font-weight: 500;
+    color: var(--el-text-color-primary);
+  }
+
+  /* CPU 子指标横排：三项一行，竖线分隔 */
+  .usage-col__stats--row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .usage-col__stats--row li {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: 36px;
+    height: auto;
+    padding: 0 10px;
+    position: relative;
+  }
+
+  .usage-col__stats--row li:first-child {
+    padding-left: 0;
+  }
+
+  .usage-col__stats--row li + li {
+    border-top: none;
+  }
+
+  .usage-col__stats--row li span {
+    margin-right: 4px;
+  }
+
+  .usage-col__stats--row strong {
+    color: var(--el-text-color-regular);
+  }
+
+  .usage-col__stats--row li + li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1px;
+    height: 16px;
+    background: var(--el-border-color-lighter);
+  }
+
+  /* 内存第二行子指标与第一行间距 */
+  .usage-col__stats--row-sub {
+    margin-top: -7px;
+  }
+
+  .usage-col__stats--row-sub li {
+    min-height: 28px;
+  }
+
+  @media (max-width: 991.98px) {
+    .usage-overview-col + .usage-overview-col {
+      margin-top: 12px;
+    }
+  }
+
+  .usage-empty-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 28px 0;
+  }
+
+  .usage-empty-state__icon {
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    font-size: 22px;
+    color: var(--el-text-color-placeholder);
+    background: var(--el-fill-color-light);
+    border-radius: 50%;
   }
 
   .card-title {

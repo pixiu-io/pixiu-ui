@@ -2,7 +2,7 @@
 <template>
   <div
     ref="chartRef"
-    class="relative w-[calc(100%+10px)]"
+    class="relative w-full"
     :style="{ height: props.height }"
     v-loading="props.loading"
   >
@@ -34,6 +34,8 @@
     symbolSize: 6,
     animationDelay: 200,
     silentUpdate: false,
+    axisFontSize: undefined,
+    maxXAxisLabels: undefined,
 
     // 轴线显示配置
     showAxisLabel: true,
@@ -230,7 +232,7 @@
       emphasis: {
         focus: 'series' as const,
         lineStyle: {
-          width: (config.lineWidth ?? props.lineWidth) + 1
+          width: config.lineWidth ?? props.lineWidth
         }
       }
     }
@@ -254,13 +256,22 @@
         data: props.xAxisData,
         axisTick: getAxisTickStyle(),
         axisLine: getAxisLineStyle(props.showAxisLine),
-        axisLabel: getAxisLabelStyle(props.showAxisLabel)
+        axisLabel: {
+          ...getAxisLabelStyle(props.showAxisLabel),
+          ...(props.axisFontSize != null ? { fontSize: props.axisFontSize } : {}),
+          ...(props.maxXAxisLabels != null && props.xAxisData.length > props.maxXAxisLabels
+            ? { interval: Math.ceil(props.xAxisData.length / props.maxXAxisLabels) }
+            : {})
+        }
       },
       yAxis: {
         type: 'value',
         min: 0,
         max: maxValue.value,
-        axisLabel: getAxisLabelStyle(props.showAxisLabel),
+        axisLabel: {
+          ...getAxisLabelStyle(props.showAxisLabel),
+          ...(props.axisFontSize != null ? { fontSize: props.axisFontSize } : {})
+        },
         axisLine: getAxisLineStyle(props.showAxisLine),
         splitLine: getSplitLineStyle(props.showSplitLine)
       }
