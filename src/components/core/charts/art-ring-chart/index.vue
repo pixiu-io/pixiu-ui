@@ -1,19 +1,15 @@
 <!-- 环形图 -->
 <template>
-  <div
-    ref="chartRef"
-    class="relative w-full overflow-visible"
-    :style="{ height: props.height }"
-    v-loading="props.loading"
-  >
+  <div class="art-ring-chart" :style="{ height: props.height }" v-loading="props.loading">
+    <div ref="chartRef" class="art-ring-chart__canvas" />
     <div
-      v-if="props.centerText"
+      v-if="props.centerText !== '' && props.centerText != null"
       class="art-ring-center"
       :style="{
         left: centerPosition[0],
         top: centerPosition[1],
         fontSize: `${props.centerTextFontSize}px`,
-        color: isDark ? '#999' : '#ADB0BC'
+        color: 'var(--el-text-color-primary)'
       }"
     >
       {{ props.centerText }}
@@ -173,12 +169,23 @@
 </script>
 
 <style scoped>
+  .art-ring-chart {
+    position: relative;
+    width: 100%;
+    overflow: visible;
+  }
+
+  .art-ring-chart__canvas {
+    width: 100%;
+    height: 100%;
+  }
+
   .art-ring-center {
     position: absolute;
     z-index: 2;
     display: inline-block;
     transform: translate(-50%, -50%);
-    font-weight: 500;
+    font-weight: 600;
     line-height: 1;
     white-space: nowrap;
     pointer-events: none;

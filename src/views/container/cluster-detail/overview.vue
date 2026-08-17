@@ -22,10 +22,10 @@
                   <ArtRingChart
                     height="100px"
                     :data="nodeRingData"
-                    :radius="['48%', '66%']"
+                    :radius="['55%', '85%']"
                     :border-radius="7"
                     :center-text="nodeCenterText"
-                    :center-text-font-size="12"
+                    :center-text-font-size="18"
                     :show-label="false"
                   />
                 </div>
@@ -62,10 +62,10 @@
                   <ArtRingChart
                     height="100px"
                     :data="wlRingData"
-                    :radius="['48%', '66%']"
+                    :radius="['55%', '85%']"
                     :border-radius="7"
                     :center-text="wlCenterText"
-                    :center-text-font-size="12"
+                    :center-text-font-size="18"
                     :show-label="false"
                   />
                 </div>
@@ -106,7 +106,25 @@
             <ElCol :xs="24" :lg="12" class="usage-overview-col">
               <div class="usage-col">
                 <div class="usage-col__title">CPU利用率</div>
-                <div class="usage-col__value">{{ fmt(cpuUtilPercent, '%', 2) }}</div>
+                <div class="usage-col__value">
+                  <span>{{ fmt(cpuUtilPercent, '%', 2) }}</span>
+                  <svg
+                    v-if="cpuUtilTrend === 'up'"
+                    class="usage-col__trend is-up"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path fill="currentColor" :d="TREND_ARROW_PATH" />
+                  </svg>
+                  <svg
+                    v-else-if="cpuUtilTrend === 'down'"
+                    class="usage-col__trend is-down is-flip"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path fill="currentColor" :d="TREND_ARROW_PATH" />
+                  </svg>
+                </div>
                 <ul class="usage-col__stats usage-col__stats--row">
                   <li>
                     <span>CPU使用量</span>
@@ -126,7 +144,25 @@
             <ElCol :xs="24" :lg="12" class="usage-overview-col">
               <div class="usage-col">
                 <div class="usage-col__title">内存利用率（含Cache）</div>
-                <div class="usage-col__value">{{ fmt(memUtilWithCachePercent, '%', 2) }}</div>
+                <div class="usage-col__value">
+                  <span>{{ fmt(memUtilWithCachePercent, '%', 2) }}</span>
+                  <svg
+                    v-if="memUtilTrend === 'up'"
+                    class="usage-col__trend is-up"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path fill="currentColor" :d="TREND_ARROW_PATH" />
+                  </svg>
+                  <svg
+                    v-else-if="memUtilTrend === 'down'"
+                    class="usage-col__trend is-down is-flip"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path fill="currentColor" :d="TREND_ARROW_PATH" />
+                  </svg>
+                </div>
                 <ul class="usage-col__stats usage-col__stats--row">
                   <li>
                     <span>内存使用量（含Cache）</span>
@@ -1023,7 +1059,9 @@
     ]
   })
 
-  const nodeTotal = computed(() => k8sOverview.value.nodes.total)
+  const nodeTotal = computed(() =>
+    nodeRingData.value.reduce((sum, item) => sum + (Number(item.value) || 0), 0)
+  )
   const nodeCenterText = computed(() => String(nodeTotal.value))
 
   function buildRingStats(data: { name: string; value: number }[], colors: string[]) {
@@ -1052,7 +1090,7 @@
   })
 
   const wlTotal = computed(() =>
-    Object.values(k8sOverview.value.workloads).reduce((a: any, b: any) => a + b, 0)
+    wlRingData.value.reduce((sum, item) => sum + (Number(item.value) || 0), 0)
   )
   const wlCenterText = computed(() => String(wlTotal.value))
 
@@ -1108,6 +1146,61 @@
   function fmtGauge(v: number, unit: string, digits = 2): string {
     return v === 0 ? '-' : `${v.toFixed(digits)}${unit}`
   }
+
+  type UtilTrend = 'up' | 'down' | ''
+  const TREND_HOLD_MS = 10000
+  /** 弯曲向上实心箭头（下降时垂直翻转），贴近产品截图样式 */
+  const TREND_ARROW_PATH =
+    'M12 2 L19 12 H14.3 C13.9 16.2 11.8 19.6 7 22.6 L5.6 21 C9.8 18.3 11.4 15.4 11.4 12 H5 Z'
+
+  const cpuUtilTrend = ref<UtilTrend>('')
+  const memUtilTrend = ref<UtilTrend>('')
+  let prevCpuUtil: number | null = null
+  let prevMemUtil: number | null = null
+  let cpuTrendTimer: ReturnType<typeof setTimeout> | undefined
+  let memTrendTimer: ReturnType<typeof setTimeout> | undefined
+
+  function applyUtilTrend(
+    next: number | null,
+    kind: 'cpu' | 'mem'
+  ) {
+    if (next === null) return
+    const prev = kind === 'cpu' ? prevCpuUtil : prevMemUtil
+    if (kind === 'cpu') prevCpuUtil = next
+    else prevMemUtil = next
+    if (prev === null || next === prev) return
+
+    const trendRef = kind === 'cpu' ? cpuUtilTrend : memUtilTrend
+    trendRef.value = next > prev ? 'up' : 'down'
+
+    if (kind === 'cpu') {
+      if (cpuTrendTimer) clearTimeout(cpuTrendTimer)
+      cpuTrendTimer = setTimeout(() => {
+        cpuUtilTrend.value = ''
+        cpuTrendTimer = undefined
+      }, TREND_HOLD_MS)
+    } else {
+      if (memTrendTimer) clearTimeout(memTrendTimer)
+      memTrendTimer = setTimeout(() => {
+        memUtilTrend.value = ''
+        memTrendTimer = undefined
+      }, TREND_HOLD_MS)
+    }
+  }
+
+  watch(
+    () => lastOf(cpuUtilPercent.value),
+    (next) => applyUtilTrend(next, 'cpu')
+  )
+  watch(
+    () => lastOf(memUtilWithCachePercent.value),
+    (next) => applyUtilTrend(next, 'mem')
+  )
+
+  onUnmounted(() => {
+    if (cpuTrendTimer) clearTimeout(cpuTrendTimer)
+    if (memTrendTimer) clearTimeout(memTrendTimer)
+  })
 
   const usageChartSilentUpdate = ref(true)
 
@@ -1393,11 +1486,34 @@
   }
 
   .usage-col__value {
+    display: flex;
+    gap: 4px;
+    align-items: center;
     margin-top: 6px;
-    font-size: 28px;
+    font-size: 20px;
     font-weight: 600;
     line-height: 1.3;
     color: var(--el-text-color-primary);
+  }
+
+  .usage-col__trend {
+    flex-shrink: 0;
+    width: 18px;
+    height: 20px;
+    margin-left: 4px;
+    overflow: visible;
+  }
+
+  .usage-col__trend.is-up {
+    color: var(--el-color-danger);
+  }
+
+  .usage-col__trend.is-down {
+    color: var(--el-color-success);
+  }
+
+  .usage-col__trend.is-flip {
+    transform: scaleY(-1);
   }
 
   .usage-col__stats {
