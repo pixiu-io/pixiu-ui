@@ -1,12 +1,13 @@
 import { pixiuAxios } from '@/api/container'
 
-export type DatasourceType = 0 | 1 | 2
+export type DatasourceType = 0 | 1 | 2 | 3
 export type DatasourceSubType = 'loki' | 'es' | 'prometheus' | 'nacos' | 'redis'
 
 export const DatasourceTypeMap = {
   0: { label: '日志', type: 'info' },
   1: { label: '告警', type: 'warning' },
-  2: { label: '缓存', type: 'success' }
+  2: { label: '缓存', type: 'success' },
+  3: { label: '中间件', type: 'primary' }
 } as const satisfies Record<number, { label: string; type: string }>
 
 export const DatasourceSubTypeMap: Record<DatasourceSubType, string> = {
@@ -36,6 +37,13 @@ export interface DatasourceAlertConfig {
 
 export type RedisDeployMode = 'standalone' | 'sentinel' | 'cluster'
 
+/** Nacos API 版本：v2 = Nacos 2.x（v1 OpenAPI），v3 = Nacos 3.x（v3 Console API） */
+export type NacosApiVersion = 'v2' | 'v3'
+
+export interface DatasourceNacosConfig {
+  version?: NacosApiVersion
+}
+
 export interface DatasourceRedisConfig {
   mode?: RedisDeployMode
   address?: string
@@ -51,6 +59,7 @@ export interface DatasourceConfig {
   log?: DatasourceLogConfig
   alert?: DatasourceAlertConfig
   redis?: DatasourceRedisConfig
+  nacos?: DatasourceNacosConfig
 }
 
 export interface DatasourceItem {
@@ -102,11 +111,16 @@ interface BackendDatasourceRedisConfig {
   db?: number
 }
 
+interface BackendDatasourceNacosConfig {
+  version?: string
+}
+
 interface BackendDatasourceConfig {
   headers?: BackendDatasourceHeader[] | null
   log?: BackendDatasourceLogConfig | null
   alert?: BackendDatasourceAlertConfig | null
   redis?: BackendDatasourceRedisConfig | null
+  nacos?: BackendDatasourceNacosConfig | null
 }
 
 interface BackendDatasourceItem {
@@ -178,6 +192,9 @@ export interface CreateDatasourcePayload {
       sentinelPassword?: string
       db?: number
     }
+    nacos?: {
+      version?: NacosApiVersion
+    }
   }
   isDefault?: boolean
   description?: string
@@ -212,6 +229,9 @@ export interface UpdateDatasourcePayload {
       password?: string
       sentinelPassword?: string
       db?: number
+    }
+    nacos?: {
+      version?: NacosApiVersion
     }
   }
   isDefault?: boolean
@@ -259,11 +279,16 @@ function normalizeConfig(
       }
     : undefined
 
+  const nacos = config?.nacos?.version
+    ? { version: (config.nacos.version === 'v3' ? 'v3' : 'v2') as NacosApiVersion }
+    : undefined
+
   return {
     headers,
     log,
     alert,
-    redis
+    redis,
+    nacos
   }
 }
 
@@ -299,7 +324,8 @@ function toBackendConfig(
           sentinel_password: config.redis.sentinelPassword,
           db: config.redis.db ?? 0
         }
-      : undefined
+      : undefined,
+    nacos: config?.nacos?.version ? { version: config.nacos.version } : undefined
   }
 }
 

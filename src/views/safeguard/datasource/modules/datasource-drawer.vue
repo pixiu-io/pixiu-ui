@@ -69,10 +69,10 @@
 
             <ElCol :span="12">
               <ElFormItem label="类型" prop="type">
-                <ElSelect v-model="formData.type" class="w-full" :disabled="isRedisSubType" @change="onTypeChange">
+                <ElSelect v-model="formData.type" class="w-full" @change="onTypeChange">
                   <ElOption label="日志" :value="0" />
                   <ElOption label="告警" :value="1" />
-                  <ElOption label="缓存" :value="2" />
+                  <ElOption label="中间件" :value="3" />
                 </ElSelect>
               </ElFormItem>
             </ElCol>
@@ -103,7 +103,7 @@
               </ElFormItem>
             </ElCol>
 
-            <template v-if="isInternalLogDatasource">
+            <template v-if="isInternalServiceDatasource">
               <ElCol :span="12">
                 <ElFormItem label="命名空间" prop="service_namespace">
                   <ElSelect
@@ -173,6 +173,19 @@
               </ElCol>
             </template>
 
+            <template v-if="isNacosSubType">
+              <ElCol :span="12">
+                <ElFormItem label="版本">
+                  <ElSelect v-model="formData.nacos.version" class="w-full">
+                    <ElOption label="v2.0+" value="v2" />
+                    <ElOption label="v3.0+" value="v3" />
+                  </ElSelect>
+                </ElFormItem>
+              </ElCol>
+              <!-- 占位列：保证默认/外部数据源两个开关保持同行 -->
+              <ElCol :span="12" />
+            </template>
+
             <ElCol :span="12">
               <ElFormItem label="默认数据源">
                 <ElSwitch v-model="formData.is_default" />
@@ -203,7 +216,8 @@
             >
               <ElInput
                 v-model="formData.redis.address"
-                placeholder="请输入 host:port，如 192.168.100.210:6379"
+                placeholder="连接地址格式为 host:port，如 192.168.1.10:6379"
+                autocomplete="off"
               />
             </ElFormItem>
 
@@ -213,7 +227,11 @@
               prop="redis.masterName"
               :required="true"
             >
-              <ElInput v-model="formData.redis.masterName" placeholder="请输入哨兵 Master 名称，如 mymaster" />
+              <ElInput
+                v-model="formData.redis.masterName"
+                placeholder="请输入哨兵 Master 名称，如 mymaster"
+                autocomplete="off"
+              />
             </ElFormItem>
 
             <ElFormItem
@@ -224,6 +242,7 @@
             >
               <ElInput
                 v-model="formData.redis.addresses"
+                autocomplete="off"
                 :placeholder="
                   formData.redis.mode === 'sentinel'
                     ? '逗号分隔多个，如 10.0.0.1:26379,10.0.0.2:26379,10.0.0.3:26379'
@@ -240,6 +259,7 @@
                     type="password"
                     show-password
                     placeholder="可选，Redis 访问密码"
+                    autocomplete="new-password"
                   />
                 </ElFormItem>
               </ElCol>
@@ -250,22 +270,25 @@
                     type="password"
                     show-password
                     placeholder="可选，哨兵节点密码"
+                    autocomplete="new-password"
                   />
                 </ElFormItem>
               </ElCol>
             </ElRow>
             <div class="datasource-redis-hint">
-              Redis 仅支持外部直连，由 Pixiu 服务端直接访问该地址，请确保网络可达。逻辑库（DB0-DB15）可在 Redis 管理页切换。
+              Redis 仅支持外部直连，由 Pixiu
+              服务端直接访问该地址，请确保网络可达。逻辑库（DB0-DB15）可在 Redis 管理页切换。
             </div>
           </template>
 
           <ElFormItem v-if="!isRedisDatasource" label="接入地址" prop="url">
             <ElInput
               v-model="formData.url"
-              :readonly="isInternalLogDatasource"
+              :readonly="isInternalServiceDatasource"
+              autocomplete="off"
               :placeholder="
                 formData.external
-                  ? '请输入接入地址，如: http://192.168.100.210:30442'
+                  ? '接入地址格式为 http:// 或 https:// 开头，如 http://192.168.1.10:8080'
                   : '请输入接入地址，如: http://xx.example.com'
               "
             />
@@ -302,14 +325,16 @@
                 <ElCol :span="12">
                   <ElFormItem label="用户名">
                     <ElInput
-                      v-if="formData.type === 0"
+                      v-if="formData.type !== 1"
                       v-model="formData.log.userName"
                       placeholder="可选，用于基础认证"
+                      autocomplete="off"
                     />
                     <ElInput
                       v-else
                       v-model="formData.alert.userName"
                       placeholder="可选，用于基础认证"
+                      autocomplete="off"
                     />
                   </ElFormItem>
                 </ElCol>
@@ -317,11 +342,12 @@
                 <ElCol :span="12">
                   <ElFormItem label="密码">
                     <ElInput
-                      v-if="formData.type === 0"
+                      v-if="formData.type !== 1"
                       v-model="formData.log.password"
                       type="password"
                       show-password
                       placeholder="可选，用于基础认证"
+                      autocomplete="new-password"
                     />
                     <ElInput
                       v-else
@@ -329,6 +355,7 @@
                       type="password"
                       show-password
                       placeholder="可选，用于基础认证"
+                      autocomplete="new-password"
                     />
                   </ElFormItem>
                 </ElCol>
@@ -404,11 +431,13 @@
     type DatasourceConfig,
     type DatasourceSubType,
     type DatasourceType,
+    type NacosApiVersion,
     type RedisDeployMode,
     type UpdateDatasourcePayload
   } from '@/api/datasource'
   import { fetchClusterList, PixiuApiError, type ClusterItem } from '@/api/container'
   import { fetchRedisPingAdhoc } from '@/api/redis'
+  import { buildNacosTestCandidates } from '@/api/nacos'
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
 
   defineOptions({ name: 'DatasourceDialog' })
@@ -442,9 +471,9 @@
   const subTypeToType: Record<DatasourceSubType, DatasourceType> = {
     loki: 0,
     es: 0,
-    nacos: 0,
+    nacos: 3,
     prometheus: 1,
-    redis: 2
+    redis: 3
   }
 
   const props = defineProps<{
@@ -499,6 +528,9 @@
       password: '',
       sentinelPassword: ''
     },
+    nacos: {
+      version: 'v2' as NacosApiVersion
+    },
     headers: [{ key: '', value: '' }]
   })
 
@@ -520,10 +552,7 @@
       callback(new Error('请输入接入地址'))
       return
     }
-    if (formData.external && !/^https?:\/\//i.test(trimmed)) {
-      callback(new Error('接入地址必须以 http:// 或 https:// 开头'))
-      return
-    }
+    // 协议格式提示已移入输入框 placeholder，不再做红色校验提示
     callback()
   }
 
@@ -537,14 +566,15 @@
       callback(new Error('请输入连接地址'))
       return
     }
-    if (!/^[^:\s]+:\d{1,5}$/.test(trimmed)) {
-      callback(new Error('连接地址格式为 host:port，如 192.168.1.10:6379'))
-      return
-    }
+    // 格式提示已移入输入框 placeholder，不再做红色校验提示
     callback()
   }
 
-  function validateRedisAddresses(_rule: unknown, value: string, callback: (error?: Error) => void) {
+  function validateRedisAddresses(
+    _rule: unknown,
+    value: string,
+    callback: (error?: Error) => void
+  ) {
     if (formData.redis.mode === 'standalone') {
       callback()
       return
@@ -561,7 +591,11 @@
     callback()
   }
 
-  function validateRedisMasterName(_rule: unknown, value: string, callback: (error?: Error) => void) {
+  function validateRedisMasterName(
+    _rule: unknown,
+    value: string,
+    callback: (error?: Error) => void
+  ) {
     if (formData.redis.mode !== 'sentinel') {
       callback()
       return
@@ -588,10 +622,13 @@
   }
 
   const currentSubTypeOptions = computed(() => allSubTypes)
-  const isInternalLogDatasource = computed(() => formData.type === 0 && !formData.external)
-  const isRedisDatasource = computed(() => formData.type === 2)
-  // 选中 Redis 时类型锁定为「缓存」
-  const isRedisSubType = computed(() => formData.sub_type === 'redis')
+  // 内部日志/中间件数据源：走集群 Service 代理并展示命名空间/Service 级联选择
+  const isInternalServiceDatasource = computed(
+    () => (formData.type === 0 || formData.type === 3) && !formData.external
+  )
+  // Redis 以 sub_type 判定：类型可为中间件或缓存
+  const isRedisDatasource = computed(() => formData.sub_type === 'redis')
+  const isNacosSubType = computed(() => formData.sub_type === 'nacos')
   const namespaceOptions = computed(() =>
     [
       ...new Set(clusterServices.value.map((item) => item.metadata?.namespace).filter(Boolean))
@@ -688,7 +725,7 @@
     const target = subTypeToType[formData.sub_type] ?? 0
     formData.type = target
     // Redis 仅支持外部直连，选中时强制开启 external
-    if (target === 2) {
+    if (formData.sub_type === 'redis') {
       formData.external = true
       formData.cluster_name = ''
       clearServiceSelection()
@@ -697,9 +734,14 @@
   }
 
   function onTypeChange() {
-    formData.sub_type = currentSubTypeOptions.value.find((item) => subTypeToType[item.value] === formData.type)?.value ?? 'loki'
-    // Redis 仅支持外部直连，切换到缓存类型时强制开启 external
-    if (formData.type === 2) {
+    // 当前来源已属于目标类型时保持不变，否则回落到该类型首个来源
+    if ((subTypeToType[formData.sub_type] ?? 0) !== formData.type) {
+      formData.sub_type =
+        currentSubTypeOptions.value.find((item) => subTypeToType[item.value] === formData.type)
+          ?.value ?? 'loki'
+    }
+    // Redis 仅支持外部直连，选中时强制开启 external
+    if (formData.sub_type === 'redis') {
       formData.external = true
       formData.cluster_name = ''
       clearServiceSelection()
@@ -711,7 +753,7 @@
     if (clearNamespace) formData.service_namespace = ''
     formData.service_name = ''
     formData.service_port = undefined
-    if (isInternalLogDatasource.value) formData.url = ''
+    if (isInternalServiceDatasource.value) formData.url = ''
   }
 
   function onServiceNamespaceChange() {
@@ -725,7 +767,7 @@
   }
 
   function syncInternalDatasourceUrl() {
-    if (!isInternalLogDatasource.value) return
+    if (!isInternalServiceDatasource.value) return
     const { service_name: service, service_namespace: namespace, service_port: port } = formData
     formData.url =
       service && namespace && port
@@ -736,7 +778,7 @@
   async function loadServices() {
     clearServiceSelection()
     clusterServices.value = []
-    if (!isInternalLogDatasource.value || !formData.cluster_name) return
+    if (!isInternalServiceDatasource.value || !formData.cluster_name) return
     serviceListLoading.value = true
     try {
       const { items } = await fetchK8sServiceList(formData.cluster_name, {
@@ -773,31 +815,33 @@
       .filter((item) => item.key || item.value)
     const url = formData.url.trim()
 
-    if (formData.type === 2) {
+    if (isRedisDatasource.value) {
       // Redis 不使用 headers / url，连接信息存于 redis 配置
       return {
         redis: buildRedisConfig()
       }
     }
 
-    if (formData.type === 0) {
+    if (formData.type === 1) {
       return {
         headers,
-        log: {
+        alert: {
           url,
-          userName: formData.log.userName.trim() || undefined,
-          password: formData.log.password.trim() || undefined
+          userName: formData.alert.userName.trim() || undefined,
+          password: formData.alert.password.trim() || undefined
         }
       }
     }
 
+    // 日志/中间件：鉴权账号存于 log（Nacos 复用其登录换 token）
     return {
       headers,
-      alert: {
+      log: {
         url,
-        userName: formData.alert.userName.trim() || undefined,
-        password: formData.alert.password.trim() || undefined
-      }
+        userName: formData.log.userName.trim() || undefined,
+        password: formData.log.password.trim() || undefined
+      },
+      nacos: isNacosSubType.value ? { version: formData.nacos.version } : undefined
     }
   }
 
@@ -813,16 +857,15 @@
     formData.redis.masterName = config.redis?.masterName || ''
     formData.redis.password = config.redis?.password || ''
     formData.redis.sentinelPassword = config.redis?.sentinelPassword || ''
+    formData.nacos.version = config.nacos?.version === 'v3' ? 'v3' : 'v2'
     formData.headers = config.headers?.length
       ? config.headers.map((item) => ({ key: item.key, value: item.value }))
       : [{ key: '', value: '' }]
   }
 
   function hasAuthData(): boolean {
-    if (formData.type === 0) {
-      return Boolean(formData.log.userName.trim() || formData.log.password.trim())
-    }
-    return Boolean(formData.alert.userName.trim() || formData.alert.password.trim())
+    const auth = formData.type === 1 ? formData.alert : formData.log
+    return Boolean(auth.userName.trim() || auth.password.trim())
   }
 
   function hasHeaderData(): boolean {
@@ -930,6 +973,7 @@
         password: '',
         sentinelPassword: ''
       },
+      nacos: { version: 'v2' },
       headers: [{ key: '', value: '' }]
     })
     editResourceVersion.value = 0
@@ -961,8 +1005,12 @@
         },
         headers: [{ key: '', value: '' }]
       })
+      // 存量 Redis 类型（缓存=2）编辑时归一为中间件
+      if (formData.sub_type === 'redis' && formData.type === 2) {
+        formData.type = 3
+      }
       fillFormFromConfig(data.config)
-      if (data.type === 0 && !data.external) {
+      if ((data.type === 0 || data.type === 3) && !data.external) {
         const savedUrl = formData.url
         try {
           const parsed = new URL(savedUrl)
@@ -996,20 +1044,20 @@
     visible.value = false
   }
 
-  function buildServiceProxyUrl(): string {
+  function buildServiceProxyUrl(testPath: string): string {
     return (
       `/pixiu/proxy/${encodeURIComponent(formData.cluster_name)}` +
       `/api/v1/namespaces/${encodeURIComponent(formData.service_namespace)}` +
       `/services/${encodeURIComponent(formData.service_name)}:${formData.service_port}/proxy` +
-      (formData.sub_type === 'loki' ? '/loki/api/v1/labels' : '/_cluster/health')
+      testPath
     )
   }
 
-  function datasourceTestPath(): string {
-    if (formData.sub_type === 'loki') return '/loki/api/v1/labels'
-    if (formData.sub_type === 'es') return '/_cluster/health'
-    if (formData.sub_type === 'nacos') return '/nacos/v1/console/server/state'
-    return '/-/ready'
+  // 连接测试候选路径：404/410 自动尝试下一个
+  function datasourceTestPaths(): string[] {
+    if (formData.sub_type === 'loki') return ['/loki/api/v1/labels']
+    if (formData.sub_type === 'es') return ['/_cluster/health']
+    return ['/-/ready']
   }
 
   function buildExternalTestHeaders(): Record<string, string> {
@@ -1018,7 +1066,7 @@
         .map((item) => [item.key.trim(), item.value.trim()] as const)
         .filter(([key]) => Boolean(key))
     )
-    const auth = formData.type === 0 ? formData.log : formData.alert
+    const auth = formData.type === 1 ? formData.alert : formData.log
     const username = auth.userName.trim()
     const password = auth.password
     if (username || password) {
@@ -1027,22 +1075,39 @@
     return headers
   }
 
-  async function testDatasource(): Promise<boolean> {
-    try {
-      if (formData.external) {
-        const url = `/pixiu/external${datasourceTestPath()}?url=${encodeURIComponent(formData.url.trim())}`
-        await kubeProxyAxios.get(url, {
-          headers: buildExternalTestHeaders(),
-          skipErrorNotification: true
-        })
-      } else {
-        await kubeProxyAxios.get(buildServiceProxyUrl(), { skipErrorNotification: true })
+  async function testDatasource(): Promise<{ ok: boolean; detected?: NacosApiVersion }> {
+    const candidates: { base?: string; path: string; family?: NacosApiVersion }[] =
+      formData.sub_type === 'nacos'
+        ? buildNacosTestCandidates(formData.nacos.version, formData.url.trim(), formData.external)
+        : datasourceTestPaths().map((path) => ({ path }))
+    let lastError: unknown = null
+    for (const { base, path, family } of candidates) {
+      try {
+        if (formData.external) {
+          // Nacos 3.x Console 独立端口候选携带 base 覆盖
+          const targetBase = base ?? formData.url.trim()
+          const url = `/pixiu/external${path}?url=${encodeURIComponent(targetBase)}`
+          await kubeProxyAxios.get(url, {
+            headers: buildExternalTestHeaders(),
+            skipErrorNotification: true
+          })
+        } else {
+          await kubeProxyAxios.get(buildServiceProxyUrl(path), { skipErrorNotification: true })
+        }
+        return { ok: true, detected: family }
+      } catch (error: any) {
+        // 404/410 说明当前候选路径不适用目标版本，尝试下一个；其余错误直接失败
+        const status = error?.response?.status
+        if (status === 404 || status === 410) {
+          lastError = error
+          continue
+        }
+        notifyError(error, '连接测试失败')
+        return { ok: false }
       }
-      return true
-    } catch (error) {
-      notifyError(error, '连接测试失败')
-      return false
     }
+    notifyError(lastError, '连接测试失败')
+    return { ok: false }
   }
 
   async function handleTest() {
@@ -1070,15 +1135,24 @@
       return
     }
 
-    if (!isInternalLogDatasource.value && !formData.external) {
+    if (!isInternalServiceDatasource.value && !formData.external) {
       ElMessage.warning('当前配置暂不支持连通性测试，请改为内部日志数据源或外部数据源后再试')
       return
     }
 
     testing.value = true
     try {
-      const ok = await testDatasource()
-      if (ok) ElMessage.success('连接测试成功')
+      const { ok, detected } = await testDatasource()
+      if (!ok) return
+      // 版本选择与目标实际版本不一致时自动纠正，避免后续页面仍走错误 API 族
+      if (isNacosSubType.value && detected && detected !== formData.nacos.version) {
+        formData.nacos.version = detected
+        ElMessage.warning(
+          `连接测试成功：检测到目标 Nacos 为 ${detected === 'v3' ? 'v3.0+' : 'v2.0+'}，已自动切换版本`
+        )
+      } else {
+        ElMessage.success('连接测试成功')
+      }
     } finally {
       testing.value = false
     }
