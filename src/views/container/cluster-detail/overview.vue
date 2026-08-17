@@ -194,110 +194,67 @@
           </div>
 
           <aside class="overview-main-right">
-            <div class="overview-side-col">
-              <section class="section-title" style="margin-top: 10px">已安装组件</section>
-              <ElCard shadow="never" class="installed-components-card">
-                <div class="installed-components__summary">
-                  <div class="installed-components__stat">
-                    <span class="installed-components__stat-label">总数</span>
-                    <span class="installed-components__stat-value">{{ compSummary.total }}</span>
-                  </div>
-                  <div class="installed-components__stat">
-                    <span class="installed-components__stat-label">运行中</span>
-                    <span class="installed-components__stat-value">{{ compSummary.running }}</span>
-                  </div>
-                  <div class="installed-components__stat">
-                    <span class="installed-components__stat-label">可升级</span>
-                    <span class="installed-components__stat-value">{{
-                      compSummary.upgradable == null ? '-' : compSummary.upgradable
-                    }}</span>
-                  </div>
+            <section class="section-title" style="margin-top: 10px">已安装组件</section>
+            <ElCard shadow="never" class="installed-components-card">
+              <div class="installed-components__summary">
+                <div class="installed-components__stat">
+                  <span class="installed-components__stat-label">总数</span>
+                  <span class="installed-components__stat-value">{{ compSummary.total }}</span>
                 </div>
-                <div class="installed-components__icons">
+                <div class="installed-components__stat">
+                  <span class="installed-components__stat-label">运行中</span>
+                  <span class="installed-components__stat-value">{{ compSummary.running }}</span>
+                </div>
+                <div class="installed-components__stat">
+                  <span class="installed-components__stat-label">可升级</span>
+                  <span class="installed-components__stat-value">{{
+                    compSummary.upgradable == null ? '-' : compSummary.upgradable
+                  }}</span>
+                </div>
+              </div>
+              <div class="installed-components__icons">
+                <div
+                  v-for="item in installedComponentIcons"
+                  :key="item.id"
+                  class="installed-components__icon"
+                  :style="{ background: item.color }"
+                  :title="item.name"
+                >
+                  <ArtSvgIcon :icon="item.icon" />
+                </div>
+              </div>
+              <div class="installed-components__recommend-title">常用组件推荐</div>
+              <div class="installed-components__recommend-list">
+                <div
+                  v-for="item in recommendedComponents"
+                  :key="item.name"
+                  class="installed-components__recommend-item"
+                >
                   <div
-                    v-for="item in installedComponentIcons"
-                    :key="item.id"
-                    class="installed-components__icon"
+                    class="installed-components__recommend-icon"
                     :style="{ background: item.color }"
-                    :title="item.name"
                   >
                     <ArtSvgIcon :icon="item.icon" />
                   </div>
-                </div>
-                <div class="installed-components__recommend-title">常用组件推荐</div>
-                <div class="installed-components__recommend-list">
-                  <div
-                    v-for="item in recommendedComponents"
-                    :key="item.name"
-                    class="installed-components__recommend-item"
-                  >
-                    <div
-                      class="installed-components__recommend-icon"
-                      :style="{ background: item.color }"
-                    >
-                      <ArtSvgIcon :icon="item.icon" />
+                  <div class="installed-components__recommend-main">
+                    <div class="installed-components__recommend-head">
+                      <span class="installed-components__recommend-name">{{ item.name }}</span>
+                      <span class="installed-components__recommend-tag">{{ item.tag }}</span>
                     </div>
-                    <div class="installed-components__recommend-main">
-                      <div class="installed-components__recommend-head">
-                        <span class="installed-components__recommend-name">{{ item.name }}</span>
-                        <span class="installed-components__recommend-tag">{{ item.tag }}</span>
-                      </div>
-                      <div class="installed-components__recommend-desc">{{ item.desc }}</div>
-                    </div>
-                    <ElLink
-                      type="primary"
-                      underline="never"
-                      class="installed-components__recommend-link"
-                      @click="openRecommendLink(item)"
-                    >
-                      了解详情
-                      <ArtSvgIcon icon="ri:arrow-right-s-line" />
-                    </ElLink>
+                    <div class="installed-components__recommend-desc">{{ item.desc }}</div>
                   </div>
-                </div>
-              </ElCard>
-            </div>
-
-            <div class="overview-side-col">
-              <section class="section-title overview-events-title" style="margin-top: 10px">
-                <span>事件列表</span>
-                <ElLink
-                  type="primary"
-                  underline="never"
-                  style="font-size: 12px"
-                  @click="go('events')"
-                  >查看全部</ElLink
-                >
-              </section>
-              <ElCard shadow="never" class="overview-events-card" v-loading="overviewEventsLoading">
-                <div v-if="!overviewRecentEvents.length" class="overview-events__empty">暂无事件</div>
-                <ul v-else class="overview-events__list">
-                  <li
-                    v-for="ev in overviewRecentEvents"
-                    :key="ev.rowKey"
-                    class="overview-events__item"
+                  <ElLink
+                    type="primary"
+                    underline="never"
+                    class="installed-components__recommend-link"
+                    @click="openRecommendLink(item)"
                   >
-                    <div class="overview-events__meta">
-                      <span
-                        class="overview-events__type"
-                        :class="{
-                          'is-warning': ev.type === 'Warning',
-                          'is-normal': ev.type === 'Normal'
-                        }"
-                        >{{ ev.type || 'Unknown' }}</span
-                      >
-                      <span class="overview-events__time">{{
-                        formatEventTime(ev.lastTimestamp)
-                      }}</span>
-                    </div>
-                    <div class="overview-events__resource">{{ formatEventResource(ev) }}</div>
-                    <div class="overview-events__message" :title="ev.message || ''">
-                      {{ ev.message?.trim() || '-' }}
-                    </div>
-                  </li>
-                </ul>
-              </ElCard>
-            </div>
+                    了解详情
+                    <ArtSvgIcon icon="ri:arrow-right-s-line" />
+                  </ElLink>
+                </div>
+              </div>
+            </ElCard>
           </aside>
         </div>
 
@@ -756,8 +713,6 @@
     type MetricsTimeRange
   } from '@/utils/metrics/time-range'
   import { fetchClusterResourceOverviewFromPrometheus } from '@/hooks/kubernetes/useClusterResourceOverviewPrometheus'
-  import { fetchKubeRawEventList } from '@/api/kubernetes/events'
-  import { formatNodeCreationTime } from '@/utils/kubernetes/nodeDisplay'
   import MetricChartPanel from '@/components/container/metric-chart-panel.vue'
   import ArtRingChart from '@/components/core/charts/art-ring-chart/index.vue'
   import ClusterMonitorMetrics from '@/views/container/cluster/modules/cluster-monitor-metrics.vue'
@@ -1345,7 +1300,6 @@
     const tab = innerTab.value
     if (tab === 'main') {
       void loadClusterResourceOverview()
-      void loadOverviewRecentEvents()
       startUsageOverviewRefresh()
     } else {
       stopOverviewBackgroundLoads()
@@ -1422,60 +1376,6 @@
     upgradable: null as number | null
   }))
 
-  interface OverviewEventRow {
-    metadata?: { name?: string; namespace?: string; uid?: string; creationTimestamp?: string }
-    lastTimestamp?: string
-    eventTime?: string
-    type?: string
-    involvedObject?: { kind?: string; name?: string; namespace?: string }
-    message?: string
-    rowKey: string
-  }
-
-  const overviewRecentEvents = ref<OverviewEventRow[]>([])
-  const overviewEventsLoading = ref(false)
-
-  function eventTimeMs(ev: OverviewEventRow): number {
-    const t = ev.lastTimestamp || ev.eventTime || ev.metadata?.creationTimestamp
-    const ms = t ? Date.parse(String(t)) : 0
-    return Number.isFinite(ms) ? ms : 0
-  }
-
-  function formatEventTime(t?: string) {
-    return formatNodeCreationTime(t) || '-'
-  }
-
-  function formatEventResource(ev: OverviewEventRow) {
-    const kind = ev.involvedObject?.kind ?? ''
-    const name = ev.involvedObject?.name ?? ''
-    return kind && name ? `${kind}/${name}` : kind || name || '-'
-  }
-
-  async function loadOverviewRecentEvents() {
-    const cluster = ctx.value.name
-    if (!cluster) {
-      overviewRecentEvents.value = []
-      return
-    }
-    overviewEventsLoading.value = true
-    try {
-      const { items } = await fetchKubeRawEventList(cluster, {
-        namespaced: false,
-        limit: 200
-      })
-      const rows = (items as OverviewEventRow[]).map((ev, i) => ({
-        ...ev,
-        rowKey: ev.metadata?.uid || ev.metadata?.name || `event-${i}`
-      }))
-      rows.sort((a, b) => eventTimeMs(b) - eventTimeMs(a))
-      overviewRecentEvents.value = rows.slice(0, 10)
-    } catch {
-      overviewRecentEvents.value = []
-    } finally {
-      overviewEventsLoading.value = false
-    }
-  }
-
   function go(path: string) {
     router.push({ path: `/container/${path}`, query: { ...route.query } })
   }
@@ -1533,7 +1433,7 @@
 
   .overview-main-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(560px, 620px);
+    grid-template-columns: minmax(0, 1fr) 300px;
     gap: 16px;
     align-items: stretch;
   }
@@ -1543,14 +1443,6 @@
   }
 
   .overview-main-right {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
-    gap: 16px;
-    align-items: stretch;
-    min-width: 0;
-  }
-
-  .overview-side-col {
     display: flex;
     flex-direction: column;
     min-width: 0;
@@ -1570,110 +1462,6 @@
     flex-direction: column;
     min-height: 0;
     padding: 16px;
-  }
-
-  .overview-events-title {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .overview-events-card {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    width: 100%;
-    border-radius: 8px;
-  }
-
-  .overview-events-card :deep(.el-card__body) {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    min-height: 0;
-    padding: 12px 14px;
-  }
-
-  .overview-events__empty {
-    display: flex;
-    flex: 1;
-    align-items: center;
-    justify-content: center;
-    min-height: 120px;
-    font-size: 12px;
-    color: var(--el-text-color-placeholder);
-  }
-
-  .overview-events__list {
-    flex: 1;
-    margin: 0;
-    padding: 0;
-    overflow: auto;
-    list-style: none;
-  }
-
-  .overview-events__item {
-    padding: 8px 0;
-  }
-
-  .overview-events__item + .overview-events__item {
-    border-top: 1px dashed var(--el-border-color-lighter);
-  }
-
-  .overview-events__meta {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .overview-events__type {
-    flex-shrink: 0;
-    padding: 0 6px;
-    font-size: 11px;
-    line-height: 18px;
-    color: var(--el-text-color-secondary);
-    background: var(--el-fill-color-light);
-    border-radius: 4px;
-  }
-
-  .overview-events__type.is-warning {
-    color: #fff;
-    background: var(--el-color-warning);
-  }
-
-  .overview-events__type.is-normal {
-    color: #fff;
-    background: var(--el-color-success);
-  }
-
-  .overview-events__time {
-    overflow: hidden;
-    font-size: 11px;
-    color: var(--el-text-color-secondary);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .overview-events__resource {
-    margin-top: 4px;
-    overflow: hidden;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--el-text-color-primary);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .overview-events__message {
-    display: -webkit-box;
-    margin-top: 2px;
-    overflow: hidden;
-    font-size: 12px;
-    line-height: 1.4;
-    color: var(--el-text-color-regular);
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
   }
 
   .installed-components__summary {
@@ -1798,23 +1586,13 @@
     font-size: 12px;
   }
 
-  @media (max-width: 1400px) {
+  @media (max-width: 1200px) {
     .overview-main-grid {
       grid-template-columns: 1fr;
     }
 
     .overview-main-right {
-      grid-template-columns: 1fr 1fr;
-    }
-  }
-
-  @media (max-width: 900px) {
-    .overview-main-right {
-      grid-template-columns: 1fr;
-    }
-
-    .overview-side-col {
-      min-height: 320px;
+      min-height: 360px;
     }
   }
 
@@ -1978,7 +1756,7 @@
   }
 
   .usage-col {
-    padding: 12px 16px;
+    padding: 4px 0 12px;
     border-radius: 8px;
   }
 
