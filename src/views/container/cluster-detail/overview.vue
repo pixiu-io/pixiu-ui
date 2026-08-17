@@ -1367,6 +1367,14 @@
       icon: 'ri:flashlight-line',
       color: '#7C6AF0',
       link: 'https://hub.pixiuio.com/'
+    },
+    {
+      name: '应用商店',
+      tag: '应用',
+      desc: '一键部署常用云原生应用与中间件',
+      icon: 'ri:store-2-line',
+      color: '#3D8BFF',
+      route: '/appstore'
     }
   ]
 
@@ -1380,7 +1388,11 @@
     router.push({ path: `/container/${path}`, query: { ...route.query } })
   }
 
-  function openRecommendLink(item: { link?: string }) {
+  function openRecommendLink(item: { link?: string; route?: string }) {
+    if (item.route) {
+      router.push(item.route)
+      return
+    }
     if (item.link) {
       window.open(item.link, '_blank', 'noopener,noreferrer')
       return
@@ -1728,6 +1740,21 @@
   .usage-status-card :deep(.el-card__body) {
     padding: 16px;
     padding-bottom: 5px;
+  }
+
+  .usage-status-card :deep(.el-row) {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  .usage-status-card :deep(.usage-overview-col) {
+    padding-left: 0 !important;
+    padding-right: 16px !important;
+  }
+
+  .usage-status-card :deep(.usage-overview-col + .usage-overview-col) {
+    padding-left: 16px !important;
+    padding-right: 0 !important;
   }
 
   .usage-empty-card :deep(.el-card__body) {
