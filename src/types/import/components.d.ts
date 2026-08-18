@@ -34,6 +34,7 @@ declare module 'vue' {
     ArtFestivalTextScroll: typeof import('./../../components/core/text-effect/art-festival-text-scroll/index.vue')['default']
     ArtFireworksEffect: typeof import('./../../components/core/layouts/art-fireworks-effect/index.vue')['default']
     ArtForm: typeof import('./../../components/core/forms/art-form/index.vue')['default']
+    ArtGaugeChart: typeof import('./../../components/core/charts/art-gauge-chart/index.vue')['default']
     ArtGlobalComponent: typeof import('./../../components/core/layouts/art-global-component/index.vue')['default']
     ArtGlobalSearch: typeof import('./../../components/core/layouts/art-global-search/index.vue')['default']
     ArtHBarChart: typeof import('./../../components/core/charts/art-h-bar-chart/index.vue')['default']

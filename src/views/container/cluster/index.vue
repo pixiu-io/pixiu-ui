@@ -209,6 +209,7 @@
       v-model="renameVisible"
       title="编辑集群名称"
       width="420px"
+      class="rename-dialog"
       :close-on-click-modal="false"
     >
       <div class="rename-form">
@@ -225,8 +226,8 @@
         </div>
       </div>
       <template #footer>
-        <ElButton type="primary" :loading="renameLoading" @click="submitRename">提交</ElButton>
         <ElButton @click="renameVisible = false">取消</ElButton>
+        <ElButton type="primary" :loading="renameLoading" @click="submitRename">确定</ElButton>
       </template>
     </ElDialog>
   </div>
@@ -1092,6 +1093,13 @@
 
 <!-- 非 scoped：icon-action hover 效果需穿透子组件渲染的 DOM -->
 <style>
+  .rename-dialog .el-dialog__title,
+  .rename-dialog .el-dialog__body,
+  .rename-dialog .el-input__inner,
+  .rename-dialog .el-button,
+  .rename-dialog .el-button span {
+    font-size: 12px;
+  }
   .cluster-page .icon-action {
     opacity: 0;
     transition: opacity 0.15s;
@@ -1288,11 +1296,13 @@
     flex-shrink: 0;
     margin-right: 16px;
     padding-top: 8px;
+    font-size: 12px;
     color: var(--el-text-color-regular);
   }
 
   .rename-value {
     padding-top: 8px;
+    font-size: 12px;
     color: var(--el-text-color-primary);
   }
 

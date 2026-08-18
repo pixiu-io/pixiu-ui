@@ -1,5 +1,4 @@
 import { kubeProxyAxios } from '@/api/kubeProxy'
-import { fetchKubeListCount } from './list'
 import type { K8sNode } from './node'
 import yaml from 'js-yaml'
 
@@ -28,19 +27,6 @@ export interface ClusterOverviewK8sWorkloadCounts {
 export interface ClusterOverviewK8sStats {
   nodes: ClusterOverviewK8sNodeSplit
   workloads: ClusterOverviewK8sWorkloadCounts
-}
-
-function proxyPaths(cluster: string, cronJobApiVersion = '') {
-  const c = encodeURIComponent(cluster)
-  const base = `/pixiu/proxy/${c}`
-  return {
-    nodes: `${base}/api/v1/nodes`,
-    deployments: `${base}/apis/apps/v1/deployments`,
-    statefulSets: `${base}/apis/apps/v1/statefulsets`,
-    daemonSets: `${base}/apis/apps/v1/daemonsets`,
-    cronJobs: `${base}/apis/${cronJobApiVersion}/cronjobs`,
-    jobs: `${base}/apis/batch/v1/jobs`
-  }
 }
 
 /**
@@ -75,101 +61,6 @@ export async function fetchClusterBasicNetwork(cluster: string): Promise<Cluster
   } catch {
     return empty
   }
-}
-
-const statsPromiseMap = new Map<string, Promise<ClusterOverviewK8sStats>>()
-
-export async function fetchClusterOverviewK8sStats(
-  cluster: string,
-  force = false,
-  cronJobApiVersion?: string
-): Promise<ClusterOverviewK8sStats> {
-  const emptyNodes: ClusterOverviewK8sNodeSplit = { controlPlane: 0, worker: 0, total: 0 }
-  const emptyWl: ClusterOverviewK8sWorkloadCounts = {
-    deployment: 0,
-    statefulSet: 0,
-    daemonSet: 0,
-    cronJob: 0,
-    job: 0
-  }
-
-  if (!cluster) {
-    return { nodes: emptyNodes, workloads: emptyWl }
-  }
-
-  if (!force && statsPromiseMap.has(cluster)) {
-    return statsPromiseMap.get(cluster)!
-  }
-
-  const promise = (async () => {
-    try {
-      const paths = proxyPaths(cluster, cronJobApiVersion || '')
-
-      const counts = await Promise.all([
-        fetchKubeListCount({ path: paths.nodes, silence403: true }),
-        fetchKubeListCount({
-          path: paths.nodes,
-          labelSelector: 'node-role.kubernetes.io/control-plane',
-          silence403: true
-        }),
-        fetchKubeListCount({
-          path: paths.nodes,
-          labelSelector: 'node-role.kubernetes.io/master',
-          silence403: true
-        }),
-        fetchKubeListCount({ path: paths.deployments, silence403: true }),
-        fetchKubeListCount({ path: paths.statefulSets, silence403: true }),
-        fetchKubeListCount({ path: paths.daemonSets, silence403: true }),
-        // 版本未知时跳过 CronJob 请求，避免 batch/v1 在旧集群 404
-        cronJobApiVersion
-          ? fetchKubeListCount({ path: paths.cronJobs, silence403: true })
-          : Promise.resolve(0),
-        fetchKubeListCount({ path: paths.jobs, silence403: true })
-      ])
-
-      const [
-        nodeTotal,
-        cpLabelCount,
-        masterLabelCount,
-        deployment,
-        statefulSet,
-        daemonSet,
-        cronJob,
-        job
-      ] = counts
-
-      let controlPlane = cpLabelCount + masterLabelCount
-      if (controlPlane > nodeTotal) {
-        controlPlane = Math.max(cpLabelCount, masterLabelCount)
-      }
-      const worker = Math.max(0, nodeTotal - controlPlane)
-
-      return {
-        nodes: {
-          controlPlane,
-          worker,
-          total: nodeTotal
-        },
-        workloads: {
-          deployment,
-          statefulSet,
-          daemonSet,
-          cronJob,
-          job
-        }
-      }
-    } finally {
-      // 短暂保留缓存，避免极短时间内的重复调用。长期的由业务层控制。
-      setTimeout(() => {
-        if (statsPromiseMap.get(cluster) === promise) {
-          statsPromiseMap.delete(cluster)
-        }
-      }, 5000)
-    }
-  })()
-
-  statsPromiseMap.set(cluster, promise)
-  return promise
 }
 
 export interface ClusterDetailInfo {

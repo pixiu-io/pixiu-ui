@@ -1,15 +1,24 @@
 <!-- 环形图 -->
 <template>
-  <div
-    ref="chartRef"
-    class="relative w-full overflow-visible"
-    :style="{ height: props.height }"
-    v-loading="props.loading"
-  >
+  <div class="art-ring-chart" :style="{ height: props.height }" v-loading="props.loading">
+    <div ref="chartRef" class="art-ring-chart__canvas" />
+    <div
+      v-if="props.centerText !== '' && props.centerText != null"
+      class="art-ring-center"
+      :style="{
+        left: centerPosition[0],
+        top: centerPosition[1],
+        fontSize: `${props.centerTextFontSize}px`,
+        color: 'var(--el-text-color-primary)'
+      }"
+    >
+      {{ props.centerText }}
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
+  import { computed } from 'vue'
   import type { EChartsOption } from '@/plugins/echarts'
   import { useChartOps, useChartComponent } from '@/hooks/core/useChart'
   import type { PieDataItem, RingChartProps } from '@/types/component/chart'
@@ -37,6 +46,23 @@
     legendPosition: 'right'
   })
 
+  /** 环形图中心位置（相对容器百分比），HTML overlay 与 series center 共用 */
+  const centerPosition = computed<[string, string]>(() => {
+    if (!props.showLegend) return ['50%', '50%']
+    switch (props.legendPosition) {
+      case 'left':
+        return ['60%', '50%']
+      case 'right':
+        return ['40%', '50%']
+      case 'top':
+        return ['50%', '60%']
+      case 'bottom':
+        return ['50%', '40%']
+      default:
+        return ['50%', '50%']
+    }
+  })
+
   // 使用新的图表组件抽象
   const { chartRef, isDark, getAnimationConfig, getTooltipStyle, getLegendStyle } =
     useChartComponent({
@@ -51,25 +77,7 @@
       generateOptions: (): EChartsOption => {
         const labelInset = props.showLabel ? '16%' : undefined
 
-        // 根据图例位置计算环形图中心位置（相对 series 绘图区）
-        const getCenterPosition = (): [string, string] => {
-          if (!props.showLegend) return ['50%', '50%']
-
-          switch (props.legendPosition) {
-            case 'left':
-              return ['60%', '50%']
-            case 'right':
-              return ['40%', '50%']
-            case 'top':
-              return ['50%', '60%']
-            case 'bottom':
-              return ['50%', '40%']
-            default:
-              return ['50%', '50%']
-          }
-        }
-
-        const centerPos = getCenterPosition()
+        const centerPos = centerPosition.value
 
         const raw = props.data ?? []
         const vals = raw.map((d) => Number(d.value) || 0)
@@ -155,23 +163,31 @@
           ]
         }
 
-        // 添加中心文字
-        if (props.centerText) {
-          option.title = {
-            text: props.centerText,
-            left: centerPos[0],
-            top: centerPos[1],
-            textAlign: 'center',
-            textVerticalAlign: 'middle',
-            textStyle: {
-              fontSize: props.centerTextFontSize,
-              fontWeight: 500,
-              color: isDark.value ? '#999' : '#ADB0BC'
-            }
-          }
-        }
-
         return option
       }
     })
 </script>
+
+<style scoped>
+  .art-ring-chart {
+    position: relative;
+    width: 100%;
+    overflow: visible;
+  }
+
+  .art-ring-chart__canvas {
+    width: 100%;
+    height: 100%;
+  }
+
+  .art-ring-center {
+    position: absolute;
+    z-index: 2;
+    display: inline-block;
+    transform: translate(-50%, -50%);
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+</style>

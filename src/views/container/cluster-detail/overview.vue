@@ -3,92 +3,272 @@
   <div class="cluster-overview">
     <ElTabs v-model="innerTab" class="cluster-overview-tabs">
       <ElTabPane label="概览" name="main">
-        <section class="section-title">资源概览</section>
-        <ElRow :gutter="16">
-          <ElCol :xs="24" :lg="12">
-            <ElCard shadow="never" class="resource-card" v-loading="resourceOverviewLoading">
-              <div class="resource-card__head">
-                <span class="resource-card__title">节点</span>
-                <ElLink
-                  type="primary"
-                  underline="never"
-                  style="font-size: 12px"
-                  @click="go('nodes')"
-                  >查看节点列表</ElLink
-                >
-              </div>
-              <div class="resource-card__body">
-                <div class="resource-card__chart">
-                  <ArtRingChart
-                    height="152px"
-                    :data="nodeRingData"
-                    :radius="['48%', '66%']"
-                    :border-radius="7"
-                    :center-text="nodeCenterText"
-                    :center-text-font-size="14"
-                    :show-label="false"
-                  />
-                </div>
-                <ul class="resource-card__stats">
-                  <li v-for="n in nodeStats" :key="n.label">
-                    <span class="dot" :style="{ background: n.color }" />
-                    <span>{{ n.label }}</span>
-                    <strong
-                      >{{ n.value
-                      }}<span class="resource-card__pct">（{{ n.percent }}%）</span></strong
+        <div class="overview-main-grid">
+          <div class="overview-main-left">
+            <section class="section-title" style="margin-top: 10px">资源概览</section>
+            <ElRow :gutter="16">
+              <ElCol :xs="24" :sm="12">
+                <ElCard shadow="never" class="resource-card">
+                  <div class="resource-card__head">
+                    <span class="resource-card__title">节点</span>
+                    <ElLink
+                      type="primary"
+                      underline="never"
+                      style="font-size: 12px"
+                      @click="go('nodes')"
+                      >查看节点列表</ElLink
                     >
-                  </li>
-                </ul>
-              </div>
-              <div class="resource-card__foot">
-                <ElButton text size="small" @click="go('nodes')">创建节点</ElButton>
-              </div>
-            </ElCard>
-          </ElCol>
-          <ElCol :xs="24" :lg="12">
-            <ElCard shadow="never" class="resource-card" v-loading="resourceOverviewLoading">
-              <div class="resource-card__head">
-                <span class="resource-card__title">工作负载</span>
-                <ElLink
-                  type="primary"
-                  underline="never"
-                  style="font-size: 12px"
-                  @click="go('workloads')"
-                  >查看列表</ElLink
-                >
-              </div>
-              <div class="resource-card__body">
-                <div class="resource-card__chart">
-                  <ArtRingChart
-                    height="152px"
-                    :data="wlRingData"
-                    :radius="['48%', '66%']"
-                    :border-radius="7"
-                    :center-text="wlCenterText"
-                    :center-text-font-size="14"
-                    :show-label="false"
-                  />
-                </div>
-                <ul class="resource-card__stats">
-                  <li v-for="w in wlStats" :key="w.label">
-                    <span class="dot" :style="{ background: w.color }" />
-                    <span>{{ w.label }}</span>
-                    <strong
-                      >{{ w.value
-                      }}<span class="resource-card__pct">（{{ w.percent }}%）</span></strong
+                  </div>
+                  <div class="resource-card__body">
+                    <div class="resource-card__chart">
+                      <ArtRingChart
+                        height="100px"
+                        :data="nodeRingData"
+                        :radius="['55%', '85%']"
+                        :border-radius="7"
+                        :center-text="nodeCenterText"
+                        :center-text-font-size="16"
+                        :show-label="false"
+                      />
+                    </div>
+                    <ul class="resource-card__stats">
+                      <li v-for="n in nodeStats" :key="n.label">
+                        <span class="dot" :style="{ background: n.color }" />
+                        <span>{{ n.label }}</span>
+                        <strong
+                          >{{ n.value
+                          }}<span class="resource-card__pct">（{{ n.percent }}%）</span></strong
+                        >
+                      </li>
+                    </ul>
+                  </div>
+                  <div class="resource-card__foot">
+                    <ElButton text size="small" @click="go('nodes')">创建节点</ElButton>
+                  </div>
+                </ElCard>
+              </ElCol>
+              <ElCol :xs="24" :sm="12">
+                <ElCard shadow="never" class="resource-card">
+                  <div class="resource-card__head">
+                    <span class="resource-card__title">工作负载</span>
+                    <ElLink
+                      type="primary"
+                      underline="never"
+                      style="font-size: 12px"
+                      @click="go('workloads')"
+                      >查看列表</ElLink
                     >
-                  </li>
-                </ul>
-              </div>
-              <div class="resource-card__foot">
-                <ElButton text size="small" @click="go('workloads')">创建工作负载</ElButton>
-              </div>
-            </ElCard>
-          </ElCol>
-        </ElRow>
+                  </div>
+                  <div class="resource-card__body">
+                    <div class="resource-card__chart">
+                      <ArtRingChart
+                        height="100px"
+                        :data="wlRingData"
+                        :radius="['55%', '85%']"
+                        :border-radius="7"
+                        :center-text="wlCenterText"
+                        :center-text-font-size="16"
+                        :show-label="false"
+                      />
+                    </div>
+                    <ul class="resource-card__stats">
+                      <li v-for="w in wlStats" :key="w.label">
+                        <span class="dot" :style="{ background: w.color }" />
+                        <span>{{ w.label }}</span>
+                        <strong
+                          >{{ w.value
+                          }}<span class="resource-card__pct">（{{ w.percent }}%）</span></strong
+                        >
+                      </li>
+                    </ul>
+                  </div>
+                  <div class="resource-card__foot">
+                    <ElButton text size="small" @click="go('workloads')">创建工作负载</ElButton>
+                  </div>
+                </ElCard>
+              </ElCol>
+            </ElRow>
 
-        <section class="section-title mt-6">用量概览（近 24 小时）</section>
-        <ElCard v-loading="usageOverviewInitialLoading" shadow="never" class="usage-overview-card">
+            <section class="section-title" style="margin-top: 10px">用量概览</section>
+            <ElCard
+              v-if="usageDatasourceMissing"
+              shadow="never"
+              class="usage-status-card usage-empty-card"
+            >
+              <div class="usage-empty-state">
+                <span class="usage-empty-state__icon"><ArtSvgIcon icon="ri:inbox-line" /></span>
+              </div>
+            </ElCard>
+            <ElCard v-else shadow="never" class="usage-status-card">
+              <div class="usage-overview-head">
+                <div class="usage-overview-head__sub">过去24小时内每小时平均数据</div>
+                <ElLink type="primary" underline="never" @click="go('prometheus')"
+                  >查看监控详情</ElLink
+                >
+              </div>
+              <ElRow :gutter="16">
+                <ElCol :xs="24" :lg="12" class="usage-overview-col">
+                  <div class="usage-col">
+                    <div class="usage-col__title">CPU利用率</div>
+                    <div class="usage-col__value">
+                      <span>{{ fmt(cpuUtilPercent, '%', 2) }}</span>
+                      <svg
+                        v-if="cpuUtilTrend === 'up'"
+                        class="usage-col__trend is-up"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                      >
+                        <path fill="currentColor" :d="TREND_ARROW_PATH" />
+                      </svg>
+                      <svg
+                        v-else-if="cpuUtilTrend === 'down'"
+                        class="usage-col__trend is-down is-flip"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                      >
+                        <path fill="currentColor" :d="TREND_ARROW_PATH" />
+                      </svg>
+                    </div>
+                    <ul class="usage-col__stats usage-col__stats--row">
+                      <li>
+                        <span>CPU使用量</span>
+                        <strong>{{ fmt(cpuUsageCores, '核', 2) }}</strong>
+                      </li>
+                      <li>
+                        <span>CPU总核数</span>
+                        <strong>{{ fmt(cpuTotalCores, '核', 2) }}</strong>
+                      </li>
+                      <li>
+                        <span>CPU分配率</span>
+                        <strong>{{ fmtGauge(cpuRequestCommitPercent, '%', 2) }}</strong>
+                      </li>
+                    </ul>
+                  </div>
+                </ElCol>
+                <ElCol :xs="24" :lg="12" class="usage-overview-col">
+                  <div class="usage-col">
+                    <div class="usage-col__title">内存利用率（含Cache）</div>
+                    <div class="usage-col__value">
+                      <span>{{ fmt(memUtilWithCachePercent, '%', 2) }}</span>
+                      <svg
+                        v-if="memUtilTrend === 'up'"
+                        class="usage-col__trend is-up"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                      >
+                        <path fill="currentColor" :d="TREND_ARROW_PATH" />
+                      </svg>
+                      <svg
+                        v-else-if="memUtilTrend === 'down'"
+                        class="usage-col__trend is-down is-flip"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                      >
+                        <path fill="currentColor" :d="TREND_ARROW_PATH" />
+                      </svg>
+                    </div>
+                    <ul class="usage-col__stats usage-col__stats--row">
+                      <li>
+                        <span>内存使用量（含Cache）</span>
+                        <strong>{{ fmt(memUsageWithCacheGib, 'GB', 2) }}</strong>
+                      </li>
+                      <li>
+                        <span>内存使用量（不含Cache）</span>
+                        <strong>{{ fmt(memUsageGib, 'GB', 2) }}</strong>
+                      </li>
+                    </ul>
+                    <ul class="usage-col__stats usage-col__stats--row usage-col__stats--row-sub">
+                      <li>
+                        <span>内存利用率（不含Cache）</span>
+                        <strong>{{ fmt(memUtilPercent, '%', 2) }}</strong>
+                      </li>
+                      <li>
+                        <span>内存总和</span>
+                        <strong>{{ fmt(memTotalGib, 'GB', 2) }}</strong>
+                      </li>
+                    </ul>
+                  </div>
+                </ElCol>
+              </ElRow>
+            </ElCard>
+          </div>
+
+          <aside class="overview-main-right">
+            <section class="section-title" style="margin-top: 10px">已安装组件</section>
+            <ElCard shadow="never" class="installed-components-card">
+              <div class="installed-components__summary">
+                <div class="installed-components__stat">
+                  <span class="installed-components__stat-label">总数</span>
+                  <span class="installed-components__stat-value">{{ compSummary.total }}</span>
+                </div>
+                <div class="installed-components__stat">
+                  <span class="installed-components__stat-label">运行中</span>
+                  <span class="installed-components__stat-value">{{ compSummary.running }}</span>
+                </div>
+                <div class="installed-components__stat">
+                  <span class="installed-components__stat-label">可升级</span>
+                  <span class="installed-components__stat-value">{{
+                    compSummary.upgradable == null ? '-' : compSummary.upgradable
+                  }}</span>
+                </div>
+              </div>
+              <div class="installed-components__icons">
+                <div
+                  v-for="item in installedComponentIcons"
+                  :key="item.id"
+                  class="installed-components__icon"
+                  :style="{ background: item.color }"
+                  :title="item.name"
+                >
+                  <ArtSvgIcon :icon="item.icon" />
+                </div>
+              </div>
+              <div class="installed-components__recommend-title">常用组件推荐</div>
+              <div class="installed-components__recommend-list">
+                <div
+                  v-for="item in recommendedComponents"
+                  :key="item.name"
+                  class="installed-components__recommend-item"
+                >
+                  <div
+                    class="installed-components__recommend-icon"
+                    :style="{ background: item.color }"
+                  >
+                    <ArtSvgIcon :icon="item.icon" />
+                  </div>
+                  <div class="installed-components__recommend-main">
+                    <div class="installed-components__recommend-head">
+                      <span class="installed-components__recommend-name">{{ item.name }}</span>
+                      <span class="installed-components__recommend-tag">{{ item.tag }}</span>
+                    </div>
+                    <div class="installed-components__recommend-desc">{{ item.desc }}</div>
+                  </div>
+                  <ElLink
+                    type="primary"
+                    underline="never"
+                    class="installed-components__recommend-link"
+                    @click="openRecommendLink(item)"
+                  >
+                    了解详情
+                    <ArtSvgIcon icon="ri:arrow-right-s-line" />
+                  </ElLink>
+                </div>
+              </div>
+            </ElCard>
+          </aside>
+        </div>
+
+        <section class="section-title" style="margin-top: 10px">用量趋势（近 24 小时）</section>
+        <ElCard
+          v-if="usageDatasourceMissing"
+          shadow="never"
+          class="usage-overview-card usage-empty-card"
+        >
+          <div class="usage-empty-state">
+            <span class="usage-empty-state__icon"><ArtSvgIcon icon="ri:inbox-line" /></span>
+          </div>
+        </ElCard>
+        <ElCard v-else shadow="never" class="usage-overview-card">
           <div class="usage-overview-grid">
             <MetricChartPanel
               title="CPU 利用率（%）"
@@ -96,17 +276,23 @@
               :x-axis-data="cpuUtilLabels"
               :is-empty="!cpuUtilPercent.length"
               :silent-update="usageChartSilentUpdate"
-              height="160px"
+              :axis-font-size="10"
+              height="120px"
               plain
+              :expand-time-range="usageTimeRange"
+              @expand-time-range-change="onUsageTimeRangeChange"
             />
             <MetricChartPanel
               title="内存利用率（%）"
               :data="memUtilPercent"
-              :x-axis-data="memUtilLabels"
+              :x-axis-data="cpuUtilLabels"
               :is-empty="!memUtilPercent.length"
               :silent-update="usageChartSilentUpdate"
-              height="160px"
+              :axis-font-size="10"
+              height="120px"
               plain
+              :expand-time-range="usageTimeRange"
+              @expand-time-range-change="onUsageTimeRangeChange"
             />
             <MetricChartPanel
               title="CPU 使用量（核）"
@@ -114,43 +300,25 @@
               :x-axis-data="cpuUtilLabels"
               :is-empty="!cpuUsageCores.length"
               :silent-update="usageChartSilentUpdate"
-              height="160px"
+              :axis-font-size="10"
+              height="120px"
               plain
+              :expand-time-range="usageTimeRange"
+              @expand-time-range-change="onUsageTimeRangeChange"
             />
             <MetricChartPanel
               title="内存使用量（GB）"
               :data="memUsageGib"
-              :x-axis-data="memUtilLabels"
+              :x-axis-data="cpuUtilLabels"
               :is-empty="!memUsageGib.length"
               :silent-update="usageChartSilentUpdate"
-              height="160px"
+              :axis-font-size="10"
+              height="120px"
               plain
+              :expand-time-range="usageTimeRange"
+              @expand-time-range-change="onUsageTimeRangeChange"
             />
           </div>
-        </ElCard>
-
-        <section class="section-title mt-6">已安装组件</section>
-        <ElCard shadow="never" class="components-card">
-          <ElRow :gutter="16">
-            <ElCol :span="8">
-              <div class="comp-stat">
-                <span class="comp-stat__label">组件总数</span>
-                <span class="comp-stat__value">{{ compSummary.total }}</span>
-              </div>
-            </ElCol>
-            <ElCol :span="8">
-              <div class="comp-stat">
-                <span class="comp-stat__label">运行中</span>
-                <span class="comp-stat__value text-success">{{ compSummary.running }}</span>
-              </div>
-            </ElCol>
-            <ElCol :span="8">
-              <div class="comp-stat">
-                <span class="comp-stat__label">可升级</span>
-                <span class="comp-stat__value text-warning">{{ compSummary.upgradable }}</span>
-              </div>
-            </ElCol>
-          </ElRow>
         </ElCard>
       </ElTabPane>
 
@@ -481,6 +649,13 @@
           </ElCard>
         </div>
       </ElTabPane>
+
+      <ElTabPane label="监控" name="monitor">
+        <ClusterMonitorMetrics
+          v-if="innerTab === 'monitor' && isOverviewRoute"
+          :cluster-name="ctx.name"
+        />
+      </ElTabPane>
     </ElTabs>
 
     <ElDialog v-model="proxyDialogVisible" title="启用外部访问" width="460px" destroy-on-close>
@@ -527,14 +702,20 @@
   import {
     fetchClusterBasicNetwork,
     fetchClusterDetailInfo,
-    fetchClusterOverviewK8sStats,
     type ClusterBasicNetwork,
     type ClusterDetailInfo,
     type ClusterOverviewK8sStats
   } from '@/api/kubernetes/cluster-overview-stats'
-  import { useClusterNodesUsageMetrics } from '@/hooks/kubernetes/useClusterNodesUsageMetrics'
+  import { useClusterUsagePrometheus } from '@/hooks/kubernetes/useClusterUsagePrometheus'
+  import {
+    getDefaultMetricsTimeRange,
+    METRICS_TIME_PRESETS,
+    type MetricsTimeRange
+  } from '@/utils/metrics/time-range'
+  import { fetchClusterResourceOverviewFromPrometheus } from '@/hooks/kubernetes/useClusterResourceOverviewPrometheus'
   import MetricChartPanel from '@/components/container/metric-chart-panel.vue'
   import ArtRingChart from '@/components/core/charts/art-ring-chart/index.vue'
+  import ClusterMonitorMetrics from '@/views/container/cluster/modules/cluster-monitor-metrics.vue'
   import { clusterDetailContextKey, clusterDetailRefreshKey } from './context'
   import { getCronJobApiVersion } from '@/utils/kubernetes/cronjob'
   import { notifyError } from '@/utils/sys/notify'
@@ -553,7 +734,7 @@
   const OVERVIEW_ROUTE_NAME = 'ClusterDetailOverview'
   const isOverviewRoute = computed(() => route.name === OVERVIEW_ROUTE_NAME)
 
-  const OVERVIEW_TAB_NAMES = new Set(['main', 'basic', 'api'])
+  const OVERVIEW_TAB_NAMES = new Set(['main', 'basic', 'api', 'monitor'])
 
   watch(
     () => route.query.overviewTab,
@@ -591,7 +772,7 @@
 
     resourceOverviewLoading.value = true
     try {
-      const stats = await fetchClusterOverviewK8sStats(cluster, force, cronJobApiVersion.value)
+      const stats = await fetchClusterResourceOverviewFromPrometheus(cluster)
       k8sOverview.value = stats
       loadedOverviewCluster.value = cluster
     } catch {
@@ -639,7 +820,7 @@
     // 并行发起统计和网络信息请求
     try {
       const [stats, network] = await Promise.all([
-        fetchClusterOverviewK8sStats(cluster, force, cronJobApiVersion.value),
+        fetchClusterResourceOverviewFromPrometheus(cluster),
         fetchClusterBasicNetwork(cluster)
       ])
       k8sOverview.value = stats
@@ -940,8 +1121,6 @@
     }
   }
 
-  const seed = computed(() => ctx.value.seed)
-
   const nodeRingData = computed(() => {
     const { controlPlane, worker } = k8sOverview.value.nodes
     return [
@@ -950,7 +1129,9 @@
     ]
   })
 
-  const nodeTotal = computed(() => k8sOverview.value.nodes.total)
+  const nodeTotal = computed(() =>
+    nodeRingData.value.reduce((sum, item) => sum + (Number(item.value) || 0), 0)
+  )
   const nodeCenterText = computed(() => String(nodeTotal.value))
 
   function buildRingStats(data: { name: string; value: number }[], colors: string[]) {
@@ -979,7 +1160,7 @@
   })
 
   const wlTotal = computed(() =>
-    Object.values(k8sOverview.value.workloads).reduce((a: any, b: any) => a + b, 0)
+    wlRingData.value.reduce((sum, item) => sum + (Number(item.value) || 0), 0)
   )
   const wlCenterText = computed(() => String(wlTotal.value))
 
@@ -995,25 +1176,105 @@
 
   const clusterName = computed(() => ctx.value.name)
 
+  /** 用量趋势时间范围：默认最近 24 小时；最大化弹窗内可调整，由 hook 内 watch 触发重新查询 */
+  const usageTimeRange = ref<MetricsTimeRange>(
+    METRICS_TIME_PRESETS.find((p) => p.key === '24h')?.getRange(new Date()) ??
+      getDefaultMetricsTimeRange()
+  )
+
   const {
-    loading: usageOverviewLoading,
     chartReady: usageChartReady,
+    datasourceMissing: usageDatasourceMissing,
     cpuTimeLabels: cpuUtilLabels,
-    memoryTimeLabels: memUtilLabels,
     cpuUtilPercent,
-    cpuUsageCores,
     memUtilPercent,
+    cpuUsageCores,
     memUsageGib,
+    cpuTotalCores,
+    memTotalGib,
+    memUsageWithCacheGib,
+    memUtilWithCachePercent,
+    cpuRequestCommitPercent,
     startRefresh: startUsageOverviewRefresh,
     stopRefresh: stopUsageOverviewRefresh,
     resetCharts: resetUsageOverviewCharts
-  } = useClusterNodesUsageMetrics(clusterName)
+  } = useClusterUsagePrometheus(clusterName, usageTimeRange)
 
-  const usageOverviewInitialLoading = computed(
-    () => usageOverviewLoading.value && !usageChartReady.value
+  /** 取数组最后一项作为当前值；空或非数字返回 null */
+  function lastOf(arr: number[]): number | null {
+    const n = arr[arr.length - 1]
+    return Number.isFinite(n) ? n : null
+  }
+
+  /** 格式化趋势数组末项当前值：数据未就绪显示 '-'，否则数值 + 单位 */
+  function fmt(arr: number[], unit: string, digits = 2): string {
+    const v = lastOf(arr)
+    return v === null ? '-' : `${v.toFixed(digits)}${unit}`
+  }
+
+  /** 格式化 gauge 标量当前值：0 视为未就绪显示 '-'（cluster.cpu_requests 空面板返回 0） */
+  function fmtGauge(v: number, unit: string, digits = 2): string {
+    return v === 0 ? '-' : `${v.toFixed(digits)}${unit}`
+  }
+
+  type UtilTrend = 'up' | 'down' | ''
+  const TREND_HOLD_MS = 10000
+  /** 弯曲向上实心箭头（下降时垂直翻转），贴近产品截图样式 */
+  const TREND_ARROW_PATH =
+    'M12 2 L19 12 H14.3 C13.9 16.2 11.8 19.6 7 22.6 L5.6 21 C9.8 18.3 11.4 15.4 11.4 12 H5 Z'
+
+  const cpuUtilTrend = ref<UtilTrend>('')
+  const memUtilTrend = ref<UtilTrend>('')
+  let prevCpuUtil: number | null = null
+  let prevMemUtil: number | null = null
+  let cpuTrendTimer: ReturnType<typeof setTimeout> | undefined
+  let memTrendTimer: ReturnType<typeof setTimeout> | undefined
+
+  function applyUtilTrend(next: number | null, kind: 'cpu' | 'mem') {
+    if (next === null) return
+    const prev = kind === 'cpu' ? prevCpuUtil : prevMemUtil
+    if (kind === 'cpu') prevCpuUtil = next
+    else prevMemUtil = next
+    if (prev === null || next === prev) return
+
+    const trendRef = kind === 'cpu' ? cpuUtilTrend : memUtilTrend
+    trendRef.value = next > prev ? 'up' : 'down'
+
+    if (kind === 'cpu') {
+      if (cpuTrendTimer) clearTimeout(cpuTrendTimer)
+      cpuTrendTimer = setTimeout(() => {
+        cpuUtilTrend.value = ''
+        cpuTrendTimer = undefined
+      }, TREND_HOLD_MS)
+    } else {
+      if (memTrendTimer) clearTimeout(memTrendTimer)
+      memTrendTimer = setTimeout(() => {
+        memUtilTrend.value = ''
+        memTrendTimer = undefined
+      }, TREND_HOLD_MS)
+    }
+  }
+
+  watch(
+    () => lastOf(cpuUtilPercent.value),
+    (next) => applyUtilTrend(next, 'cpu')
+  )
+  watch(
+    () => lastOf(memUtilWithCachePercent.value),
+    (next) => applyUtilTrend(next, 'mem')
   )
 
+  onUnmounted(() => {
+    if (cpuTrendTimer) clearTimeout(cpuTrendTimer)
+    if (memTrendTimer) clearTimeout(memTrendTimer)
+  })
+
   const usageChartSilentUpdate = ref(true)
+
+  /** 最大化弹窗内调整时间范围：更新 usageTimeRange，hook 内 watch 触发静默刷新 */
+  function onUsageTimeRangeChange(range: MetricsTimeRange) {
+    usageTimeRange.value = range
+  }
 
   watch(usageChartReady, () => {})
 
@@ -1074,14 +1335,66 @@
     stopOverviewBackgroundLoads()
   })
 
+  /** 已安装组件（概览右侧卡片，暂用展示数据） */
+  const installedComponentIcons = [
+    { id: 'cni', name: 'CNI', icon: 'ri:share-line', color: '#6C63FF' },
+    { id: 'coredns', name: 'CoreDNS', icon: 'ri:home-4-line', color: '#4C8DFF' },
+    { id: 'metrics', name: 'Metrics Server', icon: 'ri:bar-chart-2-line', color: '#2BBBAD' },
+    { id: 'ingress', name: 'Ingress', icon: 'ri:door-open-line', color: '#5B8DEF' },
+    { id: 'storage', name: '存储插件', icon: 'ri:hard-drive-2-line', color: '#7B61FF' },
+    { id: 'monitor', name: '监控', icon: 'ri:pulse-line', color: '#3D8BFF' },
+    { id: 'log', name: '日志', icon: 'ri:file-list-3-line', color: '#5C6BC0' },
+    { id: 'security', name: '安全', icon: 'ri:shield-check-line', color: '#26A69A' },
+    { id: 'dns', name: 'DNS', icon: 'ri:earth-line', color: '#42A5F5' }
+  ]
+
+  const recommendedComponents = [
+    {
+      name: '部署工程',
+      tag: '部署',
+      desc: '基于 Ansible 的 Kubernetes 集群与云原生应用快速部署',
+      icon: 'ri:calendar-schedule-line',
+      color: '#F5A623',
+      link: 'https://github.com/pixiu-io/kubez-ansible'
+    },
+    {
+      name: 'PixiuHub',
+      tag: '加速',
+      desc: '加速容器镜像拉取，缩短部署耗时',
+      icon: 'ri:flashlight-line',
+      color: '#7C6AF0',
+      link: 'https://hub.pixiuio.com/'
+    },
+    {
+      name: '应用商店',
+      tag: '应用',
+      desc: '一键部署常用云原生应用与中间件',
+      icon: 'ri:store-2-line',
+      color: '#3D8BFF',
+      route: '/appstore'
+    }
+  ]
+
   const compSummary = computed(() => ({
-    total: 18 + (seed.value % 7),
-    running: 16 + (seed.value % 5),
-    upgradable: 2
+    total: installedComponentIcons.length,
+    running: installedComponentIcons.length,
+    upgradable: null as number | null
   }))
 
   function go(path: string) {
     router.push({ path: `/container/${path}`, query: { ...route.query } })
+  }
+
+  function openRecommendLink(item: { link?: string; route?: string }) {
+    if (item.route) {
+      router.push(item.route)
+      return
+    }
+    if (item.link) {
+      window.open(item.link, '_blank', 'noopener,noreferrer')
+      return
+    }
+    go('helm')
   }
 
   function copyText(text: string) {
@@ -1122,34 +1435,205 @@
 
   .section-title {
     margin: 0 0 12px;
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 600;
     color: var(--el-text-color-primary);
+  }
+
+  .overview-main-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 16px;
+    align-items: stretch;
+  }
+
+  .overview-main-left {
+    min-width: 0;
+  }
+
+  .overview-main-right {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .installed-components-card {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    width: 100%;
+    border-radius: 8px;
+  }
+
+  .installed-components-card :deep(.el-card__body) {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+    padding: 16px;
+  }
+
+  .installed-components__summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .installed-components__stat-label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+  }
+
+  .installed-components__stat-value {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--el-text-color-primary);
+  }
+
+  .installed-components__icons {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+
+  .installed-components__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    color: #fff;
+    font-size: 18px;
+  }
+
+  .installed-components__recommend-title {
+    margin-bottom: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--el-text-color-primary);
+  }
+
+  .installed-components__recommend-list {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .installed-components__recommend-item {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 12px;
+    border: 1px solid var(--el-border-color-lighter);
+    border-radius: 8px;
+  }
+
+  .installed-components__recommend-icon {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 16px;
+  }
+
+  .installed-components__recommend-main {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .installed-components__recommend-head {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .installed-components__recommend-name {
+    overflow: hidden;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--el-text-color-primary);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .installed-components__recommend-tag {
+    flex-shrink: 0;
+    padding: 0 6px;
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--el-text-color-secondary);
+    background: var(--el-fill-color-light);
+    border-radius: 4px;
+  }
+
+  .installed-components__recommend-desc {
+    margin-top: 2px;
+    overflow: hidden;
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .installed-components__recommend-link {
+    display: inline-flex;
+    flex-shrink: 0;
+    gap: 0;
+    align-items: center;
+    font-size: 12px;
+  }
+
+  @media (max-width: 1200px) {
+    .overview-main-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .overview-main-right {
+      min-height: 360px;
+    }
   }
 
   .resource-card {
     border-radius: 8px;
     overflow: visible;
+    height: 100%;
   }
 
   .resource-card :deep(.el-card__body) {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
     overflow: visible;
+    padding-bottom: 12px;
   }
 
   .resource-card__head {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
   }
 
   .resource-card__title {
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 600;
   }
 
   .resource-card__body {
     display: flex;
+    flex: 1;
     flex-direction: row;
     gap: 12px;
     align-items: center;
@@ -1157,9 +1641,9 @@
   }
 
   .resource-card__chart {
-    flex: 0 0 152px;
-    width: 152px;
-    margin-left: 12px;
+    flex: 0 0 100px;
+    width: 100px;
+    margin-left: 8px;
     overflow: visible;
   }
 
@@ -1177,7 +1661,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
   }
 
   .resource-card__stats li:last-child {
@@ -1204,8 +1688,8 @@
   }
 
   .resource-card__foot {
-    margin-top: 8px;
-    padding-top: 8px;
+    margin-top: auto;
+    padding-top: 4px;
     border-top: 1px dashed var(--el-border-color-lighter);
   }
 
@@ -1248,34 +1732,199 @@
     margin-top: -2px;
   }
 
-  .components-card {
+  .usage-status-card {
+    border-radius: 8px;
+    border: 1px solid var(--el-border-color-light);
+    background: var(--el-bg-color);
+  }
+
+  .usage-status-card :deep(.el-card__body) {
+    padding: 16px;
+    padding-bottom: 5px;
+  }
+
+  .usage-status-card :deep(.el-row) {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  .usage-status-card :deep(.usage-overview-col) {
+    padding-left: 0 !important;
+    padding-right: 16px !important;
+  }
+
+  .usage-status-card :deep(.usage-overview-col + .usage-overview-col) {
+    padding-left: 16px !important;
+    padding-right: 0 !important;
+  }
+
+  .usage-empty-card :deep(.el-card__body) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 156px;
+    padding: 16px;
+  }
+
+  .usage-overview-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+
+  .usage-overview-head__sub {
+    margin-top: 2px;
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+  }
+
+  .usage-overview-head :deep(.el-link__inner) {
+    font-size: 12px;
+  }
+
+  .usage-col {
+    padding: 4px 0 12px;
     border-radius: 8px;
   }
 
-  .comp-stat {
-    text-align: center;
-    padding: 12px 0;
-  }
-
-  .comp-stat__label {
-    display: block;
+  .usage-col__title {
     font-size: 12px;
-    color: var(--el-text-color-secondary);
-    margin-bottom: 8px;
+    font-weight: 500;
+    color: var(--el-text-color-regular);
   }
 
-  .comp-stat__value {
-    font-size: 22px;
+  .usage-col__value {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    margin-top: 6px;
+    font-size: 16px;
     font-weight: 600;
+    line-height: 1.3;
     color: var(--el-text-color-primary);
   }
 
-  .text-success {
+  .usage-col__trend {
+    flex-shrink: 0;
+    width: 18px;
+    height: 20px;
+    margin-left: 4px;
+    overflow: visible;
+  }
+
+  .usage-col__trend.is-up {
+    color: var(--el-color-danger);
+  }
+
+  .usage-col__trend.is-down {
     color: var(--el-color-success);
   }
 
-  .text-warning {
-    color: var(--el-color-warning);
+  .usage-col__trend.is-flip {
+    transform: scaleY(-1);
+  }
+
+  .usage-col__stats {
+    margin: 12px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .usage-col__stats li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 28px;
+    font-size: 12px;
+    color: var(--el-text-color-regular);
+  }
+
+  .usage-col__stats li + li {
+    border-top: 1px dashed var(--el-border-color-lighter);
+  }
+
+  .usage-col__stats strong {
+    font-weight: 500;
+    color: var(--el-text-color-primary);
+  }
+
+  /* CPU 子指标横排：三项一行，竖线分隔 */
+  .usage-col__stats--row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    row-gap: 2px;
+  }
+
+  .usage-col__stats--row li {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: 24px;
+    height: auto;
+    padding: 0;
+    position: relative;
+  }
+
+  .usage-col__stats--row li + li {
+    border-top: none;
+  }
+
+  .usage-col__stats--row li span {
+    margin-right: 4px;
+  }
+
+  .usage-col__stats--row strong {
+    color: var(--el-text-color-regular);
+  }
+
+  .usage-col__stats--row li::after {
+    content: '';
+    display: block;
+    align-self: center;
+    width: 1px;
+    height: 16px;
+    margin: 0 10px;
+    background: var(--el-border-color-lighter);
+  }
+
+  .usage-col__stats--row li:last-child::after {
+    display: none;
+  }
+
+  /* 内存第二行子指标与第一行间距 */
+  .usage-col__stats--row-sub {
+    margin-top: 2px;
+  }
+
+  .usage-col__stats--row-sub li {
+    min-height: 24px;
+  }
+
+  @media (max-width: 991.98px) {
+    .usage-overview-col + .usage-overview-col {
+      margin-top: 12px;
+    }
+  }
+
+  .usage-empty-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 28px 0;
+  }
+
+  .usage-empty-state__icon {
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    font-size: 22px;
+    color: var(--el-text-color-placeholder);
+    background: var(--el-fill-color-light);
+    border-radius: 50%;
   }
 
   .card-title {

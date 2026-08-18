@@ -140,6 +140,16 @@ export function getPodCpuQuotaMillicores(pod: MetricsPodSpec): number {
   return total
 }
 
+/** Pod 容器 requests 汇总 CPU 毫核（仅 requests，不含 limits/initContainers） */
+export function getPodCpuRequestMillicores(pod: MetricsPodSpec): number {
+  let total = 0
+  for (const c of pod.spec?.containers ?? []) {
+    const cpu = c.resources?.requests?.cpu
+    if (cpu) total += parseNodeCpuMillicores(cpu)
+  }
+  return total
+}
+
 /** Pod 容器 requests/limits 汇总内存字节 */
 export function getPodMemoryQuotaBytes(pod: MetricsPodSpec): number {
   let total = 0

@@ -13,7 +13,7 @@
         ref="formRef"
         :model="formData"
         :rules="rules"
-        label-width="88px"
+        label-width="92px"
         class="datasource-create-form"
       >
         <section class="datasource-form-section">
@@ -624,7 +624,7 @@
   const currentSubTypeOptions = computed(() => allSubTypes)
   // 内部日志/中间件数据源：走集群 Service 代理并展示命名空间/Service 级联选择
   const isInternalServiceDatasource = computed(
-    () => (formData.type === 0 || formData.type === 3) && !formData.external
+    () => (formData.type === 0 || formData.type === 1 || formData.type === 3) && !formData.external
   )
   // Redis 以 sub_type 判定：类型可为中间件或缓存
   const isRedisDatasource = computed(() => formData.sub_type === 'redis')
@@ -1010,7 +1010,7 @@
         formData.type = 3
       }
       fillFormFromConfig(data.config)
-      if ((data.type === 0 || data.type === 3) && !data.external) {
+      if ((data.type === 0 || data.type === 1 || data.type === 3) && !data.external) {
         const savedUrl = formData.url
         try {
           const parsed = new URL(savedUrl)
