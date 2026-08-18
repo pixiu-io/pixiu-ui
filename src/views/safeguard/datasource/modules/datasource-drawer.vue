@@ -103,11 +103,7 @@
               </ElFormItem>
             </ElCol>
 
-<<<<<<< HEAD
-            <template v-if="isInternalSvcDatasource">
-=======
             <template v-if="isInternalServiceDatasource">
->>>>>>> 6457ae4 (feat(middleware): Nacos v2/v3 双版本管理、中间件类型数据源与表单体验优化 (#1013))
               <ElCol :span="12">
                 <ElFormItem label="命名空间" prop="service_namespace">
                   <ElSelect
@@ -288,12 +284,8 @@
           <ElFormItem v-if="!isRedisDatasource" label="接入地址" prop="url">
             <ElInput
               v-model="formData.url"
-<<<<<<< HEAD
-              :readonly="isInternalSvcDatasource"
-=======
               :readonly="isInternalServiceDatasource"
               autocomplete="off"
->>>>>>> 6457ae4 (feat(middleware): Nacos v2/v3 双版本管理、中间件类型数据源与表单体验优化 (#1013))
               :placeholder="
                 formData.external
                   ? '接入地址格式为 http:// 或 https:// 开头，如 http://192.168.1.10:8080'
@@ -630,22 +622,13 @@
   }
 
   const currentSubTypeOptions = computed(() => allSubTypes)
-<<<<<<< HEAD
-  const isInternalSvcDatasource = computed(
-    () => (formData.type === 0 || formData.type === 1) && !formData.external
-  )
-  const isRedisDatasource = computed(() => formData.type === 2)
-  // 选中 Redis 时类型锁定为「缓存」
-  const isRedisSubType = computed(() => formData.sub_type === 'redis')
-=======
   // 内部日志/中间件数据源：走集群 Service 代理并展示命名空间/Service 级联选择
   const isInternalServiceDatasource = computed(
-    () => (formData.type === 0 || formData.type === 3) && !formData.external
+    () => (formData.type === 0 || formData.type === 1 || formData.type === 3) && !formData.external
   )
   // Redis 以 sub_type 判定：类型可为中间件或缓存
   const isRedisDatasource = computed(() => formData.sub_type === 'redis')
   const isNacosSubType = computed(() => formData.sub_type === 'nacos')
->>>>>>> 6457ae4 (feat(middleware): Nacos v2/v3 双版本管理、中间件类型数据源与表单体验优化 (#1013))
   const namespaceOptions = computed(() =>
     [
       ...new Set(clusterServices.value.map((item) => item.metadata?.namespace).filter(Boolean))
@@ -770,11 +753,7 @@
     if (clearNamespace) formData.service_namespace = ''
     formData.service_name = ''
     formData.service_port = undefined
-<<<<<<< HEAD
-    if (isInternalSvcDatasource.value) formData.url = ''
-=======
     if (isInternalServiceDatasource.value) formData.url = ''
->>>>>>> 6457ae4 (feat(middleware): Nacos v2/v3 双版本管理、中间件类型数据源与表单体验优化 (#1013))
   }
 
   function onServiceNamespaceChange() {
@@ -788,11 +767,7 @@
   }
 
   function syncInternalDatasourceUrl() {
-<<<<<<< HEAD
-    if (!isInternalSvcDatasource.value) return
-=======
     if (!isInternalServiceDatasource.value) return
->>>>>>> 6457ae4 (feat(middleware): Nacos v2/v3 双版本管理、中间件类型数据源与表单体验优化 (#1013))
     const { service_name: service, service_namespace: namespace, service_port: port } = formData
     formData.url =
       service && namespace && port
@@ -803,11 +778,7 @@
   async function loadServices() {
     clearServiceSelection()
     clusterServices.value = []
-<<<<<<< HEAD
-    if (!isInternalSvcDatasource.value || !formData.cluster_name) return
-=======
     if (!isInternalServiceDatasource.value || !formData.cluster_name) return
->>>>>>> 6457ae4 (feat(middleware): Nacos v2/v3 双版本管理、中间件类型数据源与表单体验优化 (#1013))
     serviceListLoading.value = true
     try {
       const { items } = await fetchK8sServiceList(formData.cluster_name, {
@@ -1039,11 +1010,7 @@
         formData.type = 3
       }
       fillFormFromConfig(data.config)
-<<<<<<< HEAD
-      if ((data.type === 0 || data.type === 1) && !data.external) {
-=======
-      if ((data.type === 0 || data.type === 3) && !data.external) {
->>>>>>> 6457ae4 (feat(middleware): Nacos v2/v3 双版本管理、中间件类型数据源与表单体验优化 (#1013))
+      if ((data.type === 0 || data.type === 1 || data.type === 3) && !data.external) {
         const savedUrl = formData.url
         try {
           const parsed = new URL(savedUrl)
@@ -1077,26 +1044,12 @@
     visible.value = false
   }
 
-<<<<<<< HEAD
-  function buildServiceProxyUrl(): string {
-    const servicePath =
-      formData.sub_type === 'loki'
-        ? '/loki/api/v1/labels'
-        : formData.sub_type === 'prometheus'
-          ? '/-/ready'
-          : '/_cluster/health'
-=======
   function buildServiceProxyUrl(testPath: string): string {
->>>>>>> 6457ae4 (feat(middleware): Nacos v2/v3 双版本管理、中间件类型数据源与表单体验优化 (#1013))
     return (
       `/pixiu/proxy/${encodeURIComponent(formData.cluster_name)}` +
       `/api/v1/namespaces/${encodeURIComponent(formData.service_namespace)}` +
       `/services/${encodeURIComponent(formData.service_name)}:${formData.service_port}/proxy` +
-<<<<<<< HEAD
-      servicePath
-=======
       testPath
->>>>>>> 6457ae4 (feat(middleware): Nacos v2/v3 双版本管理、中间件类型数据源与表单体验优化 (#1013))
     )
   }
 
@@ -1182,11 +1135,7 @@
       return
     }
 
-<<<<<<< HEAD
-    if (!isInternalSvcDatasource.value && !formData.external) {
-=======
     if (!isInternalServiceDatasource.value && !formData.external) {
->>>>>>> 6457ae4 (feat(middleware): Nacos v2/v3 双版本管理、中间件类型数据源与表单体验优化 (#1013))
       ElMessage.warning('当前配置暂不支持连通性测试，请改为内部日志数据源或外部数据源后再试')
       return
     }

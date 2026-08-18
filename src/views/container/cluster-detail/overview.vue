@@ -27,7 +27,7 @@
                         :radius="['55%', '85%']"
                         :border-radius="7"
                         :center-text="nodeCenterText"
-                        :center-text-font-size="18"
+                        :center-text-font-size="16"
                         :show-label="false"
                       />
                     </div>
@@ -67,7 +67,7 @@
                         :radius="['55%', '85%']"
                         :border-radius="7"
                         :center-text="wlCenterText"
-                        :center-text-font-size="18"
+                        :center-text-font-size="16"
                         :show-label="false"
                       />
                     </div>
@@ -1230,10 +1230,7 @@
   let cpuTrendTimer: ReturnType<typeof setTimeout> | undefined
   let memTrendTimer: ReturnType<typeof setTimeout> | undefined
 
-  function applyUtilTrend(
-    next: number | null,
-    kind: 'cpu' | 'mem'
-  ) {
+  function applyUtilTrend(next: number | null, kind: 'cpu' | 'mem') {
     if (next === null) return
     const prev = kind === 'cpu' ? prevCpuUtil : prevMemUtil
     if (kind === 'cpu') prevCpuUtil = next
@@ -1491,7 +1488,7 @@
   }
 
   .installed-components__stat-value {
-    font-size: 20px;
+    font-size: 16px;
     font-weight: 600;
     line-height: 1.2;
     color: var(--el-text-color-primary);
@@ -1517,7 +1514,7 @@
 
   .installed-components__recommend-title {
     margin-bottom: 10px;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
     color: var(--el-text-color-primary);
   }
@@ -1564,7 +1561,7 @@
 
   .installed-components__recommend-name {
     overflow: hidden;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
     color: var(--el-text-color-primary);
     text-overflow: ellipsis;
@@ -1574,7 +1571,7 @@
   .installed-components__recommend-tag {
     flex-shrink: 0;
     padding: 0 6px;
-    font-size: 11px;
+    font-size: 12px;
     line-height: 18px;
     color: var(--el-text-color-secondary);
     background: var(--el-fill-color-light);
@@ -1615,6 +1612,9 @@
   }
 
   .resource-card :deep(.el-card__body) {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
     overflow: visible;
     padding-bottom: 12px;
   }
@@ -1633,6 +1633,7 @@
 
   .resource-card__body {
     display: flex;
+    flex: 1;
     flex-direction: row;
     gap: 12px;
     align-items: center;
@@ -1687,7 +1688,7 @@
   }
 
   .resource-card__foot {
-    margin-top: 6px;
+    margin-top: auto;
     padding-top: 4px;
     border-top: 1px dashed var(--el-border-color-lighter);
   }
@@ -1798,7 +1799,7 @@
     gap: 4px;
     align-items: center;
     margin-top: 6px;
-    font-size: 20px;
+    font-size: 16px;
     font-weight: 600;
     line-height: 1.3;
     color: var(--el-text-color-primary);
@@ -1853,6 +1854,7 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
+    row-gap: 2px;
   }
 
   .usage-col__stats--row li {
@@ -1860,14 +1862,10 @@
     display: flex;
     align-items: center;
     justify-content: flex-start;
-    min-height: 36px;
+    min-height: 24px;
     height: auto;
-    padding: 0 10px;
+    padding: 0;
     position: relative;
-  }
-
-  .usage-col__stats--row li:first-child {
-    padding-left: 0;
   }
 
   .usage-col__stats--row li + li {
@@ -1882,24 +1880,27 @@
     color: var(--el-text-color-regular);
   }
 
-  .usage-col__stats--row li + li::before {
+  .usage-col__stats--row li::after {
     content: '';
-    position: absolute;
-    left: 0;
-    top: 50%;
-    transform: translateY(-50%);
+    display: block;
+    align-self: center;
     width: 1px;
     height: 16px;
+    margin: 0 10px;
     background: var(--el-border-color-lighter);
+  }
+
+  .usage-col__stats--row li:last-child::after {
+    display: none;
   }
 
   /* 内存第二行子指标与第一行间距 */
   .usage-col__stats--row-sub {
-    margin-top: -7px;
+    margin-top: 2px;
   }
 
   .usage-col__stats--row-sub li {
-    min-height: 28px;
+    min-height: 24px;
   }
 
   @media (max-width: 991.98px) {
