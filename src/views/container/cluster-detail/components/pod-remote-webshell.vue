@@ -145,7 +145,7 @@
   const EXEC_FAIL_RE =
     /exec pod command failed|OCI runtime exec|unable to start container process|stat\s+["']?\/bin\/(ba)?sh["']?\s*[:：]\s*no such file|exec:\s*["']\/bin\/(ba)?sh["']/i
 
-  const IDLE_TIMEOUT = 10 * 60 * 1000
+  const IDLE_TIMEOUT = 30 * 60 * 1000
   const MIN_SHEET_HEIGHT = 160
   const DEFAULT_SHEET_HEIGHT_RATIO = 0.48
   const DEFAULT_SHEET_HEIGHT = 420
@@ -518,7 +518,7 @@
       fontSize: 12,
       lineHeight: 1.2,
       theme: getTerminalTheme(),
-      scrollback: 8000
+      scrollback: 2000
     })
     const fitAddon = new FitAddon()
     xterm.loadAddon(fitAddon)
