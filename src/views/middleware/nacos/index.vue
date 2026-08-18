@@ -7,7 +7,7 @@
       closable
       show-icon
       class="quota-alert"
-      description="管理 Nacos 数据源，支持配置管理、服务发现与命名空间管理。请先选择 Nacos 类型数据源，再进行管理。"
+      description="管理 Nacos 数据源，支持配置管理、服务发现与命名空间管理。请先添加 Nacos 数据来源，类型为中间件，再进行管理。"
       @close="alertVisible = false"
     />
 
@@ -92,7 +92,11 @@
           >
         </template>
         <template v-else-if="activeTab === 'namespace'">
-          <ElButton v-ripple type="primary" :disabled="!selectedDatasource" @click="nsCreateVisible = true"
+          <ElButton
+            v-ripple
+            type="primary"
+            :disabled="!selectedDatasource"
+            @click="nsCreateVisible = true"
             >新建命名空间</ElButton
           >
         </template>
@@ -155,7 +159,11 @@
       </div>
     </div>
 
-    <ElCard shadow="never" class="art-table-card" :class="{ 'art-table-card--after-toolbar': true }">
+    <ElCard
+      shadow="never"
+      class="art-table-card"
+      :class="{ 'art-table-card--after-toolbar': true }"
+    >
       <ElTabs v-model="activeTab" class="nacos-tabs" @tab-change="onTabChange">
         <!-- 配置管理 -->
         <ElTabPane label="配置管理" name="config">
@@ -225,7 +233,12 @@
               <ElTableColumn prop="name" label="服务名称" min-width="240" show-overflow-tooltip />
               <ElTableColumn prop="clusterCount" label="集群数" width="90" align="right" />
               <ElTableColumn prop="ipCount" label="实例数" width="90" align="right" />
-              <ElTableColumn prop="healthyInstanceCount" label="健康实例数" width="110" align="right" />
+              <ElTableColumn
+                prop="healthyInstanceCount"
+                label="健康实例数"
+                width="110"
+                align="right"
+              />
               <ElTableColumn label="保护阈值" width="100" align="center">
                 <template #default="{ row }">
                   <ElTag :type="row.triggerProtectThreshold ? 'warning' : 'info'" size="small">
@@ -272,7 +285,12 @@
                   <ElTag v-if="row.namespace === ''" type="info" size="small">public</ElTag>
                 </template>
               </ElTableColumn>
-              <ElTableColumn prop="namespace" label="命名空间 ID" min-width="260" show-overflow-tooltip>
+              <ElTableColumn
+                prop="namespace"
+                label="命名空间 ID"
+                min-width="260"
+                show-overflow-tooltip
+              >
                 <template #default="{ row }">{{ row.namespace || '-' }}</template>
               </ElTableColumn>
               <ElTableColumn prop="configCount" label="配置数" width="100" align="right" />
@@ -550,7 +568,8 @@
   const namespaceOptions = computed(() => [
     { value: '', label: 'public' },
     ...namespaceList.value
-      .filter((item) => item.namespace !== '')
+      // v3 命名空间列表自带 public 条目，与上方固定选项去重
+      .filter((item) => item.namespace !== '' && item.namespace !== 'public')
       .map((item) => ({ value: item.namespace, label: item.namespaceShowName }))
   ])
 
@@ -579,8 +598,9 @@
       serverState.value = await fetchNacosServerState(ds)
       connectOk.value = true
       await fetchNamespaces()
-      await loadExtraStats()
       await loadActiveTab()
+      // 指标探测（v3 Admin 端口）可能较慢，不阻塞列表渲染
+      void loadExtraStats()
     } catch (error) {
       connectOk.value = false
       serverState.value = null
@@ -850,9 +870,7 @@
   async function handleBatchDeleteConfigs() {
     const ds = selectedDatasource.value
     if (!ds || !selectedConfigs.value.length) return
-    const names = selectedConfigs.value
-      .map((c) => `${c.dataId}（${c.group}）`)
-      .join('、')
+    const names = selectedConfigs.value.map((c) => `${c.dataId}（${c.group}）`).join('、')
     try {
       await ElMessageBox.confirm(
         `确定删除以下 ${selectedConfigs.value.length} 个配置吗？\n${names}\n\n此操作不可恢复。`,

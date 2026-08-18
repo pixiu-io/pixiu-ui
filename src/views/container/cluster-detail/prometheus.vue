@@ -86,7 +86,6 @@
             v-model:timeRange="timeRange"
             v-model:granularity="granularity"
             v-model:autoRefresh="autoRefresh"
-            v-model:showLegend="showLegend"
             :show-granularity="false"
             :show-legend="false"
             class="prometheus-dashboard__toolbar"

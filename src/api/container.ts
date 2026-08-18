@@ -149,6 +149,9 @@ export function isPixiuApiEnvelope(body: unknown): body is { code: number; messa
   if (o.kind === 'Status') return false
   if (Array.isArray(o.items)) return false
   if (typeof o.apiVersion === 'string' && typeof o.kind === 'string') return false
+  // Nacos v3 统一包为 {code,message,data}（成功 code=0）；pixiu 后端数据字段恒为 result，
+  // 含 data 的一律视为第三方透传响应，交由各数据源客户端自行解包
+  if ('data' in o) return false
   return true
 }
 

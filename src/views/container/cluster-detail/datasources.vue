@@ -399,7 +399,11 @@
       { label: 'Nacos', value: 'nacos' }
     ],
     1: [{ label: 'Prometheus', value: 'prometheus', disabled: true }],
-    2: [{ label: 'Redis', value: 'redis', disabled: true }]
+    2: [{ label: 'Redis', value: 'redis', disabled: true }],
+    3: [
+      { label: 'Nacos', value: 'nacos' },
+      { label: 'Redis', value: 'redis', disabled: true }
+    ]
   }
 
   const subTypeMeta: Record<DatasourceSubType, { label: string; icon: string }> = {

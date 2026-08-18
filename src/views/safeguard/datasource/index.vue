@@ -8,7 +8,7 @@
       show-icon
       class="quota-alert"
       style="margin: 5px 0 20px 0"
-      description="管理日志和告警数据源，支持 Loki、Elasticsearch、Prometheus 等类型。"
+      description="管理日志、告警、中间件类型，支持 Loki、Elasticsearch、Prometheus、Nacos、Redis 等数据来源。"
       @close="alertVisible = false"
     />
     <div
