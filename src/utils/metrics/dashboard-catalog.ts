@@ -117,6 +117,58 @@ function containerExpr(metric: string, filters: DashboardFilters, useRate: boole
   return workloadJoin(expression, filters)
 }
 
+/** 转义 PromQL 正则 label matcher 值中的正则元字符 */
+function escapePromQLRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/**
+ * node_exporter 指标按节点匹配：node_* 的 instance 通常为 <node>:<port>，
+ * 以 instance=~"<node>:.*" 前缀匹配（需转义节点名中的正则元字符）。
+ */
+function nodeInstanceSelector(
+  metric: string,
+  filters: DashboardFilters,
+  ...extra: string[]
+): string {
+  const parts: string[] = []
+  const node = filters.node?.trim()
+  if (node) parts.push(`instance=~"${escapePromQLRegex(node)}:.*"`)
+  parts.push(...extra)
+  return parts.length ? `${metric}{${parts.join(',')}}` : metric
+}
+
+/** cAdvisor 容器指标按节点精确匹配（container_* 带 node label） */
+function nodeContainerExpr(metric: string, filters: DashboardFilters, useRate: boolean): string {
+  const parts: string[] = ['container!=""', 'image!=""']
+  const node = filters.node?.trim()
+  if (node) parts.unshift(`node=${promqlQuote(node)}`)
+  let expression = `${metric}{${parts.join(',')}}`
+  if (useRate) expression = `rate(${expression}[5m])`
+  return expression
+}
+
+/** 逗号分隔 pod 名列表 → pod=~"a|b" 正则 matcher（对名称中的正则元字符做转义） */
+function podFilterPattern(filters: DashboardFilters): string {
+  const names = (filters.pod?.split(',') ?? [])
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((name) => escapePromQLRegex(name))
+  return names.join('|')
+}
+
+/** 集群聚合的容器指标表达式，按 namespace + pod 正则过滤（供 workload 多 Pod 折线复用） */
+function podAggregateExpr(metric: string, filters: DashboardFilters, useRate: boolean): string {
+  const parts: string[] = ['container!=""', 'image!=""']
+  const namespace = filters.namespace?.trim()
+  if (namespace) parts.push(`namespace=${promqlQuote(namespace)}`)
+  const pattern = podFilterPattern(filters)
+  if (pattern) parts.push(`pod=~"${pattern}"`)
+  let expression = `${metric}{${parts.join(',')}}`
+  if (useRate) expression = `rate(${expression}[5m])`
+  return expression
+}
+
 function clusterCPUUsage(filters: DashboardFilters): string {
   return (
     `100 * sum(${containerExpr('container_cpu_usage_seconds_total', filters, true)}) / ` +
@@ -619,6 +671,77 @@ const panelSpecs: DashboardPanelSpec[] = [
     podMemory
   ),
 
+  // 节点详情监控趋势面板（node_exporter + cAdvisor，不依赖 kube-state-metrics；
+  // 供节点详情 hook 复用，不进入 sections 导航）
+  panel(
+    'node',
+    'node.cpu_total_trend',
+    '节点 CPU 总配置',
+    'line',
+    'cores',
+    4,
+    [],
+    true,
+    (filters) => `count(${nodeInstanceSelector('node_cpu_seconds_total', filters, 'mode="idle"')})`
+  ),
+  panel(
+    'node',
+    'node.cpu_util_trend',
+    '节点 CPU 利用率',
+    'line',
+    'percent',
+    4,
+    [],
+    true,
+    (filters) =>
+      `100 * sum(${nodeContainerExpr('container_cpu_usage_seconds_total', filters, true)}) / sum(count(${nodeInstanceSelector('node_cpu_seconds_total', filters, 'mode="idle"')}) by (instance))`
+  ),
+  panel(
+    'node',
+    'node.cpu_usage_trend',
+    '节点 CPU 使用量',
+    'line',
+    'cores',
+    4,
+    [],
+    true,
+    (filters) => `sum(${nodeContainerExpr('container_cpu_usage_seconds_total', filters, true)})`
+  ),
+  panel(
+    'node',
+    'node.memory_total_trend',
+    '节点内存总量',
+    'line',
+    'bytes',
+    4,
+    [],
+    true,
+    (filters) => `sum(${nodeInstanceSelector('node_memory_MemTotal_bytes', filters)})`
+  ),
+  panel(
+    'node',
+    'node.memory_util_trend',
+    '节点内存使用率',
+    'line',
+    'percent',
+    4,
+    [],
+    true,
+    (filters) =>
+      `100 * sum(${nodeContainerExpr('container_memory_working_set_bytes', filters, false)}) / sum(${nodeInstanceSelector('node_memory_MemTotal_bytes', filters)})`
+  ),
+  panel(
+    'node',
+    'node.memory_usage_trend',
+    '节点内存使用量',
+    'line',
+    'bytes',
+    4,
+    [],
+    true,
+    (filters) => `sum(${nodeContainerExpr('container_memory_working_set_bytes', filters, false)})`
+  ),
+
   panel(
     'workload',
     'workload.deployments',
@@ -711,6 +834,32 @@ const panelSpecs: DashboardPanelSpec[] = [
     podPhase
   ),
 
+  // 集群聚合 Pod 用量趋势面板（供 workload 详情多 Pod 折线复用；不进入 sections 导航）
+  panel(
+    'pod',
+    'pod.cpu_usage_trend',
+    'Pod CPU 使用量',
+    'line',
+    'cores',
+    6,
+    [],
+    true,
+    (filters) =>
+      `sum by (namespace,pod) (${podAggregateExpr('container_cpu_usage_seconds_total', filters, true)})`
+  ),
+  panel(
+    'pod',
+    'pod.memory_usage_trend',
+    'Pod 内存使用量',
+    'line',
+    'bytes',
+    6,
+    [],
+    true,
+    (filters) =>
+      `sum by (namespace,pod) (${podAggregateExpr('container_memory_working_set_bytes', filters, false)})`
+  ),
+
   panel(
     'network',
     'network.receive',
@@ -762,10 +911,9 @@ const panelSpecs: DashboardPanelSpec[] = [
     'line',
     'MBytes',
     4,
-    ['container_network_transmit_bytes_total'],
+    [],
     true,
-    (filters) =>
-      `sum(${containerExpr('container_network_transmit_bytes_total', filters, true)}) / 1024 / 1024`
+    () => `sum(rate(container_network_transmit_bytes_total[5m])) / 1024 / 1024`
   ),
   panel(
     'network',
@@ -774,10 +922,9 @@ const panelSpecs: DashboardPanelSpec[] = [
     'line',
     'MBytes',
     4,
-    ['container_network_receive_bytes_total'],
+    [],
     true,
-    (filters) =>
-      `sum(${containerExpr('container_network_receive_bytes_total', filters, true)}) / 1024 / 1024`
+    () => `sum(rate(container_network_receive_bytes_total[5m])) / 1024 / 1024`
   ),
   panel(
     'network',
@@ -786,10 +933,10 @@ const panelSpecs: DashboardPanelSpec[] = [
     'line',
     'Mbps',
     4,
-    ['container_network_transmit_bytes_total', 'container_network_receive_bytes_total'],
+    [],
     true,
-    (filters) =>
-      `(sum(${containerExpr('container_network_transmit_bytes_total', filters, true)}) + sum(${containerExpr('container_network_receive_bytes_total', filters, true)})) * 8 / 1000 / 1000`
+    () =>
+      `(sum(rate(container_network_transmit_bytes_total[5m])) + sum(rate(container_network_receive_bytes_total[5m]))) * 8 / 1000 / 1000`
   ),
   panel(
     'network',
@@ -798,10 +945,10 @@ const panelSpecs: DashboardPanelSpec[] = [
     'line',
     'pps',
     4,
-    ['container_network_transmit_packets_total', 'container_network_receive_packets_total'],
+    [],
     true,
-    (filters) =>
-      `sum(${containerExpr('container_network_transmit_packets_total', filters, true)}) + sum(${containerExpr('container_network_receive_packets_total', filters, true)})`
+    () =>
+      `sum(rate(container_network_transmit_packets_total[5m])) + sum(rate(container_network_receive_packets_total[5m]))`
   ),
 
   panel(

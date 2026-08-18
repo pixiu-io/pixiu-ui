@@ -846,12 +846,36 @@ export async function fetchPermissionList(params: {
   }
 }
 
+// 权限详情请求去重 + 短缓存：进入集群详情时 layout/namespaces 等多组件并发拉取同一 pid，合并为一次实际请求
+const permissionCache = new Map<number, { detail: PermissionListItem; ts: number }>()
+const permissionInflight = new Map<number, Promise<PermissionListItem>>()
+const PERMISSION_CACHE_TTL = 10 * 1000
+
 /** 权限详情 */
 export async function fetchGetPermission(permissionId: number): Promise<PermissionListItem> {
-  const res = await pixiuAxios.get(`/pixiu/clusters/permissions/${permissionId}`)
-  const { code, result, message } = res.data
-  if (code !== 200) throw new Error(message || '获取权限详情失败')
-  return mapPermissionItem(result as BackendPermission)
+  const cached = permissionCache.get(permissionId)
+  if (cached && Date.now() - cached.ts < PERMISSION_CACHE_TTL) return cached.detail
+
+  const inflight = permissionInflight.get(permissionId)
+  if (inflight) return inflight
+
+  const request = pixiuAxios
+    .get(`/pixiu/clusters/permissions/${permissionId}`)
+    .then((res) => {
+      const { code, result, message } = res.data
+      if (code !== 200) throw new Error(message || '获取权限详情失败')
+      return mapPermissionItem(result as BackendPermission)
+    })
+    .then((detail) => {
+      permissionCache.set(permissionId, { detail, ts: Date.now() })
+      return detail
+    })
+    .finally(() => {
+      permissionInflight.delete(permissionId)
+    })
+
+  permissionInflight.set(permissionId, request)
+  return request
 }
 
 /** 删除权限 */

@@ -1,19 +1,23 @@
-import { type ComputedRef, type Ref, computed, ref, unref } from 'vue'
+import { type ComputedRef, type Ref, computed, ref, unref, watch } from 'vue'
 import { kubeProxyAxios } from '@/api/kubeProxy'
 import { fetchK8sPod, type K8sPod } from '@/api/kubernetes/pod'
+import { fetchDashboardQuery, type DashboardPanelResult } from '@/api/dashboard'
 import {
-  alignPodMetricSeries,
   bytesToGib,
-  fetchPodsUsageMetrics,
   getPodCpuQuotaMillicores,
   getPodMemoryQuotaBytes,
-  splitDashboardPodMetricPoints,
   type MetricsPodSpec
 } from '@/api/kubernetes/metrics'
 import type { LineDataItem } from '@/types/component/chart'
+import { loadPrometheusDatasource } from '@/utils/datasource/prometheus-datasource'
+import { METRICS_TIME_PRESETS, type MetricsTimeRange } from '@/utils/metrics/time-range'
 
 const CPU_METRIC_TITLES = ['CPU 总配置（核）', 'CPU 利用率（%）', 'CPU 使用量（核）'] as const
 const MEMORY_METRIC_TITLES = ['内存总量（GB）', '内存使用率（%）', '内存使用量（GB）'] as const
+
+const POD_PANEL_IDS = ['pod.cpu_usage_trend', 'pod.memory_usage_trend'] as const
+
+const TWENTY_FOUR_HOURS_SECONDS = 24 * 60 * 60
 
 export type WorkloadMetricChartItem = {
   title: string
@@ -67,15 +71,57 @@ async function fetchWorkloadPods(
   return data.items ?? []
 }
 
+function round(value: number, digits: number): number {
+  return Number.isFinite(value) ? +value.toFixed(digits) : 0
+}
+
+function toTimeLabel(timestamp: number): string {
+  const d = new Date(timestamp * 1000)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 /**
- * Workload 下多 Pod CPU/内存时序（pod-list 逗号拼接一次请求，每 Pod 一条折线）
+ * 将 Prometheus 逐 Pod 折线系列对齐到指定 Pod 顺序：
+ * series 缺 Pod（当前窗口无该 Pod 样本）时补全为全 null 序列，保证折线数量与 Pod 数一致。
+ */
+function buildAlignedPodSeries(
+  result: DashboardPanelResult,
+  podOrder: string[]
+): { labels: string[]; series: LineDataItem[] } {
+  const byPod = new Map<string, LineDataItem>()
+  for (const s of result.series ?? []) {
+    const pod = s.metric.pod ?? ''
+    if (!pod) continue
+    byPod.set(pod, {
+      name: pod,
+      data: s.values.map((p) => Number(p.value))
+    })
+  }
+  const labels = result.series?.[0]?.values.map((p) => toTimeLabel(p.timestamp)) ?? []
+  const series: LineDataItem[] = []
+  for (const podName of podOrder) {
+    const item = byPod.get(podName)
+    series.push(item ?? { name: podName, data: labels.map(() => null as unknown as number) })
+  }
+  return { labels, series }
+}
+
+/**
+ * Workload 下多 Pod CPU/内存时序（Prometheus 数据源，每 Pod 一条折线）
+ *
+ * Pod 列表（labelSelector / fixedPodNames）仍从 K8s API 解析，用量从 Prometheus 拉取：
+ * pod.cpu_usage_trend（核）/ pod.memory_usage_trend（字节）按 pod label 聚合。
+ * 总配置（CPU/内存 quota）来自 Pod spec，利用率 = 用量 / quota 回算。
  */
 export function useWorkloadPodsUsageMetrics(
   clusterName: Ref<string> | ComputedRef<string>,
   namespace: Ref<string> | ComputedRef<string>,
   labelSelector: Ref<string> | ComputedRef<string>,
   /** 固定 Pod 列表（如 Pod 详情单 Pod）；有值时忽略 labelSelector */
-  fixedPodNames?: Ref<string[]> | ComputedRef<string[]>
+  fixedPodNames?: Ref<string[]> | ComputedRef<string[]>,
+  /** 时间范围（最大化弹窗内选择器调整）；未传时固定近 24h */
+  timeRange?: Ref<MetricsTimeRange> | ComputedRef<MetricsTimeRange>
 ) {
   const cluster = computed(() => String(unref(clusterName) || '').trim())
   const ns = computed(() => String(unref(namespace) || '').trim())
@@ -107,6 +153,31 @@ export function useWorkloadPodsUsageMetrics(
     for (const item of memoryMetrics.value) item.data = []
   }
 
+  /**
+   * 时间范围归一化：相对 preset（如 24h/7d）以当前时间重算，保证自动刷新时时间窗滑动；
+   * custom/yesterday 用传入值；未传 timeRange 时固定回退近 24 小时。
+   * 返回秒级 [start, end]。
+   */
+  function normalizedTimeRange(): { start: number; end: number } {
+    if (!timeRange) {
+      const end = Math.floor(Date.now() / 1000)
+      return { start: end - TWENTY_FOUR_HOURS_SECONDS, end }
+    }
+    const range = unref(timeRange)
+    const preset = METRICS_TIME_PRESETS.find((item) => item.key === range.presetKey)
+    if (!preset || range.presetKey === 'custom' || range.presetKey === 'yesterday') {
+      return {
+        start: Math.floor(range.start.getTime() / 1000),
+        end: Math.floor(range.end.getTime() / 1000)
+      }
+    }
+    const normalized = preset.getRange(new Date())
+    return {
+      start: Math.floor(normalized.start.getTime() / 1000),
+      end: Math.floor(normalized.end.getTime() / 1000)
+    }
+  }
+
   async function resolvePods(): Promise<MetricsPodSpec[]> {
     const override = podNamesOverride.value
     if (override.length) {
@@ -119,6 +190,7 @@ export function useWorkloadPodsUsageMetrics(
     return fetchWorkloadPods(cluster.value, ns.value, selector.value) as any
   }
 
+  /** usageSeries 单位：核（Prometheus rate）；总配置/利用率按 Pod quota 回算 */
   function applyCpuCharts(labels: string[], usageSeries: LineDataItem[]) {
     cpuTimeLabels.value = labels
     const quotaByPod = podQuotaMap.value
@@ -129,9 +201,10 @@ export function useWorkloadPodsUsageMetrics(
     })
     cpuMetrics.value[1].data = usageSeries.map((s) => {
       const millic = quotaByPod.get(s.name)?.cpuMillic ?? 0
-      return buildUtilizationSeries([s], millic, (v) => (millic > 0 ? (v / millic) * 100 : 0))[0]
+      const cores = millic > 0 ? millic / 1000 : 0
+      return buildUtilizationSeries([s], cores, (v) => (cores > 0 ? (v / cores) * 100 : 0))[0]
     })
-    cpuMetrics.value[2].data = mapSeriesValues(usageSeries, (v) => +(v / 1000).toFixed(2))
+    cpuMetrics.value[2].data = mapSeriesValues(usageSeries, (v) => round(v, 2))
   }
 
   function applyMemoryCharts(labels: string[], usageSeries: LineDataItem[]) {
@@ -182,32 +255,69 @@ export function useWorkloadPodsUsageMetrics(
         return
       }
 
-      const [cpuRes, memRes] = await Promise.all([
-        fetchPodsUsageMetrics(clusterId, namespace, names, 'cpu', 'usage'),
-        fetchPodsUsageMetrics(clusterId, namespace, names, 'memory', 'usage')
-      ])
+      const datasource = await loadPrometheusDatasource(clusterId)
+      if (!datasource) {
+        if (!silent) resetCharts()
+        return
+      }
 
-      const cpuMaps = splitDashboardPodMetricPoints(cpuRes.items)
-      const memMaps = splitDashboardPodMetricPoints(memRes.items)
+      const { start, end } = normalizedTimeRange()
+      const durationSeconds = Math.max(1, end - start)
+      const step = Math.max(60, Math.ceil(durationSeconds / 600))
 
-      const cpuAligned = alignPodMetricSeries(cpuMaps, names)
-      const memAligned = alignPodMetricSeries(memMaps, names)
+      let cpuResult: DashboardPanelResult | undefined
+      let memResult: DashboardPanelResult | undefined
+      let panelIndex = 0
+      const workerCount = Math.min(6, POD_PANEL_IDS.length)
+      const workers = Array.from({ length: workerCount }, async () => {
+        while (panelIndex < POD_PANEL_IDS.length) {
+          const panelId = POD_PANEL_IDS[panelIndex]
+          panelIndex += 1
+          try {
+            const response = await fetchDashboardQuery(datasource, {
+              panelIds: [panelId],
+              start,
+              end,
+              step,
+              filters: { namespace, pod: names.join(',') }
+            })
+            const result = response.results[0]
+            if (result?.id === 'pod.cpu_usage_trend') cpuResult = result
+            else if (result?.id === 'pod.memory_usage_trend') memResult = result
+          } catch {
+            /* 单个面板失败不影响其他卡 */
+          }
+        }
+      })
+      await Promise.all(workers)
 
-      if (cpuAligned.labels.length) {
-        applyCpuCharts(cpuAligned.labels, cpuAligned.series)
+      if (cpuResult) {
+        const aligned = buildAlignedPodSeries(cpuResult, names)
+        if (aligned.labels.length) {
+          applyCpuCharts(aligned.labels, aligned.series)
+        } else {
+          cpuTimeLabels.value = []
+          for (const item of cpuMetrics.value) item.data = []
+        }
       } else {
         cpuTimeLabels.value = []
         for (const item of cpuMetrics.value) item.data = []
       }
 
-      if (memAligned.labels.length) {
-        applyMemoryCharts(memAligned.labels, memAligned.series)
+      if (memResult) {
+        const aligned = buildAlignedPodSeries(memResult, names)
+        if (aligned.labels.length) {
+          applyMemoryCharts(aligned.labels, aligned.series)
+        } else {
+          memoryTimeLabels.value = []
+          for (const item of memoryMetrics.value) item.data = []
+        }
       } else {
         memoryTimeLabels.value = []
         for (const item of memoryMetrics.value) item.data = []
       }
 
-      chartReady.value = cpuAligned.labels.length > 0 || memAligned.labels.length > 0
+      chartReady.value = cpuTimeLabels.value.length > 0 || memoryTimeLabels.value.length > 0
     } catch {
       if (!silent) resetCharts()
     } finally {
@@ -230,6 +340,13 @@ export function useWorkloadPodsUsageMetrics(
 
   function refresh() {
     return load(true)
+  }
+
+  // 时间范围调整（最大化弹窗内选择器）时静默重新查询
+  if (timeRange) {
+    watch(timeRange, () => {
+      void load(true)
+    })
   }
 
   return {

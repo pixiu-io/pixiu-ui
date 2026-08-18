@@ -90,16 +90,7 @@
             </ElRow>
 
             <section class="section-title" style="margin-top: 10px">用量概览</section>
-            <ElCard
-              v-if="usageDatasourceMissing"
-              shadow="never"
-              class="usage-status-card usage-empty-card"
-            >
-              <div class="usage-empty-state">
-                <span class="usage-empty-state__icon"><ArtSvgIcon icon="ri:inbox-line" /></span>
-              </div>
-            </ElCard>
-            <ElCard v-else shadow="never" class="usage-status-card">
+            <ElCard shadow="never" class="usage-status-card">
               <div class="usage-overview-head">
                 <div class="usage-overview-head__sub">过去24小时内每小时平均数据</div>
                 <ElLink type="primary" underline="never" @click="go('prometheus')"
@@ -259,16 +250,7 @@
         </div>
 
         <section class="section-title" style="margin-top: 10px">用量趋势（近 24 小时）</section>
-        <ElCard
-          v-if="usageDatasourceMissing"
-          shadow="never"
-          class="usage-overview-card usage-empty-card"
-        >
-          <div class="usage-empty-state">
-            <span class="usage-empty-state__icon"><ArtSvgIcon icon="ri:inbox-line" /></span>
-          </div>
-        </ElCard>
-        <ElCard v-else shadow="never" class="usage-overview-card">
+        <ElCard shadow="never" class="usage-overview-card">
           <div class="usage-overview-grid">
             <MetricChartPanel
               title="CPU 利用率（%）"
@@ -1184,7 +1166,6 @@
 
   const {
     chartReady: usageChartReady,
-    datasourceMissing: usageDatasourceMissing,
     cpuTimeLabels: cpuUtilLabels,
     cpuUtilPercent,
     memUtilPercent,

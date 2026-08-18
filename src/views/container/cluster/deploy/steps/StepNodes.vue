@@ -108,7 +108,7 @@
     <ElDialog
       v-model="dialogVisible"
       :title="editIndex >= 0 ? '编辑节点' : '新增节点'"
-      width="540px"
+      width="510px"
       align-center
       destroy-on-close
       :lock-scroll="false"
@@ -119,7 +119,7 @@
         ref="nodeFormRef"
         :model="nodeForm"
         :rules="nodeRules"
-        label-width="88px"
+        label-width="80px"
         label-position="right"
         class="node-form"
       >
@@ -169,20 +169,12 @@
           <template #label>
             <ElButton link type="primary" @click="advancedVisible = !advancedVisible">
               高级选项
-              <ArtSvgIcon
-                :icon="advancedVisible ? 'ri:arrow-up-s-line' : 'ri:arrow-down-s-line'"
-                class="node-advanced-toggle__icon"
-              />
             </ElButton>
           </template>
         </ElFormItem>
         <template v-if="advancedVisible">
           <ElFormItem label="SSH 端口" prop="port">
-            <ElInputNumber
-              v-model="nodeForm.port"
-              :min="1"
-              :max="65535"
-            />
+            <ElInputNumber v-model="nodeForm.port" :min="1" :max="65535" />
           </ElFormItem>
           <ElFormItem
             v-if="nodeForm.authType === 'password' && nodeForm.user.trim() !== 'root'"
@@ -200,8 +192,13 @@
         </template>
       </ElForm>
       <template #footer>
-        <ElButton class="node-form-dialog__btn" @click="dialogVisible = false">取消</ElButton>
-        <ElButton class="node-form-dialog__btn" type="primary" @click="submitNode">确定</ElButton>
+        <div class="node-form-footer">
+          <ElButton :loading="nodeTesting" @click="testNodeConnectivity">测试联通</ElButton>
+          <div class="node-form-footer__right">
+            <ElButton @click="dialogVisible = false">取消</ElButton>
+            <ElButton type="primary" @click="submitNode">确定</ElButton>
+          </div>
+        </div>
       </template>
     </ElDialog>
   </div>
@@ -211,6 +208,7 @@
   import type { FormInstance, FormRules } from 'element-plus'
   import { ElLink } from 'element-plus'
   import type { DeployClusterForm, NodeConfig } from './StepBasic.vue'
+  import { fetchNodeConnectivityByAuth } from '@/api/node'
 
   defineOptions({ name: 'StepNodes' })
 
@@ -229,6 +227,7 @@
   const editIndex = ref(-1)
   const nodeFormRef = ref<FormInstance>()
   const advancedVisible = ref(false)
+  const nodeTesting = ref(false)
 
   const emptyNode = (): NodeConfig => ({
     name: '',
@@ -411,6 +410,35 @@
     nodeFormRef.value?.clearValidate()
   }
 
+  /** 新增/编辑节点前 SSH 连通性预检（模式B：使用表单当前填写的 host+凭据） */
+  async function testNodeConnectivity() {
+    if (nodeTesting.value) return
+    if (!nodeForm.ip.trim()) {
+      ElMessage.warning('请先填写 IP 地址')
+      return
+    }
+    nodeTesting.value = true
+    try {
+      const params = {
+        host: nodeForm.ip.trim(),
+        port: nodeForm.port || 22,
+        user: nodeForm.user.trim() || 'root',
+        password: nodeForm.authType === 'password' ? nodeForm.password : '',
+        privateKey: nodeForm.authType === 'key' ? nodeForm.privateKey : ''
+      }
+      const r = await fetchNodeConnectivityByAuth(params)
+      if (r.connected) {
+        ElMessage.success(`${params.host} SSH 连通正常`)
+      } else {
+        ElMessage.error(`${params.host} SSH 连通失败：${r.message || '未知原因'}`)
+      }
+    } catch (e: any) {
+      ElMessage.error(`测试失败：${e?.message || '未知错误'}`)
+    } finally {
+      nodeTesting.value = false
+    }
+  }
+
   async function validate(): Promise<boolean> {
     if (props.form.nodes.length === 0) {
       ElMessage.warning('请至少添加一个节点')
@@ -537,185 +565,63 @@
     padding: 0;
   }
 
-  .node-advanced-toggle__icon {
-    margin-left: 2px;
-    font-size: 12px;
-  }
-
-  .node-form :deep(.el-input-number) {
-    width: 100%;
-  }
-
-  .node-form :deep(.el-form-item) {
-    margin-bottom: 16px;
+  .node-form {
+    padding-top: 12px;
   }
 
   .node-form :deep(.el-form-item:first-child) {
-    margin-top: 2px;
+    margin-top: 6px;
   }
 
-  .node-form :deep(.el-form-item:last-child) {
-    margin-bottom: 8px;
+  .node-form :deep(.el-form-item__label) {
+    font-size: 12px;
+    color: var(--el-text-color-regular);
+    padding-right: 12px;
   }
 
-  .node-role-group,
-  .node-auth-group {
-    display: flex;
-    gap: 22px;
-    align-items: center;
-    min-height: 34px;
-    line-height: 34px;
+  .node-form :deep(.el-form-item__content) {
+    max-width: 480px;
+  }
+
+  .node-form :deep(.el-form-item__content .el-input),
+  .node-form :deep(.el-form-item__content .el-textarea) {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .node-form :deep(.el-input__inner),
+  .node-form :deep(.el-textarea__inner) {
+    font-size: 12px;
+    color: var(--el-text-color-primary);
+  }
+
+  .node-form :deep(.el-input-number) {
+    width: 120px !important;
   }
 
   .node-auth-group :deep(.el-radio__label) {
     font-size: 12px;
   }
 
-  .node-form-dialog :deep(.el-dialog__header) {
-    margin-right: 0;
-    padding: 14px 20px 8px;
+  .node-auth-group :deep(.el-radio__inner) {
+    width: 12px;
+    height: 12px;
   }
 
-  .node-form-dialog :deep(.el-dialog__body) {
-    padding: 4px 52px 6px !important;
+  .node-role-group :deep(.el-checkbox__label) {
+    font-size: 12px;
   }
 
-  .node-form-dialog :deep(.el-dialog__footer) {
-    padding: 4px 20px 12px;
+  .node-form-footer {
     display: flex;
-    justify-content: flex-end;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .node-form-footer__right {
+    display: flex;
+    align-items: center;
     gap: 8px;
-  }
-
-  .node-form-dialog :deep(.el-dialog__headerbtn) {
-    top: 14px;
-    right: 16px;
-  }
-
-  .node-form-dialog :deep(.el-dialog__close) {
-    font-size: 16px;
-  }
-
-  .node-form-dialog :deep(.el-dialog__title) {
-    font-size: 20px;
-    font-weight: 600;
-    line-height: 1.2;
-    color: var(--el-text-color-primary);
-  }
-
-  .node-form-dialog :deep(.el-input__wrapper) {
-    min-height: 34px;
-    border-radius: 6px;
-  }
-
-  .node-form-dialog :deep(.el-input__wrapper:hover) {
-    box-shadow: 0 0 0 1px var(--el-border-color-hover) inset;
-  }
-
-  .node-form-dialog :deep(.el-input__wrapper.is-focus) {
-    box-shadow: 0 0 0 1px var(--el-color-primary) inset;
-  }
-
-  .node-form-dialog :deep(.el-input__inner),
-  .node-form-dialog :deep(.el-textarea__inner) {
-    font-size: 12px;
-    color: var(--el-text-color-primary);
-  }
-
-  .node-form-dialog :deep(.el-input__inner::placeholder),
-  .node-form-dialog :deep(.el-textarea__inner::placeholder) {
-    color: var(--el-text-color-placeholder);
-    opacity: 0.9;
-  }
-
-  .node-form-dialog :deep(.el-form-item__content) {
-    line-height: 34px;
-  }
-
-  .node-form-dialog :deep(.el-form-item__content .el-checkbox-group),
-  .node-form-dialog :deep(.el-form-item__content .el-radio-group) {
-    display: inline-flex;
-    align-items: center;
-    min-height: 34px;
-    line-height: 34px;
-    margin-left: 0;
-  }
-
-  .node-form-dialog :deep(.el-form-item__label) {
-    font-size: 12px;
-    color: var(--el-text-color-regular);
-  }
-
-  .node-form-dialog
-    :deep(.el-form-item.is-required:not(.is-no-asterisk) > .el-form-item__label:before) {
-    margin-right: 4px;
-  }
-
-  .node-form-dialog :deep(.el-textarea__inner) {
-    min-height: 120px !important;
-    border-radius: 6px;
-  }
-
-  .node-form-dialog :deep(.el-textarea__inner:hover) {
-    border-color: var(--el-border-color-hover);
-  }
-
-  .node-form-dialog :deep(.el-textarea__inner:focus) {
-    border-color: var(--el-color-primary);
-  }
-
-  .node-form-dialog :deep(.el-radio),
-  .node-form-dialog :deep(.el-checkbox) {
-    height: 32px;
-    line-height: 32px;
-    margin-right: 0;
-  }
-
-  .node-form-dialog :deep(.el-radio__label),
-  .node-form-dialog :deep(.el-checkbox__label) {
-    font-size: 12px !important;
-  }
-
-  .node-form-dialog :deep(.el-radio__input.is-checked .el-radio__inner),
-  .node-form-dialog :deep(.el-checkbox__input.is-checked .el-checkbox__inner) {
-    border-color: var(--el-color-primary);
-    background-color: var(--el-color-primary);
-  }
-
-  .node-form-dialog :deep(.el-radio__input .el-radio__inner:hover),
-  .node-form-dialog :deep(.el-checkbox__input .el-checkbox__inner:hover) {
-    border-color: var(--el-color-primary-light-3);
-  }
-
-  .node-form-dialog :deep(.el-radio__input.is-checked + .el-radio__label),
-  .node-form-dialog :deep(.el-checkbox__input.is-checked + .el-checkbox__label) {
-    color: var(--el-color-primary);
-  }
-
-  .node-form-dialog__btn {
-    min-width: 72px;
-    height: 34px;
-    border-radius: 6px;
-  }
-
-  .node-form-dialog__btn:not(.el-button--primary) {
-    border-color: var(--el-border-color);
-    color: var(--el-text-color-primary);
-  }
-
-  .node-form-dialog__btn:not(.el-button--primary):hover {
-    border-color: var(--el-color-primary-light-3);
-    color: var(--el-color-primary);
-    background-color: var(--el-color-primary-light-9);
-  }
-
-  .node-form-dialog__btn.el-button--primary:hover {
-    filter: brightness(1.05);
-  }
-
-  .node-form-dialog :deep(.node-role-group .el-checkbox) {
-    display: inline-flex;
-    align-items: center;
   }
   .step-nodes :deep(.el-table__header) th {
     font-size: 13px;
@@ -723,5 +629,15 @@
 
   .step-nodes :deep(.el-table__body) td {
     font-size: 12px;
+  }
+</style>
+
+<style>
+  /* 与「主机管理」节点对话框一致：dialog 级样式需非 scoped 才能命中 teleport 后的 el-dialog 元素 */
+  .node-form-dialog .el-dialog__body {
+    padding: 10px 20px 12px 16px !important;
+  }
+  .node-form-dialog .el-dialog__footer {
+    padding: 12px 16px 16px 16px !important;
   }
 </style>

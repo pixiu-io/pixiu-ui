@@ -24,6 +24,10 @@
         :is-empty="isChartEmpty(item.data)"
         :silent-update="chartSilentUpdate"
         :show-legend="isMultiSeriesData(item.data)"
+        :expand-time-range="usageTimeRange"
+        @expand-time-range-change="onUsageTimeRangeChange"
+        height="120px"
+        :axis-font-size="10"
       />
     </div>
 
@@ -38,6 +42,10 @@
         :is-empty="isChartEmpty(item.data)"
         :silent-update="chartSilentUpdate"
         :show-legend="isMultiSeriesData(item.data)"
+        :expand-time-range="usageTimeRange"
+        @expand-time-range-change="onUsageTimeRangeChange"
+        height="120px"
+        :axis-font-size="10"
       />
     </div>
   </div>
@@ -51,6 +59,11 @@
     useWorkloadPodsUsageMetrics
   } from '@/hooks/kubernetes/useWorkloadPodsUsageMetrics'
   import type { LineDataItem } from '@/types/component/chart'
+  import {
+    getDefaultMetricsTimeRange,
+    METRICS_TIME_PRESETS,
+    type MetricsTimeRange
+  } from '@/utils/metrics/time-range'
 
   const props = defineProps<{
     cluster: string
@@ -66,6 +79,12 @@
   const selectorRef = computed(() => props.labelSelector ?? '')
   const podNamesRef = computed(() => props.podNames ?? [])
 
+  /** 监控时间范围：默认最近 24 小时；最大化弹窗内可调整，由 hook 内 watch 触发重新查询 */
+  const usageTimeRange = ref<MetricsTimeRange>(
+    METRICS_TIME_PRESETS.find((p) => p.key === '24h')?.getRange(new Date()) ??
+      getDefaultMetricsTimeRange()
+  )
+
   const {
     loading: metricsLoading,
     chartReady: metricsChartReady,
@@ -77,7 +96,13 @@
     startRefresh,
     stopRefresh,
     resetCharts
-  } = useWorkloadPodsUsageMetrics(clusterRef, namespaceRef, selectorRef, podNamesRef)
+  } = useWorkloadPodsUsageMetrics(
+    clusterRef,
+    namespaceRef,
+    selectorRef,
+    podNamesRef,
+    usageTimeRange
+  )
 
   const metricsInitialLoading = computed(() => metricsLoading.value && !metricsChartReady.value)
 
@@ -111,6 +136,11 @@
     await refresh()
     await nextTick()
     scheduleChartSilentUpdate()
+  }
+
+  /** 最大化弹窗内调整时间范围：更新 usageTimeRange，hook 内 watch 触发静默刷新 */
+  function onUsageTimeRangeChange(range: MetricsTimeRange) {
+    usageTimeRange.value = range
   }
 
   watch(

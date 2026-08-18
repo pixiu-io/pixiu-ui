@@ -41,7 +41,7 @@
 </template>
 
 <script setup lang="ts">
-  import { useMenuStore } from '@/store/modules/menu'
+  import { asyncRoutes } from '@/router/routes/asyncRoutes'
   import { formatMenuTitle } from '@/utils/router'
 
   type RoleListItem = Api.SystemManage.RoleListItem
@@ -63,7 +63,9 @@
 
   const emit = defineEmits<Emits>()
 
-  const { menuList } = storeToRefs(useMenuStore())
+  // 用全量前端路由作为菜单权限树数据源：配置角色权限需展示所有可选菜单（含当前用户未被授予的项，如 nacos），
+  // 不受登录用户菜单过滤（MenuProcessor.filterByMenus）影响
+  const menuList = computed(() => asyncRoutes as any[])
   const treeRef = ref()
   const isExpandAll = ref(true)
   const isSelectAll = ref(false)
