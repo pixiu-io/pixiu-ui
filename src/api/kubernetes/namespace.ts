@@ -51,6 +51,11 @@ export interface ResolvedClusterNamespaces {
   scoped: boolean
 }
 
+// resolveClusterNamespaces 请求去重 + 短缓存：进入集群详情时 layout(命名空间下拉) 与 namespaces(列表) 会并发/先后拉取同一 cluster+permissionId，合并为一次实际请求
+const nsResolveCache = new Map<string, { result: ResolvedClusterNamespaces; ts: number }>()
+const nsResolveInflight = new Map<string, Promise<ResolvedClusterNamespaces>>()
+const NS_RESOLVE_TTL = 5 * 1000
+
 /**
  * 按集群授权信息解析命名空间列表：
  * - 无 permissionId：全量 list
@@ -58,6 +63,30 @@ export interface ResolvedClusterNamespaces {
  * - 管理员/只读且 target_namespaces 为空：全量 list
  */
 export async function resolveClusterNamespaces(
+  cluster: string,
+  permissionId = 0
+): Promise<ResolvedClusterNamespaces> {
+  const key = `${cluster}:${permissionId}`
+  const cached = nsResolveCache.get(key)
+  if (cached && Date.now() - cached.ts < NS_RESOLVE_TTL) return cached.result
+
+  const inflight = nsResolveInflight.get(key)
+  if (inflight) return inflight
+
+  const request = resolveClusterNamespacesImpl(cluster, permissionId)
+    .then((result) => {
+      nsResolveCache.set(key, { result, ts: Date.now() })
+      return result
+    })
+    .finally(() => {
+      nsResolveInflight.delete(key)
+    })
+
+  nsResolveInflight.set(key, request)
+  return request
+}
+
+async function resolveClusterNamespacesImpl(
   cluster: string,
   permissionId = 0
 ): Promise<ResolvedClusterNamespaces> {

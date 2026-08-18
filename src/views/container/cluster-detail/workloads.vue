@@ -274,39 +274,39 @@
         </ElTabPane>
 
         <ElTabPane v-if="props.showNodeResourceTab" label="资源分配" name="nodeResource">
-          <div class="workloads-node-resource">
-            <div class="workloads-node-resource__list">
-              <div class="workloads-node-resource__head">
-                <span>Resource</span>
-                <span>Requests</span>
-                <span>Limits</span>
+          <div class="workloads-node-resource-grid">
+            <ElCard
+              v-for="row in props.nodeResourceRows"
+              :key="row.resource"
+              shadow="never"
+              class="node-resource-pie-card"
+            >
+              <div class="node-resource-pie-card__head">
+                <span class="node-resource-pie-card__name">{{ row.resource }}</span>
+                <span class="node-resource-pie-card__total">总量 {{ row.centerText }}</span>
               </div>
-              <div
-                v-for="row in props.nodeResourceRows"
-                :key="row.resource"
-                class="workloads-node-resource__line"
-              >
-                <div class="workloads-node-resource__name">{{ row.resource }}</div>
-                <div class="workloads-node-resource__metric">
-                  <ElProgress
-                    :percentage="Math.min(100, row.requestPercent)"
-                    :show-text="false"
-                    :stroke-width="8"
-                    color="#22c55e"
+              <div class="node-resource-pie-card__body">
+                <div class="node-resource-pie-card__chart">
+                  <ArtRingChart
+                    height="110px"
+                    :data="row.ringData"
+                    :colors="row.ringColors"
+                    :radius="['60%', '82%']"
+                    :border-radius="6"
+                    :center-text="row.centerText"
+                    :center-text-font-size="15"
+                    :show-label="false"
                   />
-                  <span>{{ row.requestText }}</span>
                 </div>
-                <div class="workloads-node-resource__metric">
-                  <ElProgress
-                    :percentage="Math.min(100, row.limitPercent)"
-                    :show-text="false"
-                    :stroke-width="8"
-                    color="#60a5fa"
-                  />
-                  <span>{{ row.limitText }}</span>
-                </div>
+                <ul class="node-resource-pie-card__stats">
+                  <li v-for="s in row.stats" :key="s.label">
+                    <span class="dot" :style="{ background: s.color }" />
+                    <span>{{ s.label }}</span>
+                    <strong>{{ s.value }}（{{ s.percent }}%）</strong>
+                  </li>
+                </ul>
               </div>
-            </div>
+            </ElCard>
           </div>
         </ElTabPane>
 
@@ -528,6 +528,7 @@
   import { computed, h, ref, watch, inject, onBeforeUnmount } from 'vue'
   import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
   import ClusterTableEmpty from './components/cluster-table-empty.vue'
+  import ArtRingChart from '@/components/core/charts/art-ring-chart/index.vue'
   import { buildClusterRouteQuery } from '@/utils/navigation/cluster-query'
   import { resolvePixiuWsOrigin } from '@/utils/pixiu-ws-origin'
   import { useRoute, useRouter } from 'vue-router'
@@ -635,10 +636,10 @@
       }
       nodeResourceRows?: Array<{
         resource: string
-        requestText: string
-        limitText: string
-        requestPercent: number
-        limitPercent: number
+        centerText: string
+        ringData: Array<{ name: string; value: number }>
+        ringColors: string[]
+        stats: Array<{ label: string; value: string; percent: number; color: string }>
       }>
       stsDataMode?: 'statefulset' | 'services'
       dsDataMode?: 'daemonset' | 'containers' | 'logs'
@@ -4343,53 +4344,98 @@
     margin-top: 12px;
   }
 
-  .workloads-node-resource {
-    padding: 14px 4px 10px;
+  .workloads-node-resource-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    padding: 4px 2px;
   }
 
-  .workloads-node-resource__tip {
-    font-size: 12px;
-    color: var(--el-text-color-secondary);
+  .node-resource-pie-card {
+    border-radius: 8px;
+  }
+
+  .node-resource-pie-card :deep(.el-card__body) {
+    padding: 14px 16px;
+  }
+
+  .node-resource-pie-card__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
     margin-bottom: 10px;
   }
 
-  .workloads-node-resource__list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .workloads-node-resource__head {
-    display: grid;
-    grid-template-columns: 180px 1fr 1fr;
-    gap: 16px;
-    font-size: 12px;
-    color: var(--el-text-color-secondary);
-    font-weight: 600;
-  }
-
-  .workloads-node-resource__line {
-    display: grid;
-    grid-template-columns: 180px 1fr 1fr;
-    gap: 16px;
-    align-items: center;
-  }
-
-  .workloads-node-resource__name {
+  .node-resource-pie-card__name {
     font-size: 13px;
+    font-weight: 600;
     color: var(--el-text-color-primary);
   }
 
-  .workloads-node-resource__metric {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 13px;
+  .node-resource-pie-card__total {
+    font-size: 12px;
     color: var(--el-text-color-secondary);
+    white-space: nowrap;
   }
 
-  .workloads-node-resource__metric :deep(.el-progress) {
+  .node-resource-pie-card__body {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .node-resource-pie-card__chart {
+    flex: 0 0 116px;
+    width: 116px;
+  }
+
+  .node-resource-pie-card__stats {
     flex: 1;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 12px;
+    color: var(--el-text-color-regular);
+  }
+
+  .node-resource-pie-card__stats li {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    line-height: 24px;
+  }
+
+  .node-resource-pie-card__stats li:last-child {
+    margin-bottom: 0;
+  }
+
+  .node-resource-pie-card__stats strong {
+    margin-left: auto;
+    font-weight: 600;
+    color: var(--el-text-color-primary);
+    white-space: nowrap;
+  }
+
+  .node-resource-pie-card__stats .dot {
+    flex-shrink: 0;
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  @media (max-width: 1200px) {
+    .workloads-node-resource-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 992px) {
+    .workloads-node-resource-grid {
+      grid-template-columns: 1fr;
+    }
   }
 
   .workloads-node-metrics {

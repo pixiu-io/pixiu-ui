@@ -222,6 +222,7 @@
     nodeStatusTagType
   } from '@/utils/kubernetes/nodeDisplay'
   import { notifyError } from '@/utils/sys/notify'
+  import { getCssVar } from '@/utils/ui'
 
   const route = useRoute()
   const router = useRouter()
@@ -397,24 +398,57 @@
   }))
   const nodeResourceRows = computed(() => {
     const map = allocatedResourceMap.value
-    return [
-      { key: 'cpu', name: 'cpu', formatter: formatMillicores },
-      { key: 'memory', name: 'memory', formatter: formatBytes },
-      { key: 'ephemeral-storage', name: 'ephemeral-storage', formatter: formatBytes },
-      { key: 'hugepages-1Gi', name: 'hugepages-1Gi', formatter: formatBytes },
-      { key: 'hugepages-2Mi', name: 'hugepages-2Mi', formatter: formatBytes }
-    ].map((item) => {
-      const row = map[item.key] ?? { req: 0, lim: 0, total: 0 }
-      const reqPct = row.total > 0 ? Number(((row.req / row.total) * 100).toFixed(0)) : 0
-      const limPct = row.total > 0 ? Number(((row.lim / row.total) * 100).toFixed(0)) : 0
-      return {
-        resource: item.name,
-        requestText: `${item.formatter(row.req)} (${reqPct}%)`,
-        limitText: `${item.formatter(row.lim)} (${limPct}%)`,
-        requestPercent: reqPct,
-        limitPercent: limPct
-      }
-    })
+    return (
+      [
+        { key: 'cpu', name: 'cpu', formatter: formatMillicores },
+        { key: 'memory', name: 'memory', formatter: formatBytes },
+        { key: 'ephemeral-storage', name: 'ephemeral-storage', formatter: formatBytes },
+        { key: 'hugepages-1Gi', name: 'hugepages-1Gi', formatter: formatBytes },
+        { key: 'hugepages-2Mi', name: 'hugepages-2Mi', formatter: formatBytes }
+      ]
+        // 过滤未配置（total<=0）的资源，如未启用的 hugepages
+        .filter((item) => (map[item.key]?.total ?? 0) > 0)
+        .map((item) => {
+          const row = map[item.key] ?? { req: 0, lim: 0, total: 0 }
+          const reqPct = row.total > 0 ? Number(((row.req / row.total) * 100).toFixed(0)) : 0
+          const limPct = row.total > 0 ? Number(((row.lim / row.total) * 100).toFixed(0)) : 0
+          const available = Math.max(0, row.total - Math.max(row.req, row.lim))
+          return {
+            resource: item.name,
+            centerText: item.formatter(row.total),
+            ringData: [
+              { name: 'Requests', value: row.req },
+              { name: 'Limits', value: Math.max(0, row.lim - row.req) },
+              { name: '可用', value: available }
+            ],
+            ringColors: [
+              getCssVar('--el-color-primary'),
+              getCssVar('--el-color-warning'),
+              getCssVar('--el-color-success')
+            ],
+            stats: [
+              {
+                label: 'Requests',
+                value: item.formatter(row.req),
+                percent: reqPct,
+                color: 'var(--el-color-primary)'
+              },
+              {
+                label: 'Limits',
+                value: item.formatter(row.lim),
+                percent: limPct,
+                color: 'var(--el-color-warning)'
+              },
+              {
+                label: '可用',
+                value: item.formatter(available),
+                percent: Math.max(0, 100 - Math.max(reqPct, limPct)),
+                color: 'var(--el-color-success)'
+              }
+            ]
+          }
+        })
+    )
   })
   async function loadAllocatedResources() {
     if (!node.value?.metadata?.name) return

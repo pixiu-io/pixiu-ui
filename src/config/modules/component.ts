@@ -59,7 +59,8 @@ export const globalComponentsConfig: GlobalComponentConfig[] = [
     component: defineAsyncComponent(
       () => import('@/components/core/layouts/art-fireworks-effect/index.vue')
     ),
-    enabled: true
+    // A/B 验证：疑似全屏 canvas 每帧 clearRect 导致 renderer CPU 100%，临时禁用定位
+    enabled: false
   },
   {
     name: '水印效果',

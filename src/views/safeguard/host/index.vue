@@ -49,7 +49,7 @@
     <ElDialog
       v-model="addNodeVisible"
       title="新增节点"
-      width="520px"
+      width="510px"
       align-center
       destroy-on-close
       :close-on-click-modal="false"
@@ -61,7 +61,7 @@
         class="host-node-form"
         :model="addNodeForm"
         :rules="addNodeRules"
-        label-width="100px"
+        label-width="80px"
         label-position="right"
       >
         <ElFormItem label="主机名称" prop="name">
@@ -102,20 +102,12 @@
           <template #label>
             <ElButton link type="primary" @click="addNodeAdvancedVisible = !addNodeAdvancedVisible">
               高级选项
-              <ArtSvgIcon
-                :icon="addNodeAdvancedVisible ? 'ri:arrow-up-s-line' : 'ri:arrow-down-s-line'"
-                class="host-node-advanced-toggle__icon"
-              />
             </ElButton>
           </template>
         </ElFormItem>
         <template v-if="addNodeAdvancedVisible">
           <ElFormItem label="SSH 端口" prop="port">
-            <ElInputNumber
-              v-model="addNodeForm.port"
-              :min="1"
-              :max="65535"
-            />
+            <ElInputNumber v-model="addNodeForm.port" :min="1" :max="65535" />
           </ElFormItem>
           <ElFormItem
             v-if="addNodeForm.authType === 'password' && addNodeForm.user.trim() !== 'root'"
@@ -133,8 +125,15 @@
         </template>
       </ElForm>
       <template #footer>
-        <ElButton @click="addNodeVisible = false">取消</ElButton>
-        <ElButton type="primary" :loading="addNodeSubmitting" @click="submitAddNode">确定</ElButton>
+        <div class="host-node-footer">
+          <ElButton :loading="addNodeTesting" @click="testAddNodeConnectivity">测试联通</ElButton>
+          <div class="host-node-footer__right">
+            <ElButton @click="addNodeVisible = false">取消</ElButton>
+            <ElButton type="primary" :loading="addNodeSubmitting" @click="submitAddNode"
+              >确定</ElButton
+            >
+          </div>
+        </div>
       </template>
     </ElDialog>
 
@@ -142,7 +141,7 @@
     <ElDialog
       v-model="editNodeVisible"
       title="编辑节点"
-      width="520px"
+      width="510px"
       align-center
       destroy-on-close
       :close-on-click-modal="false"
@@ -154,7 +153,7 @@
         class="host-node-form"
         :model="editNodeForm"
         :rules="editNodeRules"
-        label-width="100px"
+        label-width="80px"
         label-position="right"
       >
         <ElFormItem label="主机名称" prop="name">
@@ -193,22 +192,18 @@
         </template>
         <ElFormItem class="host-node-advanced-toggle-item">
           <template #label>
-            <ElButton link type="primary" @click="editNodeAdvancedVisible = !editNodeAdvancedVisible">
+            <ElButton
+              link
+              type="primary"
+              @click="editNodeAdvancedVisible = !editNodeAdvancedVisible"
+            >
               高级选项
-              <ArtSvgIcon
-                :icon="editNodeAdvancedVisible ? 'ri:arrow-up-s-line' : 'ri:arrow-down-s-line'"
-                class="host-node-advanced-toggle__icon"
-              />
             </ElButton>
           </template>
         </ElFormItem>
         <template v-if="editNodeAdvancedVisible">
           <ElFormItem label="SSH 端口" prop="port">
-            <ElInputNumber
-              v-model="editNodeForm.port"
-              :min="1"
-              :max="65535"
-            />
+            <ElInputNumber v-model="editNodeForm.port" :min="1" :max="65535" />
           </ElFormItem>
           <ElFormItem
             v-if="editNodeForm.authType === 'password' && editNodeForm.user.trim() !== 'root'"
@@ -226,10 +221,15 @@
         </template>
       </ElForm>
       <template #footer>
-        <ElButton @click="editNodeVisible = false">取消</ElButton>
-        <ElButton type="primary" :loading="editNodeSubmitting" @click="submitEditNode"
-          >确定</ElButton
-        >
+        <div class="host-node-footer">
+          <ElButton :loading="editNodeTesting" @click="testEditNodeConnectivity">测试联通</ElButton>
+          <div class="host-node-footer__right">
+            <ElButton @click="editNodeVisible = false">取消</ElButton>
+            <ElButton type="primary" :loading="editNodeSubmitting" @click="submitEditNode"
+              >确定</ElButton
+            >
+          </div>
+        </div>
       </template>
     </ElDialog>
 
@@ -250,8 +250,11 @@
   import {
     fetchCreatePixiuNode,
     fetchDeletePixiuNode,
+    fetchNodeConnectivity,
+    fetchNodeConnectivityByAuth,
     fetchPixiuNodeList,
     fetchUpdatePixiuNode,
+    type NodeAuthResult,
     type PixiuNodeItem
   } from '@/api/node'
   import { PixiuApiError } from '@/api/container'
@@ -269,13 +272,8 @@
     selectedRows.value = rows
   }
 
-  function authTypeLabelFromJson(authStr: string): string {
-    try {
-      const o = JSON.parse(authStr) as { type?: string }
-      return authTypeLabel(o?.type)
-    } catch {
-      return '-'
-    }
+  function authTypeLabelFromJson(auth?: NodeAuthResult | null): string {
+    return authTypeLabel(auth?.type)
   }
 
   function authTypeLabel(t?: string): string {
@@ -285,38 +283,31 @@
     return t?.trim() ? String(t) : '-'
   }
 
-  function parseAuthForForm(authStr: string): {
+  function parseAuthForForm(auth?: NodeAuthResult | null): {
     authType: 'password' | 'key'
     user: string
     port: number
     password: string
     privateKey: string
   } {
-    try {
-      const o = JSON.parse(authStr) as {
-        type?: string
-        port?: number
-        password?: { user?: string; password?: string }
-        key?: { data?: string }
-      }
-      if (o.type === 'key') {
-        return {
-          authType: 'key',
-          user: 'root',
-          port: normalizeSSHPort(o.port),
-          password: '',
-          privateKey: o.key?.data ?? ''
-        }
-      }
+    if (!auth) {
+      return { authType: 'password', user: 'root', port: 22, password: '', privateKey: '' }
+    }
+    if (auth.type === 'key') {
       return {
-        authType: 'password',
-        user: o.password?.user?.trim() || 'root',
-        port: normalizeSSHPort(o.port),
-        password: o.password?.password ?? '',
+        authType: 'key',
+        user: 'root',
+        port: normalizeSSHPort(auth.port),
+        password: '',
         privateKey: ''
       }
-    } catch {
-      return { authType: 'password', user: 'root', port: 22, password: '', privateKey: '' }
+    }
+    return {
+      authType: 'password',
+      user: 'root',
+      port: normalizeSSHPort(auth.port),
+      password: '',
+      privateKey: ''
     }
   }
 
@@ -329,6 +320,7 @@
   const addNodeVisible = ref(false)
   const addNodeFormRef = ref<FormInstance>()
   const addNodeSubmitting = ref(false)
+  const addNodeTesting = ref(false)
   const addNodeAdvancedVisible = ref(false)
 
   const addNodeEmpty = () => ({
@@ -411,6 +403,35 @@
     addNodeFormRef.value?.clearValidate()
   }
 
+  /** 新增节点前 SSH 连通性预检（模式B：使用表单填写的 host+凭据） */
+  async function testAddNodeConnectivity() {
+    if (addNodeTesting.value) return
+    if (!addNodeForm.ip.trim()) {
+      ElMessage.warning('请先填写 IP 地址')
+      return
+    }
+    addNodeTesting.value = true
+    try {
+      const params = {
+        host: addNodeForm.ip.trim(),
+        port: addNodeForm.port || 22,
+        user: addNodeForm.user.trim() || 'root',
+        password: addNodeForm.authType === 'password' ? addNodeForm.password : '',
+        privateKey: addNodeForm.authType === 'key' ? addNodeForm.privateKey : ''
+      }
+      const r = await fetchNodeConnectivityByAuth(params)
+      if (r.connected) {
+        ElMessage.success(`${params.host} SSH 连通正常`)
+      } else {
+        ElMessage.error(`${params.host} SSH 连通失败：${r.message || '未知原因'}`)
+      }
+    } catch (e: any) {
+      ElMessage.error(`测试失败：${e?.message || '未知错误'}`)
+    } finally {
+      addNodeTesting.value = false
+    }
+  }
+
   async function submitAddNode() {
     if (!addNodeFormRef.value || addNodeSubmitting.value) return
     const valid = await addNodeFormRef.value
@@ -461,6 +482,7 @@
   const editNodeVisible = ref(false)
   const editNodeFormRef = ref<FormInstance>()
   const editNodeSubmitting = ref(false)
+  const editNodeTesting = ref(false)
   const editNodeAdvancedVisible = ref(false)
   const editingNodeId = ref(0)
   const editingResourceVersion = ref(0)
@@ -516,7 +538,7 @@
     editingNodeId.value = row.id
     const rv = row.resource_version
     editingResourceVersion.value = typeof rv === 'number' && !Number.isNaN(rv) ? rv : 0
-    const parsed = parseAuthForForm(row.auth || '{}')
+    const parsed = parseAuthForForm(row.auth)
     Object.assign(editNodeForm, {
       name: row.name,
       ip: row.ip,
@@ -539,6 +561,35 @@
     editNodeFormRef.value?.clearValidate()
   }
 
+  /** 编辑节点 SSH 连通性预检（模式B：使用表单当前填写的 host+凭据） */
+  async function testEditNodeConnectivity() {
+    if (editNodeTesting.value) return
+    if (!editNodeForm.ip.trim()) {
+      ElMessage.warning('请先填写 IP 地址')
+      return
+    }
+    editNodeTesting.value = true
+    try {
+      const params = {
+        host: editNodeForm.ip.trim(),
+        port: editNodeForm.port || 22,
+        user: editNodeForm.user.trim() || 'root',
+        password: editNodeForm.authType === 'password' ? editNodeForm.password : '',
+        privateKey: editNodeForm.authType === 'key' ? editNodeForm.privateKey : ''
+      }
+      const r = await fetchNodeConnectivityByAuth(params)
+      if (r.connected) {
+        ElMessage.success(`${params.host} SSH 连通正常`)
+      } else {
+        ElMessage.error(`${params.host} SSH 连通失败：${r.message || '未知原因'}`)
+      }
+    } catch (e: any) {
+      ElMessage.error(`测试失败：${e?.message || '未知错误'}`)
+    } finally {
+      editNodeTesting.value = false
+    }
+  }
+
   async function submitEditNode() {
     if (!editNodeFormRef.value || editNodeSubmitting.value || !editingNodeId.value) return
     const valid = await editNodeFormRef.value
@@ -554,7 +605,10 @@
           ? {
               type: 'password' as const,
               ...(editNodeForm.port !== 22 ? { port: editNodeForm.port } : {}),
-              password: { user: editNodeForm.user.trim() || 'root', password: editNodeForm.password }
+              password: {
+                user: editNodeForm.user.trim() || 'root',
+                password: editNodeForm.password
+              }
             }
           : {
               type: 'key' as const,
@@ -644,7 +698,7 @@
         hostName: undefined as string | undefined
       },
       columnsFactory: () => [
-        { type: 'selection', width: 48 },
+        { type: 'selection', width: 30 },
         {
           prop: 'name',
           label: '主机名称',
@@ -702,6 +756,17 @@
             ])
         },
         {
+          prop: 'port',
+          label: '端口',
+          minWidth: 70,
+          formatter: (row: PixiuNodeItem) =>
+            h(
+              'span',
+              { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+              row.auth?.port || 22
+            )
+        },
+        {
           prop: 'auth',
           label: '认证类型',
           minWidth: 100,
@@ -709,16 +774,26 @@
             h(
               'span',
               { style: 'font-size:12px;color:var(--el-text-color-regular)' },
-              authTypeLabelFromJson(row.auth || '')
+              authTypeLabelFromJson(row.auth)
             )
         },
         {
           prop: 'operation',
           label: '操作',
-          width: 160,
+          width: 200,
           fixed: 'right',
           formatter: (row: PixiuNodeItem) =>
-            h('div', { style: 'display:flex;align-items:center;gap:12px;flex-wrap:nowrap' }, [
+            h('div', { style: 'display:flex;align-items:center;gap:8px;flex-wrap:nowrap' }, [
+              h(
+                ElLink,
+                {
+                  type: checkingNodeId.value === row.id ? 'info' : 'primary',
+                  underline: 'never',
+                  style: 'font-size:12px',
+                  onClick: () => checkNodeConnectivity(row)
+                },
+                () => (checkingNodeId.value === row.id ? '检测中' : '检测连通性')
+              ),
               h(
                 ElLink,
                 {
@@ -727,7 +802,7 @@
                   style: 'font-size:12px',
                   onClick: () => hostRemoteSshRef.value?.open(row)
                 },
-                () => '远程登陆'
+                () => '登录'
               ),
               h(
                 ElLink,
@@ -754,6 +829,25 @@
       ]
     }
   })
+
+  const checkingNodeId = ref<number | null>(null)
+
+  async function checkNodeConnectivity(row: PixiuNodeItem) {
+    if (checkingNodeId.value) return
+    checkingNodeId.value = row.id
+    try {
+      const r = await fetchNodeConnectivity(row.id)
+      if (r.connected) {
+        ElMessage.success(`${row.ip} SSH 连通正常`)
+      } else {
+        ElMessage.error(`${row.ip} SSH 连通失败：${r.message || '未知原因'}`)
+      }
+    } catch (e: any) {
+      ElMessage.error(`检测失败：${e?.message || '未知错误'}`)
+    } finally {
+      checkingNodeId.value = null
+    }
+  }
 
   function handleSearch(params: typeof searchForm.value) {
     replaceSearchParams({
@@ -784,16 +878,12 @@
     font-size: 13px;
   }
 
-  /*
-   * 与「导入集群」弹窗一致：body/footer 水平 16px 留白，表单项占满内容区（见 cluster-add-dialog.vue）。
-   */
+  /* 与「导入集群」弹窗样式一致（对齐 cluster-add-dialog.vue cluster-add-dialog--import） */
   .host-node-dialog--form .el-dialog__body {
-    padding: 10px 16px 12px 16px !important;
-    box-sizing: border-box;
+    padding: 10px 21px 12px 16px !important;
   }
   .host-node-dialog--form .el-dialog__footer {
     padding: 12px 16px 16px 16px !important;
-    box-sizing: border-box;
   }
 
   .host-node-form {
@@ -801,34 +891,6 @@
   }
   .host-add-node-fixed-user {
     color: var(--el-text-color-regular);
-  }
-  .host-node-auth-group :deep(.el-radio__label) {
-    font-size: 12px;
-  }
-  .host-node-advanced-toggle-item {
-    margin-bottom: 12px;
-  }
-  .host-node-advanced-toggle-item :deep(.el-form-item__content) {
-    display: none;
-  }
-  .host-node-advanced-toggle-item :deep(.el-button) {
-    font-size: 12px;
-    height: auto;
-    padding: 0;
-  }
-  .host-node-advanced-toggle__icon {
-    margin-left: 2px;
-    font-size: 12px;
-  }
-  .host-node-form .el-input-number {
-    width: 100%;
-  }
-  .host-node-sudo-tip {
-    margin-bottom: 0;
-  }
-  .host-node-sudo-tip :deep(.quota-alert.el-alert) {
-    margin: 0;
-    width: 100%;
   }
 </style>
 
@@ -880,21 +942,68 @@
     max-width: 100%;
   }
 
-  .host-node-form :deep(.el-form-item) {
-    margin-bottom: 18px;
+  .host-node-form :deep(.el-form-item:first-child) {
+    margin-top: 6px;
   }
   .host-node-form :deep(.el-form-item__label) {
-    font-size: 14px;
+    font-size: 12px;
     color: var(--el-text-color-regular);
     padding-right: 12px;
   }
   .host-node-form :deep(.el-form-item__content) {
-    flex-wrap: wrap;
+    max-width: 480px;
   }
   .host-node-form :deep(.el-form-item__content .el-input),
-  .host-node-form :deep(.el-form-item__content .el-textarea),
-  .host-node-form :deep(.el-form-item__content .el-input-number) {
+  .host-node-form :deep(.el-form-item__content .el-textarea) {
     width: 100%;
     max-width: 100%;
+  }
+  /* SSH 端口宽度调小 */
+  .host-node-form :deep(.el-form-item__content .el-input-number) {
+    width: 120px !important;
+    max-width: 120px !important;
+  }
+  .host-node-form :deep(.el-input__inner),
+  .host-node-form :deep(.el-textarea__inner) {
+    font-size: 12px;
+    color: var(--el-text-color-primary);
+  }
+  .host-node-auth-group :deep(.el-radio__label) {
+    font-size: 12px;
+  }
+  .host-node-advanced-toggle-item {
+    margin-bottom: 12px;
+  }
+  .host-node-advanced-toggle-item :deep(.el-form-item__content) {
+    display: none;
+  }
+  .host-node-advanced-toggle-item :deep(.el-button) {
+    font-size: 12px;
+    height: auto;
+    padding: 0;
+  }
+  .host-node-advanced-toggle__icon {
+    margin-left: 2px;
+    font-size: 12px;
+  }
+  .host-node-form :deep(.el-input-number) {
+    width: 120px !important;
+  }
+  .host-node-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .host-node-footer__right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .host-node-sudo-tip {
+    margin-bottom: 0;
+  }
+  .host-node-sudo-tip :deep(.quota-alert.el-alert) {
+    margin: 0;
+    width: 100%;
   }
 </style>

@@ -16,14 +16,6 @@
     >
       <div style="display: flex; gap: 8px">
         <ElButton @click="showDialog('add')" v-ripple>创建用户</ElButton>
-        <ElButton
-          v-ripple
-          :disabled="selectedUsers.length === 0"
-          @click="batchDeleteUsers"
-          type="danger"
-        >
-          批量删除
-        </ElButton>
       </div>
       <div style="display: flex; align-items: center; gap: 8px">
         <ElInput
@@ -242,7 +234,7 @@
       columnsFactory: () => [
         {
           type: 'selection',
-          width: 50,
+          width: 30,
           align: 'center'
         },
         {
@@ -432,48 +424,6 @@
       })
       .catch(() => {
         /* 用户取消或关闭，忽略 */
-      })
-  }
-
-  const batchDeleteUsers = (): void => {
-    if (selectedUsers.value.length === 0) {
-      ElMessage.warning('请选择要删除的用户')
-      return
-    }
-
-    // 检查是否有超级管理员
-    const superAdmins = selectedUsers.value.filter(u => u.role === 0)
-    if (superAdmins.length > 0) {
-      ElMessage.warning('不能删除超级管理员')
-      return
-    }
-
-    ElMessageBox.confirm(
-      `确定批量删除 ${selectedUsers.value.length} 个用户吗？`,
-      '批量删除用户',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
-      .then(async () => {
-        try {
-          // 收集所有用户 ID
-          const userIds = selectedUsers.value.map(u => u.id)
-          
-          // 一次性批量删除
-          await fetchBatchDeleteUsers(userIds)
-          
-          ElMessage.success(`删除成功 ${selectedUsers.value.length} 个`)
-          selectedUsers.value = []
-          await refreshData()
-        } catch (e: any) {
-          notifyError(e, '批量删除失败')
-        }
-      })
-      .catch(() => {
-        // 用户取消，忽略
       })
   }
 

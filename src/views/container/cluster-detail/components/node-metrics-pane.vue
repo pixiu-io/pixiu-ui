@@ -23,6 +23,10 @@
         :x-axis-data="cpuTimeLabels"
         :is-empty="!item.data.length"
         :silent-update="chartSilentUpdate"
+        :expand-time-range="usageTimeRange"
+        @expand-time-range-change="onUsageTimeRangeChange"
+        height="120px"
+        :axis-font-size="10"
       />
     </div>
 
@@ -36,6 +40,10 @@
         :x-axis-data="memoryTimeLabels"
         :is-empty="!item.data.length"
         :silent-update="chartSilentUpdate"
+        :expand-time-range="usageTimeRange"
+        @expand-time-range-change="onUsageTimeRangeChange"
+        height="120px"
+        :axis-font-size="10"
       />
     </div>
   </div>
@@ -46,6 +54,11 @@
   import MetricChartPanel from '@/components/container/metric-chart-panel.vue'
   import { useNodeUsageMetrics } from '@/hooks/kubernetes/useNodeUsageMetrics'
   import type { K8sNode } from '@/api/kubernetes/node'
+  import {
+    getDefaultMetricsTimeRange,
+    METRICS_TIME_PRESETS,
+    type MetricsTimeRange
+  } from '@/utils/metrics/time-range'
 
   const props = defineProps<{
     cluster: string
@@ -59,6 +72,12 @@
   const nodeNameRef = computed(() => props.nodeName)
   const nodeRef = computed(() => props.node)
 
+  /** 监控时间范围：默认最近 24 小时；最大化弹窗内可调整，由 hook 内 watch 触发重新查询 */
+  const usageTimeRange = ref<MetricsTimeRange>(
+    METRICS_TIME_PRESETS.find((p) => p.key === '24h')?.getRange(new Date()) ??
+      getDefaultMetricsTimeRange()
+  )
+
   const {
     loading: metricsLoading,
     chartReady: metricsChartReady,
@@ -70,7 +89,7 @@
     startRefresh,
     stopRefresh,
     resetCharts
-  } = useNodeUsageMetrics(clusterRef, nodeNameRef, nodeRef)
+  } = useNodeUsageMetrics(clusterRef, nodeNameRef, nodeRef, usageTimeRange)
 
   const metricsInitialLoading = computed(() => metricsLoading.value && !metricsChartReady.value)
 
@@ -96,8 +115,20 @@
     scheduleChartSilentUpdate()
   }
 
+  /** 最大化弹窗内调整时间范围：更新 usageTimeRange，hook 内 watch 触发静默刷新 */
+  function onUsageTimeRangeChange(range: MetricsTimeRange) {
+    usageTimeRange.value = range
+  }
+
   watch(
-    () => [props.active, props.cluster, props.nodeName, props.node?.metadata?.name] as const,
+    () =>
+      [
+        props.active,
+        props.cluster,
+        props.nodeName,
+        props.node?.metadata?.name,
+        props.node?.status?.allocatable?.cpu
+      ] as const,
     ([active, cluster, nodeName]) => {
       if (active && cluster && nodeName) {
         startRefresh()

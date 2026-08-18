@@ -1,6 +1,12 @@
 import { pixiuAxios } from './container'
 import type { PlanNodeAuth } from './plan'
 
+/** 节点认证对外返回（后端脱敏，仅 type/port） */
+export interface NodeAuthResult {
+  type?: 'none' | 'key' | 'password'
+  port?: number
+}
+
 /** GET /pixiu/nodes 列表项（与后端 PixiuNode JSON 对齐） */
 export interface PixiuNodeItem {
   id: number
@@ -10,7 +16,7 @@ export interface PixiuNodeItem {
   name: string
   user_id: number
   ip: string
-  auth: string
+  auth: NodeAuthResult
   /** 历史数据或计划内节点可能仍有以下字段 */
   plan_id?: number
   role?: string
@@ -96,4 +102,38 @@ export async function fetchDeletePixiuNode(nodeId: number): Promise<void> {
   const res = await pixiuAxios.delete(`/pixiu/nodes/${nodeId}`)
   const { code, message } = res.data
   if (code !== 200) throw new Error(message || '删除节点失败')
+}
+
+/** POST /pixiu/nodes/connectivity 节点 SSH 连通性检测（模式A：按 node_id 从库取认证） */
+export interface NodeConnectivityResult {
+  connected: boolean
+  host: string
+  port: number
+  user: string
+  message: string
+}
+
+export async function fetchNodeConnectivity(nodeId: number): Promise<NodeConnectivityResult> {
+  const res = await pixiuAxios.post('/pixiu/nodes/connectivity', { node_id: nodeId })
+  const { code, result, message } = res.data
+  if (code !== 200) throw new Error(message || '连通性检测失败')
+  return result as NodeConnectivityResult
+}
+
+/** POST /pixiu/nodes/connectivity 节点 SSH 连通性检测（模式B：手动指定 host+凭据，用于新增节点预检） */
+export interface NodeConnectivityAuthParams {
+  host: string
+  port?: number
+  user?: string
+  password?: string
+  privateKey?: string
+}
+
+export async function fetchNodeConnectivityByAuth(
+  params: NodeConnectivityAuthParams
+): Promise<NodeConnectivityResult> {
+  const res = await pixiuAxios.post('/pixiu/nodes/connectivity', params)
+  const { code, result, message } = res.data
+  if (code !== 200) throw new Error(message || '连通性检测失败')
+  return result as NodeConnectivityResult
 }
