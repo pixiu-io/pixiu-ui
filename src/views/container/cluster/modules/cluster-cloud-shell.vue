@@ -389,7 +389,7 @@
       fontSize: 12,
       lineHeight: 1.2,
       theme: getTerminalTheme(),
-      scrollback: 8000
+      scrollback: 2000
     })
     const fitAddon = new FitAddon()
     xterm.loadAddon(fitAddon)
