@@ -633,7 +633,7 @@
       </ElTabPane>
 
       <ElTabPane label="监控" name="monitor">
-        <ClusterMonitorMetrics
+        <ClusterMonitorOverview
           v-if="innerTab === 'monitor' && isOverviewRoute"
           :cluster-name="ctx.name"
         />
@@ -697,7 +697,7 @@
   import { fetchClusterResourceOverviewFromPrometheus } from '@/hooks/kubernetes/useClusterResourceOverviewPrometheus'
   import MetricChartPanel from '@/components/container/metric-chart-panel.vue'
   import ArtRingChart from '@/components/core/charts/art-ring-chart/index.vue'
-  import ClusterMonitorMetrics from '@/views/container/cluster/modules/cluster-monitor-metrics.vue'
+  import ClusterMonitorOverview from '@/views/container/cluster/modules/cluster-monitor-overview.vue'
   import { clusterDetailContextKey, clusterDetailRefreshKey } from './context'
   import { getCronJobApiVersion } from '@/utils/kubernetes/cronjob'
   import { notifyError } from '@/utils/sys/notify'

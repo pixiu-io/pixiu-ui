@@ -494,6 +494,19 @@ const panelSpecs: DashboardPanelSpec[] = [
     true,
     (filters) => `sum(${containerExpr('container_memory_usage_bytes', filters, false)})`
   ),
+  // 集群根挂载点磁盘使用率趋势（node_exporter，供概览复用；不进入 sections 导航）
+  panel(
+    'cluster',
+    'cluster.disk_usage_trend',
+    '集群磁盘使用率',
+    'line',
+    'percent',
+    4,
+    [],
+    true,
+    () =>
+      `100 * (1 - sum(node_filesystem_free_bytes{mountpoint="/"}) / sum(node_filesystem_size_bytes{mountpoint="/"}))`
+  ),
 
   panel(
     'namespace',

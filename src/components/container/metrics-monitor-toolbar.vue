@@ -145,7 +145,7 @@
     flex-wrap: wrap;
     gap: 12px 14px;
     align-items: center;
-    padding: 12px 14px;
+    padding: 12px 10px;
     background: var(--el-fill-color-lighter);
     border: 1px solid var(--el-border-color-lighter);
     border-radius: 8px;
