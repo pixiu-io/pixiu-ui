@@ -2,15 +2,28 @@
   <div class="prometheus-dashboard" :style="{ '--prom-nav-color': menuTheme.textColor }">
     <template v-if="datasources.length > 0">
       <div class="prometheus-dashboard__source-bar">
-        <label>Prometheus 实例:</label>
-        <span class="prometheus-dashboard__source-value">{{
-          selectedDatasource?.name || '—'
-        }}</span>
-        <div class="prometheus-dashboard__summary">
-          <span class="prometheus-dashboard__health-dot" :class="pageHealth" />
-          <span>{{ pageHealthLabel }}</span>
-          <span class="prometheus-dashboard__updated">更新于 {{ lastUpdatedLabel }}</span>
+        <div class="prometheus-dashboard__source-status">
+          <label>Prometheus 实例:</label>
+          <span class="prometheus-dashboard__source-value">{{
+            selectedDatasource?.name || '—'
+          }}</span>
+          <span class="prometheus-dashboard__sep" aria-hidden="true" />
+          <span class="prometheus-dashboard__summary">
+            <span>状态:</span>
+            <span class="prometheus-dashboard__health-dot" :class="pageHealth" />
+            <span>{{ pageHealthLabel }}</span>
+          </span>
+          <span class="prometheus-dashboard__sep" aria-hidden="true" />
+          <span class="prometheus-dashboard__updated">更新时间: {{ lastUpdatedLabel }}</span>
         </div>
+        <MetricsMonitorToolbar
+          v-model:timeRange="timeRange"
+          v-model:granularity="granularity"
+          v-model:autoRefresh="autoRefresh"
+          :show-granularity="false"
+          :show-legend="false"
+          class="prometheus-dashboard__toolbar"
+        />
       </div>
     </template>
 
@@ -82,26 +95,30 @@
         </aside>
 
         <main class="prometheus-dashboard__content">
-          <MetricsMonitorToolbar
-            v-model:timeRange="timeRange"
-            v-model:granularity="granularity"
-            v-model:autoRefresh="autoRefresh"
-            :show-granularity="false"
-            :show-legend="false"
-            class="prometheus-dashboard__toolbar"
+          <ClusterMonitorOverview
+            v-if="activeSection === 'cluster'"
+            :cluster-name="clusterName"
+            :toolbar="false"
+            :external-time-range="timeRange"
+            :external-granularity="granularity"
+            :external-auto-refresh="autoRefresh"
+            @update:external-time-range="timeRange = $event"
+            @update:external-granularity="granularity = $event"
+            @update:external-auto-refresh="autoRefresh = $event"
           />
-
-          <div class="prometheus-dashboard__panel-grid">
-            <DashboardPanel
-              v-for="panel in currentPanels"
-              :key="`${panel.id}:${resultMap[panel.id]?.status ?? 'pending'}`"
-              :panel="panel"
-              :result="resultMap[panel.id]"
-              :loading="queryLoading"
-              :show-legend="showLegend"
-              @time-range-select="handleChartTimeRangeSelect"
-            />
-          </div>
+          <template v-else>
+            <div class="prometheus-dashboard__panel-grid">
+              <DashboardPanel
+                v-for="panel in currentPanels"
+                :key="`${panel.id}:${resultMap[panel.id]?.status ?? 'pending'}`"
+                :panel="panel"
+                :result="resultMap[panel.id]"
+                :loading="queryLoading"
+                :show-legend="showLegend"
+                @time-range-select="handleChartTimeRangeSelect"
+              />
+            </div>
+          </template>
         </main>
       </div>
     </div>
@@ -144,6 +161,7 @@
     type MetricsGranularityOption
   } from '@/utils/metrics/granularity'
   import DashboardPanel from '@/views/safeguard/dashboard/modules/DashboardPanel.vue'
+  import ClusterMonitorOverview from '@/views/container/cluster/modules/cluster-monitor-overview.vue'
   import AssociatePrometheusDialog from './associate-prometheus-dialog.vue'
 
   defineOptions({ name: 'ClusterDetailPrometheus' })
@@ -203,7 +221,7 @@
     if (pageHealth.value === 'idle') return '未选择数据源'
     if (pageHealth.value === 'loading') return '查询中'
     if (pageHealth.value === 'warning') return '部分面板异常'
-    return '数据源正常'
+    return '正常'
   })
   const lastUpdatedLabel = computed(() =>
     lastUpdated.value
@@ -345,44 +363,68 @@
     flex-direction: column;
     min-width: 0;
     height: 100%;
+    margin-top: -2px;
     color: var(--el-text-color-primary);
   }
 
   .prometheus-dashboard__source-bar {
     display: flex;
-    flex: 0 0 auto;
-    gap: 10px;
+    flex-wrap: nowrap;
+    gap: 12px;
     align-items: center;
-    padding: 10px 0;
-    border-bottom: 1px solid var(--el-border-color-lighter);
+    justify-content: space-between;
+    height: 40px;
+    padding: 0;
+    margin: 0;
+    overflow: visible;
   }
 
   .prometheus-dashboard__source-bar label {
     flex: 0 0 auto;
-    font-size: 13px;
-    line-height: 20px;
+    margin: 0;
+    font-size: 12px;
+    line-height: 1;
     color: var(--el-text-color-regular);
   }
 
   .prometheus-dashboard__source-value {
     flex: 0 0 auto;
-    font-size: 13px;
-    line-height: 20px;
+    font-size: 12px;
+    line-height: 1;
     color: var(--el-text-color-regular);
+  }
+
+  .prometheus-dashboard__source-status {
+    display: flex;
+    flex: 1 1 auto;
+    gap: 10px;
+    align-items: center;
+    height: 32px;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .prometheus-dashboard__sep {
+    flex-shrink: 0;
+    width: 1px;
+    height: 12px;
+    background: var(--el-border-color);
+    opacity: 0.8;
   }
 
   .prometheus-dashboard__source-bar .prometheus-dashboard__summary {
     flex: 0 0 auto;
-    margin-left: auto;
-    line-height: 20px;
+    line-height: 1;
   }
 
   .prometheus-dashboard__summary {
     display: flex;
     flex: 0 0 auto;
-    gap: 8px;
+    gap: 6px;
     align-items: center;
     font-size: 12px;
+    line-height: 1;
     color: var(--el-text-color-regular);
   }
 
@@ -406,43 +448,70 @@
   }
 
   .prometheus-dashboard__updated {
-    margin-left: 4px;
+    flex: 0 0 auto;
+    font-size: 12px;
+    line-height: 1;
     color: var(--el-text-color-regular);
   }
 
-  .prometheus-dashboard__toolbar {
-    margin-bottom: 12px;
+  .prometheus-dashboard__refresh {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    margin-left: 4px;
+    border-radius: 2px;
   }
 
-  /* 工具栏视觉压缩：贴近集群监控抽屉样式 */
-  .prometheus-dashboard__toolbar :deep(.metrics-monitor-toolbar) {
-    margin-bottom: 0;
+  /* class 直接挂在 MetricsMonitorToolbar 根节点上，需覆盖其默认 margin-bottom: 18px */
+  .prometheus-dashboard__toolbar {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    align-self: center;
+    height: 32px;
+    min-width: 0;
+    margin: 0 !important;
+    overflow: visible;
   }
 
   .prometheus-dashboard__toolbar :deep(.metrics-monitor-toolbar__bar) {
+    display: flex;
+    flex-wrap: nowrap;
     gap: 8px;
+    align-items: center;
     justify-content: flex-end;
-    padding: 0 10px 0 0;
+    height: 32px;
+    padding: 0;
+    margin: 0;
+    overflow: visible;
     background: transparent;
     border: none;
     border-radius: 0;
   }
 
   .prometheus-dashboard__toolbar :deep(.metrics-monitor-toolbar__time) {
+    display: flex;
     flex: 0 0 auto;
+    align-items: center;
+    height: 32px;
   }
 
   .prometheus-dashboard__toolbar :deep(.metrics-monitor-toolbar__divider) {
-    height: 24px;
+    align-self: center;
+    height: 16px;
     margin: 0 2px;
     background: var(--el-border-color-light);
     opacity: 1;
   }
 
   .prometheus-dashboard__toolbar :deep(.metrics-time-range-picker) {
+    display: flex;
+    align-items: center;
     width: 240px;
     min-width: 240px;
     max-width: 240px;
+    height: 32px;
     transition: width 0.2s ease;
   }
 
@@ -453,6 +522,8 @@
   }
 
   .prometheus-dashboard__toolbar :deep(.metrics-time-range-picker__trigger) {
+    box-sizing: border-box;
+    height: 32px;
     min-height: 32px;
     padding: 0 8px;
     font-size: 12px;
@@ -467,6 +538,8 @@
   }
 
   .prometheus-dashboard__toolbar :deep(.metrics-monitor-toolbar__select .el-select__wrapper) {
+    box-sizing: border-box;
+    height: 32px;
     min-height: 32px;
     padding: 0 10px;
     background: var(--el-bg-color);
@@ -475,15 +548,19 @@
   }
 
   .prometheus-dashboard__toolbar :deep(.metrics-monitor-toolbar__group) {
+    display: inline-flex;
     gap: 6px;
     align-items: center;
+    height: 32px;
   }
 
   .prometheus-dashboard__toolbar :deep(.metrics-monitor-toolbar__group-label) {
     display: inline-flex;
     gap: 0;
     align-items: center;
+    height: 32px;
     font-size: 12px;
+    line-height: 1;
     color: var(--el-text-color-regular);
   }
 
@@ -538,7 +615,7 @@
     flex: 1;
     flex-direction: column;
     min-height: 0;
-    margin-top: 10px;
+    margin-top: 8px;
     overflow: hidden;
     background: var(--el-bg-color);
     border: 1px solid var(--el-border-color-lighter);
@@ -624,7 +701,7 @@
     width: 100%;
     height: 32px;
     padding: 0 10px;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 400;
     color: var(--prom-nav-color, var(--art-gray-800));
     text-align: left;
@@ -659,7 +736,7 @@
     height: 34px;
     padding: 0 10px 0 30px;
     overflow: hidden;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--prom-nav-color, var(--art-gray-800));
     text-align: left;
     text-overflow: ellipsis;
