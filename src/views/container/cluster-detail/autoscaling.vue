@@ -1,7 +1,11 @@
 <template>
   <div class="hpa-page">
     <div class="cluster-toolbar">
-      <ElButton v-ripple @click="onCreateHpaHint">新建 HPA</ElButton>
+      <ElButton v-ripple @click="goCreateHPA"
+        >新建{{
+          resourceTab === 'hpa' ? 'HPA' : resourceTab === 'cron' ? '定时 HPA' : ''
+        }}</ElButton
+      >
       <div class="cluster-toolbar__right">
         <ElInput
           v-model="searchForm.name"
@@ -32,7 +36,7 @@
 
     <ElCard class="art-table-card">
       <ElTabs v-model="resourceTab" class="hpa-tabs">
-        <ElTabPane label="HorizontalPodAutoscaler" name="hpa">
+        <ElTabPane label="水平自动扩缩容" name="hpa">
           <ArtTable
             row-key="rowKey"
             :show-table-header="false"
@@ -50,18 +54,109 @@
           </ArtTable>
         </ElTabPane>
 
-        <ElTabPane label="HorizontalPodCronscaler" name="cron" disabled>
-          <div class="hpa-tab-placeholder">敬请期待</div>
+        <ElTabPane label="定时自动扩缩容" name="cron">
+          <ArtTable
+            row-key="rowKey"
+            :show-table-header="false"
+            :loading="cronLoading"
+            :data="cronData"
+            :columns="visibleCronColumns"
+            :pagination="cronPagination"
+            :pagination-options="CLUSTER_TABLE_PAGINATION_OPTIONS"
+            @pagination:size-change="cronHandleSizeChange"
+            @pagination:current-change="cronHandleCurrentChange"
+          >
+            <template #empty>
+              <ClusterTableEmpty />
+            </template>
+          </ArtTable>
         </ElTabPane>
-        <ElTabPane label="EffectiveHorizontalPodAutoscaler" name="ehpa" disabled>
+        <ElTabPane label="增强型自动扩缩容" name="ehpa" disabled>
           <div class="hpa-tab-placeholder">敬请期待</div>
         </ElTabPane>
       </ElTabs>
     </ElCard>
 
+    <!-- ── 定时扩缩容执行历史弹窗 ── -->
+    <ElDialog
+      v-model="historyVisible"
+      :title="`执行历史 - ${historyTitle}`"
+      width="860px"
+      class="cron-history-dialog"
+    >
+      <div v-loading="historyLoading" style="min-height: 120px">
+        <ElTable :data="historyList" size="small" max-height="420">
+          <ElTableColumn prop="job_name" label="定时任务" min-width="120" />
+          <ElTableColumn label="计划时间" width="170">
+            <template #default="{ row }">{{ formatNodeCreationTime(row.scheduled_time) }}</template>
+          </ElTableColumn>
+          <ElTableColumn label="副本变化" width="110">
+            <template #default="{ row }"
+              >{{ row.previous_replicas }} → {{ row.desired_replicas }}</template
+            >
+          </ElTableColumn>
+          <ElTableColumn label="结果" width="90">
+            <template #default="{ row }">
+              <ElTag
+                size="small"
+                :type="
+                  row.result === 'Succeed' ? 'success' : row.result === 'Failed' ? 'danger' : 'info'
+                "
+                >{{
+                  row.result === 'Succeed' ? '成功' : row.result === 'Failed' ? '失败' : '跳过'
+                }}</ElTag
+              >
+            </template>
+          </ElTableColumn>
+          <ElTableColumn prop="message" label="信息" min-width="200" show-overflow-tooltip />
+        </ElTable>
+        <div v-if="!historyLoading && !historyList.length" class="hpa-tab-placeholder"
+          >暂无执行记录</div
+        >
+      </div>
+    </ElDialog>
+
+    <!-- ── HPA 执行历史（集群事件）弹窗 ── -->
+    <ElDialog
+      v-model="hpaEventsVisible"
+      :title="`执行历史 - ${hpaEventsTitle}`"
+      width="860px"
+      class="cron-history-dialog"
+    >
+      <div v-loading="hpaEventsLoading" style="min-height: 120px">
+        <ElTable :data="hpaEventsList" size="small" max-height="420">
+          <ElTableColumn label="最近出现时间" width="170">
+            <template #default="{ row }">{{ formatNodeCreationTime(row.lastTimestamp) }}</template>
+          </ElTableColumn>
+          <ElTableColumn label="类型" width="90">
+            <template #default="{ row }">
+              <ElTag
+                size="small"
+                :type="
+                  row.type === 'Normal' ? 'success' : row.type === 'Warning' ? 'danger' : 'info'
+                "
+                >{{ row.type ?? 'Unknown' }}</ElTag
+              >
+            </template>
+          </ElTableColumn>
+          <ElTableColumn prop="reason" label="原因" width="160" show-overflow-tooltip />
+          <ElTableColumn label="副本变化" width="110">
+            <template #default="{ row }">{{
+              row.replicasTo != null ? `${row.replicasFrom ?? '-'} → ${row.replicasTo}` : '-'
+            }}</template>
+          </ElTableColumn>
+          <ElTableColumn prop="detail" label="信息" min-width="220" show-overflow-tooltip />
+          <ElTableColumn prop="count" label="次数" width="70" />
+        </ElTable>
+        <div v-if="!hpaEventsLoading && !hpaEventsList.length" class="hpa-tab-placeholder"
+          >暂无执行记录</div
+        >
+      </div>
+    </ElDialog>
+
     <K8sYamlDialog
       v-model="yamlVisible"
-      title="HorizontalPodAutoscaler YAML"
+      title="HPA YAML"
       :yaml="yamlText"
       footer-mode="edit"
       width="900px"
@@ -82,7 +177,11 @@
     ElPopover,
     ElTabPane,
     ElTabs,
-    ElLink
+    ElLink,
+    ElDialog,
+    ElTable,
+    ElTableColumn,
+    ElTag
   } from 'element-plus'
   import { notifyError } from '@/utils/sys/notify'
   import { CopyDocument } from '@element-plus/icons-vue'
@@ -103,14 +202,42 @@
     deleteK8sHpa,
     fetchK8sHpa,
     fetchK8sHpaList,
+    HPA_INITIAL_REPLICAS_ANNOTATION,
+    isK8sHpaPaused,
+    setK8sHpaPaused,
     type K8sHorizontalPodAutoscaler,
     type K8sMetricSpec,
     type K8sMetricStatus
   } from '@/api/kubernetes/hpa'
+  import {
+    deleteCronHpa,
+    fetchCronHpaHistories,
+    fetchCronHpaList,
+    setCronHpaStatus,
+    type CronHpa,
+    type CronHpaHistory
+  } from '@/api/kubernetes/cronHpa'
   import { formatNodeCreationTime } from '@/utils/kubernetes/nodeDisplay'
+  import { fetchKubeRawEventList } from '@/api/kubernetes/events'
+  import { buildClusterRouteQuery } from '@/utils/navigation/cluster-query'
   import { clusterDetailNamespaceKey } from './context'
 
   defineOptions({ name: 'ClusterDetailAutoscaling' })
+
+  /** HPA 执行历史对应的集群事件（仅取展示所需字段） */
+  interface K8sEventItem {
+    type?: string
+    reason?: string
+    message?: string
+    count?: number
+    lastTimestamp?: string
+    /** 从 message 解析：本次伸缩目标副本数（"New size: N"） */
+    replicasTo?: number
+    /** 从合并时间线（HPA 事件 + 目标工作负载事件）推算：本次变更前的副本数 */
+    replicasFrom?: number
+    /** 从 message 解析：伸缩原因（"reason: xxx"），解析失败时为原始 message */
+    detail?: string
+  }
 
   const route = useRoute()
   const router = useRouter()
@@ -119,6 +246,18 @@
   const yamlVisible = ref(false)
   const yamlText = ref('')
   const yamlSaving = ref(false)
+
+  // ── 定时扩缩容执行历史弹窗 ──
+  const historyVisible = ref(false)
+  const historyLoading = ref(false)
+  const historyTitle = ref('')
+  const historyList = ref<CronHpaHistory[]>([])
+
+  // ── HPA 执行历史（集群事件）弹窗 ──
+  const hpaEventsVisible = ref(false)
+  const hpaEventsLoading = ref(false)
+  const hpaEventsTitle = ref('')
+  const hpaEventsList = ref<K8sEventItem[]>([])
 
   const globalNs = inject(clusterDetailNamespaceKey)
   const selectedNamespace = computed(() => globalNs?.namespace.value ?? '')
@@ -155,7 +294,7 @@
     const hasMore = lines.length > 2
     const trigger = h('div', { style: triggerStyle }, [
       ...preview.map((t, i) => h('div', { key: `p${i}`, style: lineStyle }, t)),
-      ...(hasMore ? [h('div', { style: moreStyle }, '...')] : [])
+      ...(hasMore ? [h('div', { key: 'more', style: moreStyle }, '...')] : [])
     ])
     const body = h(
       'div',
@@ -463,6 +602,15 @@
             )
         },
         {
+          prop: 'paused',
+          label: '状态',
+          width: 100,
+          formatter: (row: K8sHorizontalPodAutoscaler) =>
+            h(ElTag, { size: 'small', type: isK8sHpaPaused(row) ? 'info' : 'success' }, () =>
+              isK8sHpaPaused(row) ? '已暂停' : '运行中'
+            )
+        },
+        {
           prop: 'metadata.creationTimestamp',
           label: '创建时间',
           width: 170,
@@ -488,7 +636,14 @@
               [
                 h(ArtButtonMore, {
                   list: [
+                    { key: 'edit', label: '编辑', icon: 'ri:edit-line' },
                     { key: 'yaml', label: '查看YAML', icon: 'ri:file-code-line' },
+                    { key: 'history', label: '执行历史', icon: 'ri:history-line' },
+                    {
+                      key: 'toggle',
+                      label: isK8sHpaPaused(row) ? '恢复' : '暂停',
+                      icon: isK8sHpaPaused(row) ? 'ri:play-line' : 'ri:pause-line'
+                    },
                     { key: 'delete', label: '删除', icon: 'ri:delete-bin-4-line', color: '#409eff' }
                   ],
                   onClick: (item: ButtonMoreItem) => hpaMoreClick(item, row)
@@ -506,40 +661,300 @@
       : columns.value
   )
 
+  // ── 定时自动扩缩容（CronHPA）列表：规则存于后端数据库，独立于 K8s HPA 表格 ──
+  function formatCronJobsSummary(row: CronHpa): string[] {
+    return (row.jobs ?? []).map(
+      (job) => `${job.schedule} → ${job.target_size} 副本${job.run_once ? '（仅一次）' : ''}`
+    )
+  }
+
+  const {
+    columns: cronColumns,
+    data: cronData,
+    loading: cronLoading,
+    pagination: cronPagination,
+    getData: cronGetData,
+    replaceSearchParams: cronReplaceSearchParams,
+    handleSizeChange: cronHandleSizeChange,
+    handleCurrentChange: cronHandleCurrentChange,
+    refreshData: cronRefreshData
+  } = useTable({
+    core: {
+      immediate: true,
+      apiFn: async (params: TableParams) => {
+        const cluster = String(route.query.cluster ?? '')
+        if (!cluster) {
+          return {
+            code: 200,
+            data: {
+              records: [] as (CronHpa & { rowKey?: string })[],
+              total: 0,
+              current: 1,
+              size: params.size
+            }
+          }
+        }
+        const all = await fetchCronHpaList({
+          cluster,
+          namespace: params.namespace || undefined
+        })
+        const q = (params.name ?? '').trim().toLowerCase()
+        const filtered = q ? all.filter((item) => item.name.toLowerCase().includes(q)) : all
+        const start = ((params.current || 1) - 1) * (params.size || 10)
+        const records = filtered
+          .slice(start, start + (params.size || 10))
+          .map((row) => ({ ...row, rowKey: String(row.id) }))
+        return {
+          code: 200,
+          data: { records, total: filtered.length, current: params.current, size: params.size }
+        }
+      },
+      apiParams: { current: 1, size: 10, name: undefined, namespace: undefined },
+      columnsFactory: () => [
+        {
+          prop: 'name',
+          label: '名称',
+          minWidth: 160,
+          formatter: (row: CronHpa) =>
+            h(
+              ElLink,
+              {
+                type: 'primary',
+                underline: 'never',
+                style: 'font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap',
+                onClick: () => goEditCronHpa(row)
+              },
+              () => row.name ?? '-'
+            )
+        },
+        {
+          prop: 'namespace',
+          label: '命名空间',
+          width: 160,
+          formatter: (row: CronHpa) => renderNsCell(row.namespace ?? '-')
+        },
+        {
+          prop: 'target_name',
+          label: '目标对象',
+          minWidth: 200,
+          formatter: (row: CronHpa) => {
+            const cluster = String(route.query.cluster ?? '')
+            const text = `${row.target_kind}/${row.target_name}`
+            const path = workloadDetailPath(row.target_kind)
+            if (!path) {
+              return h('span', { style: 'font-size:12px;color:var(--el-text-color-regular)' }, text)
+            }
+            return h(
+              ElLink,
+              {
+                type: 'primary',
+                underline: 'never',
+                style: 'font-size:12px',
+                onClick: () =>
+                  openScaleTarget(
+                    cluster,
+                    { kind: row.target_kind, name: row.target_name },
+                    row.namespace
+                  )
+              },
+              () => text
+            )
+          }
+        },
+        {
+          prop: 'jobs',
+          label: '定时策略',
+          minWidth: 220,
+          formatter: (row: CronHpa) => renderKvCell(formatCronJobsSummary(row))
+        },
+        {
+          prop: 'exclude_dates',
+          label: '排除日期',
+          minWidth: 140,
+          formatter: (row: CronHpa) =>
+            h(
+              'span',
+              { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+              row.exclude_dates?.length ? row.exclude_dates.join('；') : '-'
+            )
+        },
+        {
+          prop: 'status',
+          label: '状态',
+          width: 100,
+          formatter: (row: CronHpa) =>
+            h(ElTag, { size: 'small', type: row.status === 'active' ? 'success' : 'info' }, () =>
+              row.status === 'active' ? '运行中' : '已暂停'
+            )
+        },
+        {
+          prop: 'create_user',
+          label: '创建人',
+          width: 110,
+          formatter: (row: CronHpa) =>
+            h(
+              'span',
+              { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+              row.create_user || '-'
+            )
+        },
+        {
+          prop: 'gmt_create',
+          label: '创建时间',
+          width: 170,
+          formatter: (row: CronHpa) =>
+            h(
+              'span',
+              { style: 'font-size:12px;color:var(--el-text-color-regular)' },
+              formatNodeCreationTime(row.gmt_create)
+            )
+        },
+        {
+          prop: 'operation',
+          label: '操作',
+          width: 120,
+          fixed: 'right',
+          formatter: (row: CronHpa) =>
+            h(
+              'div',
+              {
+                style:
+                  'display:flex;align-items:center;gap:8px;flex-wrap:nowrap;justify-content:flex-end'
+              },
+              [
+                h(ArtButtonMore, {
+                  list: [
+                    { key: 'edit', label: '编辑', icon: 'ri:edit-line' },
+                    { key: 'history', label: '执行历史', icon: 'ri:history-line' },
+                    {
+                      key: 'toggle',
+                      label: row.status === 'active' ? '暂停' : '恢复',
+                      icon: row.status === 'active' ? 'ri:pause-line' : 'ri:play-line'
+                    },
+                    { key: 'delete', label: '删除', icon: 'ri:delete-bin-4-line', color: '#409eff' }
+                  ],
+                  onClick: (item: ButtonMoreItem) => cronMoreClick(item, row)
+                })
+              ]
+            )
+        }
+      ]
+    }
+  })
+
+  const visibleCronColumns = computed(() =>
+    selectedNamespace.value
+      ? cronColumns.value.filter((c: { prop?: string }) => c.prop !== 'namespace')
+      : cronColumns.value
+  )
+
   useClusterDetailNamespaceRefresh('autoscaling', () => {
-    replaceSearchParams({ namespace: selectedNamespace.value || undefined })
+    const ns = selectedNamespace.value || undefined
+    replaceSearchParams({ namespace: ns })
+    cronReplaceSearchParams({ namespace: ns })
     getData()
+    cronGetData()
   })
 
   watch(
     () => String(route.query.cluster ?? ''),
     () => {
       getData()
+      cronGetData()
     }
   )
 
   function runSearch() {
     const name = (searchForm.value.name ?? '').trim() || undefined
     replaceSearchParams({ name })
+    cronReplaceSearchParams({ name })
     getData()
+    cronGetData()
   }
 
   function forceSearch() {
-    const name = (searchForm.value.name ?? '').trim() || undefined
-    replaceSearchParams({ name })
-    getData()
+    runSearch()
   }
 
   function onRefresh() {
     refreshData()
+    cronRefreshData()
   }
 
-  useSkipFirstActivatedRefresh(refreshData)
+  useSkipFirstActivatedRefresh(() => {
+    refreshData()
+    cronRefreshData()
+  })
 
-  function onCreateHpaHint() {
-    ElMessage.info(
-      '请通过集群详情页右上角「YAML创建」提交 HorizontalPodAutoscaler 资源（API 版本 autoscaling/v2）。'
-    )
+  function goCreateHPA() {
+    const ns = selectedNamespace.value
+    if (resourceTab.value === 'hpa') {
+      router.push({
+        path: '/container/hpa-create',
+        query: buildClusterRouteQuery(route, ns ? { namespace: ns } : undefined)
+      })
+    } else if (resourceTab.value === 'cron') {
+      // 跳转到定时 HPA 创建页面
+      router.push({
+        path: '/container/cron-hpa-create',
+        query: buildClusterRouteQuery(route, ns ? { namespace: ns } : undefined)
+      })
+    }
+  }
+
+  function goEditCronHpa(row: CronHpa) {
+    router.push({
+      path: '/container/cron-hpa-create',
+      query: buildClusterRouteQuery(route, { id: String(row.id), namespace: row.namespace })
+    })
+  }
+
+  async function openHistory(row: CronHpa) {
+    historyTitle.value = row.name
+    historyVisible.value = true
+    historyLoading.value = true
+    historyList.value = []
+    try {
+      historyList.value = await fetchCronHpaHistories(row.id, 200)
+    } catch (e: unknown) {
+      notifyError(e, '获取执行历史失败')
+    } finally {
+      historyLoading.value = false
+    }
+  }
+
+  async function toggleCronHpaStatus(row: CronHpa) {
+    const next = row.status === 'active' ? 'paused' : 'active'
+    try {
+      await setCronHpaStatus(row.id, next)
+      ElMessage.success(next === 'paused' ? '已暂停' : '已恢复')
+      cronRefreshData()
+    } catch (e: unknown) {
+      notifyError(e, '更新状态失败')
+    }
+  }
+
+  async function removeCronHpa(row: CronHpa) {
+    try {
+      await ElMessageBox.confirm(
+        `确定删除定时扩缩容规则「${row.name}」吗？删除后不再定时调整副本数，此操作不可恢复。`,
+        '删除定时扩缩容规则',
+        { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }
+      )
+      await deleteCronHpa(row.id)
+      ElMessage.success('删除成功')
+      cronRefreshData()
+    } catch (e: unknown) {
+      if (e === 'cancel') return
+      notifyError(e, '删除失败')
+    }
+  }
+
+  function cronMoreClick(item: ButtonMoreItem, row: CronHpa) {
+    if (item.key === 'edit') goEditCronHpa(row)
+    if (item.key === 'history') void openHistory(row)
+    if (item.key === 'toggle') void toggleCronHpaStatus(row)
+    if (item.key === 'delete') void removeCronHpa(row)
   }
 
   async function viewYaml(row: K8sHorizontalPodAutoscaler) {
@@ -582,15 +997,11 @@
     const name = row.metadata?.name
     if (!cluster || !ns || !name) return
     try {
-      await ElMessageBox.confirm(
-        `确定删除 HPA「${name}」吗？此操作不可恢复。`,
-        '删除 HorizontalPodAutoscaler',
-        {
-          type: 'warning',
-          confirmButtonText: '删除',
-          cancelButtonText: '取消'
-        }
-      )
+      await ElMessageBox.confirm(`确定删除 HPA「${name}」吗？此操作不可恢复。`, '删除 HPA', {
+        type: 'warning',
+        confirmButtonText: '删除',
+        cancelButtonText: '取消'
+      })
       await deleteK8sHpa(cluster, ns, name)
       ElMessage.success('删除成功')
       onRefresh()
@@ -601,8 +1012,141 @@
   }
 
   function hpaMoreClick(item: ButtonMoreItem, row: K8sHorizontalPodAutoscaler) {
+    if (item.key === 'edit') goEditHpa(row)
     if (item.key === 'yaml') void viewYaml(row)
+    if (item.key === 'history') void openHpaEvents(row)
+    if (item.key === 'toggle') void toggleHpaPaused(row)
     if (item.key === 'delete') void removeHpa(row)
+  }
+
+  /** 编辑：跳转创建页回填表单（名称/命名空间/目标工作负载不可改） */
+  function goEditHpa(row: K8sHorizontalPodAutoscaler) {
+    const ns = row.metadata?.namespace ?? ''
+    const name = row.metadata?.name ?? ''
+    if (!ns || !name) return
+    router.push({
+      path: '/container/hpa-create',
+      query: buildClusterRouteQuery(route, { namespace: ns, name })
+    })
+  }
+
+  /** 执行历史：原生 HPA 的伸缩动作记录在集群事件中（SuccessfulRescale 等） */
+  async function openHpaEvents(row: K8sHorizontalPodAutoscaler) {
+    const cluster = String(route.query.cluster ?? '')
+    const ns = row.metadata?.namespace ?? ''
+    const name = row.metadata?.name ?? ''
+    if (!cluster || !ns || !name) return
+    hpaEventsTitle.value = name
+    hpaEventsVisible.value = true
+    hpaEventsLoading.value = true
+    hpaEventsList.value = []
+    try {
+      const targetRef = row.spec?.scaleTargetRef
+      const [events, targetEvents] = await Promise.all([
+        fetchKubeRawEventList(cluster, {
+          namespace: ns,
+          name,
+          kind: 'HorizontalPodAutoscaler',
+          namespaced: true,
+          page: 1,
+          limit: 200
+        }),
+        // 并行拉取目标工作负载事件（如 Deployment ScalingReplicaSet），
+        // 用于推算最早一条伸缩事件的变更前副本数；失败不影响主列表
+        targetRef?.kind && targetRef?.name
+          ? fetchKubeRawEventList(cluster, {
+              namespace: ns,
+              name: targetRef.name,
+              kind: targetRef.kind,
+              namespaced: true,
+              page: 1,
+              limit: 200
+            }).catch(() => ({ items: [], total: 0 }))
+          : Promise.resolve({ items: [] as unknown[], total: 0 })
+      ])
+      hpaEventsList.value = parseHpaEvents(
+        events.items as K8sEventItem[],
+        targetEvents.items as K8sEventItem[],
+        parseInitialReplicas(row)
+      )
+    } catch (e: unknown) {
+      notifyError(e, '获取执行历史失败')
+    } finally {
+      hpaEventsLoading.value = false
+    }
+  }
+
+  /** 读取创建时记录的初始副本数 annotation，缺失或非法返回 undefined */
+  function parseInitialReplicas(row: K8sHorizontalPodAutoscaler): number | undefined {
+    const raw = Number(row.metadata?.annotations?.[HPA_INITIAL_REPLICAS_ANNOTATION])
+    return Number.isFinite(raw) && raw > 0 ? raw : undefined
+  }
+
+  /**
+   * 解析 HPA 伸缩事件：message 形如 "New size: 5; reason: cpu resource utilization above target"。
+   * HPA 事件本身只含变更后副本数，故合并目标工作负载的伸缩事件（如 Deployment
+   * "Scaled up replica set x to 1"）构成副本数时间线推算变更前副本数；
+   * 创建时记录的初始副本数 annotation 作为时间线起点兜底，最终倒序返回。
+   */
+  function parseHpaEvents(
+    items: K8sEventItem[],
+    targetItems: K8sEventItem[],
+    initialReplicas?: number
+  ): K8sEventItem[] {
+    const asc = [...items].sort((a, b) =>
+      (a.lastTimestamp ?? '').localeCompare(b.lastTimestamp ?? '')
+    )
+    // 时间线节点：ts + 变更后副本数；hpa 非空表示该节点为需展示的 HPA 事件。
+    // 同一次伸缩的 HPA 与工作负载事件时间戳可能同秒，HPA 节点需先消费（读取动作前的副本数），
+    // 故先推 HPA 节点再推工作负载节点，依赖稳定排序保证同秒顺序。
+    const points: { ts: string; size: number; hpa?: K8sEventItem }[] = []
+    for (const e of asc) {
+      const size = /New size: (\d+)/.exec(e.message ?? '')?.[1]
+      if (size) points.push({ ts: e.lastTimestamp ?? '', size: Number(size), hpa: e })
+    }
+    for (const e of targetItems) {
+      const size = / to (\d+)\s*$/.exec(e.message ?? '')?.[1]
+      if (size) points.push({ ts: e.lastTimestamp ?? '', size: Number(size) })
+    }
+    points.sort((a, b) => a.ts.localeCompare(b.ts))
+    // prevSize 起点：创建时记录的初始副本数（即 HPA 接管时工作负载的副本数）
+    let prevSize: number | undefined = initialReplicas
+    for (const p of points) {
+      if (p.hpa) {
+        p.hpa.replicasTo = p.size
+        p.hpa.replicasFrom = prevSize
+      }
+      prevSize = p.size
+    }
+    // 截取 "reason:" 之后的文本作为可读原因；无则回退原始 message
+    for (const e of asc) {
+      const reasonMatch = /reason:\s*(.+?)\s*;?\s*$/.exec(e.message ?? '')
+      e.detail = reasonMatch ? reasonMatch[1] : (e.message ?? '')
+    }
+    return asc.reverse()
+  }
+
+  async function toggleHpaPaused(row: K8sHorizontalPodAutoscaler) {
+    const cluster = String(route.query.cluster ?? '')
+    const ns = row.metadata?.namespace
+    const name = row.metadata?.name
+    if (!cluster || !ns || !name) return
+    const paused = isK8sHpaPaused(row)
+    try {
+      await ElMessageBox.confirm(
+        paused
+          ? '恢复后 HPA 将还原暂停前的 min/max，并继续按指标自动伸缩。'
+          : '暂停会将 min/max 锁定为当前副本数，HPA 不再自动伸缩；恢复时还原原 min/max。确定暂停吗？',
+        paused ? '恢复 HPA' : '暂停 HPA',
+        { type: 'warning', confirmButtonText: '确定', cancelButtonText: '取消' }
+      )
+      await setK8sHpaPaused(cluster, ns, name, !paused)
+      ElMessage.success(paused ? '已恢复' : '已暂停')
+      refreshData()
+    } catch (e: unknown) {
+      if (e === 'cancel') return
+      notifyError(e, paused ? '恢复失败' : '暂停失败')
+    }
   }
 </script>
 

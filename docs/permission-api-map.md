@@ -338,6 +338,24 @@
 
 ---
 
+## 扩展 extension
+
+### 定时扩缩容（/pixiu/extension/autoscaling/cronhpas）
+
+| Method | Path | 说明 | 持久化 |
+|--------|------|------|--------|
+| POST | /pixiu/extension/autoscaling/cronhpas | 创建定时扩缩容规则 | ✅ |
+| GET | /pixiu/extension/autoscaling/cronhpas | 定时扩缩容规则列表 | ✅ |
+| GET | /pixiu/extension/autoscaling/cronhpas/:cronHpaId | 定时扩缩容规则详情 | ✅ |
+| PUT | /pixiu/extension/autoscaling/cronhpas/:cronHpaId | 更新定时扩缩容规则 | ✅ |
+| DELETE | /pixiu/extension/autoscaling/cronhpas/:cronHpaId | 删除定时扩缩容规则 | ✅ |
+| PUT | /pixiu/extension/autoscaling/cronhpas/:cronHpaId/status | 暂停/恢复定时扩缩容规则 | ✅ |
+| GET | /pixiu/extension/autoscaling/cronhpas/:cronHpaId/histories | 定时扩缩容执行历史 | ✅ |
+
+> 规则存于后端数据库但按集群维度使用，入口在 container 集群详情的「弹性伸缩」页，属集群资源维度，菜单不标注。
+
+---
+
 ## 其它
 
 - `GET /pixiu/connect`：tunnel websocket 端点，非 apis 表资源，不标注。
