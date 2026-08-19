@@ -485,7 +485,6 @@
   }
 
   .svc-form {
-    max-width: 960px;
     padding-top: 4px;
   }
 

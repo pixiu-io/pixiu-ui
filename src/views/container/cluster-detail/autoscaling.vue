@@ -624,7 +624,7 @@
         {
           prop: 'operation',
           label: '操作',
-          width: 120,
+          width: 140,
           fixed: 'right',
           formatter: (row: K8sHorizontalPodAutoscaler) =>
             h(
@@ -634,17 +634,31 @@
                   'display:flex;align-items:center;gap:8px;flex-wrap:nowrap;justify-content:flex-end'
               },
               [
+                h(
+                  ElLink,
+                  {
+                    type: 'primary',
+                    underline: 'never',
+                    style: 'font-size:12px;line-height:1',
+                    onClick: () => goEditHpa(row)
+                  },
+                  () => '编辑'
+                ),
+                h(
+                  ElLink,
+                  {
+                    type: 'primary',
+                    underline: 'never',
+                    style: 'font-size:12px;line-height:1',
+                    onClick: () => toggleHpaPaused(row)
+                  },
+                  () => (isK8sHpaPaused(row) ? '恢复' : '暂停')
+                ),
                 h(ArtButtonMore, {
                   list: [
-                    { key: 'edit', label: '编辑', icon: 'ri:edit-line' },
                     { key: 'yaml', label: '查看YAML', icon: 'ri:file-code-line' },
                     { key: 'history', label: '执行历史', icon: 'ri:history-line' },
-                    {
-                      key: 'toggle',
-                      label: isK8sHpaPaused(row) ? '恢复' : '暂停',
-                      icon: isK8sHpaPaused(row) ? 'ri:play-line' : 'ri:pause-line'
-                    },
-                    { key: 'delete', label: '删除', icon: 'ri:delete-bin-4-line', color: '#409eff' }
+                    { key: 'delete', label: '删除', icon: 'ri:delete-bin-4-line' }
                   ],
                   onClick: (item: ButtonMoreItem) => hpaMoreClick(item, row)
                 })
@@ -812,7 +826,7 @@
         {
           prop: 'operation',
           label: '操作',
-          width: 120,
+          width: 140,
           fixed: 'right',
           formatter: (row: CronHpa) =>
             h(
@@ -822,16 +836,30 @@
                   'display:flex;align-items:center;gap:8px;flex-wrap:nowrap;justify-content:flex-end'
               },
               [
+                h(
+                  ElLink,
+                  {
+                    type: 'primary',
+                    underline: 'never',
+                    style: 'font-size:12px;line-height:1',
+                    onClick: () => goEditCronHpa(row)
+                  },
+                  () => '编辑'
+                ),
+                h(
+                  ElLink,
+                  {
+                    type: 'primary',
+                    underline: 'never',
+                    style: 'font-size:12px;line-height:1',
+                    onClick: () => toggleCronHpaStatus(row)
+                  },
+                  () => (row.status === 'active' ? '暂停' : '恢复')
+                ),
                 h(ArtButtonMore, {
                   list: [
-                    { key: 'edit', label: '编辑', icon: 'ri:edit-line' },
                     { key: 'history', label: '执行历史', icon: 'ri:history-line' },
-                    {
-                      key: 'toggle',
-                      label: row.status === 'active' ? '暂停' : '恢复',
-                      icon: row.status === 'active' ? 'ri:pause-line' : 'ri:play-line'
-                    },
-                    { key: 'delete', label: '删除', icon: 'ri:delete-bin-4-line', color: '#409eff' }
+                    { key: 'delete', label: '删除', icon: 'ri:delete-bin-4-line' }
                   ],
                   onClick: (item: ButtonMoreItem) => cronMoreClick(item, row)
                 })
@@ -951,9 +979,7 @@
   }
 
   function cronMoreClick(item: ButtonMoreItem, row: CronHpa) {
-    if (item.key === 'edit') goEditCronHpa(row)
     if (item.key === 'history') void openHistory(row)
-    if (item.key === 'toggle') void toggleCronHpaStatus(row)
     if (item.key === 'delete') void removeCronHpa(row)
   }
 
@@ -1012,10 +1038,8 @@
   }
 
   function hpaMoreClick(item: ButtonMoreItem, row: K8sHorizontalPodAutoscaler) {
-    if (item.key === 'edit') goEditHpa(row)
     if (item.key === 'yaml') void viewYaml(row)
     if (item.key === 'history') void openHpaEvents(row)
-    if (item.key === 'toggle') void toggleHpaPaused(row)
     if (item.key === 'delete') void removeHpa(row)
   }
 

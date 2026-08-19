@@ -395,10 +395,7 @@
 
 <style scoped>
   .svc-create-page {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    min-height: 0;
+    /* 自然文档流：整页滚动，底部按钮紧跟表单内容（与创建HPA 页一致） */
   }
 
   .svc-create-header {
@@ -423,23 +420,11 @@
     margin: 0 8px;
   }
 
-  .svc-create-card {
-    flex: 1;
-    min-height: 0;
-    overflow: hidden;
-  }
-
   .svc-create-card :deep(.el-card__body) {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
     padding: 16px 20px;
   }
 
   .svc-form {
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
     padding-right: 4px;
   }
 
