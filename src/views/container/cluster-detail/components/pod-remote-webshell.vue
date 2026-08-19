@@ -425,7 +425,10 @@
     const rt = getRuntime(tabId)
     clearIdleTimer(rt)
     rt.idleTimer = setTimeout(() => {
-      writeSystemLine(tabId, '[连接因长时间无操作已自动断开]')
+      const now = new Date()
+      const pad = (n: number) => String(n).padStart(2, '0')
+      const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
+      writeSystemLine(tabId, `[连接因长时间无操作已在 ${timeStr} 自动断开]`)
       closeSocket(tabId)
     }, IDLE_TIMEOUT)
   }
