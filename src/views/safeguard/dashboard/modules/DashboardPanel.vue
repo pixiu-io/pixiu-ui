@@ -11,7 +11,6 @@
         <ElIcon class="is-loading"><Loading /></ElIcon>
         更新中
       </span>
-      <span v-else-if="result?.status === 'success'" class="dashboard-panel__live">实时</span>
     </header>
 
     <div v-if="loading && !result" class="dashboard-panel__state">
@@ -99,6 +98,7 @@
   )
   const emit = defineEmits<{
     timeRangeSelect: [range: { start: number; end: number }]
+    itemClick: [payload: { panelId: string; name: string }]
   }>()
 
   const { chartRef, initChart, isDark, getTooltipStyle, getChartInstance } = useChart()
@@ -171,6 +171,7 @@
   function formatValue(value: number, unit?: string): string {
     if (!Number.isFinite(value)) return '-'
     if (unit === 'percent') return `${value.toFixed(value >= 10 ? 1 : 2)}%`
+    if (unit === 'count') return `${value.toFixed(Number.isInteger(value) ? 0 : 1)} 次`
     if (unit === 'bytes' || unit === 'Bps') {
       const suffix = unit === 'Bps' ? '/s' : ''
       const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB']
@@ -252,6 +253,10 @@
 
     if (props.panel.kind === 'line') {
       const isRuntimeErrorRate = props.panel.id === 'kubelet.error_rate'
+      const isNamespaceTrend =
+        props.panel.id === 'namespace.cpu_trend' || props.panel.id === 'namespace.memory_trend'
+      // namespace 趋势图：参考集群监控概览折线效果（细线）+ 稍小的轴字体
+      const axisFontSize = isNamespaceTrend ? 11 : undefined
       return {
         color: colors,
         animationDuration: 450,
@@ -261,12 +266,13 @@
         xAxis: {
           type: 'time',
           axisLine: { lineStyle: { color: splitColor } },
-          axisLabel: { color: textColor, hideOverlap: true }
+          axisLabel: { color: textColor, hideOverlap: true, fontSize: axisFontSize }
         },
         yAxis: {
           type: 'value',
           axisLabel: {
             color: textColor,
+            fontSize: axisFontSize,
             formatter: (value: number) => formatValue(value, props.panel.unit)
           },
           splitLine: { lineStyle: { color: splitColor, type: 'dashed' } }
@@ -277,7 +283,7 @@
           showSymbol: false,
           smooth: !isRuntimeErrorRate,
           step: isRuntimeErrorRate ? 'end' : false,
-          lineStyle: { width: 2 },
+          lineStyle: { width: isNamespaceTrend ? 1 : 2 },
           data: item.values.map((point) => [point.timestamp * 1000, Number(point.value)])
         }))
       }
@@ -297,7 +303,7 @@
       grid: {
         left: 168,
         right: 30,
-        top: 32,
+        top: 10,
         bottom: 22
       },
       xAxis: {
@@ -327,7 +333,7 @@
         {
           type: 'bar',
           data: rows.map((item) => ({ name: item.name, value: item.value })),
-          barMaxWidth: 18,
+          barMaxWidth: 10,
           itemStyle: { borderRadius: [0, 3, 3, 0] }
         }
       ]
@@ -421,14 +427,36 @@
     }
   }
 
+  let barClickBound = false
+
+  function handleChartClick(params: unknown) {
+    if (props.panel.kind !== 'bar') return
+    const raw = params as { componentType?: string; name?: string; data?: { name?: string } }
+    if (raw?.componentType !== 'series') return
+    const name = raw.data?.name ?? raw.name
+    if (typeof name === 'string' && name) {
+      emit('itemClick', { panelId: props.panel.id, name })
+    }
+  }
+
+  function bindBarChartClick() {
+    if (barClickBound) return
+    const chart = getChartInstance()
+    if (!chart) return
+    chart.on('click', handleChartClick)
+    barClickBound = true
+  }
+
   function applyChartOption() {
     const option = chartOption()
     const chart = getChartInstance()
     if (chart) {
       chart.setOption(option, { replaceMerge: ['series'] })
+      bindBarChartClick()
       return
     }
     initChart(option)
+    bindBarChartClick()
   }
 
   function renderChart() {
@@ -451,6 +479,7 @@
     window.addEventListener('scroll', hideChartTooltip, true)
   })
   onBeforeUnmount(() => {
+    getChartInstance()?.off('click', handleChartClick)
     chartRef.value?.removeEventListener('chartVisible', handleChartVisible)
     window.removeEventListener('mousemove', hideTooltipOutsideChart, true)
     window.removeEventListener('mouseup', finishChartRangeSelection, true)
@@ -538,11 +567,6 @@
 
   .dashboard-panel__info {
     color: var(--el-text-color-placeholder);
-  }
-
-  .dashboard-panel__live {
-    font-size: 11px;
-    color: #2e9b62;
   }
 
   .dashboard-panel__refreshing {
