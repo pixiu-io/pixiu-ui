@@ -3,6 +3,9 @@ import type {
   DashboardFilters,
   DashboardPanelDefinition
 } from '@/api/dashboard'
+import { embedPanelSpecs } from '@/utils/metrics/dashboard-embed-catalog'
+
+export { resolveClusterDetailPanelIds, CLUSTER_DETAIL_EMBED_PANEL_IDS } from '@/utils/metrics/dashboard-embed-catalog'
 
 export interface DashboardQuantileQueries {
   metric: string
@@ -1648,7 +1651,9 @@ const panelSpecs: DashboardPanelSpec[] = [
     ['coredns_panics_total'],
     false,
     fixed('sum(increase(coredns_panics_total[5m]))')
-  )
+  ),
+
+  ...(embedPanelSpecs as DashboardPanelSpec[])
 ]
 
 /** 集群详情 CoreDNS 专属页查询的面板 ID（不影响外部监控大盘 coredns section） */

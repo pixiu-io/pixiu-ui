@@ -428,6 +428,18 @@
               </div>
             </template>
 
+            <PrometheusEmbedLayout
+              v-else-if="embedPageView"
+              :view="embedPageView"
+              :definition="definition"
+              :result-map="resultMap"
+              :loading="queryLoading"
+              :show-legend="showLegend"
+              @events-click="goNamespacePage('events')"
+              @time-range-select="handleChartTimeRangeSelect"
+              @item-click="handlePanelItemClick"
+            />
+
             <div v-else class="prometheus-dashboard__panel-grid">
               <DashboardPanel
                 v-for="panel in currentPanels"
@@ -497,7 +509,9 @@
     getDefaultMetricsGranularity,
     type MetricsGranularityOption
   } from '@/utils/metrics/granularity'
-  import { COREDNS_EMBED_PANEL_IDS } from '@/utils/metrics/dashboard-catalog'
+  import { COREDNS_EMBED_PANEL_IDS, resolveClusterDetailPanelIds } from '@/utils/metrics/dashboard-catalog'
+  import PrometheusEmbedLayout from '@/views/container/cluster-detail/prometheus/embed/PrometheusEmbedLayout.vue'
+  import { buildEmbedPageView } from '@/views/container/cluster-detail/prometheus/embed/embed-views'
   import DashboardPanel from '@/views/safeguard/dashboard/modules/DashboardPanel.vue'
   import ClusterMonitorOverview from '@/views/container/cluster/modules/cluster-monitor-overview.vue'
   import AssociatePrometheusDialog from './associate-prometheus-dialog.vue'
@@ -553,9 +567,27 @@
   const currentPanels = computed(() =>
     definition.value.panels.filter((panel) => panel.section === activeSection.value)
   )
-  const activePanelIds = computed(() => {
-    if (activeSection.value === 'coredns') return [...COREDNS_EMBED_PANEL_IDS]
-    return currentPanels.value.map((panel) => panel.id)
+  const EMBED_LAYOUT_SECTIONS = new Set([
+    'apiserver',
+    'kubelet',
+    'controller-manager',
+    'scheduler',
+    'node-resource',
+    'node-pod',
+    'workload',
+    'pod'
+  ])
+
+  const activePanelIds = computed(() =>
+    resolveClusterDetailPanelIds(
+      activeSection.value,
+      currentPanels.value.map((panel) => panel.id),
+      COREDNS_EMBED_PANEL_IDS
+    )
+  )
+  const embedPageView = computed(() => {
+    if (!EMBED_LAYOUT_SECTIONS.has(activeSection.value)) return null
+    return buildEmbedPageView(activeSection.value, resultMap)
   })
   const resultValues = computed(() =>
     currentPanels.value.map((panel) => resultMap[panel.id]).filter(Boolean)
@@ -2020,6 +2052,20 @@
 
   .prometheus-dashboard__panel-grid--coredns-latency {
     margin-bottom: 20px;
+  }
+
+  .prometheus-dashboard__panel-grid--full {
+    grid-template-columns: 1fr;
+  }
+
+  .prometheus-dashboard__panel-grid--workload {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  @media (max-width: 1200px) {
+    .prometheus-dashboard__panel-grid--workload {
+      grid-template-columns: 1fr;
+    }
   }
 
   .prometheus-dashboard__panel-grid--coredns :deep(.dashboard-panel.is-line) {
