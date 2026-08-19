@@ -11,7 +11,6 @@
         <ElIcon class="is-loading"><Loading /></ElIcon>
         更新中
       </span>
-      <span v-else-if="result?.status === 'success'" class="dashboard-panel__live">实时</span>
     </header>
 
     <div v-if="loading && !result" class="dashboard-panel__state">
@@ -56,6 +55,7 @@
     <div
       v-else
       class="dashboard-panel__chart-shell"
+      :class="{ 'dashboard-panel__chart-shell--compact': compactBar }"
       @pointerdown.capture="startChartRangeSelection"
       @pointermove.capture="handleChartMouseMove"
       @pointerup.capture="finishChartRangeSelection"
@@ -65,7 +65,7 @@
       @mouseleave="handleChartMouseLeave"
       @pointerleave="hideChartTooltip"
     >
-      <div ref="chartRef" class="dashboard-panel__chart" />
+      <div ref="chartRef" class="dashboard-panel__chart" :style="compactChartStyle" />
       <div
         v-if="rangeSelection"
         class="dashboard-panel__range-selection"
@@ -92,14 +92,49 @@
       result?: DashboardPanelResult
       loading?: boolean
       showLegend?: boolean
+      /** 横向条形图固定行距（仅集群详情 namespace Top10 使用） */
+      compactBar?: boolean
     }>(),
     {
-      showLegend: true
+      showLegend: true,
+      compactBar: false
     }
   )
   const emit = defineEmits<{
     timeRangeSelect: [range: { start: number; end: number }]
+    itemClick: [payload: { panelId: string; name: string }]
   }>()
+
+  const COMPACT_BAR_HEIGHT = 10
+  const COMPACT_ROW_GAP = 18
+  const COMPACT_GRID_TOP = 6
+  const COMPACT_GRID_BOTTOM = 22
+
+  function buildCompactBarLayout(rowCount: number) {
+    const plotHeight =
+      rowCount > 0
+        ? rowCount * COMPACT_BAR_HEIGHT + Math.max(0, rowCount - 1) * COMPACT_ROW_GAP
+        : COMPACT_BAR_HEIGHT
+    return {
+      plotHeight,
+      chartHeight: COMPACT_GRID_TOP + plotHeight + COMPACT_GRID_BOTTOM
+    }
+  }
+
+  const compactBarRowCount = computed(() => {
+    if (!props.compactBar || props.panel.kind !== 'bar' || props.result?.status !== 'success') {
+      return 0
+    }
+    return (props.result.series ?? [])
+      .map((item) => Number(item.values.at(-1)?.value ?? 0))
+      .filter((value) => Number.isFinite(value))
+      .slice(0, 10).length
+  })
+
+  const compactChartStyle = computed<CSSProperties>(() => {
+    if (!props.compactBar || compactBarRowCount.value <= 0) return {}
+    return { height: `${buildCompactBarLayout(compactBarRowCount.value).chartHeight}px` }
+  })
 
   const { chartRef, initChart, isDark, getTooltipStyle, getChartInstance } = useChart()
   const rangeSelection = ref<{ left: number; width: number } | null>(null)
@@ -171,6 +206,7 @@
   function formatValue(value: number, unit?: string): string {
     if (!Number.isFinite(value)) return '-'
     if (unit === 'percent') return `${value.toFixed(value >= 10 ? 1 : 2)}%`
+    if (unit === 'count') return `${value.toFixed(Number.isInteger(value) ? 0 : 1)} 次`
     if (unit === 'bytes' || unit === 'Bps') {
       const suffix = unit === 'Bps' ? '/s' : ''
       const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB']
@@ -252,6 +288,10 @@
 
     if (props.panel.kind === 'line') {
       const isRuntimeErrorRate = props.panel.id === 'kubelet.error_rate'
+      const isNamespaceTrend =
+        props.panel.id === 'namespace.cpu_trend' || props.panel.id === 'namespace.memory_trend'
+      // namespace 趋势图：参考集群监控概览折线效果（细线）+ 稍小的轴字体
+      const axisFontSize = isNamespaceTrend ? 11 : undefined
       return {
         color: colors,
         animationDuration: 450,
@@ -261,12 +301,13 @@
         xAxis: {
           type: 'time',
           axisLine: { lineStyle: { color: splitColor } },
-          axisLabel: { color: textColor, hideOverlap: true }
+          axisLabel: { color: textColor, hideOverlap: true, fontSize: axisFontSize }
         },
         yAxis: {
           type: 'value',
           axisLabel: {
             color: textColor,
+            fontSize: axisFontSize,
             formatter: (value: number) => formatValue(value, props.panel.unit)
           },
           splitLine: { lineStyle: { color: splitColor, type: 'dashed' } }
@@ -277,7 +318,7 @@
           showSymbol: false,
           smooth: !isRuntimeErrorRate,
           step: isRuntimeErrorRate ? 'end' : false,
-          lineStyle: { width: 2 },
+          lineStyle: { width: isNamespaceTrend ? 1 : 2 },
           data: item.values.map((point) => [point.timestamp * 1000, Number(point.value)])
         }))
       }
@@ -289,17 +330,25 @@
       .slice(0, 10)
       .reverse()
     const isContainerFilesystem = props.panel.id === 'storage.container_fs'
+    const compactLayout = props.compactBar ? buildCompactBarLayout(rows.length) : null
     return {
       color: colors,
       animationDuration: 450,
       tooltip: tooltip(props.panel.unit),
       legend,
-      grid: {
-        left: 168,
-        right: 30,
-        top: 32,
-        bottom: 22
-      },
+      grid: props.compactBar && compactLayout
+        ? {
+            left: 168,
+            right: 30,
+            top: COMPACT_GRID_TOP,
+            height: compactLayout.plotHeight
+          }
+        : {
+            left: 168,
+            right: 30,
+            top: 10,
+            bottom: 22
+          },
       xAxis: {
         type: 'value',
         splitNumber: isContainerFilesystem ? 3 : 4,
@@ -327,7 +376,9 @@
         {
           type: 'bar',
           data: rows.map((item) => ({ name: item.name, value: item.value })),
-          barMaxWidth: 18,
+          ...(props.compactBar
+            ? { barWidth: COMPACT_BAR_HEIGHT, barCategoryGap: COMPACT_ROW_GAP }
+            : { barMaxWidth: COMPACT_BAR_HEIGHT }),
           itemStyle: { borderRadius: [0, 3, 3, 0] }
         }
       ]
@@ -421,14 +472,44 @@
     }
   }
 
+  let barClickBound = false
+
+  function handleChartClick(params: unknown) {
+    if (props.panel.kind !== 'bar') return
+    const raw = params as { componentType?: string; name?: string; data?: { name?: string } }
+    if (raw?.componentType !== 'series') return
+    const name = raw.data?.name ?? raw.name
+    if (typeof name === 'string' && name) {
+      emit('itemClick', { panelId: props.panel.id, name })
+    }
+  }
+
+  function bindBarChartClick() {
+    if (barClickBound) return
+    const chart = getChartInstance()
+    if (!chart) return
+    chart.on('click', handleChartClick)
+    barClickBound = true
+  }
+
   function applyChartOption() {
     const option = chartOption()
     const chart = getChartInstance()
     if (chart) {
-      chart.setOption(option, { replaceMerge: ['series'] })
+      chart.setOption(option, {
+        replaceMerge: props.compactBar ? ['series', 'grid'] : ['series']
+      })
+      bindBarChartClick()
+      if (props.compactBar) {
+        nextTick(() => chart.resize())
+      }
       return
     }
     initChart(option)
+    bindBarChartClick()
+    if (props.compactBar) {
+      nextTick(() => getChartInstance()?.resize())
+    }
   }
 
   function renderChart() {
@@ -451,6 +532,7 @@
     window.addEventListener('scroll', hideChartTooltip, true)
   })
   onBeforeUnmount(() => {
+    getChartInstance()?.off('click', handleChartClick)
     chartRef.value?.removeEventListener('chartVisible', handleChartVisible)
     window.removeEventListener('mousemove', hideTooltipOutsideChart, true)
     window.removeEventListener('mouseup', finishChartRangeSelection, true)
@@ -459,7 +541,7 @@
     window.removeEventListener('scroll', hideChartTooltip, true)
   })
   watch(
-    () => [props.result, props.panel.id, props.loading, props.showLegend, isDark.value],
+    () => [props.result, props.panel.id, props.loading, props.showLegend, props.compactBar, isDark.value],
     renderChart,
     {
       deep: true
@@ -538,11 +620,6 @@
 
   .dashboard-panel__info {
     color: var(--el-text-color-placeholder);
-  }
-
-  .dashboard-panel__live {
-    font-size: 11px;
-    color: #2e9b62;
   }
 
   .dashboard-panel__refreshing {
@@ -710,6 +787,26 @@
     position: relative;
     width: 100%;
     height: calc(100% - 46px);
+  }
+
+  .dashboard-panel__chart-shell--compact {
+    overflow: hidden auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--el-border-color) transparent;
+
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: var(--el-border-color);
+      border-radius: 3px;
+    }
+  }
+
+  .dashboard-panel__chart-shell--compact .dashboard-panel__chart {
+    height: auto;
+    min-height: 100%;
   }
 
   .dashboard-panel__chart {

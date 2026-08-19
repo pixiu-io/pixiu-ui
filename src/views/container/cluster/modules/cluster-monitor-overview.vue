@@ -31,7 +31,7 @@
       <div class="overview-actions">
         <ElLink
           type="primary"
-          :underline="false"
+          underline="never"
           class="overview-actions__link"
           @click="goPage('events')"
         >

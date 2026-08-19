@@ -52,6 +52,16 @@ function fixed(expression: string): (filters: DashboardFilters) => string {
   return () => expression
 }
 
+/** 多分位延迟查询：label_replace 打上 quantile 标签后用 or 合并为多 series，供 line 图按分位区分 */
+function quantileSeries(metric: string, thresholds: number[], unitFactor = 1): string {
+  return thresholds
+    .map(
+      (q, i) =>
+        `${i === 0 ? '' : 'or '}label_replace(histogram_quantile(${q}, sum by (le) (rate(${metric}[5m]))) * ${unitFactor}, "quantile", "${q}", "__name__", ".*")`
+    )
+    .join(' ')
+}
+
 function promqlQuote(value: string): string {
   return JSON.stringify(value.trim())
 }
@@ -206,6 +216,20 @@ function namespaceRestarts(filters: DashboardFilters): string {
   return `topk(10, sum by (namespace) (${selector('kube_pod_container_status_restarts_total', filters, ['namespace', 'pod'])}))`
 }
 
+function namespaceCPURequestRatio(filters: DashboardFilters): string {
+  return (
+    `100 * sum(${containerExpr('container_cpu_usage_seconds_total', filters, true)}) / ` +
+    `clamp_min(sum(${selector('kube_pod_container_resource_requests', filters, ['namespace', 'node', 'pod'], 'resource="cpu"')}), 0.001)`
+  )
+}
+
+function namespaceMemoryRequestRatio(filters: DashboardFilters): string {
+  return (
+    `100 * sum(${containerExpr('container_memory_working_set_bytes', filters, false)}) / ` +
+    `clamp_min(sum(${selector('kube_pod_container_resource_requests', filters, ['namespace', 'node', 'pod'], 'resource="memory"')}), 1)`
+  )
+}
+
 function nodeReady(filters: DashboardFilters): string {
   return selector(
     'kube_node_status_condition',
@@ -317,7 +341,7 @@ const sections: DashboardDefinition['sections'] = [
     id: 'core',
     title: '核心组件监控',
     icon: 'ri:cpu-line',
-    children: ['kubelet', 'control-plane']
+    children: ['kubelet', 'coredns', 'apiserver', 'controller-manager', 'scheduler']
   },
   {
     id: 'node',
@@ -511,10 +535,10 @@ const panelSpecs: DashboardPanelSpec[] = [
   panel(
     'namespace',
     'namespace.pods',
-    'Namespace Pod 数',
+    'Pod 数',
     'bar',
     'short',
-    6,
+    4,
     ['kube_pod_info'],
     false,
     namespacePods
@@ -522,10 +546,10 @@ const panelSpecs: DashboardPanelSpec[] = [
   panel(
     'namespace',
     'namespace.cpu',
-    'Namespace CPU Top 10',
+    'CPU',
     'bar',
     'cores',
-    6,
+    4,
     ['container_cpu_usage_seconds_total'],
     false,
     namespaceCPU
@@ -533,10 +557,10 @@ const panelSpecs: DashboardPanelSpec[] = [
   panel(
     'namespace',
     'namespace.memory',
-    'Namespace 内存 Top 10',
+    '内存',
     'bar',
     'bytes',
-    6,
+    4,
     ['container_memory_working_set_bytes'],
     false,
     namespaceMemory
@@ -546,11 +570,57 @@ const panelSpecs: DashboardPanelSpec[] = [
     'namespace.restarts',
     '容器重启 Top 10',
     'bar',
-    'short',
+    'count',
     6,
     ['kube_pod_container_status_restarts_total'],
     false,
     namespaceRestarts
+  ),
+  panel(
+    'namespace',
+    'namespace.cpu_request_ratio',
+    'CPU 使用 / Request',
+    'stat',
+    'percent',
+    3,
+    ['container_cpu_usage_seconds_total', 'kube_pod_container_resource_requests'],
+    false,
+    namespaceCPURequestRatio
+  ),
+  panel(
+    'namespace',
+    'namespace.memory_request_ratio',
+    '内存使用 / Request',
+    'stat',
+    'percent',
+    3,
+    ['container_memory_working_set_bytes', 'kube_pod_container_resource_requests'],
+    false,
+    namespaceMemoryRequestRatio
+  ),
+  panel(
+    'namespace',
+    'namespace.cpu_trend',
+    'CPU 使用',
+    'line',
+    'cores',
+    6,
+    ['container_cpu_usage_seconds_total'],
+    true,
+    (filters) =>
+      `topk(5, sum by (namespace) (${containerExpr('container_cpu_usage_seconds_total', filters, true)}))`
+  ),
+  panel(
+    'namespace',
+    'namespace.memory_trend',
+    '内存使用',
+    'line',
+    'bytes',
+    6,
+    ['container_memory_working_set_bytes'],
+    true,
+    (filters) =>
+      `topk(5, sum by (namespace) (${containerExpr('container_memory_working_set_bytes', filters, false)}))`
   ),
 
   panel(
@@ -597,24 +667,6 @@ const panelSpecs: DashboardPanelSpec[] = [
     true,
     fixed('sum by (operation_type) (rate(kubelet_runtime_operations_errors_total[5m]))'),
     'Kubelet 调用容器运行时发生错误的每秒速率，按操作类型统计。'
-  ),
-
-  unavailablePanel(
-    'control-plane',
-    'control.scheduler',
-    'Scheduler 调度状态',
-    '',
-    4,
-    'scheduler_schedule_attempts_total'
-  ),
-  unavailablePanel('control-plane', 'control.controller', 'Controller Manager', '', 4),
-  unavailablePanel(
-    'control-plane',
-    'control.apiserver',
-    'API Server 请求',
-    '',
-    4,
-    'apiserver_request_total'
   ),
 
   panel(
@@ -1033,7 +1085,369 @@ const panelSpecs: DashboardPanelSpec[] = [
 
   unavailablePanel('gpu', 'gpu.utilization', 'GPU 使用率', 'percent', 4, 'DCGM_FI_DEV_GPU_UTIL'),
   unavailablePanel('gpu', 'gpu.memory', 'GPU 显存使用', 'bytes', 4, 'DCGM_FI_DEV_FB_USED'),
-  unavailablePanel('gpu', 'gpu.temperature', 'GPU 温度', 'celsius', 4, 'DCGM_FI_DEV_GPU_TEMP')
+  unavailablePanel('gpu', 'gpu.temperature', 'GPU 温度', 'celsius', 4, 'DCGM_FI_DEV_GPU_TEMP'),
+
+  // ===== 核心组件监控（独立页面面板，供 monitor-* 路由页按 panel id 查询；不进入 sections 大盘导航） =====
+
+  // ---- API Server ----
+  panel(
+    'apiserver',
+    'apiserver.qps',
+    '请求 QPS',
+    'stat',
+    'ops',
+    3,
+    ['apiserver_request_total'],
+    false,
+    fixed('sum(rate(apiserver_request_total[5m]))')
+  ),
+  panel(
+    'apiserver',
+    'apiserver.error_rate',
+    '5xx 错误率',
+    'stat',
+    'percent',
+    3,
+    ['apiserver_request_total'],
+    false,
+    fixed('100 * sum(rate(apiserver_request_total{code=~"5.."}[5m])) / sum(rate(apiserver_request_total[5m]))')
+  ),
+  panel(
+    'apiserver',
+    'apiserver.latency_p99',
+    'P99 请求延迟',
+    'stat',
+    'ms',
+    3,
+    ['apiserver_request_duration_seconds_bucket'],
+    false,
+    fixed('histogram_quantile(0.99, sum by (le) (rate(apiserver_request_duration_seconds_bucket[5m]))) * 1000')
+  ),
+  panel(
+    'apiserver',
+    'apiserver.replicas',
+    '运行副本数',
+    'stat',
+    'short',
+    3,
+    ['apiserver_request_total'],
+    false,
+    fixed('count(apiserver_request_total)')
+  ),
+  panel(
+    'apiserver',
+    'apiserver.requests',
+    '请求速率（按方法）',
+    'line',
+    'ops',
+    6,
+    ['apiserver_request_total'],
+    true,
+    fixed('sum by (verb) (rate(apiserver_request_total[5m]))')
+  ),
+  panel(
+    'apiserver',
+    'apiserver.latency',
+    '请求延迟分位',
+    'line',
+    'ms',
+    6,
+    ['apiserver_request_duration_seconds_bucket'],
+    true,
+    fixed(quantileSeries('apiserver_request_duration_seconds_bucket', [0.99, 0.9, 0.5], 1000))
+  ),
+  panel(
+    'apiserver',
+    'apiserver.errors',
+    '5xx 错误速率（按状态码）',
+    'line',
+    'ops',
+    6,
+    ['apiserver_request_total'],
+    true,
+    fixed('sum by (code) (rate(apiserver_request_total{code=~"5.."}[5m]))')
+  ),
+  panel(
+    'apiserver',
+    'apiserver.process',
+    '进程内存',
+    'line',
+    'bytes',
+    6,
+    ['process_resident_memory_bytes'],
+    true,
+    fixed('process_resident_memory_bytes{job="apiserver"}')
+  ),
+
+  // ---- Controller Manager ----
+  panel(
+    'controller-manager',
+    'controller.queue_depth',
+    '工作队列最深深度',
+    'stat',
+    'short',
+    3,
+    ['workqueue_depth'],
+    false,
+    fixed('max(workqueue_depth)')
+  ),
+  panel(
+    'controller-manager',
+    'controller.adds_rate',
+    '队列添加速率',
+    'stat',
+    'ops',
+    3,
+    ['workqueue_adds_total'],
+    false,
+    fixed('sum(rate(workqueue_adds_total[5m]))')
+  ),
+  panel(
+    'controller-manager',
+    'controller.retries_rate',
+    '处理重试速率',
+    'stat',
+    'ops',
+    3,
+    ['workqueue_retries_total'],
+    false,
+    fixed('sum(rate(workqueue_retries_total[5m]))')
+  ),
+  panel(
+    'controller-manager',
+    'controller.replicas',
+    '运行副本数',
+    'stat',
+    'short',
+    3,
+    ['workqueue_depth'],
+    false,
+    fixed('count(workqueue_depth)')
+  ),
+  panel(
+    'controller-manager',
+    'controller.queue_top',
+    '工作队列深度 Top',
+    'line',
+    'short',
+    6,
+    ['workqueue_depth'],
+    true,
+    fixed('topk(8, workqueue_depth)')
+  ),
+  panel(
+    'controller-manager',
+    'controller.adds',
+    '队列添加速率（按控制器）',
+    'line',
+    'ops',
+    6,
+    ['workqueue_adds_total'],
+    true,
+    fixed('sum by (name) (rate(workqueue_adds_total[5m]))')
+  ),
+  panel(
+    'controller-manager',
+    'controller.latency_p99',
+    '工作处理延迟 P99',
+    'line',
+    'ms',
+    6,
+    ['workqueue_work_duration_seconds_bucket'],
+    true,
+    fixed('histogram_quantile(0.99, sum by (le) (rate(workqueue_work_duration_seconds_bucket[5m]))) * 1000')
+  ),
+  panel(
+    'controller-manager',
+    'controller.process',
+    '进程内存',
+    'line',
+    'bytes',
+    6,
+    ['process_resident_memory_bytes'],
+    true,
+    fixed('process_resident_memory_bytes{job="kube-controller-manager"}')
+  ),
+
+  // ---- Scheduler ----
+  panel(
+    'scheduler',
+    'scheduler.attempts_rate',
+    '调度尝试速率',
+    'stat',
+    'ops',
+    3,
+    ['scheduler_schedule_attempts_total'],
+    false,
+    fixed('sum(rate(scheduler_schedule_attempts_total[5m]))')
+  ),
+  panel(
+    'scheduler',
+    'scheduler.success_rate',
+    '调度成功率',
+    'stat',
+    'percent',
+    3,
+    ['scheduler_schedule_attempts_total'],
+    false,
+    fixed('100 * sum(rate(scheduler_schedule_attempts_total{result="scheduled"}[5m])) / sum(rate(scheduler_schedule_attempts_total[5m]))')
+  ),
+  panel(
+    'scheduler',
+    'scheduler.latency_p99',
+    'P99 调度延迟',
+    'stat',
+    'ms',
+    3,
+    ['scheduler_e2e_scheduling_duration_seconds_bucket'],
+    false,
+    fixed('histogram_quantile(0.99, sum by (le) (rate(scheduler_e2e_scheduling_duration_seconds_bucket[5m]))) * 1000')
+  ),
+  panel(
+    'scheduler',
+    'scheduler.replicas',
+    '运行副本数',
+    'stat',
+    'short',
+    3,
+    ['scheduler_schedule_attempts_total'],
+    false,
+    fixed('count(scheduler_schedule_attempts_total)')
+  ),
+  panel(
+    'scheduler',
+    'scheduler.results',
+    '调度结果分布',
+    'line',
+    'ops',
+    6,
+    ['scheduler_schedule_attempts_total'],
+    true,
+    fixed('sum by (result) (rate(scheduler_schedule_attempts_total[5m]))')
+  ),
+  panel(
+    'scheduler',
+    'scheduler.latency',
+    '端到端调度延迟分位',
+    'line',
+    'ms',
+    6,
+    ['scheduler_e2e_scheduling_duration_seconds_bucket'],
+    true,
+    fixed(quantileSeries('scheduler_e2e_scheduling_duration_seconds_bucket', [0.99, 0.9, 0.5], 1000))
+  ),
+  panel(
+    'scheduler',
+    'scheduler.queue_depth',
+    '调度队列深度',
+    'line',
+    'short',
+    6,
+    ['workqueue_depth'],
+    true,
+    fixed('workqueue_depth')
+  ),
+  panel(
+    'scheduler',
+    'scheduler.process',
+    '进程内存',
+    'line',
+    'bytes',
+    6,
+    ['process_resident_memory_bytes'],
+    true,
+    fixed('process_resident_memory_bytes{job="kube-scheduler"}')
+  ),
+
+  // ---- CoreDNS ----
+  panel(
+    'coredns',
+    'coredns.qps',
+    'DNS 请求 QPS',
+    'stat',
+    'ops',
+    3,
+    ['coredns_dns_requests_total'],
+    false,
+    fixed('sum(rate(coredns_dns_requests_total[5m]))')
+  ),
+  panel(
+    'coredns',
+    'coredns.servfail_rate',
+    'SERVFAIL 错误率',
+    'stat',
+    'percent',
+    3,
+    ['coredns_dns_responses_total'],
+    false,
+    fixed('100 * sum(rate(coredns_dns_responses_total{rcode="SERVFAIL"}[5m])) / sum(rate(coredns_dns_responses_total[5m]))')
+  ),
+  panel(
+    'coredns',
+    'coredns.cache_hit_rate',
+    '缓存命中率',
+    'stat',
+    'percent',
+    3,
+    ['coredns_cache_hits_total', 'coredns_cache_misses_total'],
+    false,
+    fixed('100 * sum(rate(coredns_cache_hits_total[5m])) / (sum(rate(coredns_cache_hits_total[5m])) + sum(rate(coredns_cache_misses_total[5m])))')
+  ),
+  panel(
+    'coredns',
+    'coredns.panics',
+    'Panics',
+    'stat',
+    'count',
+    3,
+    ['coredns_panics_total'],
+    false,
+    fixed('sum(increase(coredns_panics_total[5m]))')
+  ),
+  panel(
+    'coredns',
+    'coredns.requests',
+    '请求类型分布',
+    'line',
+    'ops',
+    6,
+    ['coredns_dns_requests_total'],
+    true,
+    fixed('sum by (type) (rate(coredns_dns_requests_total[5m]))')
+  ),
+  panel(
+    'coredns',
+    'coredns.rcodes',
+    '响应 RCODE 分布',
+    'line',
+    'ops',
+    6,
+    ['coredns_dns_responses_total'],
+    true,
+    fixed('sum by (rcode) (rate(coredns_dns_responses_total[5m]))')
+  ),
+  panel(
+    'coredns',
+    'coredns.latency',
+    '请求延迟分位',
+    'line',
+    'ms',
+    6,
+    ['coredns_dns_request_duration_seconds_bucket'],
+    true,
+    fixed(quantileSeries('coredns_dns_request_duration_seconds_bucket', [0.99, 0.9, 0.5], 1000))
+  ),
+  panel(
+    'coredns',
+    'coredns.process',
+    '进程内存',
+    'line',
+    'bytes',
+    6,
+    ['process_resident_memory_bytes'],
+    true,
+    fixed('process_resident_memory_bytes{job="coredns"}')
+  )
 ]
 
 export function getDashboardDefinition(): DashboardDefinition {
