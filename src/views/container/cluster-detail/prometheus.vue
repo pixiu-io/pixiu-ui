@@ -841,6 +841,8 @@
     return Number.isFinite(value) ? value : null
   }
 
+  const COREDNS_MIN_DNS_QPS = 0.001
+
   const corednsMetrics = computed(() => {
     const successRate = corednsEmbedStat('coredns.embed.success_rate')
     const cacheHitRate = corednsEmbedStat('coredns.embed.cache_hitrate')
@@ -853,6 +855,11 @@
         : null
     const replicaCount = corednsPodRows.value.length
     const imbalancedCount = corednsPodRows.value.filter((row) => row.imbalanced).length
+    const hasDnsTraffic = qps !== null && qps > COREDNS_MIN_DNS_QPS
+    const isDnsIdle =
+      !hasDnsTraffic &&
+      (successRate === null || successRate === 0) &&
+      (qps === null || qps <= COREDNS_MIN_DNS_QPS)
     const hasMetrics =
       successRate !== null ||
       cacheHitRate !== null ||
@@ -868,6 +875,8 @@
       panics: Number.isFinite(panics ?? NaN) ? (panics as number) : null,
       replicaCount,
       imbalancedCount,
+      hasDnsTraffic,
+      isDnsIdle,
       hasMetrics
     }
   })
@@ -881,6 +890,8 @@
       panics,
       replicaCount,
       imbalancedCount,
+      hasDnsTraffic,
+      isDnsIdle,
       hasMetrics
     } = corednsMetrics.value
 
@@ -902,6 +913,18 @@
       }
     }
 
+    if (isDnsIdle && (panics === null || panics <= 0)) {
+      return {
+        status: 'unknown' as CorednsHealthStatus,
+        title: 'CoreDNS 待观察',
+        description:
+          replicaCount > 0
+            ? '当前暂无 DNS 请求流量，新集群或空闲状态下指标待积累，暂不做异常判定。'
+            : '当前暂无 DNS 请求流量，待业务访问后再评估运行状态。',
+        issues: [] as string[]
+      }
+    }
+
     const issues: string[] = []
     let status: CorednsHealthStatus = 'healthy'
 
@@ -916,32 +939,28 @@
       markDanger()
       issues.push(`过去 5 分钟发生 ${panics.toFixed(0)} 次 Panic`)
     }
-    if (successRate !== null && successRate < 95) {
+    if (hasDnsTraffic && successRate !== null && successRate < 95) {
       markDanger()
       issues.push(`解析成功率 ${successRate.toFixed(1)}%，低于 95%`)
-    } else if (successRate !== null && successRate < 99) {
+    } else if (hasDnsTraffic && successRate !== null && successRate < 99) {
       markWarning()
       issues.push(`解析成功率 ${successRate.toFixed(1)}%，建议关注 SERVFAIL`)
     }
-    if (p99Latency !== null && p99Latency > 500) {
+    if (hasDnsTraffic && p99Latency !== null && p99Latency > 500) {
       markDanger()
       issues.push(`P99 解析延迟 ${p99Latency.toFixed(0)} ms，响应偏慢`)
-    } else if (p99Latency !== null && p99Latency > 100) {
+    } else if (hasDnsTraffic && p99Latency !== null && p99Latency > 100) {
       markWarning()
       issues.push(`P99 解析延迟 ${p99Latency.toFixed(0)} ms，略高于正常水平`)
     }
-    if (cacheHitRate !== null && cacheHitRate < 30) {
+    if (hasDnsTraffic && cacheHitRate !== null && cacheHitRate < 30) {
       markDanger()
       issues.push(`缓存命中率 ${cacheHitRate.toFixed(1)}%，缓存效率偏低`)
-    } else if (cacheHitRate !== null && cacheHitRate < 60) {
+    } else if (hasDnsTraffic && cacheHitRate !== null && cacheHitRate < 60) {
       markWarning()
       issues.push(`缓存命中率 ${cacheHitRate.toFixed(1)}%，可检查 TTL 与缓存配置`)
     }
-    if (qps !== null && qps <= 0 && replicaCount > 0) {
-      markDanger()
-      issues.push('DNS 请求 QPS 为 0，可能存在可用性风险')
-    }
-    if (imbalancedCount > 0) {
+    if (hasDnsTraffic && imbalancedCount > 0) {
       markWarning()
       issues.push(`${imbalancedCount} 个副本请求负载偏高，建议检查副本均衡`)
     }
@@ -964,8 +983,16 @@
   })
 
   const corednsSummaryCards = computed<CorednsSummaryCard[]>(() => {
-    const { successRate, cacheHitRate, qps, p99Latency, replicaCount, imbalancedCount } =
-      corednsMetrics.value
+    const {
+      successRate,
+      cacheHitRate,
+      qps,
+      p99Latency,
+      replicaCount,
+      imbalancedCount,
+      hasDnsTraffic,
+      isDnsIdle
+    } = corednsMetrics.value
     const health = corednsHealth.value
 
     const healthIcon =
@@ -1007,7 +1034,9 @@
               ? '需关注'
               : health.status === 'danger'
                 ? '异常'
-                : '-',
+                : health.title === 'CoreDNS 待观察'
+                  ? '待观察'
+                  : '-',
         sub: health.description,
         danger: health.status === 'danger',
         warning: health.status === 'warning'
@@ -1023,11 +1052,13 @@
         sub:
           successRate === null
             ? '暂无数据'
-            : successRate >= 99
-              ? 'NOERROR / NXDOMAIN 占比正常'
-              : '存在解析失败响应',
-        danger: successRate !== null && successRate < 95,
-        warning: successRate !== null && successRate >= 95 && successRate < 99
+            : isDnsIdle
+              ? '暂无 DNS 流量'
+              : successRate >= 99
+                ? 'NOERROR / NXDOMAIN 占比正常'
+                : '存在解析失败响应',
+        danger: hasDnsTraffic && successRate !== null && successRate < 95,
+        warning: hasDnsTraffic && successRate !== null && successRate >= 95 && successRate < 99
       },
       {
         key: 'latency',
@@ -1057,11 +1088,13 @@
         sub:
           cacheHitRate === null
             ? '暂无数据'
-            : cacheHitRate >= 60
-              ? '缓存效率良好'
-              : '缓存命中偏低',
-        danger: cacheHitRate !== null && cacheHitRate < 30,
-        warning: cacheHitRate !== null && cacheHitRate >= 30 && cacheHitRate < 60
+            : isDnsIdle
+              ? '暂无 DNS 流量'
+              : cacheHitRate >= 60
+                ? '缓存效率良好'
+                : '缓存命中偏低',
+        danger: hasDnsTraffic && cacheHitRate !== null && cacheHitRate < 30,
+        warning: hasDnsTraffic && cacheHitRate !== null && cacheHitRate >= 30 && cacheHitRate < 60
       },
       {
         key: 'qps',
@@ -1073,10 +1106,12 @@
         unit: '/s',
         sub:
           replicaCount > 0
-            ? `${replicaCount} 个副本${imbalancedCount ? `，${imbalancedCount} 个负载偏高` : ''}`
+            ? isDnsIdle
+              ? `${replicaCount} 个副本，暂无请求流量`
+              : `${replicaCount} 个副本${imbalancedCount ? `，${imbalancedCount} 个负载偏高` : ''}`
             : '暂无副本数据',
-        danger: qps !== null && qps <= 0 && replicaCount > 0,
-        warning: imbalancedCount > 0
+        danger: false,
+        warning: hasDnsTraffic && imbalancedCount > 0
       }
     ]
   })
