@@ -4,12 +4,28 @@ import type {
   DashboardPanelDefinition
 } from '@/api/dashboard'
 
+export interface DashboardQuantileQueries {
+  metric: string
+  thresholds: number[]
+  unitFactor?: number
+}
+
 export interface DashboardPanelSpec extends DashboardPanelDefinition {
   rangeQuery: boolean
   query?: (filters: DashboardFilters) => string
+  /** 主查询无数据时的回退 PromQL */
+  fallbackQuery?: (filters: DashboardFilters) => string
+  /** 多分位延迟：并行查询后合并（避免 or 表达式丢失 P99/P90 series） */
+  quantileQueries?: DashboardQuantileQueries
 }
 
 type FilterLabel = 'namespace' | 'node' | 'pod'
+
+type PanelOptions = {
+  requiredMetricsAny?: string[]
+  fallbackQuery?: (filters: DashboardFilters) => string
+  quantileQueries?: DashboardQuantileQueries
+}
 
 function panel(
   section: string,
@@ -21,7 +37,8 @@ function panel(
   requiredMetrics: string[],
   rangeQuery: boolean,
   query?: (filters: DashboardFilters) => string,
-  description?: string
+  description?: string,
+  options?: PanelOptions
 ): DashboardPanelSpec {
   return {
     id,
@@ -31,8 +48,11 @@ function panel(
     unit,
     span,
     required_metrics: requiredMetrics,
+    required_metrics_any: options?.requiredMetricsAny,
     rangeQuery,
     query,
+    fallbackQuery: options?.fallbackQuery,
+    quantileQueries: options?.quantileQueries,
     description
   }
 }
@@ -52,14 +72,32 @@ function fixed(expression: string): (filters: DashboardFilters) => string {
   return () => expression
 }
 
+/** CoreDNS 请求类型：兼容标准 counter 与部分云厂商的 request_count_total */
+function corednsRequestsByTypeQuery(): string {
+  return (
+    'sum by (type) (rate(coredns_dns_requests_total[5m])) or ' +
+    'sum by (type) (rate(coredns_dns_request_count_total[5m]))'
+  )
+}
+
+/** CoreDNS 延迟分位：histogram 无数据时回退到平均延迟 */
+function corednsLatencyFallbackQuery(): string {
+  return (
+    'label_replace(' +
+    'sum(rate(coredns_dns_request_duration_seconds_sum[5m])) / ' +
+    'clamp_min(sum(rate(coredns_dns_request_duration_seconds_count[5m])), 1e-9) * 1000, ' +
+    '"latency_kind", "avg", "nonexistent", ".*")'
+  )
+}
+
 /** 多分位延迟查询：label_replace 打上 quantile 标签后用 or 合并为多 series，供 line 图按分位区分 */
 function quantileSeries(metric: string, thresholds: number[], unitFactor = 1): string {
-  return thresholds
-    .map(
-      (q, i) =>
-        `${i === 0 ? '' : 'or '}label_replace(histogram_quantile(${q}, sum by (le) (rate(${metric}[5m]))) * ${unitFactor}, "quantile", "${q}", "__name__", ".*")`
-    )
-    .join(' ')
+  const bucketRate = `sum(rate(${metric}[5m])) by (le)`
+  const parts = thresholds.map(
+    (q) =>
+      `label_replace(histogram_quantile(${q}, ${bucketRate}) * ${unitFactor}, "quantile", "${q}", "nonexistent", ".*")`
+  )
+  return parts.length === 1 ? parts[0] : `(${parts.join(' or ')})`
 }
 
 function promqlQuote(value: string): string {
@@ -1413,7 +1451,9 @@ const panelSpecs: DashboardPanelSpec[] = [
     6,
     ['coredns_dns_requests_total'],
     true,
-    fixed('sum by (type) (rate(coredns_dns_requests_total[5m]))')
+    fixed(corednsRequestsByTypeQuery()),
+    undefined,
+    { requiredMetricsAny: ['coredns_dns_requests_total', 'coredns_dns_request_count_total'] }
   ),
   panel(
     'coredns',
@@ -1435,7 +1475,21 @@ const panelSpecs: DashboardPanelSpec[] = [
     6,
     ['coredns_dns_request_duration_seconds_bucket'],
     true,
-    fixed(quantileSeries('coredns_dns_request_duration_seconds_bucket', [0.99, 0.9, 0.5], 1000))
+    undefined,
+    undefined,
+    {
+      quantileQueries: {
+        metric: 'coredns_dns_request_duration_seconds_bucket',
+        thresholds: [0.99, 0.9, 0.5],
+        unitFactor: 1000
+      },
+      requiredMetricsAny: [
+        'coredns_dns_request_duration_seconds_bucket',
+        'coredns_dns_request_duration_seconds_sum',
+        'coredns_dns_request_duration_seconds_count'
+      ],
+      fallbackQuery: fixed(corednsLatencyFallbackQuery())
+    }
   ),
   panel(
     'coredns',
@@ -1447,14 +1501,182 @@ const panelSpecs: DashboardPanelSpec[] = [
     ['process_resident_memory_bytes'],
     true,
     fixed('process_resident_memory_bytes{job="coredns"}')
+  ),
+
+  // ---- CoreDNS embed（集群详情专属，section 不在 sections 导航中） ----
+  panel(
+    'coredns-embed',
+    'coredns.embed.requests_total',
+    '请求总量',
+    'line',
+    'ops',
+    6,
+    ['coredns_dns_requests_total'],
+    true,
+    fixed('sum(rate(coredns_dns_requests_total[5m]))')
+  ),
+  panel(
+    'coredns-embed',
+    'coredns.embed.requests_by_type',
+    '请求类型 (qtype)',
+    'line',
+    'ops',
+    6,
+    ['coredns_dns_requests_total'],
+    true,
+    fixed(corednsRequestsByTypeQuery()),
+    undefined,
+    { requiredMetricsAny: ['coredns_dns_requests_total', 'coredns_dns_request_count_total'] }
+  ),
+  panel(
+    'coredns-embed',
+    'coredns.embed.success_rate',
+    '解析成功率',
+    'line',
+    'percent',
+    6,
+    ['coredns_dns_responses_total'],
+    true,
+    fixed(
+      '100 * sum(rate(coredns_dns_responses_total{rcode=~"NOERROR|NXDOMAIN"}[5m])) / clamp_min(sum(rate(coredns_dns_responses_total[5m])), 1)'
+    )
+  ),
+  panel(
+    'coredns-embed',
+    'coredns.embed.rcodes',
+    '响应 RCODE 分布',
+    'line',
+    'ops',
+    6,
+    ['coredns_dns_responses_total'],
+    true,
+    fixed('sum by (rcode) (rate(coredns_dns_responses_total[5m]))')
+  ),
+  panel(
+    'coredns-embed',
+    'coredns.embed.latency',
+    '响应延迟分位',
+    'line',
+    'ms',
+    6,
+    ['coredns_dns_request_duration_seconds_bucket'],
+    true,
+    undefined,
+    undefined,
+    {
+      quantileQueries: {
+        metric: 'coredns_dns_request_duration_seconds_bucket',
+        thresholds: [0.99, 0.9, 0.5],
+        unitFactor: 1000
+      },
+      requiredMetricsAny: [
+        'coredns_dns_request_duration_seconds_bucket',
+        'coredns_dns_request_duration_seconds_sum',
+        'coredns_dns_request_duration_seconds_count'
+      ],
+      fallbackQuery: fixed(corednsLatencyFallbackQuery())
+    }
+  ),
+  panel(
+    'coredns-embed',
+    'coredns.embed.cache_hitrate',
+    '缓存命中率',
+    'line',
+    'percent',
+    6,
+    ['coredns_cache_hits_total', 'coredns_cache_misses_total'],
+    true,
+    fixed(
+      '100 * sum(rate(coredns_cache_hits_total[5m])) / clamp_min(sum(rate(coredns_cache_hits_total[5m])) + sum(rate(coredns_cache_misses_total[5m])), 1)'
+    )
+  ),
+  panel(
+    'coredns-embed',
+    'coredns.embed.cache_hits_misses',
+    '缓存 Hit / Miss',
+    'line',
+    'ops',
+    6,
+    ['coredns_cache_hits_total', 'coredns_cache_misses_total'],
+    true,
+    fixed(
+      'label_replace(sum(rate(coredns_cache_hits_total[5m])), "cache", "命中", "nonexistent", ".*") or label_replace(sum(rate(coredns_cache_misses_total[5m])), "cache", "未命中", "nonexistent", ".*")'
+    )
+  ),
+  panel(
+    'coredns-embed',
+    'coredns.embed.pod_qps',
+    'Pod 请求 QPS',
+    'stat',
+    'ops',
+    3,
+    ['coredns_dns_requests_total'],
+    false,
+    fixed('sum by (pod) (rate(coredns_dns_requests_total[5m]))')
+  ),
+  panel(
+    'coredns-embed',
+    'coredns.embed.pod_latency',
+    'Pod 平均延迟',
+    'stat',
+    'ms',
+    3,
+    ['coredns_dns_request_duration_seconds_bucket'],
+    false,
+    fixed(
+      'histogram_quantile(0.5, sum by (le, pod) (rate(coredns_dns_request_duration_seconds_bucket[5m]))) * 1000'
+    )
+  ),
+  panel(
+    'coredns-embed',
+    'coredns.embed.process',
+    '进程内存',
+    'line',
+    'bytes',
+    6,
+    ['process_resident_memory_bytes'],
+    true,
+    fixed('process_resident_memory_bytes{job=~"coredns.*"}')
+  ),
+  panel(
+    'coredns-embed',
+    'coredns.embed.panics',
+    'Panics',
+    'stat',
+    'count',
+    3,
+    ['coredns_panics_total'],
+    false,
+    fixed('sum(increase(coredns_panics_total[5m]))')
   )
 ]
+
+/** 集群详情 CoreDNS 专属页查询的面板 ID（不影响外部监控大盘 coredns section） */
+export const COREDNS_EMBED_PANEL_IDS = [
+  'coredns.embed.requests_total',
+  'coredns.embed.requests_by_type',
+  'coredns.embed.success_rate',
+  'coredns.embed.rcodes',
+  'coredns.embed.latency',
+  'coredns.embed.cache_hitrate',
+  'coredns.embed.cache_hits_misses',
+  'coredns.embed.pod_qps',
+  'coredns.embed.pod_latency',
+  'coredns.embed.process',
+  'coredns.embed.panics'
+] as const
 
 export function getDashboardDefinition(): DashboardDefinition {
   return {
     sections,
     panels: panelSpecs.map(
-      ({ rangeQuery: _rangeQuery, query: _query, ...definition }) => definition
+      ({
+        rangeQuery: _rangeQuery,
+        query: _query,
+        fallbackQuery: _fallbackQuery,
+        quantileQueries: _quantileQueries,
+        ...definition
+      }) => definition
     )
   }
 }

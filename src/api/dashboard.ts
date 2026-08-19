@@ -34,7 +34,10 @@ export interface DashboardPanelDefinition {
   kind: DashboardPanelKind
   unit?: string
   span: number
+  /** 全部存在时才查询 */
   required_metrics?: string[]
+  /** 任一存在即可查询（与 required_metrics 二选一） */
+  required_metrics_any?: string[]
 }
 
 export interface DashboardDefinition {
@@ -228,6 +231,66 @@ async function loadMetricNames(
   }
 }
 
+function hasRequiredMetrics(spec: DashboardPanelSpec, metricNames: Set<string> | null): boolean {
+  // 指标列表为空时仍尝试查询，避免因 label API 不完整导致整页误判「指标未采集」
+  if (!metricNames || metricNames.size === 0) return true
+  if (spec.required_metrics_any?.length) {
+    return spec.required_metrics_any.some((name) => metricNames.has(name))
+  }
+  const required = spec.required_metrics ?? []
+  if (!required.length) return true
+  return required.every((name) => metricNames.has(name))
+}
+
+async function runPanelQuery(
+  context: PrometheusDatasourceContext,
+  spec: DashboardPanelSpec,
+  expression: string,
+  start: number,
+  end: number,
+  step: number
+): Promise<DashboardSeries[]> {
+  const response = spec.rangeQuery
+    ? await fetchPrometheusRangeQuery(
+        context.url,
+        expression,
+        start,
+        end,
+        String(Math.max(1, step)),
+        context.options
+      )
+    : await fetchPrometheusInstantQuery(context.url, expression, end, context.options)
+  return normalizeSeries(ensurePrometheusSuccess(response))
+}
+
+async function queryQuantileParallel(
+  context: PrometheusDatasourceContext,
+  spec: DashboardPanelSpec,
+  start: number,
+  end: number,
+  step: number
+): Promise<DashboardSeries[]> {
+  const { metric, thresholds, unitFactor = 1 } = spec.quantileQueries!
+  const bucketRate = `sum(rate(${metric}[5m])) by (le)`
+
+  const parts = await Promise.all(
+    thresholds.map(async (quantile) => {
+      try {
+        const expression = `histogram_quantile(${quantile}, ${bucketRate}) * ${unitFactor}`
+        const series = await runPanelQuery(context, spec, expression, start, end, step)
+        return series.map((item) => ({
+          metric: { ...item.metric, quantile: String(quantile) },
+          values: item.values
+        }))
+      } catch {
+        return [] as DashboardSeries[]
+      }
+    })
+  )
+
+  return parts.flat()
+}
+
 async function queryPanel(
   context: PrometheusDatasourceContext,
   spec: DashboardPanelSpec,
@@ -244,27 +307,18 @@ async function queryPanel(
     series: []
   })
 
-  if (!spec.query) return emptyResult()
-  if (
-    metricNames &&
-    (spec.required_metrics ?? []).some((metricName) => !metricNames.has(metricName))
-  ) {
-    return emptyResult()
-  }
+  if (!spec.query && !spec.quantileQueries) return emptyResult()
+  if (!hasRequiredMetrics(spec, metricNames)) return emptyResult()
 
   try {
-    const expression = spec.query(filters)
-    const response = spec.rangeQuery
-      ? await fetchPrometheusRangeQuery(
-          context.url,
-          expression,
-          start,
-          end,
-          String(Math.max(1, step)),
-          context.options
-        )
-      : await fetchPrometheusInstantQuery(context.url, expression, end, context.options)
-    const series = normalizeSeries(ensurePrometheusSuccess(response))
+    let series = spec.quantileQueries
+      ? await queryQuantileParallel(context, spec, start, end, step)
+      : await runPanelQuery(context, spec, spec.query!(filters), start, end, step)
+
+    if (!series.length && spec.fallbackQuery) {
+      series = await runPanelQuery(context, spec, spec.fallbackQuery(filters), start, end, step)
+    }
+
     if (!series.length) {
       return {
         id: spec.id,

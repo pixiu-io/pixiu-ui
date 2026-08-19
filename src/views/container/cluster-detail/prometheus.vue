@@ -158,6 +158,7 @@
                   :result="resultMap[panel.id]"
                   :loading="queryLoading"
                   :show-legend="showLegend"
+                  overview-line
                   @time-range-select="handleChartTimeRangeSelect"
                   @item-click="handlePanelItemClick"
                 />
@@ -175,6 +176,7 @@
                   :result="resultMap[panel.id]"
                   :loading="queryLoading"
                   :show-legend="showLegend"
+                  overview-line
                   compact-bar
                   @time-range-select="handleChartTimeRangeSelect"
                   @item-click="handlePanelItemClick"
@@ -240,6 +242,192 @@
               </div>
             </template>
 
+            <template v-else-if="activeSection === 'coredns'">
+              <div class="prometheus-dashboard__overview-actions">
+                <ElLink
+                  type="primary"
+                  underline="never"
+                  class="prometheus-dashboard__overview-actions__link"
+                  @click="goNamespacePage('events')"
+                >
+                  <ElIcon :size="14"><Bell /></ElIcon>
+                  <span>事件与告警</span>
+                </ElLink>
+              </div>
+
+              <div class="prometheus-dashboard__coredns-summary">
+                <div class="prometheus-dashboard__summary-grid prometheus-dashboard__summary-grid--coredns">
+                  <div
+                    v-for="card in corednsSummaryCards"
+                    :key="card.key"
+                    class="prometheus-dashboard__summary-card"
+                    :class="{ 'is-danger': card.danger, 'is-warning': card.warning }"
+                  >
+                    <div class="prometheus-dashboard__summary-card__head">
+                      <span class="prometheus-dashboard__summary-card__title">{{ card.title }}</span>
+                      <span
+                        class="prometheus-dashboard__summary-card__icon"
+                        :style="{ color: card.iconColor, background: card.iconBg }"
+                      >
+                        <ElIcon :size="16"><component :is="card.icon" /></ElIcon>
+                      </span>
+                    </div>
+                    <div
+                      class="prometheus-dashboard__summary-card__value"
+                      :class="{ 'is-danger': card.danger, 'is-warning': card.warning }"
+                    >
+                      {{ card.value }}
+                      <span v-if="card.unit" class="prometheus-dashboard__summary-card__unit">{{
+                        card.unit
+                      }}</span>
+                    </div>
+                    <div class="prometheus-dashboard__summary-card__sub">{{ card.sub }}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                class="prometheus-dashboard__section-title prometheus-dashboard__section-title--spaced"
+              >
+                副本与资源
+              </div>
+              <div class="prometheus-dashboard__coredns-resource">
+                <div class="prometheus-dashboard__coredns-pod-card">
+                  <div class="prometheus-dashboard__coredns-pod-card__head">
+                    <h4>Pod 请求分布</h4>
+                    <span>各副本 QPS 与平均延迟</span>
+                  </div>
+                  <div
+                    v-if="queryLoading && !corednsPodRows.length"
+                    class="prometheus-dashboard__coredns-pod-card__body prometheus-dashboard__coredns-pod-card__empty"
+                  >
+                    加载中…
+                  </div>
+                  <div
+                    v-else-if="!corednsPodRows.length"
+                    class="prometheus-dashboard__coredns-pod-card__body prometheus-dashboard__coredns-pod-card__empty"
+                  >
+                    暂无 Pod 指标数据
+                  </div>
+                  <div v-else class="prometheus-dashboard__coredns-pod-card__body">
+                    <table class="prometheus-dashboard__coredns-pod-table">
+                    <thead>
+                      <tr>
+                        <th>Pod</th>
+                        <th>QPS</th>
+                        <th>平均延迟</th>
+                        <th>负载</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr
+                        v-for="row in corednsPodRows"
+                        :key="row.name"
+                        :class="{ 'is-imbalanced': row.imbalanced }"
+                      >
+                        <td :title="row.name">{{ row.name }}</td>
+                        <td>{{ row.qps }}</td>
+                        <td>{{ row.latency }}</td>
+                        <td>
+                          <ElTag
+                            size="small"
+                            :type="row.imbalanced ? 'warning' : 'success'"
+                            effect="plain"
+                          >
+                            {{ row.imbalanced ? '偏高' : '正常' }}
+                          </ElTag>
+                        </td>
+                      </tr>
+                    </tbody>
+                    </table>
+                  </div>
+                </div>
+                <DashboardPanel
+                  v-if="corednsProcessPanel"
+                  :panel="corednsProcessPanel"
+                  :result="resultMap[corednsProcessPanel.id]"
+                  :loading="queryLoading"
+                  :show-legend="showLegend"
+                  overview-line
+                  @time-range-select="handleChartTimeRangeSelect"
+                />
+              </div>
+
+              <div
+                class="prometheus-dashboard__section-title prometheus-dashboard__section-title--spaced"
+              >
+                请求
+              </div>
+              <div
+                class="prometheus-dashboard__panel-grid prometheus-dashboard__panel-grid--coredns"
+              >
+                <DashboardPanel
+                  v-for="panel in corednsRequestPanels"
+                  :key="panel.id"
+                  :panel="panel"
+                  :result="resultMap[panel.id]"
+                  :loading="queryLoading"
+                  :show-legend="showLegend"
+                  overview-line
+                  @time-range-select="handleChartTimeRangeSelect"
+                />
+              </div>
+
+              <div
+                class="prometheus-dashboard__section-title prometheus-dashboard__section-title--spaced"
+              >
+                响应与可用性
+              </div>
+              <div
+                class="prometheus-dashboard__panel-grid prometheus-dashboard__panel-grid--coredns"
+              >
+                <DashboardPanel
+                  v-for="panel in corednsResponsePanels"
+                  :key="panel.id"
+                  :panel="panel"
+                  :result="resultMap[panel.id]"
+                  :loading="queryLoading"
+                  :show-legend="showLegend"
+                  overview-line
+                  @time-range-select="handleChartTimeRangeSelect"
+                />
+              </div>
+              <div
+                class="prometheus-dashboard__panel-grid prometheus-dashboard__panel-grid--coredns prometheus-dashboard__panel-grid--coredns-latency"
+              >
+                <DashboardPanel
+                  v-if="corednsLatencyPanel"
+                  :key="corednsLatencyPanel.id"
+                  :panel="corednsLatencyPanel"
+                  :result="resultMap[corednsLatencyPanel.id]"
+                  :loading="queryLoading"
+                  :show-legend="showLegend"
+                  overview-line
+                  @time-range-select="handleChartTimeRangeSelect"
+                />
+              </div>
+
+              <div
+                class="prometheus-dashboard__section-title prometheus-dashboard__section-title--spaced"
+              >
+                缓存
+              </div>
+              <div
+                class="prometheus-dashboard__panel-grid prometheus-dashboard__panel-grid--coredns"
+              >
+                <DashboardPanel
+                  v-for="panel in corednsCachePanels"
+                  :key="panel.id"
+                  :panel="panel"
+                  :result="resultMap[panel.id]"
+                  :loading="queryLoading"
+                  :show-legend="showLegend"
+                  overview-line
+                  @time-range-select="handleChartTimeRangeSelect"
+                />
+              </div>
+            </template>
+
             <div v-else class="prometheus-dashboard__panel-grid">
               <DashboardPanel
                 v-for="panel in currentPanels"
@@ -248,6 +436,7 @@
                 :result="resultMap[panel.id]"
                 :loading="queryLoading"
                 :show-legend="showLegend"
+                overview-line
                 @time-range-select="handleChartTimeRangeSelect"
                 @item-click="handlePanelItemClick"
               />
@@ -266,7 +455,19 @@
 </template>
 
 <script setup lang="ts">
-  import { Bell, CaretRight, Coin, Cpu, Folder } from '@element-plus/icons-vue'
+  import {
+    Bell,
+    CaretRight,
+    CircleCheckFilled,
+    Coin,
+    Connection,
+    Cpu,
+    Folder,
+    Monitor,
+    Odometer,
+    Timer,
+    WarningFilled
+  } from '@element-plus/icons-vue'
   import type { Component } from 'vue'
   import { computed, inject, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
@@ -296,6 +497,7 @@
     getDefaultMetricsGranularity,
     type MetricsGranularityOption
   } from '@/utils/metrics/granularity'
+  import { COREDNS_EMBED_PANEL_IDS } from '@/utils/metrics/dashboard-catalog'
   import DashboardPanel from '@/views/safeguard/dashboard/modules/DashboardPanel.vue'
   import ClusterMonitorOverview from '@/views/container/cluster/modules/cluster-monitor-overview.vue'
   import AssociatePrometheusDialog from './associate-prometheus-dialog.vue'
@@ -351,6 +553,10 @@
   const currentPanels = computed(() =>
     definition.value.panels.filter((panel) => panel.section === activeSection.value)
   )
+  const activePanelIds = computed(() => {
+    if (activeSection.value === 'coredns') return [...COREDNS_EMBED_PANEL_IDS]
+    return currentPanels.value.map((panel) => panel.id)
+  })
   const resultValues = computed(() =>
     currentPanels.value.map((panel) => resultMap[panel.id]).filter(Boolean)
   )
@@ -517,6 +723,399 @@
       .filter((panel): panel is DashboardPanelDefinition => panel !== undefined)
   )
 
+  function resolveEmbedPanels(ids: string[]) {
+    return ids
+      .map((id) => definition.value.panels.find((panel) => panel.id === id))
+      .filter((panel): panel is DashboardPanelDefinition => panel !== undefined)
+  }
+
+  const corednsRequestPanels = computed(() =>
+    resolveEmbedPanels(['coredns.embed.requests_total', 'coredns.embed.requests_by_type'])
+  )
+  const corednsResponsePanels = computed(() =>
+    resolveEmbedPanels(['coredns.embed.success_rate', 'coredns.embed.rcodes'])
+  )
+  const corednsLatencyPanel = computed(
+    () => definition.value.panels.find((panel) => panel.id === 'coredns.embed.latency')
+  )
+  const corednsCachePanels = computed(() =>
+    resolveEmbedPanels(['coredns.embed.cache_hitrate', 'coredns.embed.cache_hits_misses'])
+  )
+  const corednsProcessPanel = computed(
+    () => definition.value.panels.find((panel) => panel.id === 'coredns.embed.process')
+  )
+
+  type CorednsPodRow = {
+    name: string
+    qps: string
+    latency: string
+    imbalanced: boolean
+  }
+
+  function corednsPodName(metric: Record<string, string>): string {
+    return metric.pod?.trim() || metric.instance?.replace(/:\d+$/, '') || '未知 Pod'
+  }
+
+  function formatCorednsQps(value: number): string {
+    if (!Number.isFinite(value)) return '-'
+    return `${value.toFixed(value >= 10 ? 1 : 2)}/s`
+  }
+
+  function formatCorednsLatency(value: number): string {
+    if (!Number.isFinite(value)) return '-'
+    return `${value.toFixed(value >= 10 ? 1 : 2)} ms`
+  }
+
+  const corednsPodRows = computed<CorednsPodRow[]>(() => {
+    const qpsResult = resultMap['coredns.embed.pod_qps']
+    const latencyResult = resultMap['coredns.embed.pod_latency']
+    const qpsMap = new Map<string, number>()
+    const latencyMap = new Map<string, number>()
+
+    if (qpsResult?.status === 'success') {
+      for (const series of qpsResult.series) {
+        const name = corednsPodName(series.metric)
+        const value = Number(series.values.at(-1)?.value ?? 0)
+        if (Number.isFinite(value)) qpsMap.set(name, value)
+      }
+    }
+    if (latencyResult?.status === 'success') {
+      for (const series of latencyResult.series) {
+        const name = corednsPodName(series.metric)
+        const value = Number(series.values.at(-1)?.value ?? 0)
+        if (Number.isFinite(value)) latencyMap.set(name, value)
+      }
+    }
+
+    const names = new Set([...qpsMap.keys(), ...latencyMap.keys()])
+    const rows = [...names].map((name) => ({
+      name,
+      qpsValue: qpsMap.get(name) ?? 0,
+      latencyValue: latencyMap.get(name) ?? 0
+    }))
+    if (!rows.length) return []
+
+    const avgQps = rows.reduce((sum, row) => sum + row.qpsValue, 0) / rows.length
+    return rows
+      .map((row) => ({
+        name: row.name,
+        qps: formatCorednsQps(row.qpsValue),
+        latency: formatCorednsLatency(row.latencyValue),
+        imbalanced: avgQps > 0 && row.qpsValue > avgQps * 1.5
+      }))
+      .sort((a, b) => {
+        const aq = qpsMap.get(a.name) ?? 0
+        const bq = qpsMap.get(b.name) ?? 0
+        return bq - aq
+      })
+  })
+
+  type CorednsHealthStatus = 'healthy' | 'warning' | 'danger' | 'unknown'
+
+  type CorednsSummaryCard = {
+    key: string
+    title: string
+    icon: Component
+    iconColor: string
+    iconBg: string
+    value: string
+    unit?: string
+    sub: string
+    danger?: boolean
+    warning?: boolean
+  }
+
+  function corednsEmbedStat(panelId: string): number | null {
+    const result = resultMap[panelId]
+    if (result?.status !== 'success') return null
+    const value = Number(result.series?.[0]?.values?.at(-1)?.value)
+    return Number.isFinite(value) ? value : null
+  }
+
+  function corednsEmbedQuantile(panelId: string, quantile: number): number | null {
+    const result = resultMap[panelId]
+    if (result?.status !== 'success') return null
+    const series = result.series.find((item) => Number(item.metric.quantile) === quantile)
+    if (!series) return null
+    const value = Number(series.values.at(-1)?.value)
+    return Number.isFinite(value) ? value : null
+  }
+
+  const COREDNS_MIN_DNS_QPS = 0.001
+
+  const corednsMetrics = computed(() => {
+    const successRate = corednsEmbedStat('coredns.embed.success_rate')
+    const cacheHitRate = corednsEmbedStat('coredns.embed.cache_hitrate')
+    const qps = corednsEmbedStat('coredns.embed.requests_total')
+    const p99Latency = corednsEmbedQuantile('coredns.embed.latency', 0.99)
+    const panicResult = resultMap['coredns.embed.panics']
+    const panics =
+      panicResult?.status === 'success'
+        ? Number(panicResult.series?.[0]?.values?.at(-1)?.value ?? 0)
+        : null
+    const replicaCount = corednsPodRows.value.length
+    const imbalancedCount = corednsPodRows.value.filter((row) => row.imbalanced).length
+    const hasDnsTraffic = qps !== null && qps > COREDNS_MIN_DNS_QPS
+    const isDnsIdle =
+      !hasDnsTraffic &&
+      (successRate === null || successRate === 0) &&
+      (qps === null || qps <= COREDNS_MIN_DNS_QPS)
+    const hasMetrics =
+      successRate !== null ||
+      cacheHitRate !== null ||
+      qps !== null ||
+      p99Latency !== null ||
+      replicaCount > 0
+
+    return {
+      successRate,
+      cacheHitRate,
+      qps,
+      p99Latency,
+      panics: Number.isFinite(panics ?? NaN) ? (panics as number) : null,
+      replicaCount,
+      imbalancedCount,
+      hasDnsTraffic,
+      isDnsIdle,
+      hasMetrics
+    }
+  })
+
+  const corednsHealth = computed(() => {
+    const {
+      successRate,
+      cacheHitRate,
+      qps,
+      p99Latency,
+      panics,
+      replicaCount,
+      imbalancedCount,
+      hasDnsTraffic,
+      isDnsIdle,
+      hasMetrics
+    } = corednsMetrics.value
+
+    if (queryLoading.value && !hasMetrics) {
+      return {
+        status: 'unknown' as CorednsHealthStatus,
+        title: 'CoreDNS 状态评估中',
+        description: '正在拉取 DNS 解析与缓存指标…',
+        issues: [] as string[]
+      }
+    }
+
+    if (!hasMetrics) {
+      return {
+        status: 'unknown' as CorednsHealthStatus,
+        title: 'CoreDNS 暂无监控数据',
+        description: '未采集到 CoreDNS 指标，请确认 Prometheus 已抓取 coredns 指标。',
+        issues: [] as string[]
+      }
+    }
+
+    if (isDnsIdle && (panics === null || panics <= 0)) {
+      return {
+        status: 'unknown' as CorednsHealthStatus,
+        title: 'CoreDNS 待观察',
+        description:
+          replicaCount > 0
+            ? '当前暂无 DNS 请求流量，新集群或空闲状态下指标待积累，暂不做异常判定。'
+            : '当前暂无 DNS 请求流量，待业务访问后再评估运行状态。',
+        issues: [] as string[]
+      }
+    }
+
+    const issues: string[] = []
+    let status: CorednsHealthStatus = 'healthy'
+
+    const markWarning = () => {
+      if (status === 'healthy') status = 'warning'
+    }
+    const markDanger = () => {
+      status = 'danger'
+    }
+
+    if (panics !== null && panics > 0) {
+      markDanger()
+      issues.push(`过去 5 分钟发生 ${panics.toFixed(0)} 次 Panic`)
+    }
+    if (hasDnsTraffic && successRate !== null && successRate < 95) {
+      markDanger()
+      issues.push(`解析成功率 ${successRate.toFixed(1)}%，低于 95%`)
+    } else if (hasDnsTraffic && successRate !== null && successRate < 99) {
+      markWarning()
+      issues.push(`解析成功率 ${successRate.toFixed(1)}%，建议关注 SERVFAIL`)
+    }
+    if (hasDnsTraffic && p99Latency !== null && p99Latency > 500) {
+      markDanger()
+      issues.push(`P99 解析延迟 ${p99Latency.toFixed(0)} ms，响应偏慢`)
+    } else if (hasDnsTraffic && p99Latency !== null && p99Latency > 100) {
+      markWarning()
+      issues.push(`P99 解析延迟 ${p99Latency.toFixed(0)} ms，略高于正常水平`)
+    }
+    if (hasDnsTraffic && cacheHitRate !== null && cacheHitRate < 30) {
+      markDanger()
+      issues.push(`缓存命中率 ${cacheHitRate.toFixed(1)}%，缓存效率偏低`)
+    } else if (hasDnsTraffic && cacheHitRate !== null && cacheHitRate < 60) {
+      markWarning()
+      issues.push(`缓存命中率 ${cacheHitRate.toFixed(1)}%，可检查 TTL 与缓存配置`)
+    }
+    if (hasDnsTraffic && imbalancedCount > 0) {
+      markWarning()
+      issues.push(`${imbalancedCount} 个副本请求负载偏高，建议检查副本均衡`)
+    }
+
+    const title =
+      status === 'healthy'
+        ? 'CoreDNS 运行正常'
+        : status === 'warning'
+          ? 'CoreDNS 需关注'
+          : 'CoreDNS 运行异常'
+
+    const description =
+      status === 'healthy'
+        ? '解析成功率、延迟与缓存指标均在健康范围内，副本负载正常。'
+        : status === 'warning'
+          ? '部分 DNS 指标偏离正常范围，建议结合下方趋势图进一步排查。'
+          : '检测到 CoreDNS 可用性或性能问题，请优先处理下列异常项。'
+
+    return { status, title, description, issues }
+  })
+
+  const corednsSummaryCards = computed<CorednsSummaryCard[]>(() => {
+    const {
+      successRate,
+      cacheHitRate,
+      qps,
+      p99Latency,
+      replicaCount,
+      imbalancedCount,
+      hasDnsTraffic,
+      isDnsIdle
+    } = corednsMetrics.value
+    const health = corednsHealth.value
+
+    const healthIcon =
+      health.status === 'healthy'
+        ? CircleCheckFilled
+        : health.status === 'warning'
+          ? WarningFilled
+          : health.status === 'danger'
+            ? WarningFilled
+            : Monitor
+    const healthColor =
+      health.status === 'healthy'
+        ? '#67c23a'
+        : health.status === 'warning'
+          ? '#e6a23c'
+          : health.status === 'danger'
+            ? '#f56c6c'
+            : '#909399'
+    const healthBg =
+      health.status === 'healthy'
+        ? 'rgba(103, 194, 58, 0.12)'
+        : health.status === 'warning'
+          ? 'rgba(230, 162, 60, 0.12)'
+          : health.status === 'danger'
+            ? 'rgba(245, 108, 108, 0.12)'
+            : 'rgba(144, 147, 153, 0.12)'
+
+    return [
+      {
+        key: 'health',
+        title: '运行状态',
+        icon: healthIcon,
+        iconColor: healthColor,
+        iconBg: healthBg,
+        value:
+          health.status === 'healthy'
+            ? '正常'
+            : health.status === 'warning'
+              ? '需关注'
+              : health.status === 'danger'
+                ? '异常'
+                : health.title === 'CoreDNS 待观察'
+                  ? '待观察'
+                  : '-',
+        sub: health.description,
+        danger: health.status === 'danger',
+        warning: health.status === 'warning'
+      },
+      {
+        key: 'success-rate',
+        title: '解析成功率',
+        icon: CircleCheckFilled,
+        iconColor: '#409eff',
+        iconBg: 'rgba(64, 158, 255, 0.12)',
+        value: successRate === null ? '-' : successRate.toFixed(1),
+        unit: '%',
+        sub:
+          successRate === null
+            ? '暂无数据'
+            : isDnsIdle
+              ? '暂无 DNS 流量'
+              : successRate >= 99
+                ? 'NOERROR / NXDOMAIN 占比正常'
+                : '存在解析失败响应',
+        danger: hasDnsTraffic && successRate !== null && successRate < 95,
+        warning: hasDnsTraffic && successRate !== null && successRate >= 95 && successRate < 99
+      },
+      {
+        key: 'latency',
+        title: 'P99 解析延迟',
+        icon: Timer,
+        iconColor: '#e6a23c',
+        iconBg: 'rgba(230, 162, 60, 0.12)',
+        value: p99Latency === null ? '-' : p99Latency.toFixed(p99Latency >= 10 ? 1 : 2),
+        unit: 'ms',
+        sub:
+          p99Latency === null
+            ? '暂无数据'
+            : p99Latency <= 100
+              ? '尾延迟处于正常范围'
+              : '解析响应偏慢',
+        danger: p99Latency !== null && p99Latency > 500,
+        warning: p99Latency !== null && p99Latency > 100 && p99Latency <= 500
+      },
+      {
+        key: 'cache',
+        title: '缓存命中率',
+        icon: Odometer,
+        iconColor: '#67c23a',
+        iconBg: 'rgba(103, 194, 58, 0.12)',
+        value: cacheHitRate === null ? '-' : cacheHitRate.toFixed(1),
+        unit: '%',
+        sub:
+          cacheHitRate === null
+            ? '暂无数据'
+            : isDnsIdle
+              ? '暂无 DNS 流量'
+              : cacheHitRate >= 60
+                ? '缓存效率良好'
+                : '缓存命中偏低',
+        danger: hasDnsTraffic && cacheHitRate !== null && cacheHitRate < 30,
+        warning: hasDnsTraffic && cacheHitRate !== null && cacheHitRate >= 30 && cacheHitRate < 60
+      },
+      {
+        key: 'qps',
+        title: 'DNS 请求 QPS',
+        icon: Connection,
+        iconColor: '#7c6af0',
+        iconBg: 'rgba(124, 106, 240, 0.12)',
+        value: qps === null ? '-' : qps.toFixed(qps >= 10 ? 1 : 2),
+        unit: '/s',
+        sub:
+          replicaCount > 0
+            ? isDnsIdle
+              ? `${replicaCount} 个副本，暂无请求流量`
+              : `${replicaCount} 个副本${imbalancedCount ? `，${imbalancedCount} 个负载偏高` : ''}`
+            : '暂无副本数据',
+        danger: false,
+        warning: hasDnsTraffic && imbalancedCount > 0
+      }
+    ]
+  })
+
   const namespaceRiskRows = computed<NamespaceRiskRow[]>(() => {
     const cpuMap = namespaceSeriesValueMap(resultMap['namespace.cpu'])
     const memoryMap = namespaceSeriesValueMap(resultMap['namespace.memory'])
@@ -669,7 +1268,7 @@
 
   async function queryCurrentSection() {
     const datasource = selectedDatasource.value
-    if (!datasource || !currentPanels.value.length) return
+    if (!datasource || !activePanelIds.value.length) return
     const sequence = ++querySequence
     queryLoading.value = true
     pageError.value = ''
@@ -684,7 +1283,7 @@
         Math.ceil(durationSeconds / 600)
       )
       const response = await fetchDashboardQuery(datasource, {
-        panelIds: currentPanels.value.map((panel) => panel.id),
+        panelIds: activePanelIds.value,
         start: Math.floor(range.start.getTime() / 1000),
         end: Math.floor(range.end.getTime() / 1000),
         step,
@@ -1389,6 +1988,148 @@
     height: 180px;
   }
 
+  .prometheus-dashboard__coredns-summary {
+    margin-bottom: 20px;
+  }
+
+  .prometheus-dashboard__summary-grid--coredns {
+    margin: 0 16px;
+  }
+
+  .prometheus-dashboard__summary-card.is-warning {
+    border-color: rgb(230 162 60 / 45%);
+  }
+
+  .prometheus-dashboard__summary-card.is-danger {
+    border-color: rgb(245 108 108 / 45%);
+  }
+
+  .prometheus-dashboard__summary-card__value.is-warning {
+    color: #e6a23c;
+  }
+
+  .prometheus-dashboard__summary-card__value.is-danger {
+    color: #f56c6c;
+  }
+
+  .prometheus-dashboard__panel-grid--coredns {
+    margin-left: 16px;
+    margin-right: 16px;
+    margin-bottom: 12px;
+  }
+
+  .prometheus-dashboard__panel-grid--coredns-latency {
+    margin-bottom: 20px;
+  }
+
+  .prometheus-dashboard__panel-grid--coredns :deep(.dashboard-panel.is-line) {
+    height: 260px;
+  }
+
+  .prometheus-dashboard__coredns-resource {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin: 0 16px 20px;
+  }
+
+  .prometheus-dashboard__coredns-pod-card {
+    display: flex;
+    flex-direction: column;
+    height: 180px;
+    overflow: hidden;
+    background: var(--el-bg-color);
+    border: 1px solid var(--el-border-color-lighter);
+    border-radius: 6px;
+  }
+
+  .prometheus-dashboard__coredns-pod-card__head {
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+
+    h4 {
+      margin: 0;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--el-text-color-primary);
+    }
+
+    span {
+      font-size: 11px;
+      color: var(--el-text-color-secondary);
+    }
+  }
+
+  .prometheus-dashboard__coredns-pod-card__body {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--el-border-color) transparent;
+
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: var(--el-border-color);
+      border-radius: 3px;
+    }
+  }
+
+  .prometheus-dashboard__coredns-pod-card__empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+  }
+
+  .prometheus-dashboard__coredns-pod-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+
+    th,
+    td {
+      padding: 6px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--el-border-color-extra-light);
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      font-weight: 600;
+      color: var(--el-text-color-secondary);
+      background: var(--el-bg-color);
+    }
+
+    td:first-child {
+      max-width: 180px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    tr.is-imbalanced td:first-child {
+      color: var(--el-color-warning-dark-2);
+    }
+
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+  }
+
+  .prometheus-dashboard__coredns-resource :deep(.dashboard-panel.is-line) {
+    height: 220px;
+  }
+
   /* namespace 大盘右上角「事件与告警」入口：间距与集群监控概览对齐（距顶 0） */
   .prometheus-dashboard__overview-actions {
     display: flex;
@@ -1454,6 +2195,10 @@
 
     .prometheus-dashboard__content {
       padding: 12px 0 4px;
+    }
+
+    .prometheus-dashboard__coredns-resource {
+      grid-template-columns: minmax(0, 1fr);
     }
   }
 
