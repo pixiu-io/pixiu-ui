@@ -78,8 +78,9 @@
 <script setup lang="ts">
   import { DataAnalysis, InfoFilled, Loading } from '@element-plus/icons-vue'
   import type { CSSProperties } from 'vue'
-  import type { EChartsOption } from '@/plugins/echarts'
-  import { useChart } from '@/hooks/core/useChart'
+  import { graphic, type EChartsOption } from '@/plugins/echarts'
+  import { useChart, useChartOps } from '@/hooks/core/useChart'
+  import { getCssVar, hexToRgba } from '@/utils/ui'
   import type {
     DashboardPanelDefinition,
     DashboardPanelResult,
@@ -94,10 +95,13 @@
       showLegend?: boolean
       /** 横向条形图固定行距（仅集群详情 namespace Top10 使用） */
       compactBar?: boolean
+      /** 折线趋势图使用集群监控概览样式（细线 + 区域渐变） */
+      overviewLine?: boolean
     }>(),
     {
       showLegend: true,
-      compactBar: false
+      compactBar: false,
+      overviewLine: false
     }
   )
   const emit = defineEmits<{
@@ -186,8 +190,38 @@
     })
   )
 
+  function seriesQuantile(series: DashboardSeries): number | null {
+    const quantile = Number(series.metric.quantile)
+    return Number.isFinite(quantile) ? quantile : null
+  }
+
+  function quantileLineTier(quantile: number): 'p99' | 'p90' | 'p50' | 'other' {
+    if (quantile >= 0.985) return 'p99'
+    if (quantile >= 0.85) return 'p90'
+    if (quantile >= 0.45) return 'p50'
+    return 'other'
+  }
+
+  function isQuantileLineChart(series: DashboardSeries[]): boolean {
+    return series.some((item) => seriesQuantile(item) !== null)
+  }
+
+  function sortQuantileSeries(series: DashboardSeries[]): DashboardSeries[] {
+    return [...series].sort(
+      (left, right) => (seriesQuantile(left) ?? 0) - (seriesQuantile(right) ?? 0)
+    )
+  }
+
   function seriesLabel(series: DashboardSeries): string {
     const labels = series.metric
+    if (labels.latency_kind === 'avg') return '平均延迟'
+    if (labels.quantile) {
+      const quantile = Number(labels.quantile)
+      if (Number.isFinite(quantile)) return `P${Math.round(quantile * 100)}`
+    }
+    if (labels.cache) return labels.cache
+    if (labels.rcode) return labels.rcode
+    if ('type' in labels) return labels.type?.trim() || '未知类型'
     const resource =
       labels.pod ||
       labels.node ||
@@ -254,11 +288,50 @@
     return [left, top]
   }
 
+  function buildOverviewAreaStyle(color: string, topOpacity = 0.2) {
+    return {
+      color: new graphic.LinearGradient(0, 0, 0, 1, [
+        { offset: 0, color: hexToRgba(color, topOpacity).rgba },
+        { offset: 1, color: hexToRgba(color, 0.02).rgba }
+      ])
+    }
+  }
+
+  function resolveQuantileLineStyle(
+    quantile: number,
+    isOverviewLineTrend: boolean
+  ): { color: string; width: number; areaOpacity: number } {
+    const tier = quantileLineTier(quantile)
+    if (tier === 'p99') {
+      return {
+        color: getCssVar('--el-color-primary'),
+        width: isOverviewLineTrend ? 2 : 2.5,
+        areaOpacity: 0.22
+      }
+    }
+    if (tier === 'p90') {
+      return {
+        color: isDark.value ? '#7d8694' : '#94a3b8',
+        width: 1,
+        areaOpacity: 0.08
+      }
+    }
+    if (tier === 'p50') {
+      return {
+        color: isDark.value ? '#5c6370' : '#b8c0cc',
+        width: 1,
+        areaOpacity: 0.05
+      }
+    }
+    return { color: getCssVar('--el-color-primary-light-3'), width: 1, areaOpacity: 0.1 }
+  }
+
   function chartOption(): EChartsOption {
     const source = props.result?.series ?? []
     const textColor = isDark.value ? '#c8ccd4' : '#5c6370'
     const splitColor = isDark.value ? '#30343b' : '#edf0f3'
     const colors = ['#2878d4', '#2e9b62', '#d99a2b', '#8c62c7', '#d45f75', '#2c9ea0']
+    const overviewColors = useChartOps().colors
     const legend = {
       show: props.showLegend,
       type: 'scroll' as const,
@@ -288,16 +361,26 @@
 
     if (props.panel.kind === 'line') {
       const isRuntimeErrorRate = props.panel.id === 'kubelet.error_rate'
-      const isNamespaceTrend =
-        props.panel.id === 'namespace.cpu_trend' || props.panel.id === 'namespace.memory_trend'
-      // namespace 趋势图：参考集群监控概览折线效果（细线）+ 稍小的轴字体
-      const axisFontSize = isNamespaceTrend ? 11 : undefined
+      const isOverviewLineTrend = props.overviewLine
+      const lineColors = isOverviewLineTrend ? overviewColors : colors
+      const axisFontSize = isOverviewLineTrend ? 10 : undefined
+      const quantileChart = isQuantileLineChart(source)
+      const chartSeries = quantileChart ? sortQuantileSeries(source) : source
+      const seriesCount = Math.min(chartSeries.length, 8)
       return {
-        color: colors,
-        animationDuration: 450,
+        color: lineColors,
+        animationDuration: isOverviewLineTrend ? 150 : 450,
         tooltip: tooltip(props.panel.unit),
         legend,
-        grid: { left: 14, right: 18, top: 34, bottom: 30, containLabel: true },
+        grid: isOverviewLineTrend
+          ? {
+              left: 4,
+              right: 12,
+              top: props.showLegend ? 32 : 16,
+              bottom: 22,
+              containLabel: true
+            }
+          : { left: 14, right: 18, top: 34, bottom: 30, containLabel: true },
         xAxis: {
           type: 'time',
           axisLine: { lineStyle: { color: splitColor } },
@@ -312,15 +395,42 @@
           },
           splitLine: { lineStyle: { color: splitColor, type: 'dashed' } }
         },
-        series: source.slice(0, 8).map((item) => ({
-          name: seriesLabel(item),
-          type: 'line',
-          showSymbol: false,
-          smooth: !isRuntimeErrorRate,
-          step: isRuntimeErrorRate ? 'end' : false,
-          lineStyle: { width: isNamespaceTrend ? 1 : 2 },
-          data: item.values.map((point) => [point.timestamp * 1000, Number(point.value)])
-        }))
+        series: chartSeries.slice(0, 8).map((item, index) => {
+          const quantile = seriesQuantile(item)
+          const quantileStyle =
+            quantileChart && quantile !== null
+              ? resolveQuantileLineStyle(quantile, isOverviewLineTrend)
+              : null
+          const seriesColor = lineColors[index % lineColors.length]
+          const color =
+            quantileStyle?.color ??
+            (isOverviewLineTrend && seriesCount === 1
+              ? getCssVar('--el-color-primary')
+              : seriesColor)
+          const lineWidth =
+            quantileStyle?.width ?? (isOverviewLineTrend ? 1 : 2)
+          const areaOpacity = quantileStyle?.areaOpacity ?? 0.2
+          return {
+            name: seriesLabel(item),
+            type: 'line',
+            color,
+            showSymbol: false,
+            smooth: !isRuntimeErrorRate,
+            step: isRuntimeErrorRate ? 'end' : false,
+            lineStyle: {
+              width: lineWidth,
+              color: isOverviewLineTrend || quantileStyle ? color : undefined
+            },
+            areaStyle:
+              isOverviewLineTrend || quantileStyle
+                ? buildOverviewAreaStyle(color, areaOpacity)
+                : undefined,
+            emphasis: quantileStyle && quantileLineTier(quantile!) === 'p99'
+              ? { focus: 'series', lineStyle: { width: lineWidth + 0.5 } }
+              : undefined,
+            data: item.values.map((point) => [point.timestamp * 1000, Number(point.value)])
+          }
+        })
       }
     }
 
@@ -541,7 +651,7 @@
     window.removeEventListener('scroll', hideChartTooltip, true)
   })
   watch(
-    () => [props.result, props.panel.id, props.loading, props.showLegend, props.compactBar, isDark.value],
+    () => [props.result, props.panel.id, props.loading, props.showLegend, props.compactBar, props.overviewLine, isDark.value],
     renderChart,
     {
       deep: true
