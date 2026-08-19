@@ -111,7 +111,7 @@
               <div class="prometheus-dashboard__overview-actions">
                 <ElLink
                   type="primary"
-                  :underline="false"
+                  underline="never"
                   class="prometheus-dashboard__overview-actions__link"
                   @click="goNamespacePage('events')"
                 >
@@ -175,6 +175,7 @@
                   :result="resultMap[panel.id]"
                   :loading="queryLoading"
                   :show-legend="showLegend"
+                  compact-bar
                   @time-range-select="handleChartTimeRangeSelect"
                   @item-click="handlePanelItemClick"
                 />

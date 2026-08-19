@@ -55,6 +55,7 @@
     <div
       v-else
       class="dashboard-panel__chart-shell"
+      :class="{ 'dashboard-panel__chart-shell--compact': compactBar }"
       @pointerdown.capture="startChartRangeSelection"
       @pointermove.capture="handleChartMouseMove"
       @pointerup.capture="finishChartRangeSelection"
@@ -64,7 +65,7 @@
       @mouseleave="handleChartMouseLeave"
       @pointerleave="hideChartTooltip"
     >
-      <div ref="chartRef" class="dashboard-panel__chart" />
+      <div ref="chartRef" class="dashboard-panel__chart" :style="compactChartStyle" />
       <div
         v-if="rangeSelection"
         class="dashboard-panel__range-selection"
@@ -91,15 +92,49 @@
       result?: DashboardPanelResult
       loading?: boolean
       showLegend?: boolean
+      /** 横向条形图固定行距（仅集群详情 namespace Top10 使用） */
+      compactBar?: boolean
     }>(),
     {
-      showLegend: true
+      showLegend: true,
+      compactBar: false
     }
   )
   const emit = defineEmits<{
     timeRangeSelect: [range: { start: number; end: number }]
     itemClick: [payload: { panelId: string; name: string }]
   }>()
+
+  const COMPACT_BAR_HEIGHT = 10
+  const COMPACT_ROW_GAP = 18
+  const COMPACT_GRID_TOP = 6
+  const COMPACT_GRID_BOTTOM = 22
+
+  function buildCompactBarLayout(rowCount: number) {
+    const plotHeight =
+      rowCount > 0
+        ? rowCount * COMPACT_BAR_HEIGHT + Math.max(0, rowCount - 1) * COMPACT_ROW_GAP
+        : COMPACT_BAR_HEIGHT
+    return {
+      plotHeight,
+      chartHeight: COMPACT_GRID_TOP + plotHeight + COMPACT_GRID_BOTTOM
+    }
+  }
+
+  const compactBarRowCount = computed(() => {
+    if (!props.compactBar || props.panel.kind !== 'bar' || props.result?.status !== 'success') {
+      return 0
+    }
+    return (props.result.series ?? [])
+      .map((item) => Number(item.values.at(-1)?.value ?? 0))
+      .filter((value) => Number.isFinite(value))
+      .slice(0, 10).length
+  })
+
+  const compactChartStyle = computed<CSSProperties>(() => {
+    if (!props.compactBar || compactBarRowCount.value <= 0) return {}
+    return { height: `${buildCompactBarLayout(compactBarRowCount.value).chartHeight}px` }
+  })
 
   const { chartRef, initChart, isDark, getTooltipStyle, getChartInstance } = useChart()
   const rangeSelection = ref<{ left: number; width: number } | null>(null)
@@ -295,17 +330,25 @@
       .slice(0, 10)
       .reverse()
     const isContainerFilesystem = props.panel.id === 'storage.container_fs'
+    const compactLayout = props.compactBar ? buildCompactBarLayout(rows.length) : null
     return {
       color: colors,
       animationDuration: 450,
       tooltip: tooltip(props.panel.unit),
       legend,
-      grid: {
-        left: 168,
-        right: 30,
-        top: 10,
-        bottom: 22
-      },
+      grid: props.compactBar && compactLayout
+        ? {
+            left: 168,
+            right: 30,
+            top: COMPACT_GRID_TOP,
+            height: compactLayout.plotHeight
+          }
+        : {
+            left: 168,
+            right: 30,
+            top: 10,
+            bottom: 22
+          },
       xAxis: {
         type: 'value',
         splitNumber: isContainerFilesystem ? 3 : 4,
@@ -333,7 +376,9 @@
         {
           type: 'bar',
           data: rows.map((item) => ({ name: item.name, value: item.value })),
-          barMaxWidth: 10,
+          ...(props.compactBar
+            ? { barWidth: COMPACT_BAR_HEIGHT, barCategoryGap: COMPACT_ROW_GAP }
+            : { barMaxWidth: COMPACT_BAR_HEIGHT }),
           itemStyle: { borderRadius: [0, 3, 3, 0] }
         }
       ]
@@ -451,12 +496,20 @@
     const option = chartOption()
     const chart = getChartInstance()
     if (chart) {
-      chart.setOption(option, { replaceMerge: ['series'] })
+      chart.setOption(option, {
+        replaceMerge: props.compactBar ? ['series', 'grid'] : ['series']
+      })
       bindBarChartClick()
+      if (props.compactBar) {
+        nextTick(() => chart.resize())
+      }
       return
     }
     initChart(option)
     bindBarChartClick()
+    if (props.compactBar) {
+      nextTick(() => getChartInstance()?.resize())
+    }
   }
 
   function renderChart() {
@@ -488,7 +541,7 @@
     window.removeEventListener('scroll', hideChartTooltip, true)
   })
   watch(
-    () => [props.result, props.panel.id, props.loading, props.showLegend, isDark.value],
+    () => [props.result, props.panel.id, props.loading, props.showLegend, props.compactBar, isDark.value],
     renderChart,
     {
       deep: true
@@ -734,6 +787,26 @@
     position: relative;
     width: 100%;
     height: calc(100% - 46px);
+  }
+
+  .dashboard-panel__chart-shell--compact {
+    overflow: hidden auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--el-border-color) transparent;
+
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: var(--el-border-color);
+      border-radius: 3px;
+    }
+  }
+
+  .dashboard-panel__chart-shell--compact .dashboard-panel__chart {
+    height: auto;
+    min-height: 100%;
   }
 
   .dashboard-panel__chart {
