@@ -183,25 +183,35 @@
       const value = Number(series.values.at(-1)?.value ?? 0)
       const phase = series.metric.phase || series.metric.condition || ''
       const pvc = series.metric.persistentvolumeclaim?.trim()
+      const pod = series.metric.pod?.trim()
       const namespace = series.metric.namespace?.trim()
-      const name = pvc
-        ? namespace
-          ? `${namespace}/${pvc}`
-          : pvc
-        : phase
-          ? `PVC · ${phase}`
-          : seriesLabel(series) || `item-${index}`
-      // 有 PVC 名时右侧显示 phase；按 phase 汇总时右侧显示数量
-      const displayValue = pvc
-        ? phase || 'Exists'
-        : phase
-          ? `${Math.round(value)} 个`
-          : formatValue(value, props.panel.unit)
+      const isPvcPanel = props.panel.id.includes('pvc')
+
+      let name: string
+      let displayValue: string
+
+      if (pvc) {
+        // PVC 明细：左侧 namespace/pvc，右侧 phase
+        name = namespace ? `${namespace}/${pvc}` : pvc
+        displayValue = phase || 'Exists'
+      } else if (pod) {
+        // Pod 明细：左侧 namespace/pod，右侧 phase
+        name = namespace ? `${namespace}/${pod}` : pod
+        displayValue = phase || formatValue(value, props.panel.unit)
+      } else if (phase) {
+        // 仅按 phase 汇总（无具体资源名）
+        name = isPvcPanel ? `PVC · ${phase}` : phase
+        displayValue = `${Math.round(value)} 个`
+      } else {
+        name = seriesLabel(series) || `item-${index}`
+        displayValue = formatValue(value, props.panel.unit)
+      }
+
       return {
         name,
         value: displayValue,
         healthy: phase
-          ? !['Failed', 'Pending', 'Lost'].includes(phase)
+          ? !['Failed', 'Pending', 'Lost', 'Unknown'].includes(phase)
           : value > 0
       }
     })
@@ -239,9 +249,17 @@
     if (labels.cache) return labels.cache
     if (labels.rcode) return labels.rcode
     if ('type' in labels) return labels.type?.trim() || '未知类型'
+    if (labels.pod?.trim()) {
+      const pod = labels.pod.trim()
+      const namespace = labels.namespace?.trim()
+      return namespace ? `${namespace}/${pod}` : pod
+    }
+    if (labels.persistentvolumeclaim?.trim()) {
+      const pvc = labels.persistentvolumeclaim.trim()
+      const namespace = labels.namespace?.trim()
+      return namespace ? `${namespace}/${pvc}` : pvc
+    }
     const resource =
-      labels.persistentvolumeclaim ||
-      labels.pod ||
       labels.node ||
       labels.namespace ||
       labels.deployment ||
@@ -250,12 +268,7 @@
       labels.operation_type ||
       labels.phase ||
       labels.instance
-    if (resource) {
-      if (labels.persistentvolumeclaim && labels.namespace) {
-        return `${labels.namespace}/${labels.persistentvolumeclaim}`
-      }
-      return resource
-    }
+    if (resource) return resource
     const keys = Object.keys(labels).filter((key) => key !== '__name__')
     return keys.length ? keys.map((key) => `${key}=${labels[key]}`).join(', ') : '当前值'
   }

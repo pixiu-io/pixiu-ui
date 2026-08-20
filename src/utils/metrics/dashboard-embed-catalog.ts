@@ -4,6 +4,7 @@ interface EmbedPanelSpec extends DashboardPanelDefinition {
   rangeQuery: boolean
   query?: (filters: DashboardFilters) => string
   fallbackQuery?: (filters: DashboardFilters) => string
+  fallbackQueries?: Array<(filters: DashboardFilters) => string>
   quantileQueries?: {
     metric: string
     thresholds: number[]
@@ -66,6 +67,7 @@ function controlPlaneContainerMemoryFallback(componentPattern: string): string {
 type PanelOptions = {
   requiredMetricsAny?: string[]
   fallbackQuery?: (filters: DashboardFilters) => string
+  fallbackQueries?: Array<(filters: DashboardFilters) => string>
   quantileQueries?: {
     metric: string
     thresholds: number[]
@@ -100,6 +102,7 @@ function embedPanel(
     rangeQuery,
     query,
     fallbackQuery: options?.fallbackQuery,
+    fallbackQueries: options?.fallbackQueries,
     quantileQueries: options?.quantileQueries,
     description
   }
@@ -765,13 +768,24 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     'pod.embed.restarts',
     'Pod 重启次数',
     'bar',
-    'short',
+    'count',
     6,
-    ['kube_pod_container_status_restarts_total'],
+    // 不强制 required：__name__ 列表截断时会误判「指标未采集」
+    [],
     false,
-    fixed(
-      'topk(10, sum by (namespace,pod) (kube_pod_container_status_restarts_total))'
-    )
+    fixed('topk(10, sum by (namespace,pod) (kube_pod_container_status_restarts_total))'),
+    '按 Pod 汇总容器重启次数 Top10；兼容 container 标签过滤与 max 聚合',
+    {
+      fallbackQueries: [
+        fixed(
+          'topk(10, sum by (namespace,pod) (kube_pod_container_status_restarts_total{container!="",container!="POD"}))'
+        ),
+        fixed('topk(10, max by (namespace,pod) (kube_pod_container_status_restarts_total))'),
+        fixed(
+          'topk(10, sum by (namespace,pod) (increase(kube_pod_container_status_restarts_total[1h])))'
+        )
+      ]
+    }
   ),
   embedPanel(
     'pod-embed',

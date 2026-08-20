@@ -1069,11 +1069,36 @@ const panelSpecs: DashboardPanelSpec[] = [
     'pod.restarts',
     'Pod 重启次数',
     'bar',
-    'short',
+    'count',
     6,
-    ['kube_pod_container_status_restarts_total'],
+    [],
     false,
-    podRestarts
+    podRestarts,
+    '按 Pod 汇总容器重启次数 Top10',
+    {
+      fallbackQueries: [
+        (filters) =>
+          `topk(10, sum by (namespace,pod) (${selector(
+            'kube_pod_container_status_restarts_total',
+            filters,
+            ['namespace', 'pod'],
+            'container!=""',
+            'container!="POD"'
+          )}))`,
+        (filters) =>
+          `topk(10, max by (namespace,pod) (${selector(
+            'kube_pod_container_status_restarts_total',
+            filters,
+            ['namespace', 'pod']
+          )}))`,
+        (filters) =>
+          `topk(10, sum by (namespace,pod) (increase(${selector(
+            'kube_pod_container_status_restarts_total',
+            filters,
+            ['namespace', 'pod']
+          )}[1h])))`
+      ]
+    }
   ),
   panel(
     'pod',
