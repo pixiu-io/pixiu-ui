@@ -1,5 +1,6 @@
 import { type ComputedRef, type Ref, computed, reactive, ref, unref } from 'vue'
 import { fetchDashboardQuery, type DashboardPanelResult } from '@/api/dashboard'
+import type { DatasourceItem } from '@/api/datasource'
 import { loadPrometheusDatasource } from '@/utils/datasource/prometheus-datasource'
 import type { MetricsGranularityOption } from '@/utils/metrics/granularity'
 import { METRICS_TIME_PRESETS, type MetricsTimeRange } from '@/utils/metrics/time-range'
@@ -29,11 +30,15 @@ const ALL_PANEL_IDS = [
  * 全部 trend 面板，经 fetchDashboardQuery 拉取并缓存到 resultMap，由调用方转成
  * MetricChartPanel 折线卡片渲染。
  * 未关联 Prometheus 数据源时暴露 datasourceMissing=true，由调用方展示空态引导。
+ * 可传入 datasourceOverride（外部监控大盘已选实例），优先于按 clusterName 探测。
  */
 export function useClusterMonitorPanels(
   clusterName: Ref<string> | ComputedRef<string>,
   timeRange: Ref<MetricsTimeRange>,
-  granularity: Ref<MetricsGranularityOption>
+  granularity: Ref<MetricsGranularityOption>,
+  datasourceOverride?:
+    | Ref<DatasourceItem | null | undefined>
+    | ComputedRef<DatasourceItem | null | undefined>
 ) {
   const cluster = computed(() => String(unref(clusterName) || '').trim())
 
@@ -65,16 +70,25 @@ export function useClusterMonitorPanels(
     return preset.getRange(new Date())
   }
 
-  async function load(silent = false) {
+  async function resolveDatasource(): Promise<DatasourceItem | null> {
+    const override = datasourceOverride ? unref(datasourceOverride) : null
+    if (override) return override
     const name = cluster.value
-    if (!name) return
+    if (!name) return null
+    return (await loadPrometheusDatasource(name)) ?? null
+  }
+
+  async function load(silent = false) {
+    const override = datasourceOverride ? unref(datasourceOverride) : null
+    const name = cluster.value
+    if (!override && !name) return
     // 数据源缺失时停止静默轮询；非静默（startRefresh 首次 / 手动刷新）仍会重试探测
     if (silent && datasourceMissing.value) return
 
     const sequence = ++querySequence
     if (!silent) loading.value = true
     try {
-      const datasource = await loadPrometheusDatasource(name)
+      const datasource = await resolveDatasource()
       if (!datasource) {
         datasourceMissing.value = true
         if (!silent) resetCharts()
