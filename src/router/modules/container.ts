@@ -276,6 +276,28 @@ export const containerRoutes: AppRouteRecord = {
       }
     },
     {
+      path: 'hpa-create',
+      name: 'HpaCreate',
+      component: '/container/cluster-detail/hpa-create/index',
+      meta: {
+        title: '创建 HPA',
+        isHide: true,
+        keepAlive: false,
+        menu: MenuCodes.ContainerCluster
+      }
+    },
+    {
+      path: 'cron-hpa-create',
+      name: 'CronHpaCreate',
+      component: '/container/cluster-detail/cron-hpa-create/index',
+      meta: {
+        title: '创建定时HPA',
+        isHide: true,
+        keepAlive: false,
+        menu: MenuCodes.ContainerCluster
+      }
+    },
+    {
       path: 'node-detail',
       name: 'NodeDetail',
       component: '/container/cluster-detail/node-detail/index',
