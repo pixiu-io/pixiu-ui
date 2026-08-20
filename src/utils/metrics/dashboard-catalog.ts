@@ -529,7 +529,7 @@ const sections: DashboardDefinition['sections'] = [
     id: 'core',
     title: '核心组件监控',
     icon: 'ri:cpu-line',
-    children: ['kubelet', 'coredns', 'apiserver', 'controller-manager', 'scheduler']
+    children: ['kubelet', 'coredns', 'apiserver', 'controller-manager', 'scheduler', 'etcd']
   },
   {
     id: 'node',
@@ -547,6 +547,22 @@ const sections: DashboardDefinition['sections'] = [
   { id: 'storage', title: '存储监控', icon: 'ri:hard-drive-2-line' },
   { id: 'gpu', title: 'GPU 监控', icon: 'ri:dashboard-3-line' }
 ]
+
+/** 侧栏子项显示名（集群详情与外部监控大盘共用） */
+export const DASHBOARD_SECTION_CHILD_NAMES: Record<string, string> = {
+  cluster: '集群监控概览',
+  namespace: 'Namespace 大盘',
+  kubelet: 'Kubelet',
+  coredns: 'CoreDNS',
+  apiserver: 'API Server',
+  'controller-manager': 'Controller Manager',
+  scheduler: 'Scheduler',
+  etcd: 'Etcd',
+  'node-resource': '集群节点监控详情',
+  'node-pod': '节点 Pod 监控',
+  workload: '工作负载监控概览',
+  pod: '集群 Pod 监控'
+}
 
 const panelSpecs: DashboardPanelSpec[] = [
   panel(
@@ -1077,26 +1093,32 @@ const panelSpecs: DashboardPanelSpec[] = [
     '按 Pod 汇总容器重启次数 Top10',
     {
       fallbackQueries: [
-        (filters) =>
-          `topk(10, sum by (namespace,pod) (${selector(
+        (filters) => {
+          const metric = selector(
             'kube_pod_container_status_restarts_total',
             filters,
             ['namespace', 'pod'],
             'container!=""',
             'container!="POD"'
-          )}))`,
-        (filters) =>
-          `topk(10, max by (namespace,pod) (${selector(
+          )
+          return `topk(10, sum by (namespace,pod) (${metric}))`
+        },
+        (filters) => {
+          const metric = selector(
             'kube_pod_container_status_restarts_total',
             filters,
             ['namespace', 'pod']
-          )}))`,
-        (filters) =>
-          `topk(10, sum by (namespace,pod) (increase(${selector(
+          )
+          return `topk(10, max by (namespace,pod) (${metric}))`
+        },
+        (filters) => {
+          const metric = selector(
             'kube_pod_container_status_restarts_total',
             filters,
             ['namespace', 'pod']
-          )}[1h])))`
+          )
+          return `topk(10, sum by (namespace,pod) (increase(${metric}[1h])))`
+        }
       ]
     }
   ),

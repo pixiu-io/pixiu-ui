@@ -383,6 +383,7 @@
   import MetricChartPanel from '@/components/container/metric-chart-panel.vue'
   import { useClusterMonitorPanels } from '@/hooks/kubernetes/useClusterMonitorPanels'
   import { fetchDashboardQuery, type DashboardPanelResult } from '@/api/dashboard'
+  import type { DatasourceItem } from '@/api/datasource'
   import { loadPrometheusDatasource } from '@/utils/datasource/prometheus-datasource'
   import {
     getDefaultMetricsAutoRefresh,
@@ -404,12 +405,15 @@
     defineProps<{
       clusterName: string
       toolbar?: boolean
+      /** 外部已选 Prometheus 实例（监控大盘）；优先于按 clusterName 探测 */
+      datasource?: DatasourceItem | null
       externalTimeRange?: MetricsTimeRange
       externalGranularity?: MetricsGranularityOption
       externalAutoRefresh?: MetricsAutoRefreshOption
     }>(),
     {
-      toolbar: true
+      toolbar: true,
+      datasource: null
     }
   )
 
@@ -422,6 +426,7 @@
   const router = useRouter()
 
   const clusterName = computed(() => props.clusterName)
+  const datasourceRef = computed(() => props.datasource ?? null)
   /** 打开默认最近 24 小时（外部未提供时间范围时的内部默认） */
   const internalTimeRange = ref<MetricsTimeRange>(
     METRICS_TIME_PRESETS.find((p) => p.key === '24h')?.getRange(new Date()) ??
@@ -460,7 +465,7 @@
     resultMap,
     load: loadTrendPanels,
     resetCharts
-  } = useClusterMonitorPanels(clusterName, timeRange, granularity)
+  } = useClusterMonitorPanels(clusterName, timeRange, granularity, datasourceRef)
 
   /** 仅首次加载时展示 loading，手动/定时刷新不遮罩整页 */
   const metricsInitialLoading = computed(() => queryLoading.value && !chartReady.value)
@@ -501,10 +506,11 @@
 
   async function loadStatPanels(silent = false) {
     const name = clusterName.value
-    if (!name) return
+    const override = props.datasource
+    if (!override && !name) return
     if (silent && datasourceMissing.value) return
     try {
-      const datasource = await loadPrometheusDatasource(name)
+      const datasource = override ?? (await loadPrometheusDatasource(name))
       if (!datasource) {
         if (!silent) resetStatPanels()
         return
@@ -928,7 +934,7 @@
 
   // 挂载即加载、卸载即停止
   onMounted(() => {
-    if (clusterName.value) startRefreshLoop(autoRefresh.value.intervalMs)
+    if (clusterName.value || props.datasource) startRefreshLoop(autoRefresh.value.intervalMs)
   })
 
   onUnmounted(() => {
@@ -936,7 +942,7 @@
     if (chartAnimateTimer) clearTimeout(chartAnimateTimer)
   })
 
-  // 集群名变化：重置图表并按当前自动刷新间隔重新加载
+  // 集群名 / 外部数据源变化：重置图表并按当前自动刷新间隔重新加载
   watch(clusterName, (name, prevName) => {
     if (name && name !== prevName) {
       resetCharts()
@@ -945,6 +951,18 @@
       startRefreshLoop(autoRefresh.value.intervalMs)
     }
   })
+
+  watch(
+    () => props.datasource?.id,
+    (id, prevId) => {
+      if (id && id !== prevId) {
+        resetCharts()
+        resetStatPanels()
+        chartSilentUpdate.value = false
+        startRefreshLoop(autoRefresh.value.intervalMs)
+      }
+    }
+  )
 
   // 切换时间/粒度：强制非静默刷新，确保重新查询（不受数据源缺失静默跳过影响）
   watch(
@@ -965,7 +983,7 @@
   watch(
     () => autoRefresh.value.intervalMs,
     (intervalMs) => {
-      if (clusterName.value) startRefreshLoop(intervalMs)
+      if (clusterName.value || props.datasource) startRefreshLoop(intervalMs)
     }
   )
 </script>

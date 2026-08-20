@@ -63,11 +63,24 @@
                   {{ selectedDatasource.clusterName || '-' }}
                 </ElTag>
               </span>
+              <span class="prometheus-dashboard__sep" aria-hidden="true" />
+              <span class="prometheus-dashboard__summary">
+                <span>状态:</span>
+                <span class="prometheus-dashboard__health-dot" :class="pageHealth" />
+                <span>{{ pageHealthLabel }}</span>
+              </span>
+              <span class="prometheus-dashboard__sep" aria-hidden="true" />
+              <span class="prometheus-dashboard__updated">更新时间: {{ lastUpdatedLabel }}</span>
             </div>
             <div class="md-rule-right">
-              <span class="prometheus-dashboard__health-dot" :class="pageHealth" />
-              <span class="md-rule-health">{{ pageHealthLabel }}</span>
-              <span class="md-rule-updated">更新于 {{ lastUpdatedLabel }}</span>
+              <MetricsMonitorToolbar
+                v-model:timeRange="timeRange"
+                v-model:granularity="granularity"
+                v-model:autoRefresh="autoRefresh"
+                :show-granularity="false"
+                :show-legend="false"
+                class="prometheus-dashboard__toolbar"
+              />
             </div>
           </div>
         </div>
@@ -141,26 +154,22 @@
           </aside>
 
           <main class="prometheus-dashboard__content">
-            <MetricsMonitorToolbar
-              v-model:timeRange="timeRange"
+            <PrometheusDashboardBody
+              :definition="definition"
+              :result-map="resultMap"
+              :active-section="activeSection"
+              :query-loading="queryLoading"
+              :show-legend="showLegend"
+              :cluster-name="linkedClusterName"
+              :datasource="selectedDatasource ?? null"
+              :show-events-link="Boolean(linkedClusterName)"
+              v-model:time-range="timeRange"
               v-model:granularity="granularity"
-              v-model:autoRefresh="autoRefresh"
-              :show-granularity="false"
-              :show-legend="false"
-              class="prometheus-dashboard__toolbar"
+              v-model:auto-refresh="autoRefresh"
+              @time-range-select="handleChartTimeRangeSelect"
+              @item-click="handlePanelItemClick"
+              @events-click="goClusterEvents"
             />
-
-            <div class="prometheus-dashboard__panel-grid">
-              <DashboardPanel
-                v-for="panel in currentPanels"
-                :key="`${panel.id}:${resultMap[panel.id]?.status ?? 'pending'}`"
-                :panel="panel"
-                :result="resultMap[panel.id]"
-                :loading="queryLoading"
-                :show-legend="showLegend"
-                @time-range-select="handleChartTimeRangeSelect"
-              />
-            </div>
           </main>
         </div>
       </div>
@@ -196,7 +205,12 @@
     getDefaultMetricsGranularity,
     type MetricsGranularityOption
   } from '@/utils/metrics/granularity'
-  import DashboardPanel from './modules/DashboardPanel.vue'
+  import {
+    COREDNS_EMBED_PANEL_IDS,
+    DASHBOARD_SECTION_CHILD_NAMES,
+    resolveClusterDetailPanelIds
+  } from '@/utils/metrics/dashboard-catalog'
+  import PrometheusDashboardBody from '@/views/container/cluster-detail/prometheus/PrometheusDashboardBody.vue'
 
   defineOptions({ name: 'MonitorDashboard' })
 
@@ -222,19 +236,14 @@
   let refreshTimer: number | undefined
   let querySequence = 0
 
-  const sectionNames: Record<string, string> = {
-    cluster: '集群监控概览',
-    namespace: 'Namespace 大盘',
-    kubelet: 'Kubelet',
-    'control-plane': '控制面组件',
-    'node-resource': '集群节点监控详情',
-    'node-pod': '节点 Pod 监控',
-    workload: '工作负载监控概览',
-    pod: '集群 Pod 监控'
-  }
+  const sectionNames = DASHBOARD_SECTION_CHILD_NAMES
 
   const selectedDatasource = computed(() =>
     datasources.value.find((item) => item.id === selectedDatasourceId.value)
+  )
+  /** 内部数据源关联的集群名，用于事件跳转与概览探测 */
+  const linkedClusterName = computed(
+    () => selectedDatasource.value?.clusterName?.trim() || ''
   )
 
   function getDatasourceById(id: number): DatasourceItem | undefined {
@@ -245,11 +254,35 @@
     router.push({ name: 'MonitorDatasource' })
   }
 
+  function goClusterEvents() {
+    if (!linkedClusterName.value) return
+    router.push({ path: '/container/events', query: { cluster: linkedClusterName.value } })
+  }
+
+  function handlePanelItemClick(payload: { panelId: string; name: string }) {
+    if (!linkedClusterName.value) return
+    const namespace = payload.name.includes('/')
+      ? payload.name.split('/')[0]
+      : payload.name
+    if (!namespace) return
+    router.push({
+      path: '/container/namespace',
+      query: { cluster: linkedClusterName.value, namespace }
+    })
+  }
+
   const currentPanels = computed(() =>
     definition.value.panels.filter((panel) => panel.section === activeSection.value)
   )
+  const activePanelIds = computed(() =>
+    resolveClusterDetailPanelIds(
+      activeSection.value,
+      currentPanels.value.map((panel) => panel.id),
+      COREDNS_EMBED_PANEL_IDS
+    )
+  )
   const resultValues = computed(() =>
-    currentPanels.value.map((panel) => resultMap[panel.id]).filter(Boolean)
+    activePanelIds.value.map((id) => resultMap[id]).filter(Boolean)
   )
   const pageHealth = computed(() => {
     if (!selectedDatasourceId.value) return 'idle'
@@ -261,7 +294,7 @@
     if (pageHealth.value === 'idle') return '未选择数据源'
     if (pageHealth.value === 'loading') return '查询中'
     if (pageHealth.value === 'warning') return '部分面板异常'
-    return '数据源正常'
+    return '正常'
   })
   const lastUpdatedLabel = computed(() =>
     lastUpdated.value
@@ -317,7 +350,13 @@
 
   async function queryCurrentSection() {
     const datasource = selectedDatasource.value
-    if (!datasource || !currentPanels.value.length) return
+    if (!datasource || !activePanelIds.value.length) return
+    // 集群概览由 ClusterMonitorOverview 自行拉数，避免重复查询
+    if (activeSection.value === 'cluster') {
+      queryLoading.value = false
+      lastUpdated.value = new Date()
+      return
+    }
     const sequence = ++querySequence
     queryLoading.value = true
     pageError.value = ''
@@ -332,7 +371,7 @@
         Math.ceil(durationSeconds / 600)
       )
       const response = await fetchDashboardQuery(datasource, {
-        panelIds: currentPanels.value.map((panel) => panel.id),
+        panelIds: activePanelIds.value,
         start: Math.floor(range.start.getTime() / 1000),
         end: Math.floor(range.end.getTime() / 1000),
         step,
@@ -448,8 +487,10 @@
   .md-rule-right {
     display: flex;
     flex-shrink: 0;
+    flex-wrap: wrap;
     gap: 8px;
     align-items: center;
+    justify-content: flex-end;
     font-size: 12px;
     color: var(--el-text-color-regular);
   }
@@ -523,6 +564,24 @@
     color: var(--el-text-color-regular);
   }
 
+  .prometheus-dashboard__sep {
+    flex-shrink: 0;
+    width: 1px;
+    height: 12px;
+    background: var(--el-border-color);
+    opacity: 0.8;
+  }
+
+  .prometheus-dashboard__summary {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 6px;
+    align-items: center;
+    font-size: 12px;
+    line-height: 1;
+    color: var(--el-text-color-regular);
+  }
+
   .prometheus-dashboard__health-dot {
     width: 8px;
     height: 8px;
@@ -542,8 +601,15 @@
     background: #2878d4;
   }
 
+  .prometheus-dashboard__updated {
+    flex: 0 0 auto;
+    font-size: 12px;
+    line-height: 1;
+    color: var(--el-text-color-regular);
+  }
+
   .prometheus-dashboard__toolbar {
-    margin-bottom: 12px;
+    margin: 0;
   }
 
   .prometheus-dashboard__toolbar :deep(.metrics-monitor-toolbar) {
@@ -553,7 +619,8 @@
   .prometheus-dashboard__toolbar :deep(.metrics-monitor-toolbar__bar) {
     gap: 8px;
     justify-content: flex-end;
-    padding: 0 10px 0 0;
+    min-height: 32px;
+    padding: 0;
     background: transparent;
     border: none;
     border-radius: 0;
