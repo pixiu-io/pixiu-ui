@@ -51,7 +51,7 @@
       <div class="prometheus-dashboard__workspace">
         <aside class="prometheus-dashboard__nav" aria-label="仪表盘分组">
           <div
-            v-for="section in definition.sections"
+            v-for="section in etcdInjected"
             :key="section.id"
             class="prometheus-dashboard__nav-group"
           >
@@ -428,6 +428,217 @@
               </div>
             </template>
 
+            <template v-else-if="activeSection === 'etcd'">
+              <div class="prometheus-dashboard__overview-actions">
+                <ElLink
+                  type="primary"
+                  underline="never"
+                  class="prometheus-dashboard__overview-actions__link"
+                  @click="goNamespacePage('events')"
+                >
+                  <ElIcon :size="14"><Bell /></ElIcon>
+                  <span>事件与告警</span>
+                </ElLink>
+              </div>
+
+              <div class="prometheus-dashboard__coredns-summary">
+                <div class="prometheus-dashboard__summary-grid">
+                  <div
+                    v-for="card in etcdSummaryCards"
+                    :key="card.key"
+                    class="prometheus-dashboard__summary-card"
+                    :class="{ 'is-danger': card.danger, 'is-warning': card.warning }"
+                  >
+                    <div class="prometheus-dashboard__summary-card__head">
+                      <span class="prometheus-dashboard__summary-card__title">{{
+                        card.title
+                      }}</span>
+                      <span
+                        class="prometheus-dashboard__summary-card__icon"
+                        :style="{ color: card.iconColor, background: card.iconBg }"
+                      >
+                        <ElIcon :size="16"><component :is="card.icon" /></ElIcon>
+                      </span>
+                    </div>
+                    <div
+                      class="prometheus-dashboard__summary-card__value"
+                      :class="{ 'is-danger': card.danger, 'is-warning': card.warning }"
+                    >
+                      {{ card.value }}
+                      <span v-if="card.unit" class="prometheus-dashboard__summary-card__unit">{{
+                        card.unit
+                      }}</span>
+                    </div>
+                    <div class="prometheus-dashboard__summary-card__sub">{{ card.sub }}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                class="prometheus-dashboard__section-title prometheus-dashboard__section-title--spaced"
+              >
+                成员与资源
+              </div>
+              <div class="prometheus-dashboard__coredns-resource">
+                <div class="prometheus-dashboard__coredns-pod-card">
+                  <div class="prometheus-dashboard__coredns-pod-card__head">
+                    <h4>成员明细</h4>
+                    <span>各 etcd 成员 Leader 状态、存储与请求负载</span>
+                  </div>
+                  <div
+                    v-if="queryLoading && !etcdMemberRows.length"
+                    class="prometheus-dashboard__coredns-pod-card__body prometheus-dashboard__coredns-pod-card__empty"
+                  >
+                    加载中…
+                  </div>
+                  <div
+                    v-else-if="!etcdMemberRows.length"
+                    class="prometheus-dashboard__coredns-pod-card__body prometheus-dashboard__coredns-pod-card__empty"
+                  >
+                    暂无成员指标数据
+                  </div>
+                  <div v-else class="prometheus-dashboard__coredns-pod-card__body">
+                    <table class="prometheus-dashboard__coredns-pod-table">
+                      <thead>
+                        <tr>
+                          <th>成员</th>
+                          <th>角色</th>
+                          <th>DB 大小</th>
+                          <th>内存</th>
+                          <th>请求 QPS</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="row in etcdMemberRows" :key="row.name">
+                          <td :title="row.name">{{ row.name }}</td>
+                          <td>
+                            <ElTag
+                              size="small"
+                              :type="row.leader ? 'danger' : 'info'"
+                              effect="plain"
+                            >
+                              {{ row.leader ? 'Leader' : 'Follower' }}
+                            </ElTag>
+                          </td>
+                          <td>{{ row.dbSize }}</td>
+                          <td>{{ row.memory }}</td>
+                          <td>{{ row.qps }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <DashboardPanel
+                  v-if="etcdResourcePanels[1]"
+                  :panel="etcdResourcePanels[1]"
+                  :result="resultMap[etcdResourcePanels[1].id]"
+                  :loading="queryLoading"
+                  :show-legend="showLegend"
+                  overview-line
+                  @time-range-select="handleChartTimeRangeSelect"
+                />
+              </div>
+
+              <div
+                class="prometheus-dashboard__section-title prometheus-dashboard__section-title--spaced"
+              >
+                集群与共识
+              </div>
+              <div
+                class="prometheus-dashboard__panel-grid prometheus-dashboard__panel-grid--coredns"
+              >
+                <DashboardPanel
+                  v-for="panel in etcdRaftPanels"
+                  :key="panel.id"
+                  :panel="panel"
+                  :result="resultMap[panel.id]"
+                  :loading="queryLoading"
+                  :show-legend="showLegend"
+                  overview-line
+                  @time-range-select="handleChartTimeRangeSelect"
+                />
+              </div>
+
+              <div
+                class="prometheus-dashboard__section-title prometheus-dashboard__section-title--spaced"
+              >
+                请求与吞吐
+              </div>
+              <div
+                class="prometheus-dashboard__panel-grid prometheus-dashboard__panel-grid--coredns"
+              >
+                <DashboardPanel
+                  v-for="panel in etcdRequestPanels"
+                  :key="panel.id"
+                  :panel="panel"
+                  :result="resultMap[panel.id]"
+                  :loading="queryLoading"
+                  :show-legend="showLegend"
+                  overview-line
+                  @time-range-select="handleChartTimeRangeSelect"
+                />
+              </div>
+
+              <div
+                class="prometheus-dashboard__section-title prometheus-dashboard__section-title--spaced"
+              >
+                请求延迟
+              </div>
+              <div
+                class="prometheus-dashboard__panel-grid prometheus-dashboard__panel-grid--coredns prometheus-dashboard__panel-grid--coredns-latency"
+              >
+                <DashboardPanel
+                  v-if="etcdLatencyPanel"
+                  :panel="etcdLatencyPanel"
+                  :result="resultMap[etcdLatencyPanel.id]"
+                  :loading="queryLoading"
+                  :show-legend="showLegend"
+                  overview-line
+                  @time-range-select="handleChartTimeRangeSelect"
+                />
+              </div>
+
+              <div
+                class="prometheus-dashboard__section-title prometheus-dashboard__section-title--spaced"
+              >
+                磁盘与存储
+              </div>
+              <div
+                class="prometheus-dashboard__panel-grid prometheus-dashboard__panel-grid--coredns"
+              >
+                <DashboardPanel
+                  v-for="panel in etcdStoragePanels"
+                  :key="panel.id"
+                  :panel="panel"
+                  :result="resultMap[panel.id]"
+                  :loading="queryLoading"
+                  :show-legend="showLegend"
+                  overview-line
+                  @time-range-select="handleChartTimeRangeSelect"
+                />
+              </div>
+
+              <div
+                class="prometheus-dashboard__section-title prometheus-dashboard__section-title--spaced"
+              >
+                资源使用
+              </div>
+              <div
+                class="prometheus-dashboard__panel-grid prometheus-dashboard__panel-grid--coredns"
+              >
+                <DashboardPanel
+                  v-for="panel in etcdResourcePanels"
+                  :key="panel.id"
+                  :panel="panel"
+                  :result="resultMap[panel.id]"
+                  :loading="queryLoading"
+                  :show-legend="showLegend"
+                  overview-line
+                  @time-range-select="handleChartTimeRangeSelect"
+                />
+              </div>
+            </template>
+
             <PrometheusEmbedLayout
               v-else-if="embedPageView"
               :view="embedPageView"
@@ -555,6 +766,7 @@
     apiserver: 'API Server',
     'controller-manager': 'Controller Manager',
     scheduler: 'Scheduler',
+    etcd: 'Etcd',
     'node-resource': '集群节点监控详情',
     'node-pod': '节点 Pod 监控',
     workload: '工作负载监控概览',
@@ -567,6 +779,19 @@
   const currentPanels = computed(() =>
     definition.value.panels.filter((panel) => panel.section === activeSection.value)
   )
+  // 本地克隆 sections 导航用于注入 etcd，避免污染 dashboard-catalog 的共享 sections（/monitor 大盘共用）
+  const navSections = computed(() =>
+    definition.value.sections.map((group) => ({
+      ...group,
+      children: group.children ? [...group.children] : undefined
+    }))
+  )
+  const etcdInjected = computed(() => {
+    const sections = navSections.value
+    const core = sections.find((group) => group.id === 'core')
+    if (core?.children && !core.children.includes('etcd')) core.children.push('etcd')
+    return sections
+  })
   const EMBED_LAYOUT_SECTIONS = new Set([
     'apiserver',
     'kubelet',
@@ -1144,6 +1369,379 @@
             : '暂无副本数据',
         danger: false,
         warning: hasDnsTraffic && imbalancedCount > 0
+      }
+    ]
+  })
+
+  // ---- Etcd 摘要卡与成员明细（对齐 coredns 模式） ----
+  type EtcdHealthStatus = 'healthy' | 'warning' | 'danger' | 'unknown'
+
+  type EtcdSummaryCard = {
+    key: string
+    title: string
+    icon: Component
+    iconColor: string
+    iconBg: string
+    value: string
+    unit?: string
+    sub: string
+    danger?: boolean
+    warning?: boolean
+  }
+
+  type EtcdMemberRow = {
+    name: string
+    leader: boolean
+    dbSize: string
+    memory: string
+    qps: string
+  }
+
+  const etcdRaftPanels = computed(() =>
+    resolveEmbedPanels([
+      'etcd.embed.leader_changes',
+      'etcd.embed.proposals',
+      'etcd.embed.has_leader'
+    ])
+  )
+  const etcdRequestPanels = computed(() =>
+    resolveEmbedPanels([
+      'etcd.embed.requests_total',
+      'etcd.embed.requests_by_method',
+      'etcd.embed.error_rate'
+    ])
+  )
+  const etcdLatencyPanel = computed(() =>
+    definition.value.panels.find((panel) => panel.id === 'etcd.embed.latency')
+  )
+  const etcdStoragePanels = computed(() =>
+    resolveEmbedPanels([
+      'etcd.embed.wal_fsync',
+      'etcd.embed.backend_commit',
+      'etcd.embed.db_size',
+      'etcd.embed.kv_count',
+      'etcd.embed.quota_usage'
+    ])
+  )
+  const etcdResourcePanels = computed(() =>
+    resolveEmbedPanels(['etcd.embed.memory', 'etcd.embed.cpu'])
+  )
+
+  function etcdEmbedStat(panelId: string): number | null {
+    const result = resultMap[panelId]
+    if (result?.status !== 'success') return null
+    const value = Number(result.series?.[0]?.values?.at(-1)?.value)
+    return Number.isFinite(value) ? value : null
+  }
+
+  function etcdEmbedQuantile(panelId: string, quantile: number): number | null {
+    const result = resultMap[panelId]
+    if (result?.status !== 'success') return null
+    const series = result.series.find((item) => Number(item.metric.quantile) === quantile)
+    if (!series) return null
+    const value = Number(series.values.at(-1)?.value)
+    return Number.isFinite(value) ? value : null
+  }
+
+  function formatEtcdBytes(value: number | null): string {
+    if (value === null || !Number.isFinite(value)) return '-'
+    const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB']
+    let current = Math.abs(value)
+    let index = 0
+    while (current >= 1024 && index < units.length - 1) {
+      current /= 1024
+      index += 1
+    }
+    return `${current.toFixed(index === 0 ? 0 : 1)} ${units[index]}`
+  }
+
+  function formatEtcdQps(value: number | null): string {
+    if (value === null || !Number.isFinite(value)) return '-'
+    return `${value.toFixed(value >= 10 ? 1 : 2)}/s`
+  }
+
+  const etcdMemberRows = computed<EtcdMemberRow[]>(() => {
+    const leaderResult = resultMap['etcd.embed.member_leader']
+    const dbResult = resultMap['etcd.embed.member_db_size']
+    const memResult = resultMap['etcd.embed.member_memory']
+    const qpsResult = resultMap['etcd.embed.member_qps']
+    const maps = [
+      { result: leaderResult, extract: (v: number) => v > 0 },
+      { result: dbResult, extract: formatEtcdBytes },
+      { result: memResult, extract: formatEtcdBytes },
+      { result: qpsResult, extract: formatEtcdQps }
+    ]
+    const names = new Set<string>()
+    for (const m of maps) {
+      if (m.result?.status !== 'success') continue
+      for (const series of m.result.series) {
+        const name =
+          series.metric.instance?.replace(/:\d+$/, '') || series.metric.pod?.trim() || '未知成员'
+        names.add(name)
+      }
+    }
+    const rows: EtcdMemberRow[] = [...names]
+      .map((name) => {
+        const byInstance = (res: (typeof maps)[0]['result']) => {
+          if (res?.status !== 'success') return null
+          const s = res.series.find(
+            (item) =>
+              (item.metric.instance?.replace(/:\d+$/, '') || item.metric.pod?.trim()) === name
+          )
+          return s ? Number(s.values.at(-1)?.value) : null
+        }
+        return {
+          name,
+          leader: (byInstance(maps[0].result) ?? 0) > 0,
+          dbSize: formatEtcdBytes(byInstance(maps[1].result)),
+          memory: formatEtcdBytes(byInstance(maps[2].result)),
+          qps: formatEtcdQps(byInstance(maps[3].result))
+        }
+      })
+      .sort((a, b) => (a.leader === b.leader ? 0 : a.leader ? -1 : 1))
+    return rows
+  })
+
+  const etcdMetrics = computed(() => {
+    const leaderCount = etcdEmbedStat('etcd.embed.leader_count')
+    const memberCount = etcdEmbedStat('etcd.embed.member_count')
+    const qps = etcdEmbedStat('etcd.embed.requests_total')
+    const p99Latency = etcdEmbedQuantile('etcd.embed.latency', 0.99)
+    const errorRate = etcdEmbedStat('etcd.embed.error_rate')
+    const quotaUsage = etcdEmbedStat('etcd.embed.quota_usage')
+    const dbSize = etcdEmbedStat('etcd.embed.db_size')
+    const walFsyncP99 = etcdEmbedQuantile('etcd.embed.wal_fsync', 0.99)
+    const leaderChangesResult = resultMap['etcd.embed.leader_changes']
+    const leaderChanges =
+      leaderChangesResult?.status === 'success'
+        ? leaderChangesResult.series.reduce(
+            (sum, s) => sum + Number(s.values.at(-1)?.value ?? 0),
+            0
+          )
+        : null
+    const hasMetrics =
+      leaderCount !== null ||
+      memberCount !== null ||
+      qps !== null ||
+      p99Latency !== null ||
+      errorRate !== null ||
+      quotaUsage !== null ||
+      dbSize !== null
+    return {
+      leaderCount,
+      memberCount,
+      qps,
+      p99Latency,
+      errorRate,
+      quotaUsage,
+      dbSize,
+      walFsyncP99,
+      leaderChanges,
+      hasMetrics
+    }
+  })
+
+  const etcdHealth = computed(() => {
+    const {
+      leaderCount,
+      memberCount,
+      qps,
+      p99Latency,
+      errorRate,
+      quotaUsage,
+      walFsyncP99,
+      leaderChanges,
+      hasMetrics
+    } = etcdMetrics.value
+    if (queryLoading.value && !hasMetrics) {
+      return {
+        status: 'unknown' as EtcdHealthStatus,
+        title: 'Etcd 状态评估中',
+        description: '正在拉取 etcd 集群指标…',
+        issues: [] as string[]
+      }
+    }
+    if (!hasMetrics) {
+      return {
+        status: 'unknown' as EtcdHealthStatus,
+        title: 'Etcd 暂无监控数据',
+        description: '未采集到 etcd 指标，请确认 Prometheus 已抓取 etcd 暴露的指标。',
+        issues: [] as string[]
+      }
+    }
+    const issues: string[] = []
+    let status: EtcdHealthStatus = 'healthy'
+    const markWarning = () => {
+      if (status === 'healthy') status = 'warning'
+    }
+    const markDanger = () => {
+      status = 'danger'
+    }
+
+    if (leaderCount !== null && memberCount !== null && leaderCount === 0) {
+      markDanger()
+      issues.push(`集群无 Leader（${leaderCount}/${memberCount}）`)
+    } else if (leaderCount !== null && memberCount !== null && leaderCount < memberCount) {
+      markWarning()
+      issues.push(`部分成员缺少 Leader（${leaderCount}/${memberCount}）`)
+    }
+    if (leaderChanges !== null && leaderChanges > 0.05) {
+      markWarning()
+      issues.push('Leader 切换较频繁，建议检查网络与磁盘延迟')
+    }
+    if (errorRate !== null && qps !== null && errorRate > 5) {
+      markDanger()
+      issues.push(`gRPC 请求错误率 ${errorRate.toFixed(2)}%，高于 5%`)
+    } else if (errorRate !== null && qps !== null && errorRate > 1) {
+      markWarning()
+      issues.push(`gRPC 请求错误率 ${errorRate.toFixed(2)}%，建议关注`)
+    }
+    if (p99Latency !== null && p99Latency > 500) {
+      markDanger()
+      issues.push(`P99 请求延迟 ${p99Latency.toFixed(0)} ms，响应偏慢`)
+    } else if (p99Latency !== null && p99Latency > 100) {
+      markWarning()
+      issues.push(`P99 请求延迟 ${p99Latency.toFixed(0)} ms，略高于正常水平`)
+    }
+    if (quotaUsage !== null && quotaUsage >= 90) {
+      markDanger()
+      issues.push(`DB 配额使用率 ${quotaUsage.toFixed(1)}%，接近上限`)
+    } else if (quotaUsage !== null && quotaUsage >= 80) {
+      markWarning()
+      issues.push(`DB 配额使用率 ${quotaUsage.toFixed(1)}%，建议扩容或压缩`)
+    }
+    if (walFsyncP99 !== null && walFsyncP99 > 200) {
+      markDanger()
+      issues.push(`WAL fsync P99 ${walFsyncP99.toFixed(0)} ms，磁盘写入慢`)
+    } else if (walFsyncP99 !== null && walFsyncP99 > 100) {
+      markWarning()
+      issues.push(`WAL fsync P99 ${walFsyncP99.toFixed(0)} ms，磁盘延迟偏高`)
+    }
+
+    const title =
+      status === 'healthy'
+        ? 'Etcd 运行正常'
+        : status === 'warning'
+          ? 'Etcd 需关注'
+          : 'Etcd 运行异常'
+    const description =
+      status === 'healthy'
+        ? 'Leader、请求成功率、延迟与存储指标均在健康范围内。'
+        : status === 'warning'
+          ? '部分 etcd 指标偏离正常范围，建议结合下方趋势图进一步排查。'
+          : '检测到 Etcd 可用性或性能问题，请优先处理下列异常项。'
+    return { status, title, description, issues }
+  })
+
+  const etcdSummaryCards = computed<EtcdSummaryCard[]>(() => {
+    const { leaderCount, memberCount, qps, p99Latency, quotaUsage, dbSize, leaderChanges } =
+      etcdMetrics.value
+    const health = etcdHealth.value
+    const healthIcon =
+      health.status === 'healthy'
+        ? CircleCheckFilled
+        : health.status === 'warning'
+          ? WarningFilled
+          : health.status === 'danger'
+            ? WarningFilled
+            : Monitor
+    const healthColor =
+      health.status === 'healthy'
+        ? '#67c23a'
+        : health.status === 'warning'
+          ? '#e6a23c'
+          : health.status === 'danger'
+            ? '#f56c6c'
+            : '#909399'
+    const healthBg =
+      health.status === 'healthy'
+        ? 'rgba(103, 194, 58, 0.12)'
+        : health.status === 'warning'
+          ? 'rgba(230, 162, 60, 0.12)'
+          : health.status === 'danger'
+            ? 'rgba(245, 108, 108, 0.12)'
+            : 'rgba(144, 147, 153, 0.12)'
+    return [
+      {
+        key: 'health',
+        title: '运行状态',
+        icon: healthIcon,
+        iconColor: healthColor,
+        iconBg: healthBg,
+        value:
+          health.status === 'healthy'
+            ? '正常'
+            : health.status === 'warning'
+              ? '需关注'
+              : health.status === 'danger'
+                ? '异常'
+                : '-',
+        sub: health.description,
+        danger: health.status === 'danger',
+        warning: health.status === 'warning'
+      },
+      {
+        key: 'leader',
+        title: '集群 / Leader',
+        icon: CircleCheckFilled,
+        iconColor: '#409eff',
+        iconBg: 'rgba(64, 158, 255, 0.12)',
+        value:
+          leaderCount === null || memberCount === null ? '-' : `${leaderCount} / ${memberCount}`,
+        sub:
+          leaderCount === null
+            ? '暂无数据'
+            : leaderCount === 0
+              ? '集群无 Leader'
+              : leaderChanges !== null && leaderChanges > 0.05
+                ? 'Leader 切换较频繁'
+                : 'Leader 状态正常',
+        danger: leaderCount === 0,
+        warning:
+          leaderCount !== null &&
+          memberCount !== null &&
+          leaderCount > 0 &&
+          leaderCount < memberCount
+      },
+      {
+        key: 'qps',
+        title: '请求 QPS',
+        icon: Connection,
+        iconColor: '#7c6af0',
+        iconBg: 'rgba(124, 106, 240, 0.12)',
+        value: qps === null ? '-' : qps.toFixed(qps >= 10 ? 1 : 2),
+        unit: '/s',
+        sub: qps === null ? '暂无数据' : `${memberCount ?? 0} 个成员`,
+        danger: false,
+        warning: false
+      },
+      {
+        key: 'latency',
+        title: 'P99 请求延迟',
+        icon: Timer,
+        iconColor: '#e6a23c',
+        iconBg: 'rgba(230, 162, 60, 0.12)',
+        value: p99Latency === null ? '-' : p99Latency.toFixed(p99Latency >= 10 ? 1 : 2),
+        unit: 'ms',
+        sub:
+          p99Latency === null
+            ? '暂无数据'
+            : p99Latency <= 100
+              ? '尾延迟处于正常范围'
+              : '请求响应偏慢',
+        danger: p99Latency !== null && p99Latency > 500,
+        warning: p99Latency !== null && p99Latency > 100 && p99Latency <= 500
+      },
+      {
+        key: 'storage',
+        title: '存储占用',
+        icon: Coin,
+        iconColor: '#67c23a',
+        iconBg: 'rgba(103, 194, 58, 0.12)',
+        value: formatEtcdBytes(dbSize),
+        sub: quotaUsage === null ? '暂无数据' : `配额使用率 ${quotaUsage.toFixed(1)}%`,
+        danger: quotaUsage !== null && quotaUsage >= 90,
+        warning: quotaUsage !== null && quotaUsage >= 80 && quotaUsage < 90
       }
     ]
   })

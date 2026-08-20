@@ -634,6 +634,296 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     ['kube_pod_status_phase'],
     false,
     fixed('kube_pod_status_phase == 1')
+  ),
+
+  // ---- Etcd embed（集群详情专属，不影响外部监控大盘 section） ----
+  embedPanel(
+    'etcd-embed',
+    'etcd.embed.leader_count',
+    '有 Leader 成员数',
+    'stat',
+    'count',
+    3,
+    ['etcd_server_has_leader'],
+    false,
+    fixed('sum(etcd_server_has_leader)')
+  ),
+  embedPanel(
+    'etcd-embed',
+    'etcd.embed.member_count',
+    '成员总数',
+    'stat',
+    'count',
+    3,
+    ['etcd_server_has_leader'],
+    false,
+    fixed('count(etcd_server_has_leader)')
+  ),
+  embedPanel(
+    'etcd-embed',
+    'etcd.embed.leader_changes',
+    'Leader 切换次数',
+    'line',
+    'count',
+    6,
+    ['etcd_server_leader_changes_seen_total'],
+    true,
+    fixed('sum(rate(etcd_server_leader_changes_seen_total[5m]))')
+  ),
+  embedPanel(
+    'etcd-embed',
+    'etcd.embed.proposals',
+    'Proposals 提交 / 应用 / 失败',
+    'line',
+    'ops',
+    6,
+    ['etcd_server_proposals_committed_total'],
+    true,
+    fixed(
+      'label_replace(sum(rate(etcd_server_proposals_committed_total[5m])), "kind", "已提交", "nonexistent", ".*") or label_replace(sum(rate(etcd_server_proposals_applied_total[5m])), "kind", "已应用", "nonexistent", ".*") or label_replace(sum(rate(etcd_server_proposals_failed_total[5m])), "kind", "已失败", "nonexistent", ".*")'
+    ),
+    undefined,
+    {
+      requiredMetricsAny: [
+        'etcd_server_proposals_committed_total',
+        'etcd_server_proposals_failed_total'
+      ]
+    }
+  ),
+  embedPanel(
+    'etcd-embed',
+    'etcd.embed.has_leader',
+    '成员 HasLeader 状态',
+    'line',
+    'count',
+    6,
+    ['etcd_server_has_leader'],
+    true,
+    fixed('etcd_server_has_leader')
+  ),
+  embedPanel(
+    'etcd-embed',
+    'etcd.embed.requests_total',
+    '请求速率',
+    'line',
+    'ops',
+    6,
+    ['grpc_server_started_total'],
+    true,
+    fixed('sum(rate(grpc_server_started_total{job=~".*etcd.*"}[5m]))'),
+    undefined,
+    {
+      requiredMetricsAny: [
+        'grpc_server_started_total',
+        'grpc_server_handled_total',
+        'etcd_http_received_total'
+      ]
+    }
+  ),
+  embedPanel(
+    'etcd-embed',
+    'etcd.embed.requests_by_method',
+    '请求方法分布',
+    'line',
+    'ops',
+    6,
+    ['grpc_server_handled_total'],
+    true,
+    fixed('sum by (grpc_method) (rate(grpc_server_handled_total{job=~".*etcd.*"}[5m]))')
+  ),
+  embedPanel(
+    'etcd-embed',
+    'etcd.embed.error_rate',
+    '请求错误率',
+    'line',
+    'percent',
+    6,
+    ['grpc_server_handled_total'],
+    true,
+    fixed(
+      '100 * sum(rate(grpc_server_handled_total{job=~".*etcd.*",grpc_code!="OK"}[5m])) / clamp_min(sum(rate(grpc_server_handled_total{job=~".*etcd.*"}[5m])), 1e-9)'
+    )
+  ),
+  embedPanel(
+    'etcd-embed',
+    'etcd.embed.latency',
+    'gRPC 请求延迟分位',
+    'line',
+    'ms',
+    12,
+    ['grpc_server_handling_seconds_bucket'],
+    true,
+    undefined,
+    undefined,
+    {
+      quantileQueries: {
+        metric: 'grpc_server_handling_seconds_bucket',
+        thresholds: [0.99, 0.95, 0.5],
+        unitFactor: 1000
+      },
+      requiredMetricsAny: [
+        'grpc_server_handling_seconds_bucket',
+        'grpc_server_handling_seconds_sum',
+        'grpc_server_handling_seconds_count'
+      ],
+      fallbackQuery: fixed(
+        'label_replace(sum(rate(grpc_server_handling_seconds_sum[5m])) / clamp_min(sum(rate(grpc_server_handling_seconds_count[5m])), 1e-9) * 1000, "latency_kind", "avg", "nonexistent", ".*")'
+      )
+    }
+  ),
+  embedPanel(
+    'etcd-embed',
+    'etcd.embed.wal_fsync',
+    'WAL fsync 延迟',
+    'line',
+    'ms',
+    6,
+    ['etcd_disk_wal_fsync_duration_seconds_bucket'],
+    true,
+    undefined,
+    undefined,
+    {
+      quantileQueries: {
+        metric: 'etcd_disk_wal_fsync_duration_seconds_bucket',
+        thresholds: [0.99, 0.5],
+        unitFactor: 1000
+      },
+      requiredMetricsAny: [
+        'etcd_disk_wal_fsync_duration_seconds_bucket',
+        'etcd_disk_wal_fsync_duration_seconds_sum'
+      ]
+    }
+  ),
+  embedPanel(
+    'etcd-embed',
+    'etcd.embed.backend_commit',
+    'Backend commit 延迟',
+    'line',
+    'ms',
+    6,
+    ['etcd_disk_backend_commit_duration_seconds_bucket'],
+    true,
+    undefined,
+    undefined,
+    {
+      quantileQueries: {
+        metric: 'etcd_disk_backend_commit_duration_seconds_bucket',
+        thresholds: [0.99, 0.5],
+        unitFactor: 1000
+      },
+      requiredMetricsAny: [
+        'etcd_disk_backend_commit_duration_seconds_bucket',
+        'etcd_disk_backend_commit_duration_seconds_sum'
+      ]
+    }
+  ),
+  embedPanel(
+    'etcd-embed',
+    'etcd.embed.db_size',
+    'DB 大小',
+    'line',
+    'bytes',
+    4,
+    ['etcd_mvcc_db_total_size_in_bytes'],
+    true,
+    fixed('etcd_mvcc_db_total_size_in_bytes')
+  ),
+  embedPanel(
+    'etcd-embed',
+    'etcd.embed.quota_usage',
+    'DB 配额使用率',
+    'line',
+    'percent',
+    4,
+    ['etcd_mvcc_db_total_size_in_bytes', 'etcd_server_quota_backend_bytes'],
+    true,
+    fixed(
+      '100 * etcd_mvcc_db_total_size_in_bytes / clamp_min(etcd_server_quota_backend_bytes, 1e-9)'
+    )
+  ),
+  embedPanel(
+    'etcd-embed',
+    'etcd.embed.kv_count',
+    'KV 对总数',
+    'line',
+    'short',
+    4,
+    ['etcd_debugging_mvcc_keys_total'],
+    true,
+    fixed('etcd_debugging_mvcc_keys_total or etcd_debugging_store_metrics_keys_total'),
+    undefined,
+    {
+      requiredMetricsAny: [
+        'etcd_debugging_mvcc_keys_total',
+        'etcd_debugging_store_metrics_keys_total'
+      ]
+    }
+  ),
+  embedPanel(
+    'etcd-embed',
+    'etcd.embed.memory',
+    '进程内存',
+    'line',
+    'bytes',
+    6,
+    ['process_resident_memory_bytes'],
+    true,
+    fixed('process_resident_memory_bytes{job=~".*etcd.*"}')
+  ),
+  embedPanel(
+    'etcd-embed',
+    'etcd.embed.cpu',
+    'CPU 使用率',
+    'line',
+    'cores',
+    6,
+    ['process_cpu_seconds_total'],
+    true,
+    fixed('rate(process_cpu_seconds_total{job=~".*etcd.*"}[5m])')
+  ),
+  embedPanel(
+    'etcd-embed',
+    'etcd.embed.member_leader',
+    '成员 Leader 标识',
+    'stat',
+    'count',
+    3,
+    ['etcd_server_is_leader'],
+    false,
+    fixed('etcd_server_is_leader')
+  ),
+  embedPanel(
+    'etcd-embed',
+    'etcd.embed.member_db_size',
+    '成员 DB 大小',
+    'stat',
+    'bytes',
+    3,
+    ['etcd_mvcc_db_total_size_in_bytes'],
+    false,
+    fixed('etcd_mvcc_db_total_size_in_bytes')
+  ),
+  embedPanel(
+    'etcd-embed',
+    'etcd.embed.member_memory',
+    '成员内存',
+    'stat',
+    'bytes',
+    3,
+    ['process_resident_memory_bytes'],
+    false,
+    fixed('process_resident_memory_bytes{job=~".*etcd.*"}')
+  ),
+  embedPanel(
+    'etcd-embed',
+    'etcd.embed.member_qps',
+    '成员请求 QPS',
+    'stat',
+    'ops',
+    3,
+    ['grpc_server_started_total'],
+    false,
+    fixed('sum by (instance) (rate(grpc_server_started_total{job=~".*etcd.*"}[5m]))')
   )
 ]
 
@@ -701,6 +991,29 @@ export const POD_EMBED_PANEL_IDS = [
   'pod.embed.phase'
 ] as const
 
+export const ETCD_EMBED_PANEL_IDS = [
+  'etcd.embed.leader_count',
+  'etcd.embed.member_count',
+  'etcd.embed.leader_changes',
+  'etcd.embed.proposals',
+  'etcd.embed.has_leader',
+  'etcd.embed.requests_total',
+  'etcd.embed.requests_by_method',
+  'etcd.embed.error_rate',
+  'etcd.embed.latency',
+  'etcd.embed.wal_fsync',
+  'etcd.embed.backend_commit',
+  'etcd.embed.db_size',
+  'etcd.embed.kv_count',
+  'etcd.embed.quota_usage',
+  'etcd.embed.memory',
+  'etcd.embed.cpu',
+  'etcd.embed.member_leader',
+  'etcd.embed.member_db_size',
+  'etcd.embed.member_memory',
+  'etcd.embed.member_qps'
+] as const
+
 /** 集群详情各 section 对应的 embed 面板 ID（coredns 由 dashboard-catalog 单独导出） */
 export const CLUSTER_DETAIL_EMBED_PANEL_IDS: Record<string, readonly string[]> = {
   apiserver: APISERVER_EMBED_PANEL_IDS,
@@ -710,7 +1023,8 @@ export const CLUSTER_DETAIL_EMBED_PANEL_IDS: Record<string, readonly string[]> =
   'node-resource': NODE_RESOURCE_EMBED_PANEL_IDS,
   'node-pod': NODE_POD_EMBED_PANEL_IDS,
   workload: WORKLOAD_EMBED_PANEL_IDS,
-  pod: POD_EMBED_PANEL_IDS
+  pod: POD_EMBED_PANEL_IDS,
+  etcd: ETCD_EMBED_PANEL_IDS
 }
 
 export function resolveClusterDetailPanelIds(

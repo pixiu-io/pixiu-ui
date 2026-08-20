@@ -105,5 +105,5 @@
 </script>
 
 <style lang="scss" scoped>
-  @import './embed-layout.scss';
+  @use './embed-layout.scss';
 </style>
