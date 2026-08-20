@@ -8,7 +8,59 @@ interface EmbedPanelSpec extends DashboardPanelDefinition {
     metric: string
     thresholds: number[]
     unitFactor?: number
+    selector?: string
+    fallbackMetrics?: string[]
   }
+}
+
+/** 排除长连接/流式请求，避免全局 P99 被顶到直方图上限（常见 60s） */
+const APISERVER_LATENCY_SELECTOR = 'verb!~"WATCH|WATCHLIST|CONNECT|PROXY"'
+
+/**
+ * Controller Manager 工作队列选择器（多标签兼容）。
+ * 避免用全局 workqueue_*（会混入其它 Operator）导致误报「需关注」。
+ */
+function controllerWorkqueueSeries(metric: string): string {
+  return (
+    `${metric}{job=~".*controller-manager.*"}` +
+    ` or ${metric}{pod=~".*controller-manager.*"}` +
+    ` or ${metric}{component="kube-controller-manager"}`
+  )
+}
+
+function controllerWorkqueueRateSum(metric: string): string {
+  return (
+    `sum(rate(${metric}{job=~".*controller-manager.*"}[5m]))` +
+    ` or sum(rate(${metric}{pod=~".*controller-manager.*"}[5m]))` +
+    ` or sum(rate(${metric}{component="kube-controller-manager"}[5m]))`
+  )
+}
+
+function controllerWorkqueueRateByName(metric: string): string {
+  return (
+    `sum by (name) (rate(${metric}{job=~".*controller-manager.*"}[5m]))` +
+    ` or sum by (name) (rate(${metric}{pod=~".*controller-manager.*"}[5m]))` +
+    ` or sum by (name) (rate(${metric}{component="kube-controller-manager"}[5m]))`
+  )
+}
+
+/** 控制面进程内存：优先 process_*，标签兼容；回退 cAdvisor 容器内存 */
+function controlPlaneProcessMemoryQuery(componentPattern: string): string {
+  const process =
+    `process_resident_memory_bytes{job=~".*${componentPattern}.*"}` +
+    ` or process_resident_memory_bytes{pod=~".*${componentPattern}.*"}` +
+    ` or process_resident_memory_bytes{container=~".*${componentPattern}.*"}` +
+    ` or process_resident_memory_bytes{component=~".*${componentPattern}.*"}` +
+    ` or process_resident_memory_bytes{app=~".*${componentPattern}.*"}`
+  return process
+}
+
+function controlPlaneContainerMemoryFallback(componentPattern: string): string {
+  return (
+    `sum by (pod) (` +
+    `container_memory_working_set_bytes{pod=~".*${componentPattern}.*",container!="",container!="POD"}` +
+    `)`
+  )
 }
 
 type PanelOptions = {
@@ -18,6 +70,8 @@ type PanelOptions = {
     metric: string
     thresholds: number[]
     unitFactor?: number
+    selector?: string
+    fallbackMetrics?: string[]
   }
 }
 
@@ -58,8 +112,8 @@ function fixed(expression: string): (filters: DashboardFilters) => string {
 function apiserverLatencyFallbackQuery(): string {
   return (
     'label_replace(' +
-    'sum(rate(apiserver_request_duration_seconds_sum[5m])) / ' +
-    'clamp_min(sum(rate(apiserver_request_duration_seconds_count[5m])), 1e-9) * 1000, ' +
+    `sum(rate(apiserver_request_duration_seconds_sum{${APISERVER_LATENCY_SELECTOR}}[5m])) / ` +
+    `clamp_min(sum(rate(apiserver_request_duration_seconds_count{${APISERVER_LATENCY_SELECTOR}}[5m])), 1e-9) * 1000, ` +
     '"latency_kind", "avg", "nonexistent", ".*")'
   )
 }
@@ -67,8 +121,16 @@ function apiserverLatencyFallbackQuery(): string {
 function schedulerLatencyFallbackQuery(): string {
   return (
     'label_replace(' +
+    '(' +
+    'sum(rate(scheduler_scheduling_attempt_duration_seconds_sum[5m])) / ' +
+    'clamp_min(sum(rate(scheduler_scheduling_attempt_duration_seconds_count[5m])), 1e-9) * 1000' +
+    ' or ' +
     'sum(rate(scheduler_e2e_scheduling_duration_seconds_sum[5m])) / ' +
-    'clamp_min(sum(rate(scheduler_e2e_scheduling_duration_seconds_count[5m])), 1e-9) * 1000, ' +
+    'clamp_min(sum(rate(scheduler_e2e_scheduling_duration_seconds_count[5m])), 1e-9) * 1000' +
+    ' or ' +
+    'sum(rate(scheduler_pod_scheduling_sli_duration_seconds_sum[5m])) / ' +
+    'clamp_min(sum(rate(scheduler_pod_scheduling_sli_duration_seconds_count[5m])), 1e-9) * 1000' +
+    '), ' +
     '"latency_kind", "avg", "nonexistent", ".*")'
   )
 }
@@ -119,8 +181,9 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     ['apiserver_request_duration_seconds_bucket'],
     false,
     fixed(
-      'histogram_quantile(0.99, sum(rate(apiserver_request_duration_seconds_bucket[5m])) by (le)) * 1000'
-    )
+      `histogram_quantile(0.99, sum(rate(apiserver_request_duration_seconds_bucket{${APISERVER_LATENCY_SELECTOR}}[5m])) by (le)) * 1000`
+    ),
+    '排除 WATCH / CONNECT 等长连接请求，反映短请求尾延迟'
   ),
   embedPanel(
     'apiserver-embed',
@@ -131,7 +194,7 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     3,
     ['apiserver_request_total'],
     false,
-    fixed('count(apiserver_request_total)')
+    fixed('count(count by (instance) (apiserver_request_total))')
   ),
   embedPanel(
     'apiserver-embed',
@@ -154,12 +217,13 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     ['apiserver_request_duration_seconds_bucket'],
     true,
     undefined,
-    undefined,
+    '排除 WATCH / CONNECT 等长连接请求后的延迟分位',
     {
       quantileQueries: {
         metric: 'apiserver_request_duration_seconds_bucket',
         thresholds: [0.99, 0.9, 0.5],
-        unitFactor: 1000
+        unitFactor: 1000,
+        selector: APISERVER_LATENCY_SELECTOR
       },
       requiredMetricsAny: [
         'apiserver_request_duration_seconds_bucket',
@@ -273,7 +337,9 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     3,
     ['workqueue_depth'],
     false,
-    fixed('max(workqueue_depth)')
+    fixed(`max(${controllerWorkqueueSeries('workqueue_depth')})`),
+    undefined,
+    { fallbackQuery: fixed('max(workqueue_depth)') }
   ),
   embedPanel(
     'controller-embed',
@@ -284,7 +350,9 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     3,
     ['workqueue_adds_total'],
     false,
-    fixed('sum(rate(workqueue_adds_total[5m]))')
+    fixed(controllerWorkqueueRateSum('workqueue_adds_total')),
+    undefined,
+    { fallbackQuery: fixed('sum(rate(workqueue_adds_total[5m]))') }
   ),
   embedPanel(
     'controller-embed',
@@ -295,7 +363,9 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     3,
     ['workqueue_retries_total'],
     false,
-    fixed('sum(rate(workqueue_retries_total[5m]))')
+    fixed(controllerWorkqueueRateSum('workqueue_retries_total')),
+    undefined,
+    { fallbackQuery: fixed('sum(rate(workqueue_retries_total[5m]))') }
   ),
   embedPanel(
     'controller-embed',
@@ -306,7 +376,11 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     3,
     ['workqueue_depth'],
     false,
-    fixed('count(workqueue_depth)')
+    fixed(`count(count by (instance) (${controllerWorkqueueSeries('workqueue_depth')}))`),
+    undefined,
+    {
+      fallbackQuery: fixed('count(count by (instance) (workqueue_depth))')
+    }
   ),
   embedPanel(
     'controller-embed',
@@ -317,7 +391,9 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     6,
     ['workqueue_depth'],
     true,
-    fixed('topk(8, workqueue_depth)')
+    fixed(`topk(8, ${controllerWorkqueueSeries('workqueue_depth')})`),
+    undefined,
+    { fallbackQuery: fixed('topk(8, workqueue_depth)') }
   ),
   embedPanel(
     'controller-embed',
@@ -328,7 +404,9 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     6,
     ['workqueue_adds_total'],
     true,
-    fixed('sum by (name) (rate(workqueue_adds_total[5m]))')
+    fixed(controllerWorkqueueRateByName('workqueue_adds_total')),
+    undefined,
+    { fallbackQuery: fixed('sum by (name) (rate(workqueue_adds_total[5m]))') }
   ),
   embedPanel(
     'controller-embed',
@@ -340,8 +418,18 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     ['workqueue_work_duration_seconds_bucket'],
     true,
     fixed(
-      'histogram_quantile(0.99, sum(rate(workqueue_work_duration_seconds_bucket[5m])) by (le)) * 1000'
-    )
+      'histogram_quantile(0.99, sum by (le) (' +
+        'rate(workqueue_work_duration_seconds_bucket{job=~".*controller-manager.*"}[5m])' +
+        ' or rate(workqueue_work_duration_seconds_bucket{pod=~".*controller-manager.*"}[5m])' +
+        ' or rate(workqueue_work_duration_seconds_bucket{component="kube-controller-manager"}[5m])' +
+        ')) * 1000'
+    ),
+    undefined,
+    {
+      fallbackQuery: fixed(
+        'histogram_quantile(0.99, sum(rate(workqueue_work_duration_seconds_bucket[5m])) by (le)) * 1000'
+      )
+    }
   ),
   embedPanel(
     'controller-embed',
@@ -352,7 +440,15 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     6,
     ['process_resident_memory_bytes'],
     true,
-    fixed('process_resident_memory_bytes{job="kube-controller-manager"}')
+    fixed(controlPlaneProcessMemoryQuery('controller-manager')),
+    '优先 process_resident_memory_bytes；无控制面 scrape 时回退容器内存',
+    {
+      requiredMetricsAny: [
+        'process_resident_memory_bytes',
+        'container_memory_working_set_bytes'
+      ],
+      fallbackQuery: fixed(controlPlaneContainerMemoryFallback('controller-manager'))
+    }
   ),
 
   // ---- Scheduler embed ----
@@ -365,7 +461,17 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     3,
     ['scheduler_schedule_attempts_total'],
     false,
-    fixed('sum(rate(scheduler_schedule_attempts_total[5m]))')
+    fixed('sum(rate(scheduler_schedule_attempts_total[5m]))'),
+    undefined,
+    {
+      requiredMetricsAny: [
+        'scheduler_schedule_attempts_total',
+        'scheduler_scheduling_attempt_duration_seconds_count'
+      ],
+      fallbackQuery: fixed(
+        'sum(rate(scheduler_scheduling_attempt_duration_seconds_count[5m]))'
+      )
+    }
   ),
   embedPanel(
     'scheduler-embed',
@@ -391,7 +497,17 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     false,
     fixed(
       'histogram_quantile(0.99, sum(rate(scheduler_e2e_scheduling_duration_seconds_bucket[5m])) by (le)) * 1000'
-    )
+    ),
+    undefined,
+    {
+      requiredMetricsAny: [
+        'scheduler_e2e_scheduling_duration_seconds_bucket',
+        'scheduler_scheduling_attempt_duration_seconds_bucket'
+      ],
+      fallbackQuery: fixed(
+        'histogram_quantile(0.99, sum(rate(scheduler_scheduling_attempt_duration_seconds_bucket[5m])) by (le)) * 1000'
+      )
+    }
   ),
   embedPanel(
     'scheduler-embed',
@@ -402,7 +518,18 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     3,
     ['scheduler_schedule_attempts_total'],
     false,
-    fixed('count(scheduler_schedule_attempts_total)')
+    fixed('count(count by (instance) (scheduler_schedule_attempts_total))'),
+    undefined,
+    {
+      requiredMetricsAny: [
+        'scheduler_schedule_attempts_total',
+        'scheduler_scheduler_goroutines',
+        'process_resident_memory_bytes'
+      ],
+      fallbackQuery: fixed(
+        'count(count by (instance) (process_resident_memory_bytes{job=~".*scheduler.*"} or process_resident_memory_bytes{pod=~".*scheduler.*"}))'
+      )
+    }
   ),
   embedPanel(
     'scheduler-embed',
@@ -411,9 +538,20 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     'line',
     'ops',
     6,
-    ['scheduler_schedule_attempts_total'],
+    [],
     true,
-    fixed('sum by (result) (rate(scheduler_schedule_attempts_total[5m]))')
+    fixed(
+      'sum by (result) (rate(scheduler_schedule_attempts_total[5m]))' +
+        ' or sum by (result) (increase(scheduler_schedule_attempts_total[1h]) / 3600)'
+    ),
+    '按 result 统计调度尝试；无 attempts 指标时回退为 pending pods 队列分布',
+    {
+      fallbackQuery: fixed(
+        'sum by (queue) (scheduler_pending_pods)' +
+          ' or sum by (queue) (scheduler_unschedulable_pods)' +
+          ' or sum by (name) (workqueue_depth{job=~".*scheduler.*"} or workqueue_depth{pod=~".*scheduler.*"})'
+      )
+    }
   ),
   embedPanel(
     'scheduler-embed',
@@ -422,21 +560,20 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     'line',
     'ms',
     6,
-    ['scheduler_e2e_scheduling_duration_seconds_bucket'],
+    [],
     true,
     undefined,
-    undefined,
+    '兼容 e2e / attempt / pod scheduling SLI 等多种 scheduler 延迟直方图',
     {
       quantileQueries: {
         metric: 'scheduler_e2e_scheduling_duration_seconds_bucket',
         thresholds: [0.99, 0.9, 0.5],
-        unitFactor: 1000
+        unitFactor: 1000,
+        fallbackMetrics: [
+          'scheduler_scheduling_attempt_duration_seconds_bucket',
+          'scheduler_pod_scheduling_sli_duration_seconds_bucket'
+        ]
       },
-      requiredMetricsAny: [
-        'scheduler_e2e_scheduling_duration_seconds_bucket',
-        'scheduler_e2e_scheduling_duration_seconds_sum',
-        'scheduler_e2e_scheduling_duration_seconds_count'
-      ],
       fallbackQuery: fixed(schedulerLatencyFallbackQuery())
     }
   ),
@@ -447,9 +584,17 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     'line',
     'short',
     6,
-    ['workqueue_depth'],
+    [],
     true,
-    fixed('workqueue_depth{job="kube-scheduler"}')
+    fixed('sum by (queue) (scheduler_pending_pods)'),
+    '优先 scheduler_pending_pods；无该指标时回退 workqueue',
+    {
+      fallbackQuery: fixed(
+        'sum by (queue) (scheduler_unschedulable_pods)' +
+          ' or topk(8, workqueue_depth{job=~".*scheduler.*"} or workqueue_depth{pod=~".*scheduler.*"})' +
+          ' or topk(8, workqueue_depth)'
+      )
+    }
   ),
   embedPanel(
     'scheduler-embed',
@@ -458,9 +603,13 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     'line',
     'bytes',
     6,
-    ['process_resident_memory_bytes'],
+    [],
     true,
-    fixed('process_resident_memory_bytes{job="kube-scheduler"}')
+    fixed(controlPlaneProcessMemoryQuery('scheduler')),
+    '优先 process_resident_memory_bytes；无控制面 scrape 时回退容器内存',
+    {
+      fallbackQuery: fixed(controlPlaneContainerMemoryFallback('scheduler'))
+    }
   ),
 
   // ---- Node resource embed ----

@@ -179,13 +179,30 @@
   }))
 
   const statusItems = computed(() =>
-    (props.result?.series ?? []).slice(0, 10).map((series) => {
+    (props.result?.series ?? []).slice(0, 25).map((series, index) => {
       const value = Number(series.values.at(-1)?.value ?? 0)
       const phase = series.metric.phase || series.metric.condition || ''
+      const pvc = series.metric.persistentvolumeclaim?.trim()
+      const namespace = series.metric.namespace?.trim()
+      const name = pvc
+        ? namespace
+          ? `${namespace}/${pvc}`
+          : pvc
+        : phase
+          ? `PVC · ${phase}`
+          : seriesLabel(series) || `item-${index}`
+      // 有 PVC 名时右侧显示 phase；按 phase 汇总时右侧显示数量
+      const displayValue = pvc
+        ? phase || 'Exists'
+        : phase
+          ? `${Math.round(value)} 个`
+          : formatValue(value, props.panel.unit)
       return {
-        name: seriesLabel(series),
-        value: phase || formatValue(value, props.panel.unit),
-        healthy: value > 0 && !['Failed', 'Pending', 'Lost'].includes(phase)
+        name,
+        value: displayValue,
+        healthy: phase
+          ? !['Failed', 'Pending', 'Lost'].includes(phase)
+          : value > 0
       }
     })
   )
@@ -223,16 +240,22 @@
     if (labels.rcode) return labels.rcode
     if ('type' in labels) return labels.type?.trim() || '未知类型'
     const resource =
+      labels.persistentvolumeclaim ||
       labels.pod ||
       labels.node ||
       labels.namespace ||
-      labels.persistentvolumeclaim ||
       labels.deployment ||
       labels.statefulset ||
       labels.daemonset ||
       labels.operation_type ||
+      labels.phase ||
       labels.instance
-    if (resource) return resource
+    if (resource) {
+      if (labels.persistentvolumeclaim && labels.namespace) {
+        return `${labels.namespace}/${labels.persistentvolumeclaim}`
+      }
+      return resource
+    }
     const keys = Object.keys(labels).filter((key) => key !== '__name__')
     return keys.length ? keys.map((key) => `${key}=${labels[key]}`).join(', ') : '当前值'
   }

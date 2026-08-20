@@ -86,10 +86,30 @@ export function minBarPercent(resultMap: Record<string, DashboardPanelResult>, p
 
 const MIN_TRAFFIC_QPS = 0.001
 
+/** 直方图顶桶常见上限（60s），顶满时视为口径不可靠 */
+export const LATENCY_BUCKET_CAP_MS = 59000
+/** 组件延迟统一阈值：与 API Server 一致 */
+export const LATENCY_WARNING_MS = 1000
+export const LATENCY_DANGER_MS = 5000
+
 export function hasComponentTraffic(qps: number | null): boolean {
   return qps !== null && qps > MIN_TRAFFIC_QPS
 }
 
 export function isComponentIdle(qps: number | null, primaryRate: number | null): boolean {
   return !hasComponentTraffic(qps) && (primaryRate === null || primaryRate === 0)
+}
+
+export function isLatencyReliable(p99: number | null): boolean {
+  return p99 !== null && p99 < LATENCY_BUCKET_CAP_MS
+}
+
+export type LatencyLevel = 'ok' | 'warning' | 'danger' | 'unreliable' | 'none'
+
+export function evaluateLatencyLevel(p99: number | null): LatencyLevel {
+  if (p99 === null) return 'none'
+  if (p99 >= LATENCY_BUCKET_CAP_MS) return 'unreliable'
+  if (p99 > LATENCY_DANGER_MS) return 'danger'
+  if (p99 > LATENCY_WARNING_MS) return 'warning'
+  return 'ok'
 }

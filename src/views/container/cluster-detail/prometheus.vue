@@ -651,7 +651,14 @@
               @item-click="handlePanelItemClick"
             />
 
-            <div v-else class="prometheus-dashboard__panel-grid">
+            <div
+              v-else
+              class="prometheus-dashboard__panel-grid"
+              :class="{
+                'prometheus-dashboard__panel-grid--inset':
+                  activeSection === 'network' || activeSection === 'storage'
+              }"
+            >
               <DashboardPanel
                 v-for="panel in currentPanels"
                 :key="panel.id"
@@ -723,6 +730,10 @@
   import { COREDNS_EMBED_PANEL_IDS, resolveClusterDetailPanelIds } from '@/utils/metrics/dashboard-catalog'
   import PrometheusEmbedLayout from '@/views/container/cluster-detail/prometheus/embed/PrometheusEmbedLayout.vue'
   import { buildEmbedPageView } from '@/views/container/cluster-detail/prometheus/embed/embed-views'
+  import {
+    evaluateLatencyLevel,
+    isLatencyReliable
+  } from '@/views/container/cluster-detail/prometheus/embed/utils'
   import DashboardPanel from '@/views/safeguard/dashboard/modules/DashboardPanel.vue'
   import ClusterMonitorOverview from '@/views/container/cluster/modules/cluster-monitor-overview.vue'
   import AssociatePrometheusDialog from './associate-prometheus-dialog.vue'
@@ -1172,12 +1183,12 @@
 
     if (isDnsIdle && (panics === null || panics <= 0)) {
       return {
-        status: 'unknown' as CorednsHealthStatus,
-        title: 'CoreDNS 待观察',
+        status: 'healthy' as CorednsHealthStatus,
+        title: 'CoreDNS 运行正常',
         description:
           replicaCount > 0
-            ? '当前暂无 DNS 请求流量，新集群或空闲状态下指标待积累，暂不做异常判定。'
-            : '当前暂无 DNS 请求流量，待业务访问后再评估运行状态。',
+            ? '当前负载较低，未发现解析失败或 Panic。'
+            : '当前负载较低，未发现可用性异常。',
         issues: [] as string[]
       }
     }
@@ -1203,16 +1214,22 @@
       markWarning()
       issues.push(`解析成功率 ${successRate.toFixed(1)}%，建议关注 SERVFAIL`)
     }
-    if (hasDnsTraffic && p99Latency !== null && p99Latency > 500) {
+
+    const latencyLevel = evaluateLatencyLevel(p99Latency)
+    if (hasDnsTraffic && latencyLevel === 'danger') {
       markDanger()
-      issues.push(`P99 解析延迟 ${p99Latency.toFixed(0)} ms，响应偏慢`)
-    } else if (hasDnsTraffic && p99Latency !== null && p99Latency > 100) {
+      issues.push(`P99 解析延迟 ${p99Latency!.toFixed(0)} ms，响应偏慢`)
+    } else if (hasDnsTraffic && latencyLevel === 'warning') {
       markWarning()
-      issues.push(`P99 解析延迟 ${p99Latency.toFixed(0)} ms，略高于正常水平`)
+      issues.push(`P99 解析延迟 ${p99Latency!.toFixed(0)} ms，略高于正常水平`)
+    } else if (hasDnsTraffic && latencyLevel === 'unreliable') {
+      // 顶桶干扰：不计入异常，避免新集群误报
     }
+
+    // 新集群冷缓存常见：低命中只告警，不直接判异常
     if (hasDnsTraffic && cacheHitRate !== null && cacheHitRate < 30) {
-      markDanger()
-      issues.push(`缓存命中率 ${cacheHitRate.toFixed(1)}%，缓存效率偏低`)
+      markWarning()
+      issues.push(`缓存命中率 ${cacheHitRate.toFixed(1)}%，新集群冷缓存或 TTL 偏低`)
     } else if (hasDnsTraffic && cacheHitRate !== null && cacheHitRate < 60) {
       markWarning()
       issues.push(`缓存命中率 ${cacheHitRate.toFixed(1)}%，可检查 TTL 与缓存配置`)
@@ -1291,9 +1308,7 @@
               ? '需关注'
               : health.status === 'danger'
                 ? '异常'
-                : health.title === 'CoreDNS 待观察'
-                  ? '待观察'
-                  : '-',
+                : '-',
         sub: health.description,
         danger: health.status === 'danger',
         warning: health.status === 'warning'
@@ -1328,11 +1343,13 @@
         sub:
           p99Latency === null
             ? '暂无数据'
-            : p99Latency <= 100
-              ? '尾延迟处于正常范围'
-              : '解析响应偏慢',
-        danger: p99Latency !== null && p99Latency > 500,
-        warning: p99Latency !== null && p99Latency > 100 && p99Latency <= 500
+            : !isLatencyReliable(p99Latency)
+              ? '延迟口径受顶桶干扰，仅供参考'
+              : p99Latency <= 1000
+                ? '尾延迟处于正常范围'
+                : '解析响应偏慢',
+        danger: hasDnsTraffic && evaluateLatencyLevel(p99Latency) === 'danger',
+        warning: hasDnsTraffic && evaluateLatencyLevel(p99Latency) === 'warning'
       },
       {
         key: 'cache',
@@ -1349,9 +1366,9 @@
               ? '暂无 DNS 流量'
               : cacheHitRate >= 60
                 ? '缓存效率良好'
-                : '缓存命中偏低',
-        danger: hasDnsTraffic && cacheHitRate !== null && cacheHitRate < 30,
-        warning: hasDnsTraffic && cacheHitRate !== null && cacheHitRate >= 30 && cacheHitRate < 60
+                : '缓存命中偏低（新集群常见）',
+        danger: false,
+        warning: hasDnsTraffic && cacheHitRate !== null && cacheHitRate < 60
       },
       {
         key: 'qps',
@@ -2459,6 +2476,20 @@
     display: grid;
     grid-template-columns: repeat(12, minmax(0, 1fr));
     gap: 12px;
+  }
+
+  /* 与 apiserver embed 卡片左右留白、折线高度一致 */
+  .prometheus-dashboard__panel-grid--inset {
+    margin: 0 16px 12px;
+
+    :deep(.dashboard-panel.is-line) {
+      height: 260px;
+    }
+
+    :deep(.dashboard-panel.is-bar),
+    :deep(.dashboard-panel.is-status) {
+      height: 260px;
+    }
   }
 
   .prometheus-dashboard__risk-card {

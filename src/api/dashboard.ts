@@ -270,25 +270,64 @@ async function queryQuantileParallel(
   end: number,
   step: number
 ): Promise<DashboardSeries[]> {
-  const { metric, thresholds, unitFactor = 1 } = spec.quantileQueries!
-  const bucketRate = `sum(rate(${metric}[5m])) by (le)`
+  const { metric, thresholds, unitFactor = 1, selector, fallbackMetrics = [] } = spec.quantileQueries!
+  const metricsToTry = [metric, ...fallbackMetrics.filter((item) => item && item !== metric)]
 
   const parts = await Promise.all(
     thresholds.map(async (quantile) => {
-      try {
-        const expression = `histogram_quantile(${quantile}, ${bucketRate}) * ${unitFactor}`
-        const series = await runPanelQuery(context, spec, expression, start, end, step)
-        return series.map((item) => ({
-          metric: { ...item.metric, quantile: String(quantile) },
-          values: item.values
-        }))
-      } catch {
-        return [] as DashboardSeries[]
+      for (const candidate of metricsToTry) {
+        try {
+          const metricExpr = selector?.trim() ? `${candidate}{${selector.trim()}}` : candidate
+          const bucketRate = `sum(rate(${metricExpr}[5m])) by (le)`
+          const expression = `histogram_quantile(${quantile}, ${bucketRate}) * ${unitFactor}`
+          const series = await runPanelQuery(context, spec, expression, start, end, step)
+          if (!series.length) continue
+          return series.map((item) => ({
+            metric: { ...item.metric, quantile: String(quantile) },
+            values: item.values
+          }))
+        } catch {
+          // try next metric
+        }
       }
+      return [] as DashboardSeries[]
     })
   )
 
   return parts.flat()
+}
+
+function expressionMentionsMetric(expression: string, metric: string): boolean {
+  return expression.includes(metric)
+}
+
+/** 若已知指标清单，把引用已有指标的候选排到前面，减少无效回退次数 */
+function orderExpressionsByMetricAvailability(
+  expressions: string[],
+  metricNames: Set<string> | null
+): string[] {
+  if (!metricNames || metricNames.size === 0) return expressions
+  const networkHints = [
+    'container_network_transmit_bytes_total',
+    'container_network_receive_bytes_total',
+    'container_network_transmit_packets_total',
+    'container_network_receive_packets_total',
+    'node_network_transmit_bytes_total',
+    'node_network_receive_bytes_total',
+    'node_network_transmit_packets_total',
+    'node_network_receive_packets_total'
+  ]
+  const scored = expressions.map((expression, index) => {
+    const mentioned = networkHints.filter((name) => expressionMentionsMetric(expression, name))
+    if (!mentioned.length) return { expression, index, score: 0 }
+    const available = mentioned.filter((name) => metricNames.has(name)).length
+    const missing = mentioned.length - available
+    // 有已知存在的指标优先；引用了清单里明确不存在的指标往后排
+    return { expression, index, score: available * 10 - missing * 5 }
+  })
+  return scored
+    .sort((left, right) => right.score - left.score || left.index - right.index)
+    .map((item) => item.expression)
 }
 
 async function queryPanel(
@@ -310,16 +349,56 @@ async function queryPanel(
   if (!spec.query && !spec.quantileQueries) return emptyResult()
   if (!hasRequiredMetrics(spec, metricNames)) return emptyResult()
 
-  try {
-    let series = spec.quantileQueries
-      ? await queryQuantileParallel(context, spec, start, end, step)
-      : await runPanelQuery(context, spec, spec.query!(filters), start, end, step)
+  const fallbackFns = [
+    ...(spec.fallbackQuery ? [spec.fallbackQuery] : []),
+    ...(spec.fallbackQueries ?? [])
+  ]
 
-    if (!series.length && spec.fallbackQuery) {
-      series = await runPanelQuery(context, spec, spec.fallbackQuery(filters), start, end, step)
+  async function tryExpression(expression: string) {
+    return runPanelQuery(context, spec, expression, start, end, step)
+  }
+
+  try {
+    if (spec.quantileQueries) {
+      const series = await queryQuantileParallel(context, spec, start, end, step)
+      if (!series.length) {
+        return {
+          id: spec.id,
+          status: 'no_data',
+          message: '当前筛选范围暂无数据',
+          series: []
+        }
+      }
+      return { id: spec.id, status: 'success', series }
+    }
+
+    const candidateExpressions = orderExpressionsByMetricAvailability(
+      [spec.query!(filters), ...fallbackFns.map((fn) => fn(filters))],
+      metricNames
+    )
+
+    let series: DashboardSeries[] = []
+    let lastError: unknown = null
+    let hadSuccessfulResponse = false
+    for (const expression of candidateExpressions) {
+      try {
+        series = await tryExpression(expression)
+        hadSuccessfulResponse = true
+        if (series.length) break
+      } catch (error) {
+        lastError = error
+      }
     }
 
     if (!series.length) {
+      if (lastError && !hadSuccessfulResponse) {
+        return {
+          id: spec.id,
+          status: 'error',
+          message: errorMessage(lastError),
+          series: []
+        }
+      }
       return {
         id: spec.id,
         status: 'no_data',
@@ -329,6 +408,16 @@ async function queryPanel(
     }
     return { id: spec.id, status: 'success', series }
   } catch (error) {
+    for (const fallback of fallbackFns) {
+      try {
+        const series = await tryExpression(fallback(filters))
+        if (series.length) {
+          return { id: spec.id, status: 'success', series }
+        }
+      } catch {
+        /* try next fallback */
+      }
+    }
     return {
       id: spec.id,
       status: 'error',

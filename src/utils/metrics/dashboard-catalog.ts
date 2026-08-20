@@ -11,6 +11,10 @@ export interface DashboardQuantileQueries {
   metric: string
   thresholds: number[]
   unitFactor?: number
+  /** 可选标签选择器，如 verb!~"WATCH|CONNECT"（不含花括号） */
+  selector?: string
+  /** 主 histogram 无数据时依次尝试的备用 bucket 指标 */
+  fallbackMetrics?: string[]
 }
 
 export interface DashboardPanelSpec extends DashboardPanelDefinition {
@@ -18,6 +22,8 @@ export interface DashboardPanelSpec extends DashboardPanelDefinition {
   query?: (filters: DashboardFilters) => string
   /** 主查询无数据时的回退 PromQL */
   fallbackQuery?: (filters: DashboardFilters) => string
+  /** 多级回退：按顺序尝试，直到有数据 */
+  fallbackQueries?: Array<(filters: DashboardFilters) => string>
   /** 多分位延迟：并行查询后合并（避免 or 表达式丢失 P99/P90 series） */
   quantileQueries?: DashboardQuantileQueries
 }
@@ -27,6 +33,7 @@ type FilterLabel = 'namespace' | 'node' | 'pod'
 type PanelOptions = {
   requiredMetricsAny?: string[]
   fallbackQuery?: (filters: DashboardFilters) => string
+  fallbackQueries?: Array<(filters: DashboardFilters) => string>
   quantileQueries?: DashboardQuantileQueries
 }
 
@@ -55,6 +62,7 @@ function panel(
     rangeQuery,
     query,
     fallbackQuery: options?.fallbackQuery,
+    fallbackQueries: options?.fallbackQueries,
     quantileQueries: options?.quantileQueries,
     description
   }
@@ -166,6 +174,101 @@ function containerExpr(metric: string, filters: DashboardFilters, useRate: boole
   )
   if (useRate) expression = `rate(${expression}[5m])`
   return workloadJoin(expression, filters)
+}
+
+/**
+ * Pod 网络指标专用表达式。
+ * cAdvisor 的 container_network_* 通常挂在 pause/POD 沙箱上，且常无 image 标签；
+ * 不能复用 containerExpr 的 container!="" / image!=""，否则会整页空数据。
+ * 注意：不要写 interface!="lo"（无 interface 标签的序列会被 Prometheus 直接丢掉）。
+ */
+function networkExpr(metric: string, filters: DashboardFilters, useRate: boolean): string {
+  let expression = selector(metric, filters, ['namespace', 'node', 'pod'])
+  if (useRate) expression = `rate(${expression}[5m])`
+  return workloadJoin(expression, filters)
+}
+
+/**
+ * 单侧有数据、另一侧空向量时，`A + B` 在 PromQL 里会得到空结果。
+ * 用 `(A+B) or A or B` 保证只要一侧有流量就能出图。
+ */
+function networkPairSum(left: string, right: string): string {
+  return `((${left}) + (${right})) or (${left}) or (${right})`
+}
+
+/** 单指标网络字节速率（MB/s），供多级回退逐个尝试 */
+function networkBytesRateCandidates(direction: 'transmit' | 'receive'): Array<() => string> {
+  const containerMetric =
+    direction === 'transmit'
+      ? 'container_network_transmit_bytes_total'
+      : 'container_network_receive_bytes_total'
+  const nodeMetric =
+    direction === 'transmit'
+      ? 'node_network_transmit_bytes_total'
+      : 'node_network_receive_bytes_total'
+  const toMb = (expr: string) => `(${expr}) / 1024 / 1024`
+  return [
+    // cadvisor：无 label 过滤（interface 等会误杀无该标签序列）
+    () => toMb(`sum(rate(${containerMetric}[5m]))`),
+    () => toMb(`sum(rate(${containerMetric}{pod!=""}[5m]))`),
+    () => toMb(`sum(rate(${containerMetric}[10m]))`),
+    () => toMb(`sum(irate(${containerMetric}[5m]))`),
+    // node_exporter：先无过滤，再排除 lo
+    () => toMb(`sum(rate(${nodeMetric}[5m]))`),
+    () => toMb(`sum(rate(${nodeMetric}{device!="lo"}[5m]))`),
+    () => toMb(`sum(rate(${nodeMetric}[10m]))`),
+    () => toMb(`sum(irate(${nodeMetric}[5m]))`),
+    // 采集间隔较长时 rate 易 NaN，用 increase 估速率
+    () => toMb(`sum(increase(${containerMetric}[5m])) / 300`),
+    () => toMb(`sum(increase(${nodeMetric}[5m])) / 300`),
+    () => toMb(`sum(increase(${containerMetric}[10m])) / 600`),
+    () => toMb(`sum(increase(${nodeMetric}[10m])) / 600`)
+  ]
+}
+
+function networkBandwidthCandidates(): Array<() => string> {
+  const container = (window: string, fn: 'rate' | 'irate') =>
+    networkPairSum(
+      `sum(${fn}(container_network_transmit_bytes_total[${window}]))`,
+      `sum(${fn}(container_network_receive_bytes_total[${window}]))`
+    )
+  const node = (window: string, fn: 'rate' | 'irate', extra = '') =>
+    networkPairSum(
+      `sum(${fn}(node_network_transmit_bytes_total${extra}[${window}]))`,
+      `sum(${fn}(node_network_receive_bytes_total${extra}[${window}]))`
+    )
+  const toMbps = (expr: string) => `(${expr}) * 8 / 1e6`
+  return [
+    () => toMbps(container('5m', 'rate')),
+    () => toMbps(container('10m', 'rate')),
+    () => toMbps(container('5m', 'irate')),
+    () => toMbps(node('5m', 'rate')),
+    () => toMbps(node('5m', 'rate', '{device!="lo"}')),
+    () => toMbps(node('10m', 'rate')),
+    () => toMbps(node('5m', 'irate'))
+  ]
+}
+
+function networkPacketCandidates(): Array<() => string> {
+  const container = (window: string, fn: 'rate' | 'irate') =>
+    networkPairSum(
+      `sum(${fn}(container_network_transmit_packets_total[${window}]))`,
+      `sum(${fn}(container_network_receive_packets_total[${window}]))`
+    )
+  const node = (window: string, fn: 'rate' | 'irate', extra = '') =>
+    networkPairSum(
+      `sum(${fn}(node_network_transmit_packets_total${extra}[${window}]))`,
+      `sum(${fn}(node_network_receive_packets_total${extra}[${window}]))`
+    )
+  return [
+    () => container('5m', 'rate'),
+    () => container('10m', 'rate'),
+    () => container('5m', 'irate'),
+    () => node('5m', 'rate'),
+    () => node('5m', 'rate', '{device!="lo"}'),
+    () => node('10m', 'rate'),
+    () => node('5m', 'irate')
+  ]
 }
 
 /** 转义 PromQL 正则 label matcher 值中的正则元字符 */
@@ -348,27 +451,71 @@ function availability(
 }
 
 function networkReceive(filters: DashboardFilters): string {
-  return `topk(10, sum by (namespace,pod) (${containerExpr('container_network_receive_bytes_total', filters, true)}))`
+  return `topk(10, sum by (namespace,pod) (${networkExpr('container_network_receive_bytes_total', filters, true)}))`
 }
 
 function networkTransmit(filters: DashboardFilters): string {
-  return `topk(10, sum by (namespace,pod) (${containerExpr('container_network_transmit_bytes_total', filters, true)}))`
+  return `topk(10, sum by (namespace,pod) (${networkExpr('container_network_transmit_bytes_total', filters, true)}))`
 }
 
 function networkReceiveTrend(filters: DashboardFilters): string {
-  return `sum by (namespace,pod) (${containerExpr('container_network_receive_bytes_total', filters, true)})`
+  return `sum by (namespace,pod) (${networkExpr('container_network_receive_bytes_total', filters, true)})`
 }
 
 function networkTransmitTrend(filters: DashboardFilters): string {
-  return `sum by (namespace,pod) (${containerExpr('container_network_transmit_bytes_total', filters, true)})`
+  return `sum by (namespace,pod) (${networkExpr('container_network_transmit_bytes_total', filters, true)})`
 }
 
 function pvcPhase(filters: DashboardFilters): string {
-  return `${selector('kube_persistentvolumeclaim_status_phase', filters, ['namespace'])} == 1`
+  const metric = selector('kube_persistentvolumeclaim_status_phase', filters, ['namespace'])
+  // 只保留当前生效 phase（值为 1）；按 namespace/pvc/phase 聚合，避免重复序列
+  return `max by (namespace, persistentvolumeclaim, phase) (${metric}) == 1`
 }
 
+function pvcPhaseFallback(filters: DashboardFilters): string {
+  const phase = selector('kube_persistentvolumeclaim_status_phase', filters, ['namespace'])
+  const info = selector('kube_persistentvolumeclaim_info', filters, ['namespace'])
+  const claimRef = selector(
+    'kube_pod_spec_volumes_persistentvolumeclaims_info',
+    filters,
+    ['namespace', 'pod']
+  )
+  // 1) 按 phase 汇总（至少能看到 Bound/Pending 数量）
+  // 2) PVC info 列表
+  // 3) Pod 挂载的 PVC 引用
+  return (
+    `count by (phase) (${phase} == 1)` +
+    ` or count by (phase) (${phase} > 0)` +
+    ` or ${info}` +
+    ` or max by (namespace, persistentvolumeclaim) (${claimRef})`
+  )
+}
+
+/**
+ * 容器文件系统用量。
+ * 不能用 containerExpr（含 image!=""）：fs 指标常无 image，或挂在 POD 沙箱上会被滤光。
+ */
 function containerFS(filters: DashboardFilters): string {
-  return `topk(10, sum by (namespace,pod) (${containerExpr('container_fs_usage_bytes', filters, false)}))`
+  const withContainer = selector(
+    'container_fs_usage_bytes',
+    filters,
+    ['namespace', 'node', 'pod'],
+    'container!=""',
+    'container!="POD"'
+  )
+  const anyContainer = selector('container_fs_usage_bytes', filters, ['namespace', 'node', 'pod'])
+  return (
+    `topk(10, sum by (namespace,pod) (${withContainer}))` +
+    ` or topk(10, sum by (namespace,pod) (${anyContainer}))`
+  )
+}
+
+function containerFSFallback(filters: DashboardFilters): string {
+  // 无 container_fs 时回退节点文件系统占用 Top（按 mountpoint/device）
+  const extras = ['fstype!~"tmpfs|overlay|squashfs|nsfs"', 'mountpoint!="/boot"']
+  const size = nodeInstanceSelector('node_filesystem_size_bytes', filters, ...extras)
+  const avail = nodeInstanceSelector('node_filesystem_avail_bytes', filters, ...extras)
+  return `topk(10, (${size} - ${avail}))`
 }
 
 const sections: DashboardDefinition['sections'] = [
@@ -973,7 +1120,7 @@ const panelSpecs: DashboardPanelSpec[] = [
     'bar',
     'Bps',
     6,
-    ['container_network_receive_bytes_total'],
+    [],
     false,
     networkReceive
   ),
@@ -984,7 +1131,7 @@ const panelSpecs: DashboardPanelSpec[] = [
     'bar',
     'Bps',
     6,
-    ['container_network_transmit_bytes_total'],
+    [],
     false,
     networkTransmit
   ),
@@ -995,7 +1142,7 @@ const panelSpecs: DashboardPanelSpec[] = [
     'line',
     'Bps',
     6,
-    ['container_network_receive_bytes_total'],
+    [],
     true,
     networkReceiveTrend
   ),
@@ -1006,7 +1153,7 @@ const panelSpecs: DashboardPanelSpec[] = [
     'line',
     'Bps',
     6,
-    ['container_network_transmit_bytes_total'],
+    [],
     true,
     networkTransmitTrend
   ),
@@ -1019,7 +1166,11 @@ const panelSpecs: DashboardPanelSpec[] = [
     4,
     [],
     true,
-    () => `sum(rate(container_network_transmit_bytes_total[5m])) / 1024 / 1024`
+    networkBytesRateCandidates('transmit')[0],
+    '逐级尝试 container_network / node_network + rate/irate/increase',
+    {
+      fallbackQueries: networkBytesRateCandidates('transmit').slice(1)
+    }
   ),
   panel(
     'network',
@@ -1030,7 +1181,11 @@ const panelSpecs: DashboardPanelSpec[] = [
     4,
     [],
     true,
-    () => `sum(rate(container_network_receive_bytes_total[5m])) / 1024 / 1024`
+    networkBytesRateCandidates('receive')[0],
+    '逐级尝试 container_network / node_network + rate/irate/increase',
+    {
+      fallbackQueries: networkBytesRateCandidates('receive').slice(1)
+    }
   ),
   panel(
     'network',
@@ -1041,8 +1196,11 @@ const panelSpecs: DashboardPanelSpec[] = [
     4,
     [],
     true,
-    () =>
-      `(sum(rate(container_network_transmit_bytes_total[5m])) + sum(rate(container_network_receive_bytes_total[5m]))) * 8 / 1000 / 1000`
+    networkBandwidthCandidates()[0],
+    '出站+入站合计带宽；container 失败则回退 node_exporter',
+    {
+      fallbackQueries: networkBandwidthCandidates().slice(1)
+    }
   ),
   panel(
     'network',
@@ -1053,8 +1211,11 @@ const panelSpecs: DashboardPanelSpec[] = [
     4,
     [],
     true,
-    () =>
-      `sum(rate(container_network_transmit_packets_total[5m])) + sum(rate(container_network_receive_packets_total[5m]))`
+    networkPacketCandidates()[0],
+    '收发包合计；container 失败则回退 node_exporter',
+    {
+      fallbackQueries: networkPacketCandidates().slice(1)
+    }
   ),
 
   panel(
@@ -1064,9 +1225,13 @@ const panelSpecs: DashboardPanelSpec[] = [
     'status',
     '',
     6,
-    ['kube_persistentvolumeclaim_status_phase'],
+    [],
     false,
-    pvcPhase
+    pvcPhase,
+    '各 PVC 当前 phase；无明细时回退按 phase 汇总或 PVC info',
+    {
+      fallbackQuery: pvcPhaseFallback
+    }
   ),
   panel(
     'storage',
@@ -1075,9 +1240,13 @@ const panelSpecs: DashboardPanelSpec[] = [
     'bar',
     'bytes',
     6,
-    ['container_fs_usage_bytes'],
+    [],
     false,
-    containerFS
+    containerFS,
+    '容器文件系统用量 Top10；无 container_fs 时回退节点磁盘占用',
+    {
+      fallbackQuery: containerFSFallback
+    }
   ),
   panel(
     'storage',
@@ -1086,9 +1255,15 @@ const panelSpecs: DashboardPanelSpec[] = [
     'line',
     'ops',
     4,
-    ['node_disk_reads_completed_total'],
+    [],
     true,
-    fixed('sum(rate(node_disk_reads_completed_total[5m]))')
+    fixed('sum(rate(node_disk_reads_completed_total[5m]))'),
+    undefined,
+    {
+      fallbackQuery: fixed(
+        'sum(irate(node_disk_reads_completed_total[5m])) or sum(rate(container_fs_reads_total[5m]))'
+      )
+    }
   ),
   panel(
     'storage',
@@ -1097,9 +1272,15 @@ const panelSpecs: DashboardPanelSpec[] = [
     'line',
     'MBytes',
     4,
-    ['node_disk_written_bytes_total'],
+    [],
     true,
-    fixed('sum(rate(node_disk_written_bytes_total[5m])) / 1024 / 1024')
+    fixed('sum(rate(node_disk_written_bytes_total[5m])) / 1024 / 1024'),
+    undefined,
+    {
+      fallbackQuery: fixed(
+        'sum(irate(node_disk_written_bytes_total[5m])) / 1024 / 1024'
+      )
+    }
   ),
   panel(
     'storage',
@@ -1108,9 +1289,15 @@ const panelSpecs: DashboardPanelSpec[] = [
     'line',
     'ops',
     4,
-    ['node_disk_writes_completed_total'],
+    [],
     true,
-    fixed('sum(rate(node_disk_writes_completed_total[5m]))')
+    fixed('sum(rate(node_disk_writes_completed_total[5m]))'),
+    undefined,
+    {
+      fallbackQuery: fixed(
+        'sum(irate(node_disk_writes_completed_total[5m])) or sum(rate(container_fs_writes_total[5m]))'
+      )
+    }
   ),
   panel(
     'storage',
@@ -1119,9 +1306,18 @@ const panelSpecs: DashboardPanelSpec[] = [
     'line',
     'MBytes',
     4,
-    ['node_disk_read_bytes_total'],
+    [],
     true,
-    fixed('sum(rate(node_disk_read_bytes_total[5m])) / 1024 / 1024')
+    // 主查询保持单一指标，避免 or 里混入不存在的 metric 导致整句失败
+    fixed('sum(rate(node_disk_read_bytes_total[5m])) / 1024 / 1024'),
+    '优先 read_bytes；兼容旧版 sectors 指标与 irate',
+    {
+      fallbackQuery: fixed(
+        'sum(irate(node_disk_read_bytes_total[5m])) / 1024 / 1024' +
+          ' or sum(rate(node_disk_read_sectors_total[5m])) * 512 / 1024 / 1024' +
+          ' or sum(irate(node_disk_read_sectors_total[5m])) * 512 / 1024 / 1024'
+      )
+    }
   ),
 
   unavailablePanel('gpu', 'gpu.utilization', 'GPU 使用率', 'percent', 4, 'DCGM_FI_DEV_GPU_UTIL'),

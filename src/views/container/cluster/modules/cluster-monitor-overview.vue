@@ -589,6 +589,15 @@
     return Number.isFinite(value) ? +value.toFixed(digits) : 0
   }
 
+  /** 网络速率：低流量集群常见 <0.01 MB/s，保留更多小数避免被抹成全 0 */
+  function roundNetworkRate(value: number): number {
+    if (!Number.isFinite(value)) return 0
+    const absolute = Math.abs(value)
+    if (absolute >= 1) return +value.toFixed(2)
+    if (absolute >= 0.01) return +value.toFixed(3)
+    return +value.toFixed(5)
+  }
+
   /** 趋势数据是否无有效指标：仅空数组（无序列）视为无指标；有序列（即使值全为 0）视为真实数据 */
   function isTrendEmpty(values: number[]): boolean {
     return !values.length
@@ -666,22 +675,22 @@
   )
   const networkTransmitMb = computed<number[]>(() =>
     trendSeriesValues(resultMap[TREND_PANEL_ID.networkTransmitMb]).map((point) =>
-      round(Number(point.value), 2)
+      roundNetworkRate(Number(point.value))
     )
   )
   const networkReceiveMb = computed<number[]>(() =>
     trendSeriesValues(resultMap[TREND_PANEL_ID.networkReceiveMb]).map((point) =>
-      round(Number(point.value), 2)
+      roundNetworkRate(Number(point.value))
     )
   )
   const networkBandwidthMbps = computed<number[]>(() =>
     trendSeriesValues(resultMap[TREND_PANEL_ID.networkBandwidthMbps]).map((point) =>
-      round(Number(point.value), 2)
+      roundNetworkRate(Number(point.value))
     )
   )
   const networkPacketRate = computed<number[]>(() =>
     trendSeriesValues(resultMap[TREND_PANEL_ID.networkPacketRate]).map((point) =>
-      round(Number(point.value), 2)
+      roundNetworkRate(Number(point.value))
     )
   )
   const diskReadsValues = computed<number[]>(() =>

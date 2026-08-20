@@ -288,6 +288,15 @@
     return Number.isFinite(value) ? +value.toFixed(digits) : 0
   }
 
+  /** 网络速率：低流量集群常见 <0.01 MB/s，保留更多小数避免被抹成全 0 */
+  function roundNetworkRate(value: number): number {
+    if (!Number.isFinite(value)) return 0
+    const absolute = Math.abs(value)
+    if (absolute >= 1) return +value.toFixed(2)
+    if (absolute >= 0.01) return +value.toFixed(3)
+    return +value.toFixed(5)
+  }
+
   /** 时间标签：time 只显示 HH:mm；date 只显示 MM-DD（>24h）；datetime 显示 MM-DD HH:mm */
   function formatAxisTime(timestamp: number, mode: 'time' | 'date' | 'datetime'): string {
     const d = new Date(timestamp * 1000)
@@ -354,22 +363,22 @@
   )
   const networkTransmitMb = computed<number[]>(() =>
     trendSeriesValues(resultMap[TREND_PANEL_ID.networkTransmitMb]).map((point) =>
-      round(Number(point.value), 2)
+      roundNetworkRate(Number(point.value))
     )
   )
   const networkReceiveMb = computed<number[]>(() =>
     trendSeriesValues(resultMap[TREND_PANEL_ID.networkReceiveMb]).map((point) =>
-      round(Number(point.value), 2)
+      roundNetworkRate(Number(point.value))
     )
   )
   const networkBandwidthMbps = computed<number[]>(() =>
     trendSeriesValues(resultMap[TREND_PANEL_ID.networkBandwidthMbps]).map((point) =>
-      round(Number(point.value), 2)
+      roundNetworkRate(Number(point.value))
     )
   )
   const networkPacketRate = computed<number[]>(() =>
     trendSeriesValues(resultMap[TREND_PANEL_ID.networkPacketRate]).map((point) =>
-      round(Number(point.value), 2)
+      roundNetworkRate(Number(point.value))
     )
   )
   const diskReadsValues = computed<number[]>(() =>

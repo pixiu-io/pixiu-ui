@@ -14,8 +14,10 @@ import {
   countNodeReady,
   countPodPhases,
   embedStat,
+  evaluateLatencyLevel,
   hasComponentTraffic,
   isComponentIdle,
+  isLatencyReliable,
   minBarPercent
 } from './utils'
 
@@ -62,9 +64,7 @@ function healthCard(
             ? '需关注'
             : health.healthStatus === 'danger'
               ? '异常'
-              : health.healthTitle === '待观察'
-                ? '待观察'
-                : '-',
+              : '-',
       sub: health.healthDescription,
       danger: health.healthStatus === 'danger',
       warning: health.healthStatus === 'warning'
@@ -75,14 +75,14 @@ function healthCard(
 
 function buildTrafficHealth(
   qps: number | null,
-  idleTitle: string,
+  _idleTitle: string,
   idleDescription: string,
   evaluate: (hasTraffic: boolean) => HealthResult
 ): HealthResult {
   if (isComponentIdle(qps, qps)) {
     return {
-      healthStatus: 'unknown',
-      healthTitle: '待观察',
+      healthStatus: 'healthy',
+      healthTitle: '运行正常',
       healthDescription: idleDescription
     }
   }
@@ -97,23 +97,29 @@ export function buildApiserverEmbedView(
   const p99 = embedStat(resultMap, 'apiserver.embed.latency_p99')
   const replicas = embedStat(resultMap, 'apiserver.embed.replicas')
 
+  // 直方图顶桶常为 60s：若仍顶满且无 5xx，视为延迟口径不可靠，不参与异常判定
+  const latencyLevel = evaluateLatencyLevel(p99)
+  const p99Danger = latencyLevel === 'danger'
+  const p99Warning = latencyLevel === 'warning'
+  const p99Reliable = isLatencyReliable(p99)
+
   const health = buildTrafficHealth(
     qps,
-    '待观察',
-    '当前暂无 API 请求流量，新集群或空闲状态下暂不做异常判定。',
+    '运行正常',
+    '当前负载较低，未发现可用性或性能异常。',
     (hasTraffic) => {
       let status: HealthResult['healthStatus'] = 'healthy'
       if (hasTraffic && errorRate !== null && errorRate > 1) status = 'danger'
       else if (hasTraffic && errorRate !== null && errorRate > 0.1) status = 'warning'
-      if (hasTraffic && p99 !== null && p99 > 500) status = 'danger'
-      else if (hasTraffic && p99 !== null && p99 > 100 && status === 'healthy') status = 'warning'
+      if (hasTraffic && p99Danger) status = 'danger'
+      else if (hasTraffic && p99Warning && status === 'healthy') status = 'warning'
       return {
         healthStatus: status,
         healthTitle:
           status === 'healthy' ? 'API Server 运行正常' : status === 'warning' ? '需关注' : '运行异常',
         healthDescription:
           status === 'healthy'
-            ? '请求量、错误率与延迟均在正常范围内。'
+            ? '请求量、错误率与短请求延迟均在正常范围内。'
             : status === 'warning'
               ? '部分指标偏离正常范围，建议结合下方趋势图排查。'
               : '检测到 API Server 可用性或性能问题。'
@@ -154,9 +160,16 @@ export function buildApiserverEmbedView(
         iconBg: 'rgba(64, 158, 255, 0.12)',
         value: p99 === null ? '-' : p99.toFixed(p99 >= 10 ? 1 : 2),
         unit: 'ms',
-        sub: p99 === null ? '暂无数据' : p99 <= 100 ? '尾延迟正常' : '响应偏慢',
-        danger: hasComponentTraffic(qps) && p99 !== null && p99 > 500,
-        warning: hasComponentTraffic(qps) && p99 !== null && p99 > 100 && p99 <= 500
+        sub:
+          p99 === null
+            ? '暂无数据'
+            : !p99Reliable
+              ? '长连接干扰，仅供参考'
+              : p99 <= 1000
+                ? '短请求尾延迟正常'
+                : '短请求响应偏慢',
+        danger: hasComponentTraffic(qps) && p99Danger,
+        warning: hasComponentTraffic(qps) && p99Warning
       },
       {
         title: '运行副本',
@@ -203,9 +216,9 @@ export function buildKubeletEmbedView(
             : 'Runtime 错误率偏高，建议检查容器运行时与节点状态。'
       }
     : {
-        healthStatus: 'unknown',
-        healthTitle: '待观察',
-        healthDescription: '暂未采集到 Kubelet 运行指标，请确认节点与 Prometheus 抓取配置。'
+        healthStatus: 'healthy',
+        healthTitle: 'Kubelet 运行正常',
+        healthDescription: '暂未采集到活动指标，当前按正常状态展示。'
       }
 
   return {
@@ -264,26 +277,40 @@ export function buildControllerEmbedView(
   const adds = embedStat(resultMap, 'controller.embed.adds_rate')
   const replicas = embedStat(resultMap, 'controller.embed.replicas')
 
-  const hasActivity = adds !== null && adds > 0
-  let status: HealthResult['healthStatus'] = hasActivity ? 'healthy' : 'unknown'
-  if (hasActivity && retries !== null && retries > 1) status = 'warning'
-  if (hasActivity && depth !== null && depth > 100) status = 'danger'
-  else if (hasActivity && depth !== null && depth > 50 && status === 'healthy') status = 'warning'
+  const idle = isComponentIdle(adds, adds)
+  const hasActivity = hasComponentTraffic(adds)
 
-  const health: HealthResult = hasActivity
+  // 阈值提高：短暂滚动/调谐时深度上百、重试 >1 很常见，避免误报「需关注」
+  const DEPTH_WARN = 1000
+  const DEPTH_DANGER = 5000
+  const RETRY_WARN = 10
+  const RETRY_DANGER = 50
+
+  const depthWarn = hasActivity && depth !== null && depth > DEPTH_WARN && depth <= DEPTH_DANGER
+  const depthDanger = hasActivity && depth !== null && depth > DEPTH_DANGER
+  const retryWarn = hasActivity && retries !== null && retries > RETRY_WARN && retries <= RETRY_DANGER
+  const retryDanger = hasActivity && retries !== null && retries > RETRY_DANGER
+
+  let status: HealthResult['healthStatus'] = hasActivity ? 'healthy' : 'unknown'
+  if (retryDanger || depthDanger) status = 'danger'
+  else if (retryWarn || depthWarn) status = 'warning'
+
+  const health: HealthResult = idle
     ? {
+        healthStatus: 'healthy',
+        healthTitle: 'Controller 运行正常',
+        healthDescription: '当前负载较低，未发现队列积压或重试异常。'
+      }
+    : {
         healthStatus: status,
         healthTitle:
           status === 'healthy' ? 'Controller 运行正常' : status === 'warning' ? '需关注' : '运行异常',
         healthDescription:
           status === 'healthy'
             ? '工作队列深度与重试速率正常。'
-            : '工作队列积压或重试偏多，建议关注控制器性能。'
-      }
-    : {
-        healthStatus: 'unknown',
-        healthTitle: '待观察',
-        healthDescription: '当前控制器暂无队列活动，新集群或低负载状态下暂不做异常判定。'
+            : retryDanger || retryWarn
+              ? '控制器重试偏多，建议结合下方队列趋势排查。'
+              : '工作队列积压偏高，建议关注控制器处理能力。'
       }
 
   return {
@@ -295,9 +322,13 @@ export function buildControllerEmbedView(
         iconColor: '#409eff',
         iconBg: 'rgba(64, 158, 255, 0.12)',
         value: depth === null ? '-' : String(Math.round(depth)),
-        sub: depth !== null && depth > 50 ? '队列积压偏多' : '队列深度正常',
-        danger: depth !== null && depth > 100,
-        warning: depth !== null && depth > 50 && depth <= 100
+        sub: idle
+          ? '暂无队列活动'
+          : depthDanger || depthWarn
+            ? '队列积压偏多'
+            : '队列深度正常',
+        danger: depthDanger,
+        warning: depthWarn
       },
       {
         title: '添加速率',
@@ -306,7 +337,7 @@ export function buildControllerEmbedView(
         iconBg: 'rgba(124, 106, 240, 0.12)',
         value: adds === null ? '-' : adds.toFixed(adds >= 10 ? 1 : 2),
         unit: '/s',
-        sub: '工作队列入队速率'
+        sub: idle ? '暂无队列活动' : '工作队列入队速率'
       },
       {
         title: '重试速率',
@@ -315,8 +346,13 @@ export function buildControllerEmbedView(
         iconBg: 'rgba(230, 162, 60, 0.12)',
         value: retries === null ? '-' : retries.toFixed(retries >= 10 ? 1 : 2),
         unit: '/s',
-        sub: retries !== null && retries > 1 ? '重试偏多' : '重试正常',
-        warning: retries !== null && retries > 1
+        sub: idle
+          ? '暂无队列活动'
+          : retryDanger || retryWarn
+            ? '重试偏多'
+            : '重试正常',
+        danger: retryDanger,
+        warning: retryWarn
       },
       {
         title: '运行副本',
@@ -348,16 +384,21 @@ export function buildSchedulerEmbedView(
   const p99 = embedStat(resultMap, 'scheduler.embed.latency_p99')
   const replicas = embedStat(resultMap, 'scheduler.embed.replicas')
 
+  const latencyLevel = evaluateLatencyLevel(p99)
+  const p99Danger = latencyLevel === 'danger'
+  const p99Warning = latencyLevel === 'warning'
+  const p99Reliable = isLatencyReliable(p99)
+
   const health = buildTrafficHealth(
     attempts,
-    '待观察',
-    '当前暂无调度活动，新集群或低负载状态下暂不做异常判定。',
+    '运行正常',
+    '当前负载较低，未发现调度失败或延迟异常。',
     (hasTraffic) => {
       let status: HealthResult['healthStatus'] = 'healthy'
       if (hasTraffic && successRate !== null && successRate < 95) status = 'danger'
       else if (hasTraffic && successRate !== null && successRate < 99) status = 'warning'
-      if (hasTraffic && p99 !== null && p99 > 1000) status = 'danger'
-      else if (hasTraffic && p99 !== null && p99 > 500 && status === 'healthy') status = 'warning'
+      if (hasTraffic && p99Danger) status = 'danger'
+      else if (hasTraffic && p99Warning && status === 'healthy') status = 'warning'
       return {
         healthStatus: status,
         healthTitle:
@@ -391,10 +432,17 @@ export function buildSchedulerEmbedView(
         iconBg: 'rgba(103, 194, 58, 0.12)',
         value: successRate === null ? '-' : successRate.toFixed(1),
         unit: '%',
-        sub: idle ? '暂无调度活动' : successRate !== null && successRate < 99 ? '存在调度失败' : '调度成功率高',
+        sub: idle
+          ? '暂无调度活动'
+          : successRate !== null && successRate < 99
+            ? '存在调度失败'
+            : '调度成功率高',
         danger: hasComponentTraffic(attempts) && successRate !== null && successRate < 95,
         warning:
-          hasComponentTraffic(attempts) && successRate !== null && successRate >= 95 && successRate < 99
+          hasComponentTraffic(attempts) &&
+          successRate !== null &&
+          successRate >= 95 &&
+          successRate < 99
       },
       {
         title: 'P99 调度延迟',
@@ -403,9 +451,16 @@ export function buildSchedulerEmbedView(
         iconBg: 'rgba(64, 158, 255, 0.12)',
         value: p99 === null ? '-' : p99.toFixed(p99 >= 10 ? 1 : 2),
         unit: 'ms',
-        sub: p99 === null ? '暂无数据' : p99 <= 500 ? '延迟正常' : '调度偏慢',
-        danger: hasComponentTraffic(attempts) && p99 !== null && p99 > 1000,
-        warning: hasComponentTraffic(attempts) && p99 !== null && p99 > 500 && p99 <= 1000
+        sub:
+          p99 === null
+            ? '暂无数据'
+            : !p99Reliable
+              ? '延迟口径受顶桶干扰，仅供参考'
+              : p99 <= 1000
+                ? '延迟正常'
+                : '调度偏慢',
+        danger: hasComponentTraffic(attempts) && p99Danger,
+        warning: hasComponentTraffic(attempts) && p99Warning
       },
       {
         title: '运行副本',
@@ -458,9 +513,9 @@ export function buildNodeResourceEmbedView(
               : `存在 ${nodes.notReady} 个 NotReady 节点或资源热点，建议排查。`
         }
       : {
-          healthStatus: 'unknown',
-          healthTitle: '待观察',
-          healthDescription: '暂未采集到节点状态指标。'
+          healthStatus: 'healthy',
+          healthTitle: '节点运行正常',
+          healthDescription: '暂未采集到节点状态指标，当前按正常状态展示。'
         }
 
   return {
@@ -542,9 +597,9 @@ export function buildNodePodEmbedView(
           healthDescription: '展示集群内 Pod CPU / 内存资源 Top 排名。'
         }
       : {
-          healthStatus: 'unknown',
-          healthTitle: '待观察',
-          healthDescription: '暂未采集到 Pod 资源用量指标。'
+          healthStatus: 'healthy',
+          healthTitle: 'Pod 资源监控',
+          healthDescription: '暂未采集到 Pod 资源用量指标，当前按正常状态展示。'
         }
 
   return {
@@ -606,9 +661,9 @@ export function buildWorkloadEmbedView(
               : `${abnormal} 类工作负载存在可用率未满情况。`
         }
       : {
-          healthStatus: 'unknown',
-          healthTitle: '待观察',
-          healthDescription: '暂未采集到工作负载可用性指标。'
+          healthStatus: 'healthy',
+          healthTitle: '工作负载正常',
+          healthDescription: '暂未采集到工作负载可用性指标，当前按正常状态展示。'
         }
 
   return {
@@ -692,9 +747,9 @@ export function buildPodEmbedView(resultMap: Record<string, DashboardPanelResult
                 : `存在 ${pending} 个 Pending Pod。`
         }
       : {
-          healthStatus: 'unknown',
-          healthTitle: '待观察',
-          healthDescription: '暂未采集到 Pod 状态指标。'
+          healthStatus: 'healthy',
+          healthTitle: 'Pod 运行正常',
+          healthDescription: '暂未采集到 Pod 状态指标，当前按正常状态展示。'
         }
 
   return {

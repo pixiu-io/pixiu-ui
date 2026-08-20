@@ -412,15 +412,12 @@
     }
   }
 
-  // 空数据检查函数
+  // 空数据：仅无点视为空。全 0 是合法低流量，不能当成「暂无数据」
   const checkIsEmpty = () => {
-    // 检查单数据情况
     if (Array.isArray(props.data) && typeof props.data[0] === 'number') {
-      const singleData = props.data as number[]
-      return !singleData.length || singleData.every((val) => val === 0)
+      return !(props.data as number[]).length
     }
 
-    // 检查多数据情况：只有全部系列无数据点或全部为 null 才视为空
     if (Array.isArray(props.data) && typeof props.data[0] === 'object') {
       const multiData = props.data as LineDataItem[]
       return (
@@ -429,7 +426,7 @@
       )
     }
 
-    return true
+    return !Array.isArray(props.data) || !props.data.length
   }
 
   function hasRenderableData() {
