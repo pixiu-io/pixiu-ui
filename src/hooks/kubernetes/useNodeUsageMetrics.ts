@@ -149,11 +149,11 @@ export function useNodeUsageMetrics(
           cpuMetrics.value[1].data =
             totalCores > 0 ? values.map((p) => round((Number(p.value) / totalCores) * 100, 2)) : []
           cpuMetrics.value[2].data = values.map((p) => round(Number(p.value), 2))
-        } else {
+        } else if (!silent) {
           cpuTimeLabels.value = []
           for (const item of cpuMetrics.value) item.data = []
         }
-      } else {
+      } else if (!silent) {
         cpuTimeLabels.value = []
         for (const item of cpuMetrics.value) item.data = []
       }
@@ -170,11 +170,11 @@ export function useNodeUsageMetrics(
               ? values.map((p) => round((Number(p.value) / totalMemoryBytes) * 100, 2))
               : []
           memoryMetrics.value[2].data = values.map((p) => bytesToGib(Number(p.value)))
-        } else {
+        } else if (!silent) {
           memoryTimeLabels.value = []
           for (const item of memoryMetrics.value) item.data = []
         }
-      } else {
+      } else if (!silent) {
         memoryTimeLabels.value = []
         for (const item of memoryMetrics.value) item.data = []
       }

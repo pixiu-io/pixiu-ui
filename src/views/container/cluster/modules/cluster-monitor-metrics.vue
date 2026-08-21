@@ -425,7 +425,7 @@
     scheduleChartSilentUpdate()
   }
 
-  /** 最大化弹窗内调整时间范围：同步 timeRange，由下方 watch 触发 load(false) 刷新 */
+  /** 最大化弹窗内调整时间范围：同步 timeRange，由下方 watch 触发静默刷新 */
   function onExpandTimeRangeChange(range: MetricsTimeRange) {
     timeRange.value = range
   }
@@ -453,7 +453,7 @@
     }
   })
 
-  // 切换时间/粒度：强制非静默刷新，确保重新查询（不受数据源缺失静默跳过影响）
+  // 切换时间/粒度：已有数据时静默刷新，避免整页闪白
   watch(
     () =>
       [
@@ -463,7 +463,7 @@
       ] as const,
     ([start, end, granularityKey], [prevStart, prevEnd, prevGranularity]) => {
       if (prevStart !== start || prevEnd !== end || prevGranularity !== granularityKey) {
-        void loadPanels(false)
+        void loadPanels(chartReady.value)
       }
     }
   )

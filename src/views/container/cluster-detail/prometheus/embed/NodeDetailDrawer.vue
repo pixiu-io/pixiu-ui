@@ -39,7 +39,7 @@
           :key="panel.id"
           :panel="panel"
           :result="resultMap[panel.id]"
-          :loading="loading"
+          :loading="panelLoading"
           :show-legend="false"
           overview-line
         />
@@ -52,7 +52,7 @@
           :key="panel.id"
           :panel="panel"
           :result="resultMap[panel.id]"
-          :loading="loading"
+          :loading="panelLoading"
           :show-legend="false"
           overview-line
         />
@@ -108,6 +108,8 @@
   })
 
   const loading = ref(false)
+  const refreshing = ref(false)
+  const panelLoading = computed(() => loading.value || refreshing.value)
   const resultMap = reactive<Record<string, DashboardPanelResult>>({})
   let querySequence = 0
 
@@ -217,6 +219,7 @@
     const silent = Boolean(options?.silent) && Object.keys(resultMap).length > 0
     const sequence = ++querySequence
     if (!silent) loading.value = true
+    else refreshing.value = true
     try {
       const { start, end } = normalizedRange()
       const durationSeconds = Math.max(1, end - start)
@@ -242,7 +245,10 @@
         for (const key of Object.keys(resultMap)) delete resultMap[key]
       }
     } finally {
-      if (sequence === querySequence) loading.value = false
+      if (sequence === querySequence) {
+        loading.value = false
+        refreshing.value = false
+      }
     }
   }
 

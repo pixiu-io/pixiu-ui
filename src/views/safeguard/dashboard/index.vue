@@ -379,9 +379,9 @@
     filters.workload_name = next.workload_name
     filters.pod = next.pod
 
-    for (const id of activePanelIds.value) delete resultMap[id]
+    // Grafana 式：保留旧图，按新筛选静默重查
     void loadPodFilterOptions()
-    void queryCurrentSection()
+    void queryCurrentSection({ silent: hasActiveSectionData.value })
   }
 
   const currentPanels = computed(() =>

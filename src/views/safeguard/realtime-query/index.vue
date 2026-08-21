@@ -533,12 +533,13 @@
     void executeQuery()
   }
 
-  async function executeQuery() {
+  async function executeQuery(options?: { silent?: boolean }) {
     const ds = selectedDatasource.value
     if (!ds || !promql.value.trim()) return
 
+    const silent = Boolean(options?.silent) && Boolean(queryResult.value)
     queryError.value = ''
-    queryResult.value = null
+    if (!silent) queryResult.value = null
     querying.value = true
 
     const dsUrl = resolveDatasourceUrl(ds)
@@ -575,21 +576,25 @@
 
       if (res.status === 'success') {
         queryResult.value = res.data
-        addRecord({
-          promql: promql.value.trim(),
-          selectedDsId: selectedDsId.value,
-          sourceFilter: sourceFilter.value,
-          timeRangeMinutes: timeRangeMinutes.value,
-          resultMode: resultMode.value,
-          datasourceName: selectedDatasource.value?.name ?? ''
-        })
+        if (!silent) {
+          addRecord({
+            promql: promql.value.trim(),
+            selectedDsId: selectedDsId.value,
+            sourceFilter: sourceFilter.value,
+            timeRangeMinutes: timeRangeMinutes.value,
+            resultMode: resultMode.value,
+            datasourceName: selectedDatasource.value?.name ?? ''
+          })
+        }
       } else {
         queryError.value = res.error || '查询失败'
+        if (!silent) queryResult.value = null
       }
     } catch (e: any) {
       queryDuration.value = Math.round(performance.now() - t0)
       const msg = e?.response?.data?.message || e?.message || '请求异常'
       queryError.value = typeof msg === 'string' ? msg : JSON.stringify(msg)
+      if (!silent) queryResult.value = null
     } finally {
       querying.value = false
     }
@@ -1032,7 +1037,7 @@
   watch(timeRangeMinutes, async () => {
     if (resultMode.value !== 'graph') return
     if (!selectedDatasource.value || !promql.value.trim() || querying.value) return
-    await executeQuery()
+    await executeQuery({ silent: true })
   })
 
   // ---- 自动刷新 ----
@@ -1044,7 +1049,7 @@
     if (seconds > 0) {
       autoRefreshTimer = setInterval(() => {
         if (promql.value.trim() && selectedDatasource.value) {
-          executeQuery()
+          void executeQuery({ silent: true })
         }
       }, seconds * 1000)
     }

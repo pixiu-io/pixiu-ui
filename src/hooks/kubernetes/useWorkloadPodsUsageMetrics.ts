@@ -295,11 +295,11 @@ export function useWorkloadPodsUsageMetrics(
         const aligned = buildAlignedPodSeries(cpuResult, names)
         if (aligned.labels.length) {
           applyCpuCharts(aligned.labels, aligned.series)
-        } else {
+        } else if (!silent) {
           cpuTimeLabels.value = []
           for (const item of cpuMetrics.value) item.data = []
         }
-      } else {
+      } else if (!silent) {
         cpuTimeLabels.value = []
         for (const item of cpuMetrics.value) item.data = []
       }
@@ -308,16 +308,20 @@ export function useWorkloadPodsUsageMetrics(
         const aligned = buildAlignedPodSeries(memResult, names)
         if (aligned.labels.length) {
           applyMemoryCharts(aligned.labels, aligned.series)
-        } else {
+        } else if (!silent) {
           memoryTimeLabels.value = []
           for (const item of memoryMetrics.value) item.data = []
         }
-      } else {
+      } else if (!silent) {
         memoryTimeLabels.value = []
         for (const item of memoryMetrics.value) item.data = []
       }
 
-      chartReady.value = cpuTimeLabels.value.length > 0 || memoryTimeLabels.value.length > 0
+      if (cpuTimeLabels.value.length > 0 || memoryTimeLabels.value.length > 0) {
+        chartReady.value = true
+      } else if (!silent) {
+        chartReady.value = false
+      }
     } catch {
       if (!silent) resetCharts()
     } finally {
