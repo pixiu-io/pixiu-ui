@@ -3,12 +3,20 @@ import { ref } from 'vue'
 const STORAGE_KEY = 'pixiu-realtime-query-history'
 const MAX_ITEMS = 50
 
+export interface QueryHistoryTimeRange {
+  start: number
+  end: number
+  presetKey?: string
+}
+
 export interface QueryHistoryRecord {
   id: string
   promql: string
   selectedDsId: number | undefined
   sourceFilter: 'internal' | 'external'
+  /** 兼容旧版历史记录，并用于显示相对时长。 */
   timeRangeMinutes: number
+  timeRange?: QueryHistoryTimeRange
   resultMode: 'table' | 'graph'
   datasourceName: string
   createdAt: number
@@ -41,9 +49,16 @@ function isDuplicate(a: QueryHistoryParams, b: QueryHistoryRecord): boolean {
     a.promql === b.promql &&
     a.selectedDsId === b.selectedDsId &&
     a.sourceFilter === b.sourceFilter &&
-    a.timeRangeMinutes === b.timeRangeMinutes &&
+    getTimeRangeKey(a) === getTimeRangeKey(b) &&
     a.resultMode === b.resultMode
   )
+}
+
+function getTimeRangeKey(record: Pick<QueryHistoryRecord, 'timeRange' | 'timeRangeMinutes'>) {
+  const range = record.timeRange
+  if (!range) return `legacy:${record.timeRangeMinutes}`
+  if (range.presetKey && range.presetKey !== 'custom') return `preset:${range.presetKey}`
+  return `absolute:${range.start}-${range.end}`
 }
 
 export function useQueryHistory() {
@@ -63,6 +78,8 @@ export function useQueryHistory() {
       const [existing] = history.value.splice(existingIndex, 1)
       existing.createdAt = now
       existing.datasourceName = params.datasourceName
+      existing.timeRangeMinutes = params.timeRangeMinutes
+      existing.timeRange = params.timeRange
       history.value.unshift(existing)
     } else {
       const record: QueryHistoryRecord = {

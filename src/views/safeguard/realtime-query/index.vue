@@ -162,16 +162,12 @@
               </div>
             </transition>
           </div>
-          <ElSelect v-model="timeRangeMinutes" class="rq-time-range">
-            <ElOption :value="15" label="近15分钟" />
-            <ElOption :value="60" label="近1小时" />
-            <ElOption :value="360" label="近6小时" />
-            <ElOption :value="1440" label="近24小时" />
-          </ElSelect>
+          <MetricsTimeRangePicker v-model="timeRange" class="rq-time-range" />
           <ElSelect
             v-model="autoRefresh"
             class="rq-refresh-select"
             placeholder="自动刷新"
+            :disabled="isFixedTimeRange"
             @change="onAutoRefreshChange"
           >
             <ElOption label="关闭" :value="0" />
@@ -185,7 +181,7 @@
             :icon="Search"
             :loading="querying"
             :disabled="!selectedDatasource"
-            @click="executeQuery"
+            @click="executeQuery()"
           >
             搜索
           </ElButton>
@@ -272,6 +268,7 @@
                 clearable
                 @change="onGraphStepChange"
               />
+              <span class="rq-graph-brush-hint">拖拽图表选择时间范围</span>
             </div>
             <div class="rq-graph-toolbar-right">
               <span class="rq-graph-unit-label">Unit</span>
@@ -366,6 +363,7 @@
   } from 'element-plus'
   import { useChart } from '@/hooks/core/useChart'
   import { echarts, type EChartsOption } from '@/plugins/echarts'
+  import MetricsTimeRangePicker from '@/components/container/metrics-time-range-picker.vue'
   import {
     fetchDatasourceList,
     resolveDatasourceUrl,
@@ -378,6 +376,11 @@
     fetchPrometheusRangeQuery,
     type PrometheusInstantResult
   } from '@/api/kubernetes/prometheus'
+  import {
+    getDefaultMetricsTimeRange,
+    METRICS_TIME_PRESETS,
+    type MetricsTimeRange
+  } from '@/utils/metrics/time-range'
   import { usePromqlAutocomplete } from './usePromqlAutocomplete'
 
   defineOptions({ name: 'MonitorRealtimeQuery' })
@@ -481,12 +484,30 @@
   })
 
   // ---- 时间范围 ----
-  const timeRangeMinutes = ref(60)
+  const timeRange = ref<MetricsTimeRange>(getDefaultMetricsTimeRange())
+  const isFixedTimeRange = computed(() => {
+    const presetKey = timeRange.value.presetKey
+    return (
+      presetKey === 'custom' ||
+      presetKey === 'yesterday' ||
+      !METRICS_TIME_PRESETS.some((item) => item.key === presetKey)
+    )
+  })
+  const timeRangeMinutes = computed(() => {
+    const { start, end } = resolveTimeRange()
+    return Math.max(1, (end - start) / 60)
+  })
 
   function resolveTimeRange(): { start: number; end: number } {
-    const end = Math.floor(Date.now() / 1000)
-    const start = end - timeRangeMinutes.value * 60
-    return { start, end }
+    const preset = METRICS_TIME_PRESETS.find((item) => item.key === timeRange.value.presetKey)
+    const range =
+      preset && timeRange.value.presetKey !== 'yesterday'
+        ? preset.getRange(new Date())
+        : timeRange.value
+    return {
+      start: Math.floor(range.start.getTime() / 1000),
+      end: Math.floor(range.end.getTime() / 1000)
+    }
   }
 
   // ---- 查询 ----
@@ -558,19 +579,14 @@
 
     try {
       const query = promql.value.trim()
+      const { start, end } = resolveTimeRange()
       const res =
         resultMode.value === 'graph'
           ? await (() => {
-              const { start, end } = resolveTimeRange()
               const step = resolveGraphStep(start, end)
               return fetchPrometheusRangeQuery(dsUrl, query, start, end, step, requestOpts)
             })()
-          : await fetchPrometheusInstantQuery(
-              dsUrl,
-              query,
-              Math.floor(Date.now() / 1000),
-              requestOpts
-            )
+          : await fetchPrometheusInstantQuery(dsUrl, query, end, requestOpts)
 
       queryDuration.value = Math.round(performance.now() - t0)
 
@@ -582,6 +598,11 @@
             selectedDsId: selectedDsId.value,
             sourceFilter: sourceFilter.value,
             timeRangeMinutes: timeRangeMinutes.value,
+            timeRange: {
+              start: start * 1000,
+              end: end * 1000,
+              presetKey: timeRange.value.presetKey
+            },
             resultMode: resultMode.value,
             datasourceName: selectedDatasource.value?.name ?? ''
           })
@@ -600,10 +621,17 @@
     }
   }
 
+  const GRAPH_TARGET_POINT_COUNT = 480
+  const GRAPH_STEP_CANDIDATES_SECONDS = [
+    15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 14400, 21600, 43200, 86400
+  ]
+
   function calcStep(start: number, end: number): string {
-    const rangeSeconds = end - start
-    const step = Math.max(15, Math.ceil(rangeSeconds / 1100))
-    return step + 's'
+    const rangeSeconds = Math.max(1, end - start)
+    const minimumStep = Math.max(15, Math.ceil(rangeSeconds / GRAPH_TARGET_POINT_COUNT))
+    const step =
+      GRAPH_STEP_CANDIDATES_SECONDS.find((candidate) => candidate >= minimumStep) ?? minimumStep
+    return `${step}s`
   }
 
   function resolveGraphStep(start: number, end: number): string {
@@ -662,6 +690,12 @@
     color: string
     data: Array<[number, number]>
     lastValue: number | null
+  }
+
+  interface GraphBrushEndEvent {
+    areas?: Array<{
+      coordRange?: number[]
+    }>
   }
 
   const seriesList = computed<GraphSeriesItem[]>(() => {
@@ -890,12 +924,23 @@
     return {
       animation: false,
       grid: GRAPH_GRID,
+      toolbox: { show: false },
       tooltip: getTooltipStyle('axis', {
-        axisPointer: { type: 'line', lineStyle: { width: 0.5, type: 'dashed' } },
+        renderMode: 'html',
+        className: 'rq-graph-tooltip',
+        showDelay: 0,
+        hideDelay: 0,
+        transitionDuration: 0,
+        displayTransition: false,
+        axisPointer: {
+          type: 'line',
+          animation: false,
+          lineStyle: { width: 0.5, type: 'dashed' }
+        },
         confine: true,
-        enterable: true,
+        enterable: false,
         extraCssText:
-          'max-width: 420px; max-height: 320px; overflow-y: auto; white-space: normal; word-break: break-all;',
+          'max-width: 420px; max-height: 320px; overflow-y: auto; white-space: normal; word-break: break-all; pointer-events: none; transition: none !important;',
         formatter: (params: unknown) => {
           const items = Array.isArray(params) ? params : [params]
           if (!items.length) return ''
@@ -912,6 +957,23 @@
           }${rows}</div>`
         }
       }),
+      brush: {
+        toolbox: [],
+        xAxisIndex: 0,
+        brushType: 'lineX',
+        brushMode: 'single',
+        transformable: false,
+        removeOnClick: true,
+        throttleType: 'debounce',
+        throttleDelay: 100,
+        brushStyle: {
+          borderWidth: 1,
+          color: 'rgba(64, 158, 255, 0.16)',
+          borderColor: '#409eff'
+        },
+        inBrush: { opacity: 1 },
+        outOfBrush: { opacity: 1 }
+      },
       xAxis: buildGraphXAxis(),
       yAxis: {
         type: 'value',
@@ -951,7 +1013,20 @@
     }
 
     const options = chartEmpty.value ? buildEmptyGraphChartOption() : buildGraphChartOption()
+    graphChart.dispatchAction({ type: 'hideTip' })
     graphChart.setOption(options, true)
+    if (!chartEmpty.value) {
+      graphChart.dispatchAction({
+        type: 'takeGlobalCursor',
+        key: 'brush',
+        brushOption: {
+          brushType: 'lineX',
+          brushMode: 'single'
+        }
+      })
+    }
+    graphChart.off('brushEnd')
+    graphChart.on('brushEnd', onGraphBrushEnd)
     graphChart.off('mouseover')
     graphChart.on('mouseover', (params: { componentType?: string; seriesName?: string }) => {
       if (params.componentType === 'series' && params.seriesName) {
@@ -974,6 +1049,37 @@
     graphChart.resize()
   }
 
+  function onGraphBrushEnd(event: unknown) {
+    const range = (event as GraphBrushEndEvent).areas?.[0]?.coordRange
+    if (!graphChart || !range || range.length < 2) return
+
+    const first = Number(range[0])
+    const second = Number(range[1])
+    if (!Number.isFinite(first) || !Number.isFinite(second)) return
+
+    graphChart.dispatchAction({ type: 'brush', areas: [] })
+
+    const firstPixel = Number(graphChart.convertToPixel({ xAxisIndex: 0 }, first))
+    const secondPixel = Number(graphChart.convertToPixel({ xAxisIndex: 0 }, second))
+    if (
+      !Number.isFinite(firstPixel) ||
+      !Number.isFinite(secondPixel) ||
+      Math.abs(secondPixel - firstPixel) < 4
+    ) {
+      return
+    }
+
+    const start = Math.floor(Math.min(first, second) / 1000) * 1000
+    const end = Math.ceil(Math.max(first, second) / 1000) * 1000
+    if (end <= start) return
+
+    timeRange.value = {
+      start: new Date(start),
+      end: new Date(end),
+      presetKey: 'custom'
+    }
+  }
+
   function disposeGraphChart() {
     if (!graphChart) return
     graphChart.dispose()
@@ -986,13 +1092,39 @@
     activeQueryTab.value = 'promql'
     sourceFilter.value = record.sourceFilter
     selectedDsId.value = record.selectedDsId
-    timeRangeMinutes.value = record.timeRangeMinutes
+    timeRange.value = restoreHistoryTimeRange(record)
     promql.value = record.promql
     if (record.resultMode !== resultMode.value) {
       resultMode.value = record.resultMode
     } else {
       executeQuery()
     }
+  }
+
+  function restoreHistoryTimeRange(record: QueryHistoryRecord): MetricsTimeRange {
+    const stored = record.timeRange
+    if (stored && Number.isFinite(stored.start) && Number.isFinite(stored.end)) {
+      return {
+        start: new Date(stored.start),
+        end: new Date(stored.end),
+        presetKey: stored.presetKey
+      }
+    }
+
+    const now = new Date()
+    const durationMs = Math.max(1, record.timeRangeMinutes) * 60 * 1000
+    const preset = METRICS_TIME_PRESETS.find((item) => {
+      if (item.key === 'today' || item.key === 'yesterday') return false
+      const range = item.getRange(now)
+      return Math.abs(range.end.getTime() - range.start.getTime() - durationMs) < 1000
+    })
+    return (
+      preset?.getRange(now) ?? {
+        start: new Date(now.getTime() - durationMs),
+        end: now,
+        presetKey: 'custom'
+      }
+    )
   }
 
   function toggleSeriesSelection(index: number) {
@@ -1022,7 +1154,7 @@
       graphUnit,
       multiTooltipDesc,
       resultMode,
-      timeRangeMinutes,
+      timeRange,
       chartEmpty,
       selectedSeriesIndex
     ],
@@ -1034,7 +1166,11 @@
     { deep: true }
   )
 
-  watch(timeRangeMinutes, async () => {
+  watch(timeRange, async () => {
+    if (isFixedTimeRange.value) {
+      autoRefresh.value = 0
+      stopAutoRefresh()
+    }
     if (resultMode.value !== 'graph') return
     if (!selectedDatasource.value || !promql.value.trim() || querying.value) return
     await executeQuery({ silent: true })
@@ -1046,6 +1182,10 @@
 
   function onAutoRefreshChange(seconds: number) {
     stopAutoRefresh()
+    if (isFixedTimeRange.value) {
+      autoRefresh.value = 0
+      return
+    }
     if (seconds > 0) {
       autoRefreshTimer = setInterval(() => {
         if (promql.value.trim() && selectedDatasource.value) {
@@ -1353,7 +1493,6 @@
     position: relative;
     flex: 1;
     min-width: 0;
-    max-width: calc(100% - 360px);
   }
 
   .rq-query-input {
@@ -1393,12 +1532,33 @@
   }
 
   .rq-time-range {
-    width: 130px;
-    flex: none;
+    flex: 0 0 180px;
+    width: 180px;
+    min-width: 180px;
+    max-width: 180px;
+    transition:
+      width 0.2s ease,
+      flex-basis 0.2s ease;
   }
 
-  .rq-time-range :deep(.el-select__wrapper) {
-    min-height: 32px;
+  .rq-time-range :deep(.metrics-time-range-picker__trigger) {
+    height: 36px;
+    min-height: 36px;
+  }
+
+  .rq-time-range.is-custom-range {
+    flex-basis: 310px;
+    width: 310px;
+    max-width: 310px;
+  }
+
+  .rq-time-range.is-custom-range :deep(.metrics-time-range-picker__trigger) {
+    gap: 6px;
+    padding: 0 8px;
+  }
+
+  .rq-time-range.is-custom-range :deep(.metrics-time-range-picker__range) {
+    font-size: 11.5px;
   }
 
   .rq-query-meta {
@@ -1686,6 +1846,12 @@
 
   .rq-graph-step {
     width: 120px;
+  }
+
+  .rq-graph-brush-hint {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+    white-space: nowrap;
   }
 
   .rq-graph-step :deep(.el-input__wrapper) {

@@ -124,12 +124,7 @@
               @input="handleQueryDraftInput"
               @keyup.enter="loadLogs"
             />
-            <ElSelect v-model="timeRangeMinutes" class="logs-time-range">
-              <ElOption :value="15" label="近15分钟" />
-              <ElOption :value="60" label="近1小时" />
-              <ElOption :value="360" label="近6小时" />
-              <ElOption :value="1440" label="近24小时" />
-            </ElSelect>
+            <MetricsTimeRangePicker v-model="timeRange" class="logs-time-range" />
             <ElButton
               type="primary"
               class="logs-search-btn"
@@ -269,7 +264,9 @@
                       >
                         <ElCheckbox
                           :model-value="isFieldValueSelected(field, value)"
-                          @change="(checked: CheckboxValueType) => toggleFieldValue(field, value, checked)"
+                          @change="
+                            (checked: CheckboxValueType) => toggleFieldValue(field, value, checked)
+                          "
                         />
                         <span class="logs-field-node__value" :title="value">{{ value }}</span>
                       </label>
@@ -649,6 +646,12 @@
   } from '@/api/datasource'
   import { PixiuApiError, fetchClusterList } from '@/api/container'
   import { buildDatasourceProxyHeaders, kubeProxyAxios } from '@/api/kubeProxy'
+  import MetricsTimeRangePicker from '@/components/container/metrics-time-range-picker.vue'
+  import {
+    getDefaultMetricsTimeRange,
+    METRICS_TIME_PRESETS,
+    type MetricsTimeRange
+  } from '@/utils/metrics/time-range'
   import { clusterDetailContextKey, clusterNameSeed, type ClusterDetailContext } from './context'
 
   const router = useRouter()
@@ -837,7 +840,11 @@
   }
 
   const clusterAliasMap = ref<Record<string, string>>({})
-  const timeRangeMinutes = ref(15)
+  const timeRange = ref<MetricsTimeRange>(getDefaultMetricsTimeRange())
+  const timeRangeMinutes = computed(() => {
+    const range = resolveQueryTimeRange()
+    return Math.max(1, (range.end - range.start) / (60 * 1000))
+  })
   const lineLimit = ref(200)
   const keyword = ref('')
   const queryDraft = ref('')
@@ -909,13 +916,14 @@
   const trendBucketCount = computed(() => {
     const minutes = timeRangeMinutes.value
     const seconds = minutes * 60
-    // 按时间跨度自动计算桶数（约为原先 2 倍），每桶对应固定时间粒度
+    // 按时间跨度自动计算桶数，并限制自定义长时间范围下的渲染量。
     let intervalSeconds: number
     if (minutes <= 15) intervalSeconds = 30
     else if (minutes <= 60) intervalSeconds = 150
     else if (minutes <= 360) intervalSeconds = 600
-    else intervalSeconds = 1800
-    return Math.max(2, Math.ceil(seconds / intervalSeconds))
+    else if (minutes <= 1440) intervalSeconds = 1800
+    else intervalSeconds = Math.max(1800, seconds / 120)
+    return Math.min(240, Math.max(2, Math.ceil(seconds / intervalSeconds)))
   })
   const trendChartData = computed(() => {
     const bucketCount = trendBucketCount.value
@@ -1251,8 +1259,9 @@
   async function loadLabelKeys() {
     const url = serviceProxyBase('/loki/api/v1/labels')
     if (!url) return
-    const nowNs = Date.now() * 1_000_000
-    const startNs = nowNs - timeRangeMinutes.value * 60 * 1_000_000_000
+    const range = resolveQueryTimeRange()
+    const startNs = range.start * 1_000_000
+    const endNs = range.end * 1_000_000
     const headers = getLokiRequestHeaders()
     const { data } = await kubeProxyAxios.get<{ status?: string; data?: string[]; error?: string }>(
       url,
@@ -1260,7 +1269,7 @@
         headers,
         params: {
           start: String(startNs),
-          end: String(nowNs)
+          end: String(endNs)
         }
       }
     )
@@ -1279,8 +1288,9 @@
 
     const url = serviceProxyBase(`/loki/api/v1/label/${encodeURIComponent(key)}/values`)
     if (!url) return
-    const nowNs = Date.now() * 1_000_000
-    const startNs = nowNs - timeRangeMinutes.value * 60 * 1_000_000_000
+    const range = resolveQueryTimeRange()
+    const startNs = range.start * 1_000_000
+    const endNs = range.end * 1_000_000
     filter.loading = true
     try {
       const headers = getLokiRequestHeaders()
@@ -1292,7 +1302,7 @@
         headers,
         params: {
           start: String(startNs),
-          end: String(nowNs)
+          end: String(endNs)
         }
       })
       if (data?.status !== 'success') throw new Error(data?.error || '加载标签值失败')
@@ -1443,6 +1453,18 @@
   function shouldShowTrendAxisLabel(index: number, bucketCount: number, step: number): boolean {
     if (index === 0 || index === bucketCount - 1) return true
     return index % step === 0
+  }
+
+  function resolveQueryTimeRange(): { start: number; end: number } {
+    const preset = METRICS_TIME_PRESETS.find((item) => item.key === timeRange.value.presetKey)
+    const range =
+      preset && timeRange.value.presetKey !== 'yesterday'
+        ? preset.getRange(new Date())
+        : timeRange.value
+    return {
+      start: range.start.getTime(),
+      end: range.end.getTime()
+    }
   }
 
   function parseLogTime(text: string): number | null {
@@ -1636,20 +1658,19 @@
     const url = serviceProxyBase('/loki/api/v1/query_range')
     if (!url) return
 
-    const nowMs = Date.now()
-    const startMs = nowMs - timeRangeMinutes.value * 60 * 1000
-    queryTimeRange.value = { start: startMs, end: nowMs }
+    const { start: startMs, end: endMs } = resolveQueryTimeRange()
+    queryTimeRange.value = { start: startMs, end: endMs }
     const headers = getLokiRequestHeaders()
 
-    const nowNs = nowMs * 1_000_000
     const startNs = startMs * 1_000_000
+    const endNs = endMs * 1_000_000
     const { data } = await kubeProxyAxios.get<LokiQueryRangeResponse>(url, {
       headers,
       params: {
         query: effectiveQuery.value,
         limit: lineLimit.value,
         start: String(startNs),
-        end: String(nowNs),
+        end: String(endNs),
         direction: 'BACKWARD'
       }
     })
@@ -1687,9 +1708,10 @@
     const url = serviceProxyBase('/_search')
     if (!url) return
 
-    const now = new Date()
-    const start = new Date(now.getTime() - timeRangeMinutes.value * 60 * 1000)
-    queryTimeRange.value = { start: start.getTime(), end: now.getTime() }
+    const { start: startMs, end: endMs } = resolveQueryTimeRange()
+    const start = new Date(startMs)
+    const end = new Date(endMs)
+    queryTimeRange.value = { start: startMs, end: endMs }
     const query = effectiveQuery.value.trim()
     const must = query && query !== '*' ? [{ query_string: { query, analyze_wildcard: true } }] : []
     const esHeaders = getEsRequestHeaders()
@@ -1719,7 +1741,7 @@
                       range: {
                         time: {
                           gte: start.toISOString(),
-                          lte: now.toISOString(),
+                          lte: end.toISOString(),
                           format: 'strict_date_optional_time'
                         }
                       }
@@ -1728,7 +1750,7 @@
                       range: {
                         '@timestamp': {
                           gte: start.toISOString(),
-                          lte: now.toISOString(),
+                          lte: end.toISOString(),
                           format: 'strict_date_optional_time'
                         }
                       }
@@ -1737,7 +1759,7 @@
                       range: {
                         timestamp: {
                           gte: start.toISOString(),
-                          lte: now.toISOString(),
+                          lte: end.toISOString(),
                           format: 'strict_date_optional_time'
                         }
                       }
@@ -2081,6 +2103,13 @@
     }
   })
 
+  watch(timeRange, () => {
+    labelValueCache.value = {}
+    filters.value.forEach((filter) => {
+      filter.options = []
+    })
+  })
+
   watch(
     filters,
     () => {
@@ -2412,8 +2441,33 @@
   }
 
   .logs-time-range {
-    width: 140px;
-    flex: none;
+    flex: 0 0 180px;
+    width: 180px;
+    min-width: 180px;
+    max-width: 180px;
+    transition:
+      width 0.2s ease,
+      flex-basis 0.2s ease;
+  }
+
+  .logs-time-range :deep(.metrics-time-range-picker__trigger) {
+    height: 36px;
+    min-height: 36px;
+  }
+
+  .logs-time-range.is-custom-range {
+    flex-basis: 310px;
+    width: 310px;
+    max-width: 310px;
+  }
+
+  .logs-time-range.is-custom-range :deep(.metrics-time-range-picker__trigger) {
+    gap: 6px;
+    padding: 0 8px;
+  }
+
+  .logs-time-range.is-custom-range :deep(.metrics-time-range-picker__range) {
+    font-size: 11.5px;
   }
 
   .logs-search-btn {
@@ -3375,8 +3429,17 @@
     }
 
     .logs-time-range {
-      flex: 1;
-      min-width: 120px;
+      flex: 0 0 180px;
+      width: 180px;
+      min-width: 180px;
+      max-width: 180px;
+    }
+
+    .logs-time-range.is-custom-range {
+      flex: 1 1 320px;
+      width: 310px;
+      min-width: 280px;
+      max-width: 100%;
     }
 
     .logs-console__results-body {
