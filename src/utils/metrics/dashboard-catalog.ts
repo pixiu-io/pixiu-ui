@@ -11,6 +11,17 @@ import {
 
 export { resolveClusterDetailPanelIds, CLUSTER_DETAIL_EMBED_PANEL_IDS } from '@/utils/metrics/dashboard-embed-catalog'
 
+/** 节点总览点击抽屉：单节点趋势与网络（需 filters.node） */
+export const NODE_DETAIL_DRAWER_PANEL_IDS = [
+  'node.detail.cpu_trend',
+  'node.detail.memory_trend',
+  'node.detail.disk_trend',
+  'node.detail.pods_trend',
+  'node.detail.net_receive',
+  'node.detail.net_transmit',
+  'node.detail.load5'
+] as const
+
 export interface DashboardQuantileQueries {
   metric: string
   thresholds: number[]
@@ -530,22 +541,16 @@ const sections: DashboardDefinition['sections'] = [
     children: ['cluster', 'namespace']
   },
   {
+    id: 'node',
+    title: '基础监控',
+    icon: 'ri:server-line',
+    children: ['node-resource', 'node-pod', 'workload']
+  },
+  {
     id: 'core',
     title: '核心组件监控',
     icon: 'ri:cpu-line',
     children: ['apiserver', 'controller-manager', 'scheduler', 'etcd', 'coredns', 'kubelet']
-  },
-  {
-    id: 'node',
-    title: '节点监控',
-    icon: 'ri:server-line',
-    children: ['node-resource', 'node-pod']
-  },
-  {
-    id: 'application',
-    title: '应用监控',
-    icon: 'ri:apps-line',
-    children: ['workload', 'pod']
   },
   { id: 'network', title: '网络监控', icon: 'ri:global-line' },
   { id: 'storage', title: '存储监控', icon: 'ri:hard-drive-2-line' },
@@ -564,8 +569,7 @@ export const DASHBOARD_SECTION_CHILD_NAMES: Record<string, string> = {
   etcd: 'Etcd',
   'node-resource': 'Node 监控',
   'node-pod': 'Pod 监控',
-  workload: '工作负载监控概览',
-  pod: '集群 Pod 监控'
+  workload: '工作负载监控'
 }
 
 const panelSpecs: DashboardPanelSpec[] = [
@@ -1013,6 +1017,260 @@ const panelSpecs: DashboardPanelSpec[] = [
     [],
     true,
     (filters) => `sum(${nodeContainerExpr('container_memory_working_set_bytes', filters, false)})`
+  ),
+
+  // 节点监控抽屉（P1）：单节点趋势；需 filters.node
+  panel(
+    'node',
+    'node.detail.cpu_trend',
+    'CPU 使用率',
+    'line',
+    'percent',
+    6,
+    [],
+    true,
+    (filters) => {
+      const node = filters.node?.trim()
+      if (!node) return 'vector(0)'
+      const q = promqlQuote(node)
+      return (
+        `100 * sum(rate(container_cpu_usage_seconds_total{container!="",node=${q}}[5m])) ` +
+        `/ clamp_min(sum(kube_node_status_allocatable{resource="cpu",node=${q}}), 0.001)`
+      )
+    },
+    '与总览表一致：用量 / allocatable',
+    {
+      fallbackQuery: (filters) =>
+        `100 * sum(${nodeContainerExpr('container_cpu_usage_seconds_total', filters, true)}) / ` +
+        `sum(count(${nodeInstanceSelector('node_cpu_seconds_total', filters, 'mode="idle"')}) by (instance))`
+    }
+  ),
+  panel(
+    'node',
+    'node.detail.memory_trend',
+    '内存使用率',
+    'line',
+    'percent',
+    6,
+    [],
+    true,
+    (filters) => {
+      const node = filters.node?.trim()
+      if (!node) return 'vector(0)'
+      const q = promqlQuote(node)
+      return (
+        `100 * sum(container_memory_working_set_bytes{container!="",node=${q}}) ` +
+        `/ clamp_min(sum(kube_node_status_allocatable{resource="memory",node=${q}}), 1)`
+      )
+    },
+    undefined,
+    {
+      fallbackQuery: (filters) =>
+        `100 * sum(${nodeContainerExpr('container_memory_working_set_bytes', filters, false)}) / ` +
+        `sum(${nodeInstanceSelector('node_memory_MemTotal_bytes', filters)})`
+    }
+  ),
+  panel(
+    'node',
+    'node.detail.disk_trend',
+    '剩余磁盘',
+    'line',
+    'bytes',
+    6,
+    [],
+    true,
+    (filters) => {
+      const node = filters.node?.trim()
+      if (!node) return 'vector(0)'
+      const q = promqlQuote(node)
+      // 与总览一致：经 node_uname_info.nodename 关联（instance 常为 IP:port，不能直接用节点名匹配）
+      return (
+        `max(` +
+        `node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs|nsfs",mountpoint="/"}` +
+        ` * on(instance) group_left(nodename) node_uname_info{nodename=${q}}` +
+        `)`
+      )
+    },
+    undefined,
+    {
+      fallbackQueries: [
+        (filters) => {
+          const node = filters.node?.trim()
+          if (!node) return 'vector(0)'
+          const q = promqlQuote(node)
+          return (
+            `max(` +
+            `node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs|nsfs"}` +
+            ` * on(instance) group_left(nodename) node_uname_info{nodename=${q}}` +
+            `)`
+          )
+        },
+        (filters) => {
+          const node = filters.node?.trim()
+          if (!node) return 'vector(0)'
+          return `max(node_filesystem_avail_bytes{node=${promqlQuote(node)},fstype!~"tmpfs|overlay|squashfs|nsfs",mountpoint="/"})`
+        },
+        (filters) => {
+          const node = filters.node?.trim()
+          if (!node) return 'vector(0)'
+          return `sum(${nodeInstanceSelector(
+            'node_filesystem_avail_bytes',
+            filters,
+            'fstype!~"tmpfs|overlay|squashfs|nsfs"',
+            'mountpoint="/"'
+          )})`
+        },
+        (filters) => {
+          const node = filters.node?.trim()
+          if (!node) return 'vector(0)'
+          return `sum(node_filesystem_avail_bytes{instance=~"${escapePromQLRegex(node)}:.*",fstype!~"tmpfs|overlay|squashfs|nsfs"})`
+        }
+      ]
+    }
+  ),
+  panel(
+    'node',
+    'node.detail.pods_trend',
+    'Pod 数量',
+    'line',
+    'short',
+    6,
+    [],
+    true,
+    (filters) => {
+      const node = filters.node?.trim()
+      if (!node) return 'vector(0)'
+      return `count(kube_pod_info{node=${promqlQuote(node)}})`
+    }
+  ),
+  panel(
+    'node',
+    'node.detail.net_receive',
+    '网络接收',
+    'line',
+    'Bps',
+    6,
+    [],
+    true,
+    (filters) => {
+      const node = filters.node?.trim()
+      if (!node) return 'vector(0)'
+      const q = promqlQuote(node)
+      return (
+        `sum(` +
+        `rate(node_network_receive_bytes_total{device!="lo"}[5m])` +
+        ` * on(instance) group_left(nodename) node_uname_info{nodename=${q}}` +
+        `)`
+      )
+    },
+    undefined,
+    {
+      fallbackQueries: [
+        (filters) => {
+          const node = filters.node?.trim()
+          if (!node) return 'vector(0)'
+          const q = promqlQuote(node)
+          return (
+            `sum(` +
+            `rate(node_network_receive_bytes_total[5m])` +
+            ` * on(instance) group_left(nodename) node_uname_info{nodename=${q}}` +
+            `)`
+          )
+        },
+        (filters) => {
+          const node = filters.node?.trim()
+          if (!node) return 'vector(0)'
+          return `sum(rate(container_network_receive_bytes_total{node=${promqlQuote(node)}}[5m]))`
+        },
+        (filters) => {
+          const node = filters.node?.trim()
+          if (!node) return 'vector(0)'
+          return `sum(rate(node_network_receive_bytes_total{node=${promqlQuote(node)},device!="lo"}[5m]))`
+        },
+        (filters) =>
+          `sum(rate(${nodeInstanceSelector('node_network_receive_bytes_total', filters, 'device!="lo"')}[5m]))`
+      ]
+    }
+  ),
+  panel(
+    'node',
+    'node.detail.net_transmit',
+    '网络发送',
+    'line',
+    'Bps',
+    6,
+    [],
+    true,
+    (filters) => {
+      const node = filters.node?.trim()
+      if (!node) return 'vector(0)'
+      const q = promqlQuote(node)
+      return (
+        `sum(` +
+        `rate(node_network_transmit_bytes_total{device!="lo"}[5m])` +
+        ` * on(instance) group_left(nodename) node_uname_info{nodename=${q}}` +
+        `)`
+      )
+    },
+    undefined,
+    {
+      fallbackQueries: [
+        (filters) => {
+          const node = filters.node?.trim()
+          if (!node) return 'vector(0)'
+          const q = promqlQuote(node)
+          return (
+            `sum(` +
+            `rate(node_network_transmit_bytes_total[5m])` +
+            ` * on(instance) group_left(nodename) node_uname_info{nodename=${q}}` +
+            `)`
+          )
+        },
+        (filters) => {
+          const node = filters.node?.trim()
+          if (!node) return 'vector(0)'
+          return `sum(rate(container_network_transmit_bytes_total{node=${promqlQuote(node)}}[5m]))`
+        },
+        (filters) => {
+          const node = filters.node?.trim()
+          if (!node) return 'vector(0)'
+          return `sum(rate(node_network_transmit_bytes_total{node=${promqlQuote(node)},device!="lo"}[5m]))`
+        },
+        (filters) =>
+          `sum(rate(${nodeInstanceSelector('node_network_transmit_bytes_total', filters, 'device!="lo"')}[5m]))`
+      ]
+    }
+  ),
+  panel(
+    'node',
+    'node.detail.load5',
+    'Load 5m',
+    'stat',
+    'short',
+    3,
+    [],
+    false,
+    (filters) => {
+      const node = filters.node?.trim()
+      if (!node) return 'vector(0)'
+      const q = promqlQuote(node)
+      return (
+        `sum(` +
+        `node_load5 * on(instance) group_left(nodename) node_uname_info{nodename=${q}}` +
+        `)`
+      )
+    },
+    undefined,
+    {
+      fallbackQuery: (filters) => {
+        const node = filters.node?.trim()
+        if (!node) return 'vector(0)'
+        return `sum(node_load5{node=${promqlQuote(node)}})`
+      },
+      fallbackQueries: [
+        (filters) => `sum(${nodeInstanceSelector('node_load5', filters)})`
+      ]
+    }
   ),
 
   panel(

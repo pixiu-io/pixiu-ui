@@ -2,6 +2,28 @@
   min-width: 0;
 }
 
+.prometheus-embed-page__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  align-items: center;
+  margin: 0 16px 12px;
+}
+
+.prometheus-embed-page__filters-label {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.prometheus-embed-page__filters-select {
+  width: 180px;
+}
+
+.prometheus-embed-page__filters-select--wide {
+  width: 220px;
+}
+
 .prometheus-dashboard__overview-actions {
   display: flex;
   justify-content: flex-end;

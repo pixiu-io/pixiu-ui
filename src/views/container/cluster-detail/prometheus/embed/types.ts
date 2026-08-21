@@ -20,6 +20,8 @@ export type EmbedChartSection = {
   panelIds: string[]
   compactBar?: boolean
   gridClass?: string
+  /** 自定义块：节点总览表 / 网络三栏大盘（不渲染默认 DashboardPanel 网格） */
+  custom?: 'node-overview-table' | 'node-network-board'
 }
 
 export type EmbedPageView = {
@@ -28,4 +30,6 @@ export type EmbedPageView = {
   healthDescription: string
   summaryCards: EmbedSummaryCard[]
   sections: EmbedChartSection[]
+  /** Pod 监控页：展示 Namespace / Node / 工作负载 / Pod 筛选 */
+  showPodFilters?: boolean
 }

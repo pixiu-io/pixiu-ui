@@ -1,4 +1,5 @@
 import type { DashboardDefinition, DashboardPanelDefinition, DashboardPanelResult } from '@/api/dashboard'
+import { getDashboardDefinition } from '@/utils/metrics/dashboard-catalog'
 
 export function embedStat(
   resultMap: Record<string, DashboardPanelResult>,
@@ -27,8 +28,14 @@ export function resolveEmbedPanels(
   definition: DashboardDefinition,
   ids: string[]
 ): DashboardPanelDefinition[] {
+  // 优先用当前 catalog，避免页面首次加载的 definition 缓存缺少新面板导致整段空白
+  const catalogPanels = getDashboardDefinition().panels
   return ids
-    .map((id) => definition.panels.find((panel) => panel.id === id))
+    .map(
+      (id) =>
+        catalogPanels.find((panel) => panel.id === id) ??
+        definition.panels.find((panel) => panel.id === id)
+    )
     .filter((panel): panel is DashboardPanelDefinition => panel !== undefined)
 }
 
@@ -62,6 +69,37 @@ export function countPodPhases(resultMap: Record<string, DashboardPanelResult>):
     if (value > 0) counts[phase] = (counts[phase] ?? 0) + value
   }
   return counts
+}
+
+/** CPU ≥ 0.5 cores 或内存 ≥ 512Mi 的 Pod（基于 Top 面板，去重） */
+export function countPodResourceHotspots(
+  resultMap: Record<string, DashboardPanelResult>
+): number | null {
+  const CPU_HOT = 0.5
+  const MEM_HOT = 512 * 1024 * 1024
+  const hot = new Set<string>()
+  let hasData = false
+
+  const collect = (
+    panelId: string,
+    threshold: number
+  ) => {
+    const result = resultMap[panelId]
+    if (result?.status !== 'success') return
+    if (result.series.length) hasData = true
+    for (const series of result.series) {
+      const value = Number(series.values.at(-1)?.value ?? 0)
+      if (!Number.isFinite(value) || value < threshold) continue
+      const ns = series.metric.namespace?.trim() ?? ''
+      const pod = series.metric.pod?.trim() ?? ''
+      if (!pod) continue
+      hot.add(`${ns}/${pod}`)
+    }
+  }
+
+  collect('node.embed.pod_cpu', CPU_HOT)
+  collect('node.embed.pod_memory', MEM_HOT)
+  return hasData ? hot.size : null
 }
 
 export function avgBarPercent(resultMap: Record<string, DashboardPanelResult>, panelId: string): number | null {

@@ -210,9 +210,11 @@
       const phase = series.metric.phase || series.metric.condition || ''
       const pvc = series.metric.persistentvolumeclaim?.trim()
       const pod = series.metric.pod?.trim()
+      const node = series.metric.node?.trim()
       const namespace = series.metric.namespace?.trim()
       const isPvcPanel = props.panel.id.includes('pvc')
       const isInstanceStatus = isInstanceStatusPanel.value
+      const isNodeReadyPanel = props.panel.id === 'node.embed.ready'
 
       let name: string
       let displayValue: string
@@ -225,6 +227,10 @@
         // PVC 明细：左侧 namespace/pvc，右侧 phase
         name = namespace ? `${namespace}/${pvc}` : pvc
         displayValue = phase || 'Exists'
+      } else if (node || isNodeReadyPanel) {
+        // 节点 Ready：必须用 node 名，不能落到 condition=Ready 被当成「phase 汇总」
+        name = node || seriesLabel(series) || `node-${index}`
+        displayValue = value > 0 ? 'Ready' : 'NotReady'
       } else if (pod) {
         // Pod 明细：左侧 namespace/pod，右侧 phase
         name = namespace ? `${namespace}/${pod}` : pod
@@ -241,9 +247,11 @@
       return {
         name,
         value: displayValue,
-        healthy: phase
-          ? !['Failed', 'Pending', 'Lost', 'Unknown'].includes(phase)
-          : value > 0,
+        healthy: node || isNodeReadyPanel
+          ? value > 0
+          : phase
+            ? !['Failed', 'Pending', 'Lost', 'Unknown'].includes(phase)
+            : value > 0,
         ip: isInstanceStatusPanel.value ? series.metric.instance || '' : undefined
       }
     })
@@ -452,21 +460,32 @@
     if (props.panel.kind === 'line') {
       const isRuntimeErrorRate = props.panel.id === 'kubelet.error_rate'
       const isOverviewLineTrend = props.overviewLine
+      const isPerPodTrend =
+        props.panel.id === 'node.embed.pod_cpu_trend' ||
+        props.panel.id === 'node.embed.pod_memory_trend'
       const lineColors = isOverviewLineTrend ? overviewColors : colors
       const axisFontSize = isOverviewLineTrend ? 10 : undefined
       const quantileChart = isQuantileLineChart(source)
       const chartSeries = quantileChart ? sortQuantileSeries(source) : source
-      const seriesCount = Math.min(chartSeries.length, 8)
+      // 普通折线最多 8 条；Pod 分系列趋势展示全部（图例可筛选）
+      const visibleSeries = isPerPodTrend ? chartSeries : chartSeries.slice(0, 8)
+      const seriesCount = visibleSeries.length
+      const multiPodLines = isPerPodTrend && seriesCount > 1
+      // 多系列时用滚动图例；点击图例即可显隐（避免 selector 在部分 ECharts 版本异常）
+      const lineLegend = {
+        ...legend,
+        type: 'scroll' as const
+      }
       return {
         color: lineColors,
         animationDuration: isOverviewLineTrend ? 150 : 450,
         tooltip: tooltip(props.panel.unit),
-        legend,
+        legend: lineLegend,
         grid: isOverviewLineTrend
           ? {
               left: 4,
               right: 12,
-              top: props.showLegend ? 32 : 16,
+              top: props.showLegend ? (multiPodLines ? 40 : 32) : 16,
               bottom: 22,
               containLabel: true
             }
@@ -485,7 +504,7 @@
           },
           splitLine: { lineStyle: { color: splitColor, type: 'dashed' } }
         },
-        series: chartSeries.slice(0, 8).map((item, index) => {
+        series: visibleSeries.map((item, index) => {
           const quantile = seriesQuantile(item)
           const quantileStyle =
             quantileChart && quantile !== null
@@ -511,13 +530,16 @@
               width: lineWidth,
               color: isOverviewLineTrend || quantileStyle ? color : undefined
             },
+            // 多 Pod 折线不加面积填充，避免重叠难辨
             areaStyle:
-              isOverviewLineTrend || quantileStyle
+              !multiPodLines && (isOverviewLineTrend || quantileStyle)
                 ? buildOverviewAreaStyle(color, areaOpacity)
                 : undefined,
             emphasis: quantileStyle && quantileLineTier(quantile!) === 'p99'
               ? { focus: 'series', lineStyle: { width: lineWidth + 0.5 } }
-              : undefined,
+              : multiPodLines
+                ? { focus: 'series' }
+                : undefined,
             data: item.values.map((point) => [point.timestamp * 1000, Number(point.value)])
           }
         })
@@ -741,7 +763,7 @@
     window.removeEventListener('scroll', hideChartTooltip, true)
   })
   watch(
-    () => [props.result, props.panel.id, props.loading, props.showLegend, props.compactBar, props.overviewLine, isDark.value],
+    () => [props.result, props.panel.id, props.showLegend, props.compactBar, props.overviewLine, isDark.value],
     renderChart,
     {
       deep: true

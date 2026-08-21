@@ -184,6 +184,108 @@ function fixed(expression: string): (filters: DashboardFilters) => string {
   return () => expression
 }
 
+function promqlQuote(value: string): string {
+  return JSON.stringify(value.trim())
+}
+
+type PodFilterLabel = 'namespace' | 'node' | 'pod'
+
+function matcher(filters: DashboardFilters, supported: PodFilterLabel[]): string {
+  const values: Record<PodFilterLabel, string | undefined> = {
+    namespace: filters.namespace,
+    node: filters.node,
+    pod: filters.pod
+  }
+  return supported
+    .filter((label) => values[label]?.trim())
+    .map((label) => `${label}=${promqlQuote(values[label] ?? '')}`)
+    .join(',')
+}
+
+function metricSelector(
+  metric: string,
+  filters: DashboardFilters,
+  labels = '',
+  supported: PodFilterLabel[] = ['namespace', 'node', 'pod']
+): string {
+  const filtersPart = matcher(filters, supported)
+  const parts = [...(filtersPart ? [filtersPart] : []), ...(labels ? [labels] : [])]
+  return parts.length ? `${metric}{${parts.join(',')}}` : metric
+}
+
+/** 按工作负载关联 Pod（Deployment 走 ReplicaSet） */
+function workloadJoin(expression: string, filters: DashboardFilters): string {
+  const workloadName = filters.workload_name?.trim()
+  if (!workloadName) return expression
+
+  const workloadKind = filters.workload_kind?.trim() ?? ''
+  if (workloadKind.toLowerCase() === 'deployment') {
+    const replicaSetOwners =
+      `max by(namespace,replicaset) (` +
+      `kube_replicaset_owner{owner_kind="Deployment",owner_name=${promqlQuote(workloadName)}})`
+    const podReplicaSets =
+      'max by(namespace,pod,replicaset) (' +
+      'label_replace(kube_pod_owner{owner_kind="ReplicaSet"}, "replicaset", "$1", "owner_name", "(.*)"))'
+    return (
+      `(${expression}) * on(namespace,pod) group_left(replicaset) (${podReplicaSets}) ` +
+      `* on(namespace,replicaset) group_left() (${replicaSetOwners})`
+    )
+  }
+
+  const owner = [`owner_name=${promqlQuote(workloadName)}`]
+  if (workloadKind) owner.push(`owner_kind=${promqlQuote(workloadKind)}`)
+  return (
+    `(${expression}) * on(namespace,pod) group_left(owner_kind,owner_name) ` +
+    `max by(namespace,pod,owner_kind,owner_name) (kube_pod_owner{${owner.join(',')}})`
+  )
+}
+
+/** kube_pod_* 等常无 node 标签：用 kube_pod_info 关联节点后再做 workload 过滤 */
+function kubePodScoped(
+  expression: string,
+  filters: DashboardFilters
+): string {
+  let expr = expression
+  const node = filters.node?.trim()
+  if (node) {
+    const ns = filters.namespace?.trim()
+    const infoLabels = ns
+      ? `node=${promqlQuote(node)},namespace=${promqlQuote(ns)}`
+      : `node=${promqlQuote(node)}`
+    expr = `(${expr}) * on(namespace,pod) group_left() (kube_pod_info{${infoLabels}})`
+  }
+  return workloadJoin(expr, filters)
+}
+
+/** 容器指标：namespace/pod 进选择器；node 经 kube_pod_info 关联（cAdvisor 常无 node 标签） */
+function containerScoped(
+  metric: string,
+  filters: DashboardFilters,
+  labels: string,
+  useRate: boolean
+): string {
+  let expression = metricSelector(metric, filters, labels, ['namespace', 'pod'])
+  if (useRate) expression = `rate(${expression}[5m])`
+  return kubePodScoped(expression, filters)
+}
+
+/** 网络指标挂在 pause/POD 上，勿强制 container!="" / image!="" */
+function networkScoped(metric: string, filters: DashboardFilters, useRate: boolean): string {
+  let expression = metricSelector(metric, filters, '', ['namespace', 'pod'])
+  if (useRate) expression = `rate(${expression}[5m])`
+  return kubePodScoped(expression, filters)
+}
+
+/**
+ * 按 Pod 分系列。未指定单个 Pod 时用 topk 限制条数：
+ * query_range 返回全量 Pod 时序时，序列过多容易被 Prometheus/代理拒绝，前端表现为「暂无数据」。
+ */
+function perPodTrendExpr(innerRateOrGauge: string, filters: DashboardFilters): string {
+  const byPod = `sum by (namespace,pod) (${innerRateOrGauge})`
+  if (filters.pod?.trim()) return byPod
+  return `topk(50, ${byPod})`
+}
+
 function apiserverLatencyFallbackQuery(): string {
   return (
     'label_replace(' +
@@ -972,21 +1074,270 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     '节点健康状态',
     'status',
     '',
-    6,
-    ['kube_node_status_condition'],
+    12,
+    [],
     false,
-    fixed('kube_node_status_condition{condition="Ready",status="true"} == 1')
+    // 保留全部节点（含 NotReady）；值为 1=Ready、0=NotReady
+    fixed('max by (node) (kube_node_status_condition{condition="Ready",status="true"})'),
+    '各节点 Ready 条件；无 node 标签时勿用 condition 当名称'
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.overview_cpu',
+    '节点 CPU（总览）',
+    'bar',
+    'percent',
+    6,
+    [],
+    false,
+    fixed(
+      '100 * sum by (node) (rate(container_cpu_usage_seconds_total{container!=""}[5m])) / clamp_min(sum by (node) (kube_node_status_allocatable{resource="cpu"}), 0.001)'
+    )
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.overview_cpu_total',
+    '节点总 CPU',
+    'bar',
+    'cores',
+    6,
+    [],
+    false,
+    // 优先 machine_cpu_cores（与 cAdvisor 节点标签一致），再回退 KSM allocatable/capacity
+    fixed(
+      '(' +
+        'sum by (node) (machine_cpu_cores)' +
+        ' or sum by (node) (kube_node_status_allocatable{resource="cpu",unit="core"})' +
+        ' or sum by (node) (kube_node_status_allocatable{resource="cpu"})' +
+        ' or sum by (node) (kube_node_status_capacity{resource="cpu",unit="core"})' +
+        ' or sum by (node) (kube_node_status_capacity{resource="cpu"})' +
+        ')'
+    ),
+    undefined,
+    {
+      fallbackQueries: [
+        fixed(
+          'label_replace(count by (nodename) (node_cpu_seconds_total{mode="idle"} * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)")'
+        ),
+        fixed(
+          'label_replace(count by (instance) (node_cpu_seconds_total{mode="idle"}), "node", "$1", "instance", "^([^:]+):.*")'
+        )
+      ]
+    }
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.overview_memory',
+    '节点内存（总览）',
+    'bar',
+    'percent',
+    6,
+    [],
+    false,
+    fixed(
+      '100 * sum by (node) (container_memory_working_set_bytes{container!=""}) / clamp_min(sum by (node) (kube_node_status_allocatable{resource="memory"}), 1)'
+    )
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.overview_disk',
+    '节点磁盘可用',
+    'bar',
+    'bytes',
+    6,
+    [],
+    false,
+    fixed(
+      'label_replace(max by (nodename) (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs|nsfs",mountpoint="/"} * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)")'
+    ),
+    '根分区可用字节；经 node_uname_info 关联节点名',
+    {
+      fallbackQueries: [
+        fixed(
+          'max by (node) (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs|nsfs",mountpoint="/"})'
+        ),
+        fixed(
+          'label_replace(max by (instance) (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs|nsfs",mountpoint="/"}), "node", "$1", "instance", "^([^:]+):.*")'
+        )
+      ]
+    }
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.overview_memory_total',
+    '节点总内存',
+    'bar',
+    'bytes',
+    6,
+    [],
+    false,
+    fixed('sum by (node) (kube_node_status_allocatable{resource="memory"})'),
+    undefined,
+    {
+      fallbackQueries: [
+        fixed(
+          'label_replace(sum by (nodename) (node_memory_MemTotal_bytes * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)")'
+        ),
+        fixed(
+          'label_replace(sum by (instance) (node_memory_MemTotal_bytes), "node", "$1", "instance", "^([^:]+):.*")'
+        )
+      ]
+    }
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.overview_net_transmit',
+    '节点网络发送',
+    'bar',
+    'Bps',
+    6,
+    [],
+    false,
+    fixed(
+      'sort_desc(label_replace(sum by (nodename) (rate(node_network_transmit_bytes_total{device!="lo"}[5m]) * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)"))'
+    ),
+    undefined,
+    {
+      fallbackQueries: [
+        fixed('sort_desc(sum by (node) (rate(node_network_transmit_bytes_total{device!="lo"}[5m])))'),
+        fixed('sort_desc(sum by (node) (rate(container_network_transmit_bytes_total[5m])))'),
+        fixed(
+          'sort_desc(label_replace(sum by (instance) (rate(node_network_transmit_bytes_total{device!="lo"}[5m])), "node", "$1", "instance", "^([^:]+):.*"))'
+        )
+      ]
+    }
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.overview_net_receive',
+    '节点网络接收',
+    'bar',
+    'Bps',
+    6,
+    [],
+    false,
+    fixed(
+      'sort_desc(label_replace(sum by (nodename) (rate(node_network_receive_bytes_total{device!="lo"}[5m]) * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)"))'
+    ),
+    undefined,
+    {
+      fallbackQueries: [
+        fixed('sort_desc(sum by (node) (rate(node_network_receive_bytes_total{device!="lo"}[5m])))'),
+        fixed('sort_desc(sum by (node) (rate(container_network_receive_bytes_total[5m])))'),
+        fixed(
+          'sort_desc(label_replace(sum by (instance) (rate(node_network_receive_bytes_total{device!="lo"}[5m])), "node", "$1", "instance", "^([^:]+):.*"))'
+        )
+      ]
+    }
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.overview_load5',
+    '节点 Load',
+    'bar',
+    'short',
+    6,
+    [],
+    false,
+    fixed(
+      'sort_desc(label_replace(sum by (nodename) (node_load5 * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)"))'
+    ),
+    undefined,
+    {
+      fallbackQueries: [
+        fixed('sort_desc(sum by (node) (node_load5))'),
+        fixed(
+          'sort_desc(label_replace(sum by (instance) (node_load5), "node", "$1", "instance", "^([^:]+):.*"))'
+        )
+      ]
+    }
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.overview_connections',
+    '节点连接数',
+    'bar',
+    'short',
+    6,
+    [],
+    false,
+    fixed(
+      'sort_desc(label_replace(sum by (nodename) (node_netstat_Tcp_CurrEstab * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)"))'
+    ),
+    'TCP 已建立连接数（CurrEstab）',
+    {
+      fallbackQueries: [
+        fixed('sort_desc(sum by (node) (node_netstat_Tcp_CurrEstab))'),
+        fixed(
+          'sort_desc(label_replace(sum by (nodename) (node_sockstat_TCP_inuse * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)"))'
+        ),
+        fixed(
+          'sort_desc(label_replace(sum by (instance) (node_netstat_Tcp_CurrEstab), "node", "$1", "instance", "^([^:]+):.*"))'
+        )
+      ]
+    }
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.overview_retrans',
+    '节点重传率',
+    'bar',
+    'percent',
+    6,
+    [],
+    false,
+    fixed(
+      'label_replace(' +
+        '100 * sum by (nodename) (rate(node_netstat_Tcp_RetransSegs[5m]) * on(instance) group_left(nodename) node_uname_info) ' +
+        '/ clamp_min(sum by (nodename) (rate(node_netstat_Tcp_OutSegs[5m]) * on(instance) group_left(nodename) node_uname_info), 1)' +
+        ', "node", "$1", "nodename", "(.*)")'
+    ),
+    'TCP 重传段 / 发出段',
+    {
+      fallbackQueries: [
+        fixed(
+          '100 * sum by (node) (rate(node_netstat_Tcp_RetransSegs[5m])) / clamp_min(sum by (node) (rate(node_netstat_Tcp_OutSegs[5m])), 1)'
+        ),
+        fixed(
+          'label_replace(' +
+            '100 * sum by (instance) (rate(node_netstat_Tcp_RetransSegs[5m])) / clamp_min(sum by (instance) (rate(node_netstat_Tcp_OutSegs[5m])), 1)' +
+            ', "node", "$1", "instance", "^([^:]+):.*")'
+        )
+      ]
+    }
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.overview_uptime',
+    '节点在线时间',
+    'bar',
+    'seconds',
+    6,
+    [],
+    false,
+    fixed(
+      'label_replace(max by (nodename) ((time() - node_boot_time_seconds) * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)")'
+    ),
+    undefined,
+    {
+      fallbackQueries: [
+        fixed('max by (node) (time() - node_boot_time_seconds)'),
+        fixed(
+          'label_replace(max by (instance) (time() - node_boot_time_seconds), "node", "$1", "instance", "^([^:]+):.*")'
+        )
+      ]
+    }
   ),
   embedPanel(
     'node-resource-embed',
     'node.embed.pods',
     '节点 Pod 数',
     'bar',
-    'short',
+    'count',
     6,
-    ['kube_pod_info'],
+    [],
     false,
-    fixed('sort_desc(sum by (node) (kube_pod_info))')
+    fixed('sort_desc(count by (node) (kube_pod_info))')
   ),
   embedPanel(
     'node-resource-embed',
@@ -995,7 +1346,7 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     'bar',
     'percent',
     6,
-    ['container_cpu_usage_seconds_total', 'kube_node_status_allocatable'],
+    [],
     false,
     fixed(
       'topk(10, 100 * sum by (node) (rate(container_cpu_usage_seconds_total{container!=""}[5m])) / clamp_min(sum by (node) (kube_node_status_allocatable{resource="cpu"}), 0.001))'
@@ -1008,39 +1359,472 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     'bar',
     'percent',
     6,
-    ['container_memory_working_set_bytes', 'kube_node_status_allocatable'],
+    [],
     false,
     fixed(
       'topk(10, 100 * sum by (node) (container_memory_working_set_bytes{container!=""}) / clamp_min(sum by (node) (kube_node_status_allocatable{resource="memory"}), 1))'
     )
   ),
+  // 参考主机监控大盘：吞吐排名 / Load / 连接数
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.net_throughput',
+    '网络吞吐 Top',
+    'bar',
+    'Bps',
+    6,
+    [],
+    false,
+    fixed(
+      'topk(10, label_replace(sum by (nodename) (' +
+        '(rate(node_network_transmit_bytes_total{device!="lo"}[5m]) + rate(node_network_receive_bytes_total{device!="lo"}[5m]))' +
+        ' * on(instance) group_left(nodename) node_uname_info' +
+        '), "node", "$1", "nodename", "(.*)"))'
+    ),
+    '发送+接收合计速率 Top 10',
+    {
+      fallbackQueries: [
+        fixed(
+          'topk(10, sum by (node) (rate(node_network_transmit_bytes_total{device!="lo"}[5m]) + rate(node_network_receive_bytes_total{device!="lo"}[5m])))'
+        ),
+        fixed(
+          'topk(10, sum by (node) (rate(container_network_transmit_bytes_total[5m]) + rate(container_network_receive_bytes_total[5m])))'
+        ),
+        fixed(
+          'topk(10, label_replace(sum by (instance) (rate(node_network_transmit_bytes_total{device!="lo"}[5m]) + rate(node_network_receive_bytes_total{device!="lo"}[5m])), "node", "$1", "instance", "^([^:]+):.*"))'
+        )
+      ]
+    }
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.net_transmit_top',
+    '网络发送 Top',
+    'bar',
+    'Bps',
+    6,
+    [],
+    false,
+    fixed(
+      'topk(10, label_replace(sum by (nodename) (rate(node_network_transmit_bytes_total{device!="lo"}[5m]) * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)"))'
+    ),
+    undefined,
+    {
+      fallbackQueries: [
+        fixed('topk(10, sum by (node) (rate(node_network_transmit_bytes_total{device!="lo"}[5m])))'),
+        fixed('topk(10, sum by (node) (rate(container_network_transmit_bytes_total[5m])))'),
+        fixed(
+          'topk(10, label_replace(sum by (instance) (rate(node_network_transmit_bytes_total{device!="lo"}[5m])), "node", "$1", "instance", "^([^:]+):.*"))'
+        )
+      ]
+    }
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.net_receive_top',
+    '网络接收 Top',
+    'bar',
+    'Bps',
+    6,
+    [],
+    false,
+    fixed(
+      'topk(10, label_replace(sum by (nodename) (rate(node_network_receive_bytes_total{device!="lo"}[5m]) * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)"))'
+    ),
+    undefined,
+    {
+      fallbackQueries: [
+        fixed('topk(10, sum by (node) (rate(node_network_receive_bytes_total{device!="lo"}[5m])))'),
+        fixed('topk(10, sum by (node) (rate(container_network_receive_bytes_total[5m])))'),
+        fixed(
+          'topk(10, label_replace(sum by (instance) (rate(node_network_receive_bytes_total{device!="lo"}[5m])), "node", "$1", "instance", "^([^:]+):.*"))'
+        )
+      ]
+    }
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.load_top',
+    'Load Top',
+    'bar',
+    'short',
+    6,
+    [],
+    false,
+    fixed(
+      'topk(10, label_replace(sum by (nodename) (node_load5 * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)"))'
+    ),
+    '5 分钟系统负载 Top 10',
+    {
+      fallbackQueries: [
+        fixed('topk(10, sum by (node) (node_load5))'),
+        fixed(
+          'topk(10, label_replace(sum by (instance) (node_load5), "node", "$1", "instance", "^([^:]+):.*"))'
+        )
+      ]
+    }
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.connections_top',
+    '连接数 Top',
+    'bar',
+    'short',
+    6,
+    [],
+    false,
+    fixed(
+      'topk(10, label_replace(sum by (nodename) (node_netstat_Tcp_CurrEstab * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)"))'
+    ),
+    'TCP 已建立连接数 Top 10',
+    {
+      fallbackQueries: [
+        fixed('topk(10, sum by (node) (node_netstat_Tcp_CurrEstab))'),
+        fixed(
+          'topk(10, label_replace(sum by (nodename) (node_sockstat_TCP_inuse * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)"))'
+        ),
+        fixed(
+          'topk(10, label_replace(sum by (instance) (node_netstat_Tcp_CurrEstab), "node", "$1", "instance", "^([^:]+):.*"))'
+        )
+      ]
+    }
+  ),
 
-  // ---- Node pod embed ----
+  // ---- Node network board（截图三栏大盘）----
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.board.traffic_trend',
+    '出入流量统计',
+    'line',
+    'Bps',
+    12,
+    [],
+    true,
+    fixed(
+      '(' +
+        'label_replace(sum(rate(node_network_transmit_bytes_total{device!="lo"}[5m])), "direction", "发送", "__name__", ".*")' +
+        ' or ' +
+        'label_replace(sum(rate(node_network_receive_bytes_total{device!="lo"}[5m])), "direction", "接收", "__name__", ".*")' +
+        ')'
+    ),
+    undefined,
+    {
+      fallbackQueries: [
+        fixed(
+          '(' +
+            'label_replace(sum(rate(container_network_transmit_bytes_total[5m])), "direction", "发送", "__name__", ".*")' +
+            ' or ' +
+            'label_replace(sum(rate(container_network_receive_bytes_total[5m])), "direction", "接收", "__name__", ".*")' +
+            ')'
+        )
+      ]
+    }
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.board.rate_by_node',
+    '传输速率（综合）',
+    'line',
+    'Bps',
+    12,
+    [],
+    true,
+    fixed(
+      'label_replace(sum by (nodename) (' +
+        '(rate(node_network_transmit_bytes_total{device!="lo"}[5m]) + rate(node_network_receive_bytes_total{device!="lo"}[5m]))' +
+        ' * on(instance) group_left(nodename) node_uname_info' +
+        '), "node", "$1", "nodename", "(.*)")'
+    ),
+    undefined,
+    {
+      fallbackQueries: [
+        fixed(
+          'sum by (node) (rate(node_network_transmit_bytes_total{device!="lo"}[5m]) + rate(node_network_receive_bytes_total{device!="lo"}[5m]))'
+        ),
+        fixed(
+          'sum by (node) (rate(container_network_transmit_bytes_total[5m]) + rate(container_network_receive_bytes_total[5m]))'
+        ),
+        fixed(
+          'label_replace(sum by (instance) (rate(node_network_transmit_bytes_total{device!="lo"}[5m]) + rate(node_network_receive_bytes_total{device!="lo"}[5m])), "node", "$1", "instance", "^([^:]+):.*")'
+        )
+      ]
+    }
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.board.load_trend',
+    '5分钟系统负载',
+    'line',
+    'short',
+    12,
+    [],
+    true,
+    fixed(
+      'label_replace(sum by (nodename) (node_load5 * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)")'
+    ),
+    undefined,
+    {
+      fallbackQueries: [
+        fixed('sum by (node) (node_load5)'),
+        fixed('sum(node_load5)'),
+        fixed(
+          'label_replace(sum by (instance) (node_load5), "node", "$1", "instance", "^([^:]+):.*")'
+        )
+      ]
+    }
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.board.conn_trend',
+    '总连接数 & TIME_WAIT',
+    'line',
+    'short',
+    12,
+    [],
+    true,
+    fixed(
+      '(' +
+        'label_replace(sum(node_netstat_Tcp_CurrEstab), "kind", "已建立", "__name__", ".*")' +
+        ' or ' +
+        'label_replace(sum(node_netstat_Tcp_TimeWait), "kind", "TIME_WAIT", "__name__", ".*")' +
+        ' or ' +
+        'label_replace(sum(node_sockstat_TCP_tw), "kind", "TIME_WAIT", "__name__", ".*")' +
+        ')'
+    ),
+    undefined,
+    {
+      fallbackQueries: [
+        fixed(
+          '(' +
+            'label_replace(sum(node_sockstat_TCP_inuse), "kind", "已建立", "__name__", ".*")' +
+            ' or ' +
+            'label_replace(sum(node_sockstat_TCP_tw), "kind", "TIME_WAIT", "__name__", ".*")' +
+            ')'
+        )
+      ]
+    }
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.board.tx_30d',
+    '30日内传输流量',
+    'stat',
+    'bytes',
+    4,
+    [],
+    false,
+    fixed('sum(increase(node_network_transmit_bytes_total{device!="lo"}[30d]))'),
+    undefined,
+    {
+      fallbackQueries: [fixed('sum(increase(container_network_transmit_bytes_total[30d]))')]
+    }
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.board.rx_30d',
+    '30日内接收流量',
+    'stat',
+    'bytes',
+    4,
+    [],
+    false,
+    fixed('sum(increase(node_network_receive_bytes_total{device!="lo"}[30d]))'),
+    undefined,
+    {
+      fallbackQueries: [fixed('sum(increase(container_network_receive_bytes_total[30d]))')]
+    }
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.board.total_30d',
+    '30日内总流量',
+    'stat',
+    'bytes',
+    4,
+    [],
+    false,
+    fixed(
+      'sum(increase(node_network_transmit_bytes_total{device!="lo"}[30d])) + sum(increase(node_network_receive_bytes_total{device!="lo"}[30d]))'
+    ),
+    undefined,
+    {
+      fallbackQueries: [
+        fixed(
+          'sum(increase(container_network_transmit_bytes_total[30d])) + sum(increase(container_network_receive_bytes_total[30d]))'
+        )
+      ]
+    }
+  ),
+
+  // ---- Node pod embed（基础监控 · Pod 监控）----
+  embedPanel(
+    'node-pod-embed',
+    'node.embed.pod_restarting',
+    '近 1h 有重启 Pod 数',
+    'stat',
+    'count',
+    3,
+    [],
+    false,
+    (filters) =>
+      `count(${kubePodScoped(
+        `sum by (namespace,pod) (increase(${metricSelector('kube_pod_container_status_restarts_total', filters, '', ['namespace', 'pod'])}[1h]))`,
+        filters
+      )} > 0)`,
+    '统计近 1 小时内至少发生过 1 次容器重启的 Pod 数量',
+    {
+      fallbackQueries: [
+        (filters) =>
+          `count(${kubePodScoped(
+            `sum by (namespace,pod) (increase(${metricSelector('kube_pod_container_status_restarts_total', filters, 'container!="",container!="POD"', ['namespace', 'pod'])}[1h]))`,
+            filters
+          )} > 0)`
+      ]
+    }
+  ),
   embedPanel(
     'node-pod-embed',
     'node.embed.pod_cpu',
-    '节点 Pod CPU Top 10',
+    'Pod CPU Top 10',
     'bar',
     'cores',
-    6,
-    ['container_cpu_usage_seconds_total'],
+    4,
+    // 不强制 required：__name__ 列表截断时会误判「指标未采集」
+    [],
     false,
-    fixed(
-      'topk(10, sum by (namespace,pod) (rate(container_cpu_usage_seconds_total{container!=""}[5m])))'
-    )
+    (filters) =>
+      `topk(10, sum by (namespace,pod) (${containerScoped('container_cpu_usage_seconds_total', filters, 'container!="",image!=""', true)}))`,
+    '按 Pod 汇总 CPU 用量 Top10',
+    {
+      fallbackQueries: [
+        (filters) =>
+          `topk(10, sum by (namespace,pod) (${containerScoped('container_cpu_usage_seconds_total', filters, 'container!="",container!="POD"', true)}))`,
+        (filters) =>
+          `topk(10, sum by (namespace,pod) (${containerScoped('container_cpu_usage_seconds_total', filters, 'container!=""', true)}))`
+      ]
+    }
   ),
   embedPanel(
     'node-pod-embed',
     'node.embed.pod_memory',
-    '节点 Pod 内存 Top 10',
+    'Pod 内存 Top 10',
     'bar',
     'bytes',
-    6,
-    ['container_memory_working_set_bytes'],
+    4,
+    [],
     false,
-    fixed(
-      'topk(10, sum by (namespace,pod) (container_memory_working_set_bytes{container!=""}))'
-    )
+    (filters) =>
+      `topk(10, sum by (namespace,pod) (${containerScoped('container_memory_working_set_bytes', filters, 'container!="",image!=""', false)}))`,
+    '按 Pod 汇总内存工作集 Top10',
+    {
+      fallbackQueries: [
+        (filters) =>
+          `topk(10, sum by (namespace,pod) (${containerScoped('container_memory_working_set_bytes', filters, 'container!="",container!="POD"', false)}))`,
+        (filters) =>
+          `topk(10, sum by (namespace,pod) (${containerScoped('container_memory_working_set_bytes', filters, 'container!=""', false)}))`
+      ]
+    }
+  ),
+  embedPanel(
+    'node-pod-embed',
+    'node.embed.pod_net_tx',
+    'Pod 网络发送 Top 10',
+    'bar',
+    'Bps',
+    6,
+    [],
+    false,
+    (filters) =>
+      `topk(10, sum by (namespace,pod) (${networkScoped('container_network_transmit_bytes_total', filters, true)}))`,
+    '按 Pod 汇总网络发送速率 Top10'
+  ),
+  embedPanel(
+    'node-pod-embed',
+    'node.embed.pod_net_rx',
+    'Pod 网络接收 Top 10',
+    'bar',
+    'Bps',
+    6,
+    [],
+    false,
+    (filters) =>
+      `topk(10, sum by (namespace,pod) (${networkScoped('container_network_receive_bytes_total', filters, true)}))`,
+    '按 Pod 汇总网络接收速率 Top10'
+  ),
+  embedPanel(
+    'node-pod-embed',
+    'node.embed.pod_cpu_trend',
+    'Pod CPU 趋势',
+    'line',
+    'cores',
+    6,
+    [],
+    true,
+    (filters) =>
+      perPodTrendExpr(
+        containerScoped('container_cpu_usage_seconds_total', filters, 'container!="",image!=""', true),
+        filters
+      ),
+    '按 Pod 展示 CPU 用量趋势（默认 Top50）；点击图例可筛选',
+    {
+      fallbackQueries: [
+        (filters) =>
+          perPodTrendExpr(
+            containerScoped(
+              'container_cpu_usage_seconds_total',
+              filters,
+              'container!="",container!="POD"',
+              true
+            ),
+            filters
+          ),
+        (filters) =>
+          perPodTrendExpr(
+            containerScoped('container_cpu_usage_seconds_total', filters, 'container!=""', true),
+            filters
+          )
+      ]
+    }
+  ),
+  embedPanel(
+    'node-pod-embed',
+    'node.embed.pod_memory_trend',
+    'Pod 内存趋势',
+    'line',
+    'bytes',
+    6,
+    [],
+    true,
+    (filters) =>
+      perPodTrendExpr(
+        containerScoped(
+          'container_memory_working_set_bytes',
+          filters,
+          'container!="",image!=""',
+          false
+        ),
+        filters
+      ),
+    '按 Pod 展示内存工作集趋势（默认 Top50）；点击图例可筛选',
+    {
+      fallbackQueries: [
+        (filters) =>
+          perPodTrendExpr(
+            containerScoped(
+              'container_memory_working_set_bytes',
+              filters,
+              'container!="",container!="POD"',
+              false
+            ),
+            filters
+          ),
+        (filters) =>
+          perPodTrendExpr(
+            containerScoped('container_memory_working_set_bytes', filters, 'container!=""', false),
+            filters
+          )
+      ]
+    }
   ),
 
   // ---- Workload embed ----
@@ -1116,37 +1900,53 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
   embedPanel(
     'pod-embed',
     'pod.embed.restarts',
-    'Pod 重启次数',
+    'Pod 重启 Top 10（近 1h）',
     'bar',
     'count',
-    6,
+    4,
     // 不强制 required：__name__ 列表截断时会误判「指标未采集」
     [],
     false,
-    fixed('topk(10, sum by (namespace,pod) (kube_pod_container_status_restarts_total))'),
-    '按 Pod 汇总容器重启次数 Top10；兼容 container 标签过滤与 max 聚合',
+    (filters) =>
+      `topk(10, ${kubePodScoped(
+        `sum by (namespace,pod) (increase(${metricSelector('kube_pod_container_status_restarts_total', filters, '', ['namespace', 'pod'])}[1h]))`,
+        filters
+      )})`,
+    '按 Pod 汇总近 1 小时容器重启次数 Top10',
     {
       fallbackQueries: [
-        fixed(
-          'topk(10, sum by (namespace,pod) (kube_pod_container_status_restarts_total{container!="",container!="POD"}))'
-        ),
-        fixed('topk(10, max by (namespace,pod) (kube_pod_container_status_restarts_total))'),
-        fixed(
-          'topk(10, sum by (namespace,pod) (increase(kube_pod_container_status_restarts_total[1h])))'
-        )
+        (filters) =>
+          `topk(10, ${kubePodScoped(
+            `sum by (namespace,pod) (increase(${metricSelector('kube_pod_container_status_restarts_total', filters, 'container!="",container!="POD"', ['namespace', 'pod'])}[1h]))`,
+            filters
+          )})`,
+        (filters) =>
+          `topk(10, ${kubePodScoped(
+            `sum by (namespace,pod) (${metricSelector('kube_pod_container_status_restarts_total', filters, '', ['namespace', 'pod'])})`,
+            filters
+          )})`,
+        (filters) =>
+          `topk(10, ${kubePodScoped(
+            `max by (namespace,pod) (${metricSelector('kube_pod_container_status_restarts_total', filters, '', ['namespace', 'pod'])})`,
+            filters
+          )})`
       ]
     }
   ),
   embedPanel(
     'pod-embed',
     'pod.embed.phase',
-    'Pod 状态',
+    'Pod 状态分布',
     'status',
     '',
-    6,
+    12,
     ['kube_pod_status_phase'],
     false,
-    fixed('kube_pod_status_phase == 1')
+    (filters) =>
+      kubePodScoped(
+        `${metricSelector('kube_pod_status_phase', filters, '', ['namespace', 'pod'])} == 1`,
+        filters
+      )
   ),
 
   // ---- Etcd embed（集群详情专属，不影响外部监控大盘 section） ----
@@ -1509,12 +2309,39 @@ export const SCHEDULER_EMBED_PANEL_IDS = [
 
 export const NODE_RESOURCE_EMBED_PANEL_IDS = [
   'node.embed.ready',
+  'node.embed.overview_cpu',
+  'node.embed.overview_cpu_total',
+  'node.embed.overview_memory',
+  'node.embed.overview_memory_total',
+  'node.embed.overview_disk',
+  'node.embed.overview_net_transmit',
+  'node.embed.overview_net_receive',
+  'node.embed.overview_load5',
+  'node.embed.overview_connections',
+  'node.embed.overview_retrans',
+  'node.embed.overview_uptime',
   'node.embed.pods',
-  'node.embed.cpu',
-  'node.embed.memory'
+  'node.embed.board.traffic_trend',
+  'node.embed.board.rate_by_node',
+  'node.embed.board.load_trend',
+  'node.embed.board.conn_trend',
+  'node.embed.board.tx_30d',
+  'node.embed.board.rx_30d',
+  'node.embed.board.total_30d'
 ] as const
 
-export const NODE_POD_EMBED_PANEL_IDS = ['node.embed.pod_cpu', 'node.embed.pod_memory'] as const
+/** 基础监控 · Pod 监控（摘要 + Phase + Top + 网络 + 集群趋势） */
+export const NODE_POD_EMBED_PANEL_IDS = [
+  'node.embed.pod_restarting',
+  'pod.embed.phase',
+  'node.embed.pod_cpu',
+  'node.embed.pod_memory',
+  'pod.embed.restarts',
+  'node.embed.pod_net_tx',
+  'node.embed.pod_net_rx',
+  'node.embed.pod_cpu_trend',
+  'node.embed.pod_memory_trend'
+] as const
 
 export const WORKLOAD_EMBED_PANEL_IDS = [
   'workload.embed.deployments',
@@ -1522,12 +2349,8 @@ export const WORKLOAD_EMBED_PANEL_IDS = [
   'workload.embed.daemonsets'
 ] as const
 
-export const POD_EMBED_PANEL_IDS = [
-  'pod.embed.cpu_trend',
-  'pod.embed.memory_trend',
-  'pod.embed.restarts',
-  'pod.embed.phase'
-] as const
+/** @deprecated 已并入 node-pod；保留兼容旧入口 */
+export const POD_EMBED_PANEL_IDS = NODE_POD_EMBED_PANEL_IDS
 
 export const ETCD_EMBED_PANEL_IDS = [
   'etcd.embed.leader_count',
