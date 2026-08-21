@@ -749,7 +749,7 @@
     window.removeEventListener('scroll', hideChartTooltip, true)
   })
   watch(
-    () => [props.result, props.panel.id, props.loading, props.showLegend, props.compactBar, props.overviewLine, isDark.value],
+    () => [props.result, props.panel.id, props.showLegend, props.compactBar, props.overviewLine, isDark.value],
     renderChart,
     {
       deep: true

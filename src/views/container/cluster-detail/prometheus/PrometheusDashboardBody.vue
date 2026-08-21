@@ -61,7 +61,7 @@
                 :key="panel.id"
                 :panel="panel"
                 :result="resultMap[panel.id]"
-                :loading="queryLoading"
+                :loading="panelLoading"
                 :show-legend="showLegend"
                 overview-line
                 @time-range-select="emit('time-range-select', $event)"
@@ -79,7 +79,7 @@
                 :key="panel.id"
                 :panel="panel"
                 :result="resultMap[panel.id]"
-                :loading="queryLoading"
+                :loading="panelLoading"
                 :show-legend="showLegend"
                 overview-line
                 compact-bar
@@ -201,7 +201,7 @@
                 v-if="corednsStatusPanel"
                 :panel="corednsStatusPanel"
                 :result="resultMap['coredns.embed.instance_status']"
-                :loading="queryLoading"
+                :loading="panelLoading"
                 :show-legend="showLegend"
               />
             </div>
@@ -286,7 +286,7 @@
                 v-if="corednsProcessPanel"
                 :panel="corednsProcessPanel"
                 :result="resultMap[corednsProcessPanel.id]"
-                :loading="queryLoading"
+                :loading="panelLoading"
                 :show-legend="showLegend"
                 overview-line
                 @time-range-select="emit('time-range-select', $event)"
@@ -306,7 +306,7 @@
                 :key="panel.id"
                 :panel="panel"
                 :result="resultMap[panel.id]"
-                :loading="queryLoading"
+                :loading="panelLoading"
                 :show-legend="showLegend"
                 overview-line
                 @time-range-select="emit('time-range-select', $event)"
@@ -326,7 +326,7 @@
                 :key="panel.id"
                 :panel="panel"
                 :result="resultMap[panel.id]"
-                :loading="queryLoading"
+                :loading="panelLoading"
                 :show-legend="showLegend"
                 overview-line
                 @time-range-select="emit('time-range-select', $event)"
@@ -340,7 +340,7 @@
                 :key="corednsLatencyPanel.id"
                 :panel="corednsLatencyPanel"
                 :result="resultMap[corednsLatencyPanel.id]"
-                :loading="queryLoading"
+                :loading="panelLoading"
                 :show-legend="showLegend"
                 overview-line
                 @time-range-select="emit('time-range-select', $event)"
@@ -360,7 +360,7 @@
                 :key="panel.id"
                 :panel="panel"
                 :result="resultMap[panel.id]"
-                :loading="queryLoading"
+                :loading="panelLoading"
                 :show-legend="showLegend"
                 overview-line
                 @time-range-select="emit('time-range-select', $event)"
@@ -472,7 +472,7 @@
                 v-if="etcdResourcePanels[1]"
                 :panel="etcdResourcePanels[1]"
                 :result="resultMap[etcdResourcePanels[1].id]"
-                :loading="queryLoading"
+                :loading="panelLoading"
                 :show-legend="showLegend"
                 overview-line
                 @time-range-select="emit('time-range-select', $event)"
@@ -492,7 +492,7 @@
                 :key="panel.id"
                 :panel="panel"
                 :result="resultMap[panel.id]"
-                :loading="queryLoading"
+                :loading="panelLoading"
                 :show-legend="showLegend"
                 overview-line
                 @time-range-select="emit('time-range-select', $event)"
@@ -512,7 +512,7 @@
                 :key="panel.id"
                 :panel="panel"
                 :result="resultMap[panel.id]"
-                :loading="queryLoading"
+                :loading="panelLoading"
                 :show-legend="showLegend"
                 overview-line
                 @time-range-select="emit('time-range-select', $event)"
@@ -531,7 +531,7 @@
                 v-if="etcdLatencyPanel"
                 :panel="etcdLatencyPanel"
                 :result="resultMap[etcdLatencyPanel.id]"
-                :loading="queryLoading"
+                :loading="panelLoading"
                 :show-legend="showLegend"
                 overview-line
                 @time-range-select="emit('time-range-select', $event)"
@@ -551,7 +551,7 @@
                 :key="panel.id"
                 :panel="panel"
                 :result="resultMap[panel.id]"
-                :loading="queryLoading"
+                :loading="panelLoading"
                 :show-legend="showLegend"
                 overview-line
                 @time-range-select="emit('time-range-select', $event)"
@@ -571,7 +571,7 @@
                 :key="panel.id"
                 :panel="panel"
                 :result="resultMap[panel.id]"
-                :loading="queryLoading"
+                :loading="panelLoading"
                 :show-legend="showLegend"
                 overview-line
                 @time-range-select="emit('time-range-select', $event)"
@@ -584,7 +584,7 @@
             :view="embedPageView"
             :definition="definition"
             :result-map="resultMap"
-            :loading="queryLoading"
+            :loading="panelLoading"
             :show-legend="showLegend"
             :show-events-link="effectiveShowEventsLink"
             @events-click="emit('events-click')"
@@ -606,7 +606,7 @@
               :key="panel.id"
               :panel="panel"
               :result="resultMap[panel.id]"
-              :loading="queryLoading"
+              :loading="panelLoading"
               :show-legend="showLegend"
               overview-line
               @time-range-select="emit('time-range-select', $event)"
@@ -666,6 +666,8 @@
       resultMap: Record<string, DashboardPanelResult>
       activeSection: string
       queryLoading: boolean
+      /** 静默刷新中：保留旧数据，面板仅显示「更新中」 */
+      queryRefreshing?: boolean
       showLegend: boolean
       timeRange: MetricsTimeRange
       granularity: MetricsGranularityOption
@@ -679,6 +681,7 @@
       clusterName: '',
       datasource: null,
       queryLoading: false,
+      queryRefreshing: false,
       showLegend: true
     }
   )
@@ -695,6 +698,9 @@
   const effectiveShowEventsLink = computed(() =>
     props.showEventsLink === undefined ? Boolean(props.clusterName) : props.showEventsLink
   )
+
+  /** 面板角标「更新中」：首次加载 + 静默刷新；空态骨架仅用 queryLoading */
+  const panelLoading = computed(() => props.queryLoading || props.queryRefreshing)
 
   const nodeDetailVisible = ref(false)
   const selectedNodeRow = ref<NodeOverviewRow | null>(null)

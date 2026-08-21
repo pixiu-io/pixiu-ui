@@ -206,7 +206,7 @@
     }
   }
 
-  async function queryDetail() {
+  async function queryDetail(options?: { silent?: boolean }) {
     const datasource = props.datasource
     const node = props.row?.name?.trim()
     if (!datasource || !node || !visible.value) {
@@ -214,8 +214,9 @@
       return
     }
 
+    const silent = Boolean(options?.silent) && Object.keys(resultMap).length > 0
     const sequence = ++querySequence
-    loading.value = true
+    if (!silent) loading.value = true
     try {
       const { start, end } = normalizedRange()
       const durationSeconds = Math.max(1, end - start)
@@ -231,11 +232,15 @@
         filters: { node }
       })
       if (sequence !== querySequence) return
-      for (const key of Object.keys(resultMap)) delete resultMap[key]
+      if (!silent) {
+        for (const key of Object.keys(resultMap)) delete resultMap[key]
+      }
       for (const result of response.results) resultMap[result.id] = result
     } catch {
       if (sequence !== querySequence) return
-      for (const key of Object.keys(resultMap)) delete resultMap[key]
+      if (!silent) {
+        for (const key of Object.keys(resultMap)) delete resultMap[key]
+      }
     } finally {
       if (sequence === querySequence) loading.value = false
     }
@@ -252,9 +257,12 @@
         props.timeRange.end?.getTime(),
         props.granularity.stepMs
       ] as const,
-    ([open]) => {
+    ([open], previous) => {
       if (!open) return
-      void queryDetail()
+      const openedNow = !previous?.[0]
+      const nodeChanged = previous?.[1] !== props.row?.name
+      const silent = !openedNow && !nodeChanged && Object.keys(resultMap).length > 0
+      void queryDetail({ silent })
     },
     { immediate: true }
   )

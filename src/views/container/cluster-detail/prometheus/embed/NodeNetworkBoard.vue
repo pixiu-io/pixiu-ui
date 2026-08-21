@@ -21,23 +21,24 @@
 
     <div class="node-network-board__col node-network-board__col--mid">
       <div class="node-network-board__kpis">
-        <div class="node-network-board__kpi is-online">
-          <div class="node-network-board__kpi-label">在线实例</div>
-          <div class="node-network-board__kpi-value">{{ onlineCount }}</div>
+        <div class="node-network-board__stat">
+          <div class="node-network-board__stat-label">在线实例</div>
+          <div class="node-network-board__stat-value is-ok">{{ onlineCount }}</div>
         </div>
-        <div class="node-network-board__kpi is-conn">
-          <div class="node-network-board__kpi-label">总连接数</div>
-          <div class="node-network-board__kpi-value">{{ totalConnections }}</div>
+        <div class="node-network-board__stat">
+          <div class="node-network-board__stat-label">总连接数</div>
+          <div class="node-network-board__stat-value">{{ totalConnections }}</div>
         </div>
-        <div class="node-network-board__kpi is-throughput">
-          <div class="node-network-board__kpi-label">总吞吐速率</div>
-          <div class="node-network-board__kpi-value">{{ totalThroughput }}</div>
+        <div class="node-network-board__stat">
+          <div class="node-network-board__stat-label">总吞吐速率</div>
+          <div class="node-network-board__stat-value is-accent">{{ totalThroughput }}</div>
         </div>
       </div>
 
       <div class="node-network-board__rank">
+        <div class="node-network-board__rank-title">节点吞吐排名</div>
         <div class="node-network-board__rank-head">
-          <span>Name</span>
+          <span>节点</span>
           <span>Mean</span>
           <span>Max</span>
         </div>
@@ -49,7 +50,7 @@
             <span class="node-network-board__rank-bar">
               <i :style="{ width: `${row.share}%` }" />
             </span>
-            <span>{{ row.name }}</span>
+            <span class="node-network-board__rank-text">{{ row.name }}</span>
           </div>
           <span class="node-network-board__rank-num">{{ formatRate(row.mean) }}</span>
           <span class="node-network-board__rank-num">{{ formatRate(row.max) }}</span>
@@ -57,17 +58,17 @@
       </div>
 
       <div class="node-network-board__period">
-        <div class="node-network-board__period-card is-tx">
-          <div class="node-network-board__period-label">30日内传输流量</div>
-          <div class="node-network-board__period-value">{{ formatBytes(tx30d) }}</div>
+        <div class="node-network-board__stat node-network-board__stat--period">
+          <div class="node-network-board__stat-label">30日内传输</div>
+          <div class="node-network-board__stat-value is-accent">{{ formatBytes(tx30d) }}</div>
         </div>
-        <div class="node-network-board__period-card is-rx">
-          <div class="node-network-board__period-label">30日内接收流量</div>
-          <div class="node-network-board__period-value">{{ formatBytes(rx30d) }}</div>
+        <div class="node-network-board__stat node-network-board__stat--period">
+          <div class="node-network-board__stat-label">30日内接收</div>
+          <div class="node-network-board__stat-value">{{ formatBytes(rx30d) }}</div>
         </div>
-        <div class="node-network-board__period-card is-total">
-          <div class="node-network-board__period-label">30日内总流量</div>
-          <div class="node-network-board__period-value">{{ formatBytes(total30d) }}</div>
+        <div class="node-network-board__stat node-network-board__stat--period">
+          <div class="node-network-board__stat-label">30日内总计</div>
+          <div class="node-network-board__stat-value is-warn">{{ formatBytes(total30d) }}</div>
         </div>
       </div>
     </div>
@@ -248,66 +249,86 @@
     gap: 8px;
   }
 
-  .node-network-board__kpi {
-    padding: 12px 10px;
+  .node-network-board__stat {
+    padding: 12px 12px 10px;
+    background: var(--el-bg-color);
+    border: 1px solid var(--el-border-color-light);
     border-radius: 8px;
-    color: #fff;
-    text-align: center;
   }
 
-  .node-network-board__kpi.is-online {
-    background: linear-gradient(135deg, #2e9b62, #3cb371);
+  .node-network-board__stat--period {
+    padding: 10px 12px;
   }
 
-  .node-network-board__kpi.is-conn {
-    background: linear-gradient(135deg, #6b5ce7, #8b7cf0);
-  }
-
-  .node-network-board__kpi.is-throughput {
-    background: linear-gradient(135deg, #2f6fed, #4b8bff);
-  }
-
-  .node-network-board__kpi-label {
+  .node-network-board__stat-label {
     margin-bottom: 6px;
     font-size: 12px;
-    opacity: 0.92;
+    line-height: 1.2;
+    color: var(--el-text-color-secondary);
   }
 
-  .node-network-board__kpi-value {
-    font-size: 22px;
-    font-weight: 700;
-    line-height: 1.1;
+  .node-network-board__stat-value {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--el-text-color-primary);
     font-variant-numeric: tabular-nums;
   }
 
+  .node-network-board__stat-value.is-ok {
+    color: #2e9b62;
+  }
+
+  .node-network-board__stat-value.is-accent {
+    color: var(--el-color-primary);
+  }
+
+  .node-network-board__stat-value.is-warn {
+    color: #d99a2b;
+  }
+
   .node-network-board__rank {
+    display: flex;
     flex: 1 1 auto;
-    min-height: 180px;
-    padding: 10px 12px;
+    flex-direction: column;
+    min-height: 200px;
+    padding: 12px 14px;
     overflow: auto;
     background: var(--el-bg-color);
     border: 1px solid var(--el-border-color-light);
     border-radius: 8px;
   }
 
+  .node-network-board__rank-title {
+    margin-bottom: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--el-text-color-primary);
+  }
+
   .node-network-board__rank-head,
   .node-network-board__rank-row {
     display: grid;
-    grid-template-columns: minmax(0, 1.4fr) 0.8fr 0.8fr;
-    gap: 8px;
+    grid-template-columns: minmax(0, 1.5fr) 0.75fr 0.75fr;
+    gap: 10px;
     align-items: center;
     font-size: 12px;
   }
 
   .node-network-board__rank-head {
-    margin-bottom: 8px;
+    padding-bottom: 8px;
     font-weight: 600;
     color: var(--el-text-color-secondary);
+    border-bottom: 1px solid var(--el-border-color-extra-light);
   }
 
   .node-network-board__rank-row {
-    padding: 6px 0;
-    border-top: 1px solid var(--el-border-color-extra-light);
+    padding: 9px 0;
+    border-bottom: 1px solid var(--el-border-color-extra-light);
+  }
+
+  .node-network-board__rank-row:last-child {
+    border-bottom: none;
   }
 
   .node-network-board__rank-name {
@@ -315,24 +336,29 @@
     gap: 8px;
     align-items: center;
     min-width: 0;
+  }
+
+  .node-network-board__rank-text {
     overflow: hidden;
+    color: var(--el-text-color-primary);
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: var(--el-text-color-primary);
   }
 
   .node-network-board__rank-bar {
-    flex: 0 0 36px;
-    height: 10px;
+    flex: 0 0 40px;
+    height: 6px;
     overflow: hidden;
     background: var(--el-fill-color);
-    border-radius: 2px;
+    border-radius: 999px;
   }
 
   .node-network-board__rank-bar i {
     display: block;
     height: 100%;
-    background: linear-gradient(90deg, #e45757, #d99a2b 55%, #2e9b62);
+    background: var(--el-color-primary);
+    border-radius: inherit;
+    opacity: 0.85;
   }
 
   .node-network-board__rank-num {
@@ -342,46 +368,18 @@
   }
 
   .node-network-board__rank-empty {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
     padding: 24px 0;
     color: var(--el-text-color-secondary);
-    text-align: center;
   }
 
   .node-network-board__period {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
-  }
-
-  .node-network-board__period-card {
-    padding: 12px 10px;
-    border-radius: 8px;
-    color: #fff;
-    text-align: center;
-  }
-
-  .node-network-board__period-card.is-tx {
-    background: linear-gradient(135deg, #3d8bfd, #5aa2ff);
-  }
-
-  .node-network-board__period-card.is-rx {
-    background: linear-gradient(135deg, #5b6b8c, #7484a3);
-  }
-
-  .node-network-board__period-card.is-total {
-    background: linear-gradient(135deg, #d9893b, #e6a23c);
-  }
-
-  .node-network-board__period-label {
-    margin-bottom: 6px;
-    font-size: 11px;
-    opacity: 0.92;
-  }
-
-  .node-network-board__period-value {
-    font-size: 16px;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
   }
 
   @media (max-width: 1200px) {

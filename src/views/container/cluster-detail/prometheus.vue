@@ -100,6 +100,7 @@
             :result-map="resultMap"
             :active-section="activeSection"
             :query-loading="queryLoading"
+            :query-refreshing="queryRefreshing"
             :show-legend="showLegend"
             :cluster-name="clusterName"
             :datasource="selectedDatasource ?? null"
@@ -180,6 +181,8 @@
   const resultMap = reactive<Record<string, DashboardPanelResult>>({})
   const datasourceLoading = ref(false)
   const queryLoading = ref(false)
+  /** 静默刷新中（Grafana 式：保留旧图，仅角标提示） */
+  const queryRefreshing = ref(false)
   const pageError = ref('')
   const associateVisible = ref(false)
   const lastUpdated = ref<Date>()
@@ -209,8 +212,12 @@
   const resultValues = computed(() =>
     currentPanels.value.map((panel) => resultMap[panel.id]).filter(Boolean)
   )
+  const hasActiveSectionData = computed(() =>
+    activePanelIds.value.some((id) => Boolean(resultMap[id]))
+  )
   const pageHealth = computed(() => {
     if (!selectedDatasourceId.value) return 'idle'
+    // 静默刷新不切换顶栏「查询中」，避免整页像被刷新
     if (queryLoading.value) return 'loading'
     if (resultValues.value.some((item) => item.status === 'error')) return 'warning'
     return 'healthy'
@@ -296,12 +303,14 @@
     router.push({ path: `/container/${page}`, query: buildClusterRouteQuery(route, {}) })
   }
 
-  async function queryCurrentSection() {
+  async function queryCurrentSection(options?: { silent?: boolean }) {
     const datasource = selectedDatasource.value
     if (!datasource || !activePanelIds.value.length) return
+    const silent = Boolean(options?.silent)
     const sequence = ++querySequence
-    queryLoading.value = true
-    pageError.value = ''
+    if (silent) queryRefreshing.value = true
+    else queryLoading.value = true
+    if (!silent) pageError.value = ''
     try {
       const range = normalizedTimeRange()
       const durationSeconds = Math.max(
@@ -324,16 +333,25 @@
       lastUpdated.value = new Date()
     } catch (error) {
       if (sequence !== querySequence) return
-      pageError.value = error instanceof Error ? error.message : '面板查询失败'
+      if (!silent) pageError.value = error instanceof Error ? error.message : '面板查询失败'
     } finally {
-      if (sequence === querySequence) queryLoading.value = false
+      if (sequence === querySequence) {
+        queryLoading.value = false
+        queryRefreshing.value = false
+      }
     }
   }
 
   function selectSection(section: string) {
     if (section === activeSection.value) return
     activeSection.value = section
-    queryCurrentSection()
+    // 若该分区已有缓存结果则静默刷新，避免切页闪白
+    const hasCache = resolveClusterDetailPanelIds(
+      section,
+      definition.value.panels.filter((panel) => panel.section === section).map((panel) => panel.id),
+      COREDNS_EMBED_PANEL_IDS
+    ).some((id) => Boolean(resultMap[id]))
+    void queryCurrentSection({ silent: hasCache })
   }
 
   function isNavGroupExpanded(sectionId: string) {
@@ -358,7 +376,7 @@
         granularity.value.key
       ] as const,
     () => {
-      queryCurrentSection()
+      void queryCurrentSection({ silent: hasActiveSectionData.value })
     }
   )
   watch(
@@ -367,7 +385,10 @@
       if (refreshTimer) window.clearInterval(refreshTimer)
       refreshTimer = undefined
       if (intervalMs && intervalMs > 0) {
-        refreshTimer = window.setInterval(() => queryCurrentSection(), intervalMs)
+        refreshTimer = window.setInterval(
+          () => void queryCurrentSection({ silent: true }),
+          intervalMs
+        )
       }
     },
     { immediate: true }
