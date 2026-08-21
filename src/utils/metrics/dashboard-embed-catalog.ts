@@ -1388,6 +1388,172 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     }
   ),
 
+  // ---- Node network board（截图三栏大盘）----
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.board.traffic_trend',
+    '出入流量统计',
+    'line',
+    'Bps',
+    12,
+    [],
+    true,
+    fixed(
+      '(' +
+        'label_replace(sum(rate(node_network_transmit_bytes_total{device!="lo"}[5m])), "direction", "发送", "__name__", ".*")' +
+        ' or ' +
+        'label_replace(sum(rate(node_network_receive_bytes_total{device!="lo"}[5m])), "direction", "接收", "__name__", ".*")' +
+        ')'
+    ),
+    undefined,
+    {
+      fallbackQueries: [
+        fixed(
+          '(' +
+            'label_replace(sum(rate(container_network_transmit_bytes_total[5m])), "direction", "发送", "__name__", ".*")' +
+            ' or ' +
+            'label_replace(sum(rate(container_network_receive_bytes_total[5m])), "direction", "接收", "__name__", ".*")' +
+            ')'
+        )
+      ]
+    }
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.board.rate_by_node',
+    '传输速率（综合）',
+    'line',
+    'Bps',
+    12,
+    [],
+    true,
+    fixed(
+      'label_replace(sum by (nodename) (' +
+        '(rate(node_network_transmit_bytes_total{device!="lo"}[5m]) + rate(node_network_receive_bytes_total{device!="lo"}[5m]))' +
+        ' * on(instance) group_left(nodename) node_uname_info' +
+        '), "node", "$1", "nodename", "(.*)")'
+    ),
+    undefined,
+    {
+      fallbackQueries: [
+        fixed(
+          'sum by (node) (rate(node_network_transmit_bytes_total{device!="lo"}[5m]) + rate(node_network_receive_bytes_total{device!="lo"}[5m]))'
+        ),
+        fixed(
+          'sum by (node) (rate(container_network_transmit_bytes_total[5m]) + rate(container_network_receive_bytes_total[5m]))'
+        ),
+        fixed(
+          'label_replace(sum by (instance) (rate(node_network_transmit_bytes_total{device!="lo"}[5m]) + rate(node_network_receive_bytes_total{device!="lo"}[5m])), "node", "$1", "instance", "^([^:]+):.*")'
+        )
+      ]
+    }
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.board.load_trend',
+    '5分钟系统负载',
+    'line',
+    'short',
+    12,
+    [],
+    true,
+    fixed(
+      'label_replace(sum by (nodename) (node_load5 * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)")'
+    ),
+    undefined,
+    {
+      fallbackQueries: [
+        fixed('sum by (node) (node_load5)'),
+        fixed('sum(node_load5)'),
+        fixed(
+          'label_replace(sum by (instance) (node_load5), "node", "$1", "instance", "^([^:]+):.*")'
+        )
+      ]
+    }
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.board.conn_trend',
+    '总连接数 & TIME_WAIT',
+    'line',
+    'short',
+    12,
+    [],
+    true,
+    fixed(
+      '(' +
+        'label_replace(sum(node_netstat_Tcp_CurrEstab), "kind", "已建立", "__name__", ".*")' +
+        ' or ' +
+        'label_replace(sum(node_netstat_Tcp_TimeWait), "kind", "TIME_WAIT", "__name__", ".*")' +
+        ' or ' +
+        'label_replace(sum(node_sockstat_TCP_tw), "kind", "TIME_WAIT", "__name__", ".*")' +
+        ')'
+    ),
+    undefined,
+    {
+      fallbackQueries: [
+        fixed(
+          '(' +
+            'label_replace(sum(node_sockstat_TCP_inuse), "kind", "已建立", "__name__", ".*")' +
+            ' or ' +
+            'label_replace(sum(node_sockstat_TCP_tw), "kind", "TIME_WAIT", "__name__", ".*")' +
+            ')'
+        )
+      ]
+    }
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.board.tx_30d',
+    '30日内传输流量',
+    'stat',
+    'bytes',
+    4,
+    [],
+    false,
+    fixed('sum(increase(node_network_transmit_bytes_total{device!="lo"}[30d]))'),
+    undefined,
+    {
+      fallbackQueries: [fixed('sum(increase(container_network_transmit_bytes_total[30d]))')]
+    }
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.board.rx_30d',
+    '30日内接收流量',
+    'stat',
+    'bytes',
+    4,
+    [],
+    false,
+    fixed('sum(increase(node_network_receive_bytes_total{device!="lo"}[30d]))'),
+    undefined,
+    {
+      fallbackQueries: [fixed('sum(increase(container_network_receive_bytes_total[30d]))')]
+    }
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.board.total_30d',
+    '30日内总流量',
+    'stat',
+    'bytes',
+    4,
+    [],
+    false,
+    fixed(
+      'sum(increase(node_network_transmit_bytes_total{device!="lo"}[30d])) + sum(increase(node_network_receive_bytes_total{device!="lo"}[30d]))'
+    ),
+    undefined,
+    {
+      fallbackQueries: [
+        fixed(
+          'sum(increase(container_network_transmit_bytes_total[30d])) + sum(increase(container_network_receive_bytes_total[30d]))'
+        )
+      ]
+    }
+  ),
+
   // ---- Node pod embed ----
   embedPanel(
     'node-pod-embed',
@@ -1893,7 +2059,14 @@ export const NODE_RESOURCE_EMBED_PANEL_IDS = [
   'node.embed.overview_connections',
   'node.embed.overview_retrans',
   'node.embed.overview_uptime',
-  'node.embed.pods'
+  'node.embed.pods',
+  'node.embed.board.traffic_trend',
+  'node.embed.board.rate_by_node',
+  'node.embed.board.load_trend',
+  'node.embed.board.conn_trend',
+  'node.embed.board.tx_30d',
+  'node.embed.board.rx_30d',
+  'node.embed.board.total_30d'
 ] as const
 
 export const NODE_POD_EMBED_PANEL_IDS = ['node.embed.pod_cpu', 'node.embed.pod_memory'] as const

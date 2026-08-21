@@ -55,6 +55,12 @@
         :loading="loading"
         @node-select="emit('node-select', $event)"
       />
+      <NodeNetworkBoard
+        v-else-if="section.custom === 'node-network-board'"
+        :definition="definition"
+        :result-map="resultMap"
+        :loading="loading"
+      />
       <div
         v-else
         class="prometheus-dashboard__panel-grid prometheus-dashboard__panel-grid--coredns"
@@ -93,6 +99,7 @@
   import { resolveEmbedPanels } from './utils'
   import ApiserverMetricCard from './apiserver-metric-card.vue'
   import NodeOverviewTable from './NodeOverviewTable.vue'
+  import NodeNetworkBoard from './NodeNetworkBoard.vue'
   import type { NodeOverviewRow } from './NodeOverviewTable.vue'
 
   /** API Server 各图表面板的顶部指标图例标签（quota/verb/code）；进程内存为单指标（undefined） */
