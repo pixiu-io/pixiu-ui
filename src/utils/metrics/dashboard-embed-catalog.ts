@@ -17,6 +17,18 @@ interface EmbedPanelSpec extends DashboardPanelDefinition {
 /** 排除长连接/流式请求，避免全局 P99 被顶到直方图上限（常见 60s） */
 const APISERVER_LATENCY_SELECTOR = 'verb!~"WATCH|WATCHLIST|CONNECT|PROXY"'
 
+/** API Server 实例配额单线：按 instance+pod 关联 host_ip 后打 quota 标签（request|limit） */
+function apiserverQuotaPart(metric: string, resource: string, quota: string): string {
+  const matcher = `pod=~".*apiserver.*", resource="${resource}"`
+  const part = `sum by (instance, pod) (label_replace(${metric}{${matcher}} * on(pod, namespace) group_left(host_ip) (kube_pod_info{pod=~".*apiserver.*"}), "instance", "$1:6443", "host_ip", "(.*)"))`
+  return `label_replace(${part}, "quota", "${quota}", "__name__", ".*")`
+}
+
+/** API Server 实例使用量（used）：按 instance 关联 kube_pod_info 带出 pod 名，打 quota=used 标签 */
+function apiserverUsagePart(expr: string, quota: string): string {
+  return `label_replace(label_replace(${expr}, "host_ip", "$1", "instance", "([^:]+).*") * on(host_ip) group_left(pod) (kube_pod_info{pod=~".*apiserver.*"}), "quota", "${quota}", "__name__", ".*")`
+}
+
 /**
  * Controller Manager 工作队列选择器（多标签兼容）。
  * 避免用全局 workqueue_*（会混入其它 Operator）导致误报「需关注」。
@@ -245,7 +257,7 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     6,
     ['apiserver_request_total'],
     true,
-    fixed('sum by (code) (rate(apiserver_request_total{code=~"5.."}[5m]))')
+    fixed('sum by (instance, code) (rate(apiserver_request_total{code=~"5.."}[5m]))')
   ),
   embedPanel(
     'apiserver-embed',
@@ -257,6 +269,84 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     ['process_resident_memory_bytes'],
     true,
     fixed('process_resident_memory_bytes{job="apiserver"}')
+  ),
+  embedPanel(
+    'apiserver-embed',
+    'apiserver.embed.instance_status',
+    '实例在线状态',
+    'status',
+    '',
+    12,
+    ['up', 'kube_pod_info'],
+    false,
+    fixed(
+      'label_replace(label_replace(up{job=~".*apiserver.*"}, "host_ip", "$1", "instance", "([^:]+).*") * on(host_ip) group_left(pod) (kube_pod_info{pod=~".*apiserver.*"}), "namespace", "", "namespace", ".*")'
+    )
+  ),
+  embedPanel(
+    'apiserver-embed',
+    'apiserver.embed.instance_cpu',
+    '实例 CPU',
+    'line',
+    'cores',
+    6,
+    ['process_cpu_seconds_total', 'kube_pod_container_resource_requests', 'kube_pod_container_resource_limits', 'kube_pod_info'],
+    true,
+    fixed(
+      apiserverUsagePart('sum by (instance) (rate(process_cpu_seconds_total{job=~".*apiserver.*"}[5m]))', 'used') +
+        ` or ${apiserverQuotaPart('kube_pod_container_resource_requests', 'cpu', 'request')}` +
+        ` or ${apiserverQuotaPart('kube_pod_container_resource_limits', 'cpu', 'limit')}`
+    )
+  ),
+  embedPanel(
+    'apiserver-embed',
+    'apiserver.embed.instance_memory',
+    '实例内存',
+    'line',
+    'bytes',
+    6,
+    ['process_resident_memory_bytes', 'kube_pod_container_resource_requests', 'kube_pod_container_resource_limits', 'kube_pod_info'],
+    true,
+    fixed(
+      apiserverUsagePart('process_resident_memory_bytes{job=~".*apiserver.*"}', 'used') +
+        ` or ${apiserverQuotaPart('kube_pod_container_resource_requests', 'memory', 'request')}` +
+        ` or ${apiserverQuotaPart('kube_pod_container_resource_limits', 'memory', 'limit')}`
+    )
+  ),
+
+  embedPanel(
+    'apiserver-embed',
+    'apiserver.embed.requests_3xx',
+    '3xx 请求速率',
+    'line',
+    'ops',
+    6,
+    ['apiserver_request_total'],
+    true,
+    fixed('sum by (instance, code) (rate(apiserver_request_total{code=~"3.."}[5m]))')
+  ),
+  embedPanel(
+    'apiserver-embed',
+    'apiserver.embed.requests_4xx',
+    '4xx 请求速率',
+    'line',
+    'ops',
+    6,
+    ['apiserver_request_total'],
+    true,
+    fixed('sum by (instance, code) (rate(apiserver_request_total{code=~"4.."}[5m]))')
+  ),
+
+  embedPanel(
+    'apiserver-embed',
+    'apiserver.embed.requests_by_code',
+    '请求状态码',
+    'line',
+    'count',
+    6,
+    ['apiserver_request_total'],
+    true,
+    fixed('sum by (instance, code) (increase(apiserver_request_total[5m]))')
   ),
 
   // ---- Kubelet embed ----
@@ -1096,9 +1186,15 @@ export const APISERVER_EMBED_PANEL_IDS = [
   'apiserver.embed.latency_p99',
   'apiserver.embed.replicas',
   'apiserver.embed.requests',
+  'apiserver.embed.requests_by_code',
   'apiserver.embed.latency',
   'apiserver.embed.errors',
-  'apiserver.embed.process'
+  'apiserver.embed.requests_3xx',
+  'apiserver.embed.requests_4xx',
+  'apiserver.embed.process',
+  'apiserver.embed.instance_status',
+  'apiserver.embed.instance_cpu',
+  'apiserver.embed.instance_memory'
 ] as const
 
 export const KUBELET_EMBED_PANEL_IDS = [

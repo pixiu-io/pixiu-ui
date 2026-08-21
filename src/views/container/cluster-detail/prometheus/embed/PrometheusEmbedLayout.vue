@@ -50,6 +50,22 @@
         {{ section.title }}
       </div>
       <div
+        v-if="isInstanceResourceSection(section)"
+        class="prometheus-dashboard__panel-grid prometheus-dashboard__panel-grid--instance-resource"
+      >
+        <InstanceResourceCard
+          title="实例 CPU"
+          unit="cores"
+          :result="resultMap['apiserver.embed.instance_cpu']"
+        />
+        <InstanceResourceCard
+          title="实例内存"
+          unit="bytes"
+          :result="resultMap['apiserver.embed.instance_memory']"
+        />
+      </div>
+      <div
+        v-else
         class="prometheus-dashboard__panel-grid prometheus-dashboard__panel-grid--coredns"
         :class="section.gridClass"
       >
@@ -74,8 +90,9 @@
   import { Bell } from '@element-plus/icons-vue'
   import type { DashboardDefinition, DashboardPanelResult } from '@/api/dashboard'
   import DashboardPanel from '@/views/safeguard/dashboard/modules/DashboardPanel.vue'
-  import type { EmbedPageView } from './types'
+  import type { EmbedChartSection, EmbedPageView } from './types'
   import { resolveEmbedPanels } from './utils'
+  import InstanceResourceCard from './instance-resource-card.vue'
 
   const props = withDefaults(
     defineProps<{
@@ -101,6 +118,11 @@
 
   function resolvePanels(panelIds: string[]) {
     return resolveEmbedPanels(props.definition, panelIds)
+  }
+
+  /** 实例资源 section：使用自定义资源卡（维度切换 + 实例标识）渲染 */
+  function isInstanceResourceSection(section: EmbedChartSection): boolean {
+    return section.panelIds.includes('apiserver.embed.instance_cpu')
   }
 </script>
 

@@ -302,7 +302,7 @@ export function useChart(options: UseChartOptions = {}) {
 
   // 获取统一的图例配置
   const getLegendStyle = (
-    position: 'bottom' | 'top' | 'left' | 'right' = 'bottom',
+    position: 'bottom' | 'top' | 'left' | 'right' | 'top-right' = 'bottom',
     customOptions: any = {}
   ) => {
     const baseConfig = {
@@ -349,6 +349,18 @@ export function useChart(options: UseChartOptions = {}) {
           orient: 'vertical',
           icon: 'roundRect'
         }
+      case 'top-right':
+        return {
+          type: 'scroll',
+          top: 4,
+          right: 8,
+          orient: 'horizontal',
+          icon: 'roundRect',
+          itemWidth: 12,
+          itemHeight: 8,
+          itemGap: 12,
+          textStyle: { color: isDark.value ? '#c8ccd4' : '#5c6370', fontSize: 11 }
+        }
       default:
         return baseConfig
     }
@@ -357,7 +369,7 @@ export function useChart(options: UseChartOptions = {}) {
   // 根据图例位置计算 grid 配置
   const getGridWithLegend = (
     showLegend: boolean,
-    legendPosition: 'bottom' | 'top' | 'left' | 'right' = 'bottom',
+    legendPosition: 'bottom' | 'top' | 'left' | 'right' | 'top-right' = 'bottom',
     baseGrid: any = {}
   ) => {
     const defaultGrid = {
@@ -393,6 +405,11 @@ export function useChart(options: UseChartOptions = {}) {
         return {
           ...defaultGrid,
           right: 120
+        }
+      case 'top-right':
+        return {
+          ...defaultGrid,
+          top: 34
         }
       default:
         return defaultGrid

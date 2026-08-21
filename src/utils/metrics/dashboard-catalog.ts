@@ -529,7 +529,7 @@ const sections: DashboardDefinition['sections'] = [
     id: 'core',
     title: '核心组件监控',
     icon: 'ri:cpu-line',
-    children: ['kubelet', 'coredns', 'apiserver', 'controller-manager', 'scheduler', 'etcd']
+    children: ['apiserver', 'controller-manager', 'scheduler', 'etcd', 'coredns', 'kubelet']
   },
   {
     id: 'node',

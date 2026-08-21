@@ -182,8 +182,23 @@ export function buildApiserverEmbedView(
     ]),
     sections: [
       {
+        title: '实例状态',
+        panelIds: ['apiserver.embed.instance_status'],
+        gridClass: 'prometheus-dashboard__panel-grid--full'
+      },
+      {
+        title: '实例资源',
+        panelIds: ['apiserver.embed.instance_cpu', 'apiserver.embed.instance_memory']
+      },
+      {
         title: '请求与错误',
-        panelIds: ['apiserver.embed.requests', 'apiserver.embed.errors']
+        panelIds: [
+          'apiserver.embed.requests',
+          'apiserver.embed.requests_by_code',
+          'apiserver.embed.requests_3xx',
+          'apiserver.embed.requests_4xx',
+          'apiserver.embed.errors'
+        ]
       },
       {
         title: '延迟与资源',

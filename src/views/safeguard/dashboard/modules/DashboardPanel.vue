@@ -1,5 +1,8 @@
 <template>
-  <article class="dashboard-panel" :class="[`is-${panel.kind}`, `span-${panel.span}`]">
+  <article
+    class="dashboard-panel"
+    :class="[`is-${panel.kind}`, `span-${panel.span}`, { 'is-instance-status': panel.id === 'apiserver.embed.instance_status' }]"
+  >
     <header class="dashboard-panel__header">
       <div class="dashboard-panel__heading">
         <h3>{{ panel.title }}</h3>
@@ -46,9 +49,21 @@
 
     <div v-else-if="panel.kind === 'status'" class="dashboard-panel__status-list">
       <div v-for="item in statusItems" :key="item.name" class="dashboard-panel__status-item">
-        <span class="dashboard-panel__status-dot" :class="item.healthy ? 'healthy' : 'warning'" />
+        <span
+          v-if="!isInstanceStatusPanel"
+          class="dashboard-panel__status-dot"
+          :class="item.healthy ? 'healthy' : 'warning'"
+        />
         <span class="dashboard-panel__status-name" :title="item.name">{{ item.name }}</span>
-        <strong>{{ item.value }}</strong>
+        <span v-if="item.ip" class="dashboard-panel__status-ip">{{ item.ip }}</span>
+        <strong v-if="!isInstanceStatusPanel">{{ item.value }}</strong>
+        <span
+          v-else
+          class="dashboard-panel__status-value"
+          :class="item.healthy ? 'online' : 'offline'"
+        >
+          {{ item.value }}
+        </span>
       </div>
     </div>
 
@@ -153,6 +168,9 @@
     return Number.isFinite(value) ? value : 0
   })
 
+  /** 实例在线状态面板：隐藏状态圆点、压缩高度（已用「在线/离线」文字表达状态） */
+  const isInstanceStatusPanel = computed(() => props.panel.id === 'apiserver.embed.instance_status')
+
   const stateTitle = computed(() => {
     if (props.result?.status === 'metric_missing') return '指标未采集'
     if (props.result?.status === 'error') return '查询失败'
@@ -197,7 +215,13 @@
       } else if (pod) {
         // Pod 明细：左侧 namespace/pod，右侧 phase
         name = namespace ? `${namespace}/${pod}` : pod
-        displayValue = phase || formatValue(value, props.panel.unit)
+        // 实例在线状态（up 探活）：值 1/0 显示为「在线/离线」文字
+        const isInstanceStatus = props.panel.id === 'apiserver.embed.instance_status'
+        displayValue = isInstanceStatus
+          ? value > 0
+            ? '在线'
+            : '离线'
+          : phase || formatValue(value, props.panel.unit)
       } else if (phase) {
         // 仅按 phase 汇总（无具体资源名）
         name = isPvcPanel ? `PVC · ${phase}` : phase
@@ -212,7 +236,8 @@
         value: displayValue,
         healthy: phase
           ? !['Failed', 'Pending', 'Lost', 'Unknown'].includes(phase)
-          : value > 0
+          : value > 0,
+        ip: isInstanceStatusPanel.value ? series.metric.instance || '' : undefined
       }
     })
   )
@@ -241,6 +266,21 @@
 
   function seriesLabel(series: DashboardSeries): string {
     const labels = series.metric
+    // 实例级监控面板（含进程内存、3xx/4xx/5xx 按状态码）：系列名优先显示实例地址（IP:端口），避免 namespace 干扰
+    const isApiserverInstancePanel =
+      props.panel.id.startsWith('apiserver.embed.instance_') ||
+      props.panel.id === 'apiserver.embed.process' ||
+      props.panel.id === 'apiserver.embed.errors' ||
+      props.panel.id === 'apiserver.embed.requests_3xx' ||
+      props.panel.id === 'apiserver.embed.requests_4xx' ||
+      props.panel.id === 'apiserver.embed.requests_by_code'
+    if (isApiserverInstancePanel) {
+      const inst = labels.instance?.trim() || labels.host_ip?.trim()
+      if (labels.quota) return `${inst} (${labels.quota})`
+      if (labels.code_class) return `${inst} (${labels.code_class})`
+      if (labels.code) return `${inst} (${labels.code})`
+      if (inst) return inst
+    }
     if (labels.latency_kind === 'avg') return '平均延迟'
     if (labels.quantile) {
       const quantile = Number(labels.quantile)
@@ -341,7 +381,7 @@
     if (tier === 'p99') {
       return {
         color: getCssVar('--el-color-primary'),
-        width: isOverviewLineTrend ? 2 : 2.5,
+        width: isOverviewLineTrend ? 1 : 2.5,
         areaOpacity: 0.22
       }
     }
@@ -907,6 +947,48 @@
     min-height: 34px;
     font-size: 12px;
     border-bottom: 1px solid var(--el-border-color-extra-light);
+  }
+
+  /* 实例在线状态：按 2 行高度压缩，超出行滚动，去掉状态圆点后的列布局 */
+  .dashboard-panel.is-instance-status {
+    height: 126px;
+  }
+
+  /* 实例在线状态：名称靠左、IP 居中、状态靠右 */
+  .dashboard-panel.is-instance-status .dashboard-panel__status-item {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .dashboard-panel.is-instance-status .dashboard-panel__status-name {
+    min-width: 0;
+  }
+
+  .dashboard-panel.is-instance-status .dashboard-panel__status-value {
+    justify-self: end;
+  }
+
+  /* 实例 IP 列：字体与名称保持一致 */
+  .dashboard-panel__status-ip {
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    color: var(--el-text-color-primary);
+  }
+
+  /* 实例在线状态值：在线绿色、离线黄色，均不加粗 */
+  .dashboard-panel__status-value {
+    font-size: 12px;
+    font-weight: 400;
+  }
+
+  .dashboard-panel__status-value.online {
+    color: #67c23a;
+  }
+
+  .dashboard-panel__status-value.offline {
+    color: #e6a23c;
   }
 
   .dashboard-panel__status-dot {
