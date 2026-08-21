@@ -30,4 +30,6 @@ export type EmbedPageView = {
   healthDescription: string
   summaryCards: EmbedSummaryCard[]
   sections: EmbedChartSection[]
+  /** Pod 监控页：展示 Namespace / Node / 工作负载 / Pod 筛选 */
+  showPodFilters?: boolean
 }

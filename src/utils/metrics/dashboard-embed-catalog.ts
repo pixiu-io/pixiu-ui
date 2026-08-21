@@ -184,6 +184,108 @@ function fixed(expression: string): (filters: DashboardFilters) => string {
   return () => expression
 }
 
+function promqlQuote(value: string): string {
+  return JSON.stringify(value.trim())
+}
+
+type PodFilterLabel = 'namespace' | 'node' | 'pod'
+
+function matcher(filters: DashboardFilters, supported: PodFilterLabel[]): string {
+  const values: Record<PodFilterLabel, string | undefined> = {
+    namespace: filters.namespace,
+    node: filters.node,
+    pod: filters.pod
+  }
+  return supported
+    .filter((label) => values[label]?.trim())
+    .map((label) => `${label}=${promqlQuote(values[label] ?? '')}`)
+    .join(',')
+}
+
+function metricSelector(
+  metric: string,
+  filters: DashboardFilters,
+  labels = '',
+  supported: PodFilterLabel[] = ['namespace', 'node', 'pod']
+): string {
+  const filtersPart = matcher(filters, supported)
+  const parts = [...(filtersPart ? [filtersPart] : []), ...(labels ? [labels] : [])]
+  return parts.length ? `${metric}{${parts.join(',')}}` : metric
+}
+
+/** 按工作负载关联 Pod（Deployment 走 ReplicaSet） */
+function workloadJoin(expression: string, filters: DashboardFilters): string {
+  const workloadName = filters.workload_name?.trim()
+  if (!workloadName) return expression
+
+  const workloadKind = filters.workload_kind?.trim() ?? ''
+  if (workloadKind.toLowerCase() === 'deployment') {
+    const replicaSetOwners =
+      `max by(namespace,replicaset) (` +
+      `kube_replicaset_owner{owner_kind="Deployment",owner_name=${promqlQuote(workloadName)}})`
+    const podReplicaSets =
+      'max by(namespace,pod,replicaset) (' +
+      'label_replace(kube_pod_owner{owner_kind="ReplicaSet"}, "replicaset", "$1", "owner_name", "(.*)"))'
+    return (
+      `(${expression}) * on(namespace,pod) group_left(replicaset) (${podReplicaSets}) ` +
+      `* on(namespace,replicaset) group_left() (${replicaSetOwners})`
+    )
+  }
+
+  const owner = [`owner_name=${promqlQuote(workloadName)}`]
+  if (workloadKind) owner.push(`owner_kind=${promqlQuote(workloadKind)}`)
+  return (
+    `(${expression}) * on(namespace,pod) group_left(owner_kind,owner_name) ` +
+    `max by(namespace,pod,owner_kind,owner_name) (kube_pod_owner{${owner.join(',')}})`
+  )
+}
+
+/** kube_pod_* 等常无 node 标签：用 kube_pod_info 关联节点后再做 workload 过滤 */
+function kubePodScoped(
+  expression: string,
+  filters: DashboardFilters
+): string {
+  let expr = expression
+  const node = filters.node?.trim()
+  if (node) {
+    const ns = filters.namespace?.trim()
+    const infoLabels = ns
+      ? `node=${promqlQuote(node)},namespace=${promqlQuote(ns)}`
+      : `node=${promqlQuote(node)}`
+    expr = `(${expr}) * on(namespace,pod) group_left() (kube_pod_info{${infoLabels}})`
+  }
+  return workloadJoin(expr, filters)
+}
+
+/** 容器指标：namespace/pod 进选择器；node 经 kube_pod_info 关联（cAdvisor 常无 node 标签） */
+function containerScoped(
+  metric: string,
+  filters: DashboardFilters,
+  labels: string,
+  useRate: boolean
+): string {
+  let expression = metricSelector(metric, filters, labels, ['namespace', 'pod'])
+  if (useRate) expression = `rate(${expression}[5m])`
+  return kubePodScoped(expression, filters)
+}
+
+/** 网络指标挂在 pause/POD 上，勿强制 container!="" / image!="" */
+function networkScoped(metric: string, filters: DashboardFilters, useRate: boolean): string {
+  let expression = metricSelector(metric, filters, '', ['namespace', 'pod'])
+  if (useRate) expression = `rate(${expression}[5m])`
+  return kubePodScoped(expression, filters)
+}
+
+/**
+ * 按 Pod 分系列。未指定单个 Pod 时用 topk 限制条数：
+ * query_range 返回全量 Pod 时序时，序列过多容易被 Prometheus/代理拒绝，前端表现为「暂无数据」。
+ */
+function perPodTrendExpr(innerRateOrGauge: string, filters: DashboardFilters): string {
+  const byPod = `sum by (namespace,pod) (${innerRateOrGauge})`
+  if (filters.pod?.trim()) return byPod
+  return `topk(50, ${byPod})`
+}
+
 function apiserverLatencyFallbackQuery(): string {
   return (
     'label_replace(' +
@@ -1554,32 +1656,175 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     }
   ),
 
-  // ---- Node pod embed ----
+  // ---- Node pod embed（基础监控 · Pod 监控）----
+  embedPanel(
+    'node-pod-embed',
+    'node.embed.pod_restarting',
+    '近 1h 有重启 Pod 数',
+    'stat',
+    'count',
+    3,
+    [],
+    false,
+    (filters) =>
+      `count(${kubePodScoped(
+        `sum by (namespace,pod) (increase(${metricSelector('kube_pod_container_status_restarts_total', filters, '', ['namespace', 'pod'])}[1h]))`,
+        filters
+      )} > 0)`,
+    '统计近 1 小时内至少发生过 1 次容器重启的 Pod 数量',
+    {
+      fallbackQueries: [
+        (filters) =>
+          `count(${kubePodScoped(
+            `sum by (namespace,pod) (increase(${metricSelector('kube_pod_container_status_restarts_total', filters, 'container!="",container!="POD"', ['namespace', 'pod'])}[1h]))`,
+            filters
+          )} > 0)`
+      ]
+    }
+  ),
   embedPanel(
     'node-pod-embed',
     'node.embed.pod_cpu',
-    '节点 Pod CPU Top 10',
+    'Pod CPU Top 10',
     'bar',
     'cores',
-    6,
-    ['container_cpu_usage_seconds_total'],
+    4,
+    // 不强制 required：__name__ 列表截断时会误判「指标未采集」
+    [],
     false,
-    fixed(
-      'topk(10, sum by (namespace,pod) (rate(container_cpu_usage_seconds_total{container!=""}[5m])))'
-    )
+    (filters) =>
+      `topk(10, sum by (namespace,pod) (${containerScoped('container_cpu_usage_seconds_total', filters, 'container!="",image!=""', true)}))`,
+    '按 Pod 汇总 CPU 用量 Top10',
+    {
+      fallbackQueries: [
+        (filters) =>
+          `topk(10, sum by (namespace,pod) (${containerScoped('container_cpu_usage_seconds_total', filters, 'container!="",container!="POD"', true)}))`,
+        (filters) =>
+          `topk(10, sum by (namespace,pod) (${containerScoped('container_cpu_usage_seconds_total', filters, 'container!=""', true)}))`
+      ]
+    }
   ),
   embedPanel(
     'node-pod-embed',
     'node.embed.pod_memory',
-    '节点 Pod 内存 Top 10',
+    'Pod 内存 Top 10',
     'bar',
     'bytes',
-    6,
-    ['container_memory_working_set_bytes'],
+    4,
+    [],
     false,
-    fixed(
-      'topk(10, sum by (namespace,pod) (container_memory_working_set_bytes{container!=""}))'
-    )
+    (filters) =>
+      `topk(10, sum by (namespace,pod) (${containerScoped('container_memory_working_set_bytes', filters, 'container!="",image!=""', false)}))`,
+    '按 Pod 汇总内存工作集 Top10',
+    {
+      fallbackQueries: [
+        (filters) =>
+          `topk(10, sum by (namespace,pod) (${containerScoped('container_memory_working_set_bytes', filters, 'container!="",container!="POD"', false)}))`,
+        (filters) =>
+          `topk(10, sum by (namespace,pod) (${containerScoped('container_memory_working_set_bytes', filters, 'container!=""', false)}))`
+      ]
+    }
+  ),
+  embedPanel(
+    'node-pod-embed',
+    'node.embed.pod_net_tx',
+    'Pod 网络发送 Top 10',
+    'bar',
+    'Bps',
+    6,
+    [],
+    false,
+    (filters) =>
+      `topk(10, sum by (namespace,pod) (${networkScoped('container_network_transmit_bytes_total', filters, true)}))`,
+    '按 Pod 汇总网络发送速率 Top10'
+  ),
+  embedPanel(
+    'node-pod-embed',
+    'node.embed.pod_net_rx',
+    'Pod 网络接收 Top 10',
+    'bar',
+    'Bps',
+    6,
+    [],
+    false,
+    (filters) =>
+      `topk(10, sum by (namespace,pod) (${networkScoped('container_network_receive_bytes_total', filters, true)}))`,
+    '按 Pod 汇总网络接收速率 Top10'
+  ),
+  embedPanel(
+    'node-pod-embed',
+    'node.embed.pod_cpu_trend',
+    'Pod CPU 趋势',
+    'line',
+    'cores',
+    6,
+    [],
+    true,
+    (filters) =>
+      perPodTrendExpr(
+        containerScoped('container_cpu_usage_seconds_total', filters, 'container!="",image!=""', true),
+        filters
+      ),
+    '按 Pod 展示 CPU 用量趋势（默认 Top50）；点击图例可筛选',
+    {
+      fallbackQueries: [
+        (filters) =>
+          perPodTrendExpr(
+            containerScoped(
+              'container_cpu_usage_seconds_total',
+              filters,
+              'container!="",container!="POD"',
+              true
+            ),
+            filters
+          ),
+        (filters) =>
+          perPodTrendExpr(
+            containerScoped('container_cpu_usage_seconds_total', filters, 'container!=""', true),
+            filters
+          )
+      ]
+    }
+  ),
+  embedPanel(
+    'node-pod-embed',
+    'node.embed.pod_memory_trend',
+    'Pod 内存趋势',
+    'line',
+    'bytes',
+    6,
+    [],
+    true,
+    (filters) =>
+      perPodTrendExpr(
+        containerScoped(
+          'container_memory_working_set_bytes',
+          filters,
+          'container!="",image!=""',
+          false
+        ),
+        filters
+      ),
+    '按 Pod 展示内存工作集趋势（默认 Top50）；点击图例可筛选',
+    {
+      fallbackQueries: [
+        (filters) =>
+          perPodTrendExpr(
+            containerScoped(
+              'container_memory_working_set_bytes',
+              filters,
+              'container!="",container!="POD"',
+              false
+            ),
+            filters
+          ),
+        (filters) =>
+          perPodTrendExpr(
+            containerScoped('container_memory_working_set_bytes', filters, 'container!=""', false),
+            filters
+          )
+      ]
+    }
   ),
 
   // ---- Workload embed ----
@@ -1655,37 +1900,53 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
   embedPanel(
     'pod-embed',
     'pod.embed.restarts',
-    'Pod 重启次数',
+    'Pod 重启 Top 10（近 1h）',
     'bar',
     'count',
-    6,
+    4,
     // 不强制 required：__name__ 列表截断时会误判「指标未采集」
     [],
     false,
-    fixed('topk(10, sum by (namespace,pod) (kube_pod_container_status_restarts_total))'),
-    '按 Pod 汇总容器重启次数 Top10；兼容 container 标签过滤与 max 聚合',
+    (filters) =>
+      `topk(10, ${kubePodScoped(
+        `sum by (namespace,pod) (increase(${metricSelector('kube_pod_container_status_restarts_total', filters, '', ['namespace', 'pod'])}[1h]))`,
+        filters
+      )})`,
+    '按 Pod 汇总近 1 小时容器重启次数 Top10',
     {
       fallbackQueries: [
-        fixed(
-          'topk(10, sum by (namespace,pod) (kube_pod_container_status_restarts_total{container!="",container!="POD"}))'
-        ),
-        fixed('topk(10, max by (namespace,pod) (kube_pod_container_status_restarts_total))'),
-        fixed(
-          'topk(10, sum by (namespace,pod) (increase(kube_pod_container_status_restarts_total[1h])))'
-        )
+        (filters) =>
+          `topk(10, ${kubePodScoped(
+            `sum by (namespace,pod) (increase(${metricSelector('kube_pod_container_status_restarts_total', filters, 'container!="",container!="POD"', ['namespace', 'pod'])}[1h]))`,
+            filters
+          )})`,
+        (filters) =>
+          `topk(10, ${kubePodScoped(
+            `sum by (namespace,pod) (${metricSelector('kube_pod_container_status_restarts_total', filters, '', ['namespace', 'pod'])})`,
+            filters
+          )})`,
+        (filters) =>
+          `topk(10, ${kubePodScoped(
+            `max by (namespace,pod) (${metricSelector('kube_pod_container_status_restarts_total', filters, '', ['namespace', 'pod'])})`,
+            filters
+          )})`
       ]
     }
   ),
   embedPanel(
     'pod-embed',
     'pod.embed.phase',
-    'Pod 状态',
+    'Pod 状态分布',
     'status',
     '',
-    6,
+    12,
     ['kube_pod_status_phase'],
     false,
-    fixed('kube_pod_status_phase == 1')
+    (filters) =>
+      kubePodScoped(
+        `${metricSelector('kube_pod_status_phase', filters, '', ['namespace', 'pod'])} == 1`,
+        filters
+      )
   ),
 
   // ---- Etcd embed（集群详情专属，不影响外部监控大盘 section） ----
@@ -2069,7 +2330,18 @@ export const NODE_RESOURCE_EMBED_PANEL_IDS = [
   'node.embed.board.total_30d'
 ] as const
 
-export const NODE_POD_EMBED_PANEL_IDS = ['node.embed.pod_cpu', 'node.embed.pod_memory'] as const
+/** 基础监控 · Pod 监控（摘要 + Phase + Top + 网络 + 集群趋势） */
+export const NODE_POD_EMBED_PANEL_IDS = [
+  'node.embed.pod_restarting',
+  'pod.embed.phase',
+  'node.embed.pod_cpu',
+  'node.embed.pod_memory',
+  'pod.embed.restarts',
+  'node.embed.pod_net_tx',
+  'node.embed.pod_net_rx',
+  'node.embed.pod_cpu_trend',
+  'node.embed.pod_memory_trend'
+] as const
 
 export const WORKLOAD_EMBED_PANEL_IDS = [
   'workload.embed.deployments',
@@ -2077,12 +2349,8 @@ export const WORKLOAD_EMBED_PANEL_IDS = [
   'workload.embed.daemonsets'
 ] as const
 
-export const POD_EMBED_PANEL_IDS = [
-  'pod.embed.cpu_trend',
-  'pod.embed.memory_trend',
-  'pod.embed.restarts',
-  'pod.embed.phase'
-] as const
+/** @deprecated 已并入 node-pod；保留兼容旧入口 */
+export const POD_EMBED_PANEL_IDS = NODE_POD_EMBED_PANEL_IDS
 
 export const ETCD_EMBED_PANEL_IDS = [
   'etcd.embed.leader_count',

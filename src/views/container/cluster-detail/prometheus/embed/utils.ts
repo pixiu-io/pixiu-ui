@@ -71,6 +71,37 @@ export function countPodPhases(resultMap: Record<string, DashboardPanelResult>):
   return counts
 }
 
+/** CPU ≥ 0.5 cores 或内存 ≥ 512Mi 的 Pod（基于 Top 面板，去重） */
+export function countPodResourceHotspots(
+  resultMap: Record<string, DashboardPanelResult>
+): number | null {
+  const CPU_HOT = 0.5
+  const MEM_HOT = 512 * 1024 * 1024
+  const hot = new Set<string>()
+  let hasData = false
+
+  const collect = (
+    panelId: string,
+    threshold: number
+  ) => {
+    const result = resultMap[panelId]
+    if (result?.status !== 'success') return
+    if (result.series.length) hasData = true
+    for (const series of result.series) {
+      const value = Number(series.values.at(-1)?.value ?? 0)
+      if (!Number.isFinite(value) || value < threshold) continue
+      const ns = series.metric.namespace?.trim() ?? ''
+      const pod = series.metric.pod?.trim() ?? ''
+      if (!pod) continue
+      hot.add(`${ns}/${pod}`)
+    }
+  }
+
+  collect('node.embed.pod_cpu', CPU_HOT)
+  collect('node.embed.pod_memory', MEM_HOT)
+  return hasData ? hot.size : null
+}
+
 export function avgBarPercent(resultMap: Record<string, DashboardPanelResult>, panelId: string): number | null {
   const result = resultMap[panelId]
   if (result?.status !== 'success' || !result.series.length) return null

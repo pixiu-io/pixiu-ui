@@ -104,12 +104,16 @@
             :show-legend="showLegend"
             :cluster-name="clusterName"
             :datasource="selectedDatasource ?? null"
+            :pod-filters="filters"
+            :pod-filter-options="podFilterOptions"
+            :pod-filter-options-loading="podFilterOptionsLoading"
             v-model:time-range="timeRange"
             v-model:granularity="granularity"
             v-model:auto-refresh="autoRefresh"
             @time-range-select="handleChartTimeRangeSelect"
             @item-click="handlePanelItemClick"
             @events-click="goNamespacePage('events')"
+            @pod-filters-change="handlePodFiltersChange"
           />
         </main>
       </div>
@@ -133,9 +137,11 @@
   import {
     fetchDashboardDefinition,
     fetchDashboardQuery,
+    fetchDashboardVariables,
     type DashboardDefinition,
     type DashboardFilters,
-    type DashboardPanelResult
+    type DashboardPanelResult,
+    type DashboardWorkloadOption
   } from '@/api/dashboard'
   import { fetchDatasourceList, type DatasourceItem } from '@/api/datasource'
   import {
@@ -190,6 +196,18 @@
   const granularity = ref<MetricsGranularityOption>(getDefaultMetricsGranularity())
   const autoRefresh = ref<MetricsAutoRefreshOption>(getDefaultMetricsAutoRefresh())
   const showLegend = ref(true)
+  const podFilterOptions = reactive<{
+    namespaces: string[]
+    nodes: string[]
+    workloads: DashboardWorkloadOption[]
+    pods: string[]
+  }>({
+    namespaces: [],
+    nodes: [],
+    workloads: [],
+    pods: []
+  })
+  const podFilterOptionsLoading = ref(false)
   let refreshTimer: number | undefined
   let querySequence = 0
 
@@ -286,7 +304,40 @@
     'namespace.restarts'
   ])
 
+  /** Pod 监控 Top 条：点击跳转 Pod 详情 */
+  const POD_TOP_PANEL_IDS = new Set([
+    'node.embed.pod_cpu',
+    'node.embed.pod_memory',
+    'pod.embed.restarts',
+    'node.embed.pod_net_tx',
+    'node.embed.pod_net_rx'
+  ])
+
+  function parseNamespacePod(name: string): { namespace: string; pod: string } | null {
+    const trimmed = name.trim()
+    const slash = trimmed.indexOf('/')
+    if (slash <= 0 || slash >= trimmed.length - 1) return null
+    return {
+      namespace: trimmed.slice(0, slash),
+      pod: trimmed.slice(slash + 1)
+    }
+  }
+
   function handlePanelItemClick(payload: { panelId: string; name: string }) {
+    if (POD_TOP_PANEL_IDS.has(payload.panelId)) {
+      const parsed = parseNamespacePod(payload.name ?? '')
+      if (!parsed) return
+      if (namespaceContext) namespaceContext.namespace.value = parsed.namespace
+      router.push({
+        path: '/container/pod-detail',
+        query: buildClusterRouteQuery(route, {
+          namespace: parsed.namespace,
+          pod: parsed.pod
+        })
+      })
+      return
+    }
+
     if (!NAMESPACE_PANEL_IDS.has(payload.panelId)) return
     const namespace = payload.name?.trim()
     if (!namespace) return
@@ -296,6 +347,56 @@
       path: '/container/pods',
       query: buildClusterRouteQuery(route, { namespace })
     })
+  }
+
+  async function loadPodFilterOptions() {
+    const datasource = selectedDatasource.value
+    if (!datasource) return
+    podFilterOptionsLoading.value = true
+    try {
+      const variables = await fetchDashboardVariables(datasource, {
+        namespace: filters.namespace,
+        node: filters.node,
+        workload_kind: filters.workload_kind,
+        workload_name: filters.workload_name
+      })
+      podFilterOptions.namespaces = variables.namespaces
+      podFilterOptions.nodes = variables.nodes
+      podFilterOptions.workloads = variables.workloads
+      podFilterOptions.pods = variables.pods
+    } catch {
+      // 筛选下拉失败不阻断主查询
+    } finally {
+      podFilterOptionsLoading.value = false
+    }
+  }
+
+  function clearPodFilters() {
+    filters.namespace = undefined
+    filters.node = undefined
+    filters.workload_kind = undefined
+    filters.workload_name = undefined
+    filters.pod = undefined
+  }
+
+  function handlePodFiltersChange(next: DashboardFilters) {
+    const changed =
+      (filters.namespace ?? '') !== (next.namespace ?? '') ||
+      (filters.node ?? '') !== (next.node ?? '') ||
+      (filters.workload_kind ?? '') !== (next.workload_kind ?? '') ||
+      (filters.workload_name ?? '') !== (next.workload_name ?? '') ||
+      (filters.pod ?? '') !== (next.pod ?? '')
+    if (!changed) return
+
+    filters.namespace = next.namespace
+    filters.node = next.node
+    filters.workload_kind = next.workload_kind
+    filters.workload_name = next.workload_name
+    filters.pod = next.pod
+
+    for (const id of activePanelIds.value) delete resultMap[id]
+    void loadPodFilterOptions()
+    void queryCurrentSection()
   }
 
   /** namespace 大盘右上角入口：跳转到集群详情对应页面（保留当前集群） */
@@ -343,12 +444,17 @@
   }
 
   function selectSection(section: string) {
-    if (section === activeSection.value) return
-    activeSection.value = section
+    const resolved = section === 'pod' ? 'node-pod' : section
+    if (resolved === activeSection.value) return
+    if (activeSection.value === 'node-pod' && resolved !== 'node-pod') {
+      clearPodFilters()
+    }
+    activeSection.value = resolved
+    if (resolved === 'node-pod') void loadPodFilterOptions()
     // 若该分区已有缓存结果则静默刷新，避免切页闪白
     const hasCache = resolveClusterDetailPanelIds(
-      section,
-      definition.value.panels.filter((panel) => panel.section === section).map((panel) => panel.id),
+      resolved,
+      definition.value.panels.filter((panel) => panel.section === resolved).map((panel) => panel.id),
       COREDNS_EMBED_PANEL_IDS
     ).some((id) => Boolean(resultMap[id]))
     void queryCurrentSection({ silent: hasCache })

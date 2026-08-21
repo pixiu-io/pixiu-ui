@@ -164,12 +164,16 @@
               :cluster-name="linkedClusterName"
               :datasource="selectedDatasource ?? null"
               :show-events-link="Boolean(linkedClusterName)"
+              :pod-filters="filters"
+              :pod-filter-options="podFilterOptions"
+              :pod-filter-options-loading="podFilterOptionsLoading"
               v-model:time-range="timeRange"
               v-model:granularity="granularity"
               v-model:auto-refresh="autoRefresh"
               @time-range-select="handleChartTimeRangeSelect"
               @item-click="handlePanelItemClick"
               @events-click="goClusterEvents"
+              @pod-filters-change="handlePodFiltersChange"
             />
           </main>
         </div>
@@ -188,8 +192,11 @@
   import {
     fetchDashboardDefinition,
     fetchDashboardQuery,
+    fetchDashboardVariables,
     type DashboardDefinition,
-    type DashboardPanelResult
+    type DashboardFilters,
+    type DashboardPanelResult,
+    type DashboardWorkloadOption
   } from '@/api/dashboard'
   import { fetchDatasourceList, type DatasourceItem } from '@/api/datasource'
   import {
@@ -223,6 +230,7 @@
   const definition = ref<DashboardDefinition>({ sections: [], panels: [] })
   const datasources = ref<DatasourceItem[]>([])
   const selectedDatasourceId = ref<number>()
+  const filters = reactive<DashboardFilters>({})
   const activeSection = ref('cluster')
   const expandedNavGroups = ref<string[]>([])
   const resultMap = reactive<Record<string, DashboardPanelResult>>({})
@@ -235,6 +243,18 @@
   const granularity = ref<MetricsGranularityOption>(getDefaultMetricsGranularity())
   const autoRefresh = ref<MetricsAutoRefreshOption>(getDefaultMetricsAutoRefresh())
   const showLegend = ref(true)
+  const podFilterOptions = reactive<{
+    namespaces: string[]
+    nodes: string[]
+    workloads: DashboardWorkloadOption[]
+    pods: string[]
+  }>({
+    namespaces: [],
+    nodes: [],
+    workloads: [],
+    pods: []
+  })
+  const podFilterOptionsLoading = ref(false)
   let refreshTimer: number | undefined
   let querySequence = 0
 
@@ -261,8 +281,49 @@
     router.push({ path: '/container/events', query: { cluster: linkedClusterName.value } })
   }
 
+  const NAMESPACE_PANEL_IDS = new Set([
+    'namespace.pods',
+    'namespace.cpu',
+    'namespace.memory',
+    'namespace.restarts'
+  ])
+
+  const POD_TOP_PANEL_IDS = new Set([
+    'node.embed.pod_cpu',
+    'node.embed.pod_memory',
+    'pod.embed.restarts',
+    'node.embed.pod_net_tx',
+    'node.embed.pod_net_rx'
+  ])
+
+  function parseNamespacePod(name: string): { namespace: string; pod: string } | null {
+    const trimmed = name.trim()
+    const slash = trimmed.indexOf('/')
+    if (slash <= 0 || slash >= trimmed.length - 1) return null
+    return {
+      namespace: trimmed.slice(0, slash),
+      pod: trimmed.slice(slash + 1)
+    }
+  }
+
   function handlePanelItemClick(payload: { panelId: string; name: string }) {
     if (!linkedClusterName.value) return
+
+    if (POD_TOP_PANEL_IDS.has(payload.panelId)) {
+      const parsed = parseNamespacePod(payload.name ?? '')
+      if (!parsed) return
+      router.push({
+        path: '/container/pod-detail',
+        query: {
+          cluster: linkedClusterName.value,
+          namespace: parsed.namespace,
+          pod: parsed.pod
+        }
+      })
+      return
+    }
+
+    if (!NAMESPACE_PANEL_IDS.has(payload.panelId)) return
     const namespace = payload.name.includes('/')
       ? payload.name.split('/')[0]
       : payload.name
@@ -271,6 +332,56 @@
       path: '/container/namespace',
       query: { cluster: linkedClusterName.value, namespace }
     })
+  }
+
+  async function loadPodFilterOptions() {
+    const datasource = selectedDatasource.value
+    if (!datasource) return
+    podFilterOptionsLoading.value = true
+    try {
+      const variables = await fetchDashboardVariables(datasource, {
+        namespace: filters.namespace,
+        node: filters.node,
+        workload_kind: filters.workload_kind,
+        workload_name: filters.workload_name
+      })
+      podFilterOptions.namespaces = variables.namespaces
+      podFilterOptions.nodes = variables.nodes
+      podFilterOptions.workloads = variables.workloads
+      podFilterOptions.pods = variables.pods
+    } catch {
+      // ignore
+    } finally {
+      podFilterOptionsLoading.value = false
+    }
+  }
+
+  function clearPodFilters() {
+    filters.namespace = undefined
+    filters.node = undefined
+    filters.workload_kind = undefined
+    filters.workload_name = undefined
+    filters.pod = undefined
+  }
+
+  function handlePodFiltersChange(next: DashboardFilters) {
+    const changed =
+      (filters.namespace ?? '') !== (next.namespace ?? '') ||
+      (filters.node ?? '') !== (next.node ?? '') ||
+      (filters.workload_kind ?? '') !== (next.workload_kind ?? '') ||
+      (filters.workload_name ?? '') !== (next.workload_name ?? '') ||
+      (filters.pod ?? '') !== (next.pod ?? '')
+    if (!changed) return
+
+    filters.namespace = next.namespace
+    filters.node = next.node
+    filters.workload_kind = next.workload_kind
+    filters.workload_name = next.workload_name
+    filters.pod = next.pod
+
+    for (const id of activePanelIds.value) delete resultMap[id]
+    void loadPodFilterOptions()
+    void queryCurrentSection()
   }
 
   const currentPanels = computed(() =>
@@ -383,7 +494,7 @@
         start: Math.floor(range.start.getTime() / 1000),
         end: Math.floor(range.end.getTime() / 1000),
         step,
-        filters: {}
+        filters
       })
       if (sequence !== querySequence) return
       for (const result of response.results) resultMap[result.id] = result
@@ -401,16 +512,27 @@
 
   async function handleDatasourceChange() {
     Object.keys(resultMap).forEach((key) => delete resultMap[key])
+    clearPodFilters()
+    podFilterOptions.namespaces = []
+    podFilterOptions.nodes = []
+    podFilterOptions.workloads = []
+    podFilterOptions.pods = []
     if (!selectedDatasourceId.value) return
+    if (activeSection.value === 'node-pod') void loadPodFilterOptions()
     await queryCurrentSection()
   }
 
   function selectSection(section: string) {
-    if (section === activeSection.value) return
-    activeSection.value = section
+    const resolved = section === 'pod' ? 'node-pod' : section
+    if (resolved === activeSection.value) return
+    if (activeSection.value === 'node-pod' && resolved !== 'node-pod') {
+      clearPodFilters()
+    }
+    activeSection.value = resolved
+    if (resolved === 'node-pod') void loadPodFilterOptions()
     const hasCache = resolveClusterDetailPanelIds(
-      section,
-      definition.value.panels.filter((panel) => panel.section === section).map((panel) => panel.id),
+      resolved,
+      definition.value.panels.filter((panel) => panel.section === resolved).map((panel) => panel.id),
       COREDNS_EMBED_PANEL_IDS
     ).some((id) => Boolean(resultMap[id]))
     void queryCurrentSection({ silent: hasCache })

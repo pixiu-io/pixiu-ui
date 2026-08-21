@@ -587,10 +587,14 @@
             :loading="panelLoading"
             :show-legend="showLegend"
             :show-events-link="effectiveShowEventsLink"
+            :pod-filters="podFilters"
+            :pod-filter-options="podFilterOptions"
+            :pod-filter-options-loading="podFilterOptionsLoading"
             @events-click="emit('events-click')"
             @time-range-select="emit('time-range-select', $event)"
             @item-click="emit('item-click', $event)"
             @node-select="openNodeDetail"
+            @pod-filters-change="emit('pod-filters-change', $event)"
           />
 
           <div
@@ -646,6 +650,10 @@
   import type { MetricsAutoRefreshOption } from '@/utils/metrics/auto-refresh'
   import type { MetricsGranularityOption } from '@/utils/metrics/granularity'
   import PrometheusEmbedLayout from '@/views/container/cluster-detail/prometheus/embed/PrometheusEmbedLayout.vue'
+  import type {
+    PodFilterOptions,
+    PodMonitorFilters
+  } from '@/views/container/cluster-detail/prometheus/embed/PrometheusEmbedLayout.vue'
   import NodeDetailDrawer from '@/views/container/cluster-detail/prometheus/embed/NodeDetailDrawer.vue'
   import type { NodeOverviewRow } from '@/views/container/cluster-detail/prometheus/embed/NodeOverviewTable.vue'
   import { buildEmbedPageView } from '@/views/container/cluster-detail/prometheus/embed/embed-views'
@@ -676,13 +684,24 @@
       /** 外部监控大盘传入已选数据源，供集群概览直连查询 */
       datasource?: DatasourceItem | null
       showEventsLink?: boolean
+      podFilters?: PodMonitorFilters
+      podFilterOptions?: PodFilterOptions
+      podFilterOptionsLoading?: boolean
     }>(),
     {
       clusterName: '',
       datasource: null,
       queryLoading: false,
       queryRefreshing: false,
-      showLegend: true
+      showLegend: true,
+      podFilters: () => ({}),
+      podFilterOptions: () => ({
+        namespaces: [],
+        nodes: [],
+        workloads: [],
+        pods: []
+      }),
+      podFilterOptionsLoading: false
     }
   )
 
@@ -693,6 +712,7 @@
     'time-range-select': [range: { start: number; end: number }]
     'item-click': [payload: { panelId: string; name: string }]
     'events-click': []
+    'pod-filters-change': [value: PodMonitorFilters]
   }>()
 
   const effectiveShowEventsLink = computed(() =>

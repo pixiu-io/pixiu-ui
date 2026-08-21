@@ -14,6 +14,7 @@ import {
   avgBarPercent,
   countNodeReady,
   countPodPhases,
+  countPodResourceHotspots,
   embedStat,
   evaluateLatencyLevel,
   hasComponentTraffic,
@@ -637,49 +638,111 @@ export function buildNodeResourceEmbedView(
 export function buildNodePodEmbedView(
   resultMap: Record<string, DashboardPanelResult>
 ): EmbedPageView {
-  const cpuResult = resultMap['node.embed.pod_cpu']
-  const memResult = resultMap['node.embed.pod_memory']
-  const cpuCount = cpuResult?.status === 'success' ? cpuResult.series.length : 0
-  const memCount = memResult?.status === 'success' ? memResult.series.length : 0
+  const phases = countPodPhases(resultMap)
+  const running = phases.Running ?? 0
+  const pending = phases.Pending ?? 0
+  const failed = phases.Failed ?? 0
+  const unknown = phases.Unknown ?? 0
+  const succeeded = phases.Succeeded ?? 0
+  const total = Object.values(phases).reduce((sum, value) => sum + value, 0)
+  const abnormal = pending + failed + unknown
+
+  const restarting = embedStat(resultMap, 'node.embed.pod_restarting')
+  const hotspots = countPodResourceHotspots(resultMap)
+
+  let status: HealthResult['healthStatus'] = total > 0 ? 'healthy' : 'unknown'
+  if (failed > 0) status = 'danger'
+  else if (pending > 0 || (restarting !== null && restarting > 0)) status = 'warning'
 
   const health: HealthResult =
-    cpuCount > 0 || memCount > 0
+    total > 0
       ? {
-          healthStatus: 'healthy',
-          healthTitle: 'Pod 资源监控',
-          healthDescription: '展示集群内 Pod CPU / 内存资源 Top 排名。'
+          healthStatus: status,
+          healthTitle:
+            status === 'healthy' ? 'Pod 运行正常' : status === 'warning' ? '需关注' : '存在异常 Pod',
+          healthDescription:
+            status === 'healthy'
+              ? `${Math.round(running)} 个 Pod Running，状态正常。`
+              : failed > 0
+                ? `存在 ${Math.round(failed)} 个 Failed Pod。`
+                : pending > 0
+                  ? `存在 ${Math.round(pending)} 个 Pending Pod。`
+                  : `近 1h 有 ${Math.round(restarting ?? 0)} 个 Pod 发生重启。`
         }
       : {
           healthStatus: 'healthy',
-          healthTitle: 'Pod 资源监控',
-          healthDescription: '暂未采集到 Pod 资源用量指标，当前按正常状态展示。'
+          healthTitle: 'Pod 监控',
+          healthDescription: '暂未采集到 Pod 状态指标，当前按正常状态展示。'
         }
 
   return {
     ...health,
+    showPodFilters: true,
     summaryCards: healthCard(health, [
       {
-        title: 'CPU Top 数',
+        title: 'Running Pods',
+        icon: CircleCheckFilled,
+        iconColor: '#67c23a',
+        iconBg: 'rgba(103, 194, 58, 0.12)',
+        value: total > 0 ? String(Math.round(running)) : '-',
+        sub:
+          total > 0
+            ? `/ ${Math.round(total)} Pod${succeeded > 0 ? ` · Succeeded ${Math.round(succeeded)}` : ''}`
+            : '暂无数据'
+      },
+      {
+        title: '异常 Pods',
+        icon: WarningFilled,
+        iconColor: '#f56c6c',
+        iconBg: 'rgba(245, 108, 108, 0.12)',
+        value: total > 0 ? String(Math.round(abnormal)) : '-',
+        sub:
+          abnormal > 0
+            ? [
+                pending > 0 ? `Pending ${Math.round(pending)}` : '',
+                failed > 0 ? `Failed ${Math.round(failed)}` : '',
+                unknown > 0 ? `Unknown ${Math.round(unknown)}` : ''
+              ]
+                .filter(Boolean)
+                .join(' · ')
+            : '无异常',
+        danger: failed > 0,
+        warning: failed === 0 && abnormal > 0
+      },
+      {
+        title: '近 1h 有重启',
+        icon: Timer,
+        iconColor: '#e6a23c',
+        iconBg: 'rgba(230, 162, 60, 0.12)',
+        value: restarting === null ? '-' : String(Math.round(restarting)),
+        sub: restarting !== null && restarting > 0 ? '需关注重启' : '无近期重启',
+        warning: restarting !== null && restarting > 0
+      },
+      {
+        title: '资源热点',
         icon: Cpu,
         iconColor: '#409eff',
         iconBg: 'rgba(64, 158, 255, 0.12)',
-        value: cpuCount > 0 ? String(cpuCount) : '-',
-        sub: 'Pod CPU 排名条目'
-      },
-      {
-        title: '内存 Top 数',
-        icon: Odometer,
-        iconColor: '#67c23a',
-        iconBg: 'rgba(103, 194, 58, 0.12)',
-        value: memCount > 0 ? String(memCount) : '-',
-        sub: 'Pod 内存排名条目'
+        value: hotspots === null ? '-' : String(hotspots),
+        sub: hotspots !== null && hotspots > 0 ? 'CPU≥0.5 或 内存≥512Mi' : '暂无热点',
+        warning: hotspots !== null && hotspots > 0
       }
     ]),
     sections: [
       {
-        title: 'Pod 资源 Top10',
-        panelIds: ['node.embed.pod_cpu', 'node.embed.pod_memory'],
+        title: '资源与重启 Top10',
+        panelIds: ['node.embed.pod_cpu', 'node.embed.pod_memory', 'pod.embed.restarts'],
+        compactBar: true,
+        gridClass: 'prometheus-dashboard__panel-grid--workload'
+      },
+      {
+        title: '网络 Top10',
+        panelIds: ['node.embed.pod_net_tx', 'node.embed.pod_net_rx'],
         compactBar: true
+      },
+      {
+        title: '资源趋势',
+        panelIds: ['node.embed.pod_cpu_trend', 'node.embed.pod_memory_trend']
       }
     ]
   }
@@ -771,97 +834,9 @@ export function buildWorkloadEmbedView(
   }
 }
 
+/** @deprecated 已并入基础监控 · Pod 监控 */
 export function buildPodEmbedView(resultMap: Record<string, DashboardPanelResult>): EmbedPageView {
-  const phases = countPodPhases(resultMap)
-  const running = phases.Running ?? 0
-  const pending = phases.Pending ?? 0
-  const failed = phases.Failed ?? 0
-  const total = Object.values(phases).reduce((sum, value) => sum + value, 0)
-  const restartResult = resultMap['pod.embed.restarts']
-  const maxRestart =
-    restartResult?.status === 'success' && restartResult.series.length
-      ? Math.max(...restartResult.series.map((item) => Number(item.values.at(-1)?.value ?? 0)))
-      : null
-
-  let status: HealthResult['healthStatus'] = total > 0 ? 'healthy' : 'unknown'
-  if (failed > 0) status = 'danger'
-  else if (pending > 0) status = 'warning'
-
-  const health: HealthResult =
-    total > 0
-      ? {
-          healthStatus: status,
-          healthTitle: status === 'healthy' ? 'Pod 运行正常' : status === 'warning' ? '需关注' : '存在异常 Pod',
-          healthDescription:
-            status === 'healthy'
-              ? `${running} 个 Pod Running，状态正常。`
-              : failed > 0
-                ? `存在 ${failed} 个 Failed Pod。`
-                : `存在 ${pending} 个 Pending Pod。`
-        }
-      : {
-          healthStatus: 'healthy',
-          healthTitle: 'Pod 运行正常',
-          healthDescription: '暂未采集到 Pod 状态指标，当前按正常状态展示。'
-        }
-
-  return {
-    ...health,
-    summaryCards: healthCard(health, [
-      {
-        title: 'Running',
-        icon: CircleCheckFilled,
-        iconColor: '#67c23a',
-        iconBg: 'rgba(103, 194, 58, 0.12)',
-        value: total > 0 ? String(Math.round(running)) : '-',
-        sub: total > 0 ? `/ ${Math.round(total)} Pod` : '暂无数据'
-      },
-      {
-        title: 'Pending',
-        icon: Timer,
-        iconColor: '#e6a23c',
-        iconBg: 'rgba(230, 162, 60, 0.12)',
-        value: total > 0 ? String(Math.round(pending)) : '-',
-        sub: pending > 0 ? '等待调度' : '无 Pending',
-        warning: pending > 0
-      },
-      {
-        title: 'Failed',
-        icon: WarningFilled,
-        iconColor: '#f56c6c',
-        iconBg: 'rgba(245, 108, 108, 0.12)',
-        value: total > 0 ? String(Math.round(failed)) : '-',
-        sub: failed > 0 ? '需排查' : '无 Failed',
-        danger: failed > 0
-      },
-      {
-        title: '最大重启',
-        icon: Odometer,
-        iconColor: '#409eff',
-        iconBg: 'rgba(64, 158, 255, 0.12)',
-        value: maxRestart === null ? '-' : String(Math.round(maxRestart)),
-        sub: maxRestart !== null && maxRestart > 5 ? '重启偏多' : '重启正常',
-        warning: maxRestart !== null && maxRestart > 5
-      }
-    ]),
-    sections: [
-      {
-        title: 'Pod 状态',
-        panelIds: ['pod.embed.phase'],
-        gridClass: 'prometheus-dashboard__panel-grid--full'
-      },
-      {
-        title: '资源趋势',
-        panelIds: ['pod.embed.cpu_trend', 'pod.embed.memory_trend']
-      },
-      {
-        title: '异常 Pod',
-        panelIds: ['pod.embed.restarts'],
-        compactBar: true,
-        gridClass: 'prometheus-dashboard__panel-grid--coredns-latency'
-      }
-    ]
-  }
+  return buildNodePodEmbedView(resultMap)
 }
 
 const BUILDERS: Record<string, (resultMap: Record<string, DashboardPanelResult>) => EmbedPageView> =
@@ -873,7 +848,7 @@ const BUILDERS: Record<string, (resultMap: Record<string, DashboardPanelResult>)
     'node-resource': buildNodeResourceEmbedView,
     'node-pod': buildNodePodEmbedView,
     workload: buildWorkloadEmbedView,
-    pod: buildPodEmbedView
+    pod: buildNodePodEmbedView
   }
 
 export function buildEmbedPageView(

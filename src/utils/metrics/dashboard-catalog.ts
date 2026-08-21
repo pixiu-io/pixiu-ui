@@ -541,22 +541,16 @@ const sections: DashboardDefinition['sections'] = [
     children: ['cluster', 'namespace']
   },
   {
+    id: 'node',
+    title: '基础监控',
+    icon: 'ri:server-line',
+    children: ['node-resource', 'node-pod', 'workload']
+  },
+  {
     id: 'core',
     title: '核心组件监控',
     icon: 'ri:cpu-line',
     children: ['apiserver', 'controller-manager', 'scheduler', 'etcd', 'coredns', 'kubelet']
-  },
-  {
-    id: 'node',
-    title: '节点监控',
-    icon: 'ri:server-line',
-    children: ['node-resource', 'node-pod']
-  },
-  {
-    id: 'application',
-    title: '应用监控',
-    icon: 'ri:apps-line',
-    children: ['workload', 'pod']
   },
   { id: 'network', title: '网络监控', icon: 'ri:global-line' },
   { id: 'storage', title: '存储监控', icon: 'ri:hard-drive-2-line' },
@@ -575,8 +569,7 @@ export const DASHBOARD_SECTION_CHILD_NAMES: Record<string, string> = {
   etcd: 'Etcd',
   'node-resource': 'Node 监控',
   'node-pod': 'Pod 监控',
-  workload: '工作负载监控概览',
-  pod: '集群 Pod 监控'
+  workload: '工作负载监控'
 }
 
 const panelSpecs: DashboardPanelSpec[] = [

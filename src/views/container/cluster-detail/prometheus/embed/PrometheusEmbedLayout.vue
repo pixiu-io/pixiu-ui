@@ -12,6 +12,80 @@
       </ElLink>
     </div>
 
+    <div v-if="view.showPodFilters" class="prometheus-embed-page__filters">
+      <span class="prometheus-embed-page__filters-label">Namespace</span>
+      <ElSelect
+        :model-value="podFilters.namespace || undefined"
+        class="prometheus-embed-page__filters-select"
+        clearable
+        filterable
+        placeholder="全部 Namespace"
+        :loading="podFilterOptionsLoading"
+        @update:model-value="onFilterChange('namespace', $event)"
+      >
+        <ElOption
+          v-for="item in podFilterOptions.namespaces"
+          :key="item"
+          :label="item"
+          :value="item"
+        />
+      </ElSelect>
+
+      <span class="prometheus-embed-page__filters-label">Node</span>
+      <ElSelect
+        :model-value="podFilters.node || undefined"
+        class="prometheus-embed-page__filters-select"
+        clearable
+        filterable
+        placeholder="全部 Node"
+        :loading="podFilterOptionsLoading"
+        @update:model-value="onFilterChange('node', $event)"
+      >
+        <ElOption
+          v-for="item in podFilterOptions.nodes"
+          :key="item"
+          :label="item"
+          :value="item"
+        />
+      </ElSelect>
+
+      <span class="prometheus-embed-page__filters-label">工作负载</span>
+      <ElSelect
+        :model-value="workloadSelectValue || undefined"
+        class="prometheus-embed-page__filters-select prometheus-embed-page__filters-select--wide"
+        clearable
+        filterable
+        placeholder="全部工作负载"
+        :loading="podFilterOptionsLoading"
+        @update:model-value="onWorkloadChange"
+      >
+        <ElOption
+          v-for="item in podFilterOptions.workloads"
+          :key="`${item.kind}/${item.name}`"
+          :label="`${item.kind}/${item.name}`"
+          :value="`${item.kind}::${item.name}`"
+        />
+      </ElSelect>
+
+      <span class="prometheus-embed-page__filters-label">Pod</span>
+      <ElSelect
+        :model-value="podFilters.pod || undefined"
+        class="prometheus-embed-page__filters-select prometheus-embed-page__filters-select--wide"
+        clearable
+        filterable
+        placeholder="全部 Pod"
+        :loading="podFilterOptionsLoading"
+        @update:model-value="onFilterChange('pod', $event)"
+      >
+        <ElOption
+          v-for="item in podFilterOptions.pods"
+          :key="item"
+          :label="item"
+          :value="item"
+        />
+      </ElSelect>
+    </div>
+
     <div class="prometheus-dashboard__coredns-summary">
       <div class="prometheus-dashboard__summary-grid prometheus-dashboard__summary-grid--coredns">
         <div
@@ -92,8 +166,13 @@
 </template>
 
 <script setup lang="ts">
+  import { computed } from 'vue'
   import { Bell } from '@element-plus/icons-vue'
-  import type { DashboardDefinition, DashboardPanelResult } from '@/api/dashboard'
+  import type {
+    DashboardDefinition,
+    DashboardPanelResult,
+    DashboardWorkloadOption
+  } from '@/api/dashboard'
   import DashboardPanel from '@/views/safeguard/dashboard/modules/DashboardPanel.vue'
   import type { EmbedPageView } from './types'
   import { resolveEmbedPanels } from './utils'
@@ -101,6 +180,21 @@
   import NodeOverviewTable from './NodeOverviewTable.vue'
   import NodeNetworkBoard from './NodeNetworkBoard.vue'
   import type { NodeOverviewRow } from './NodeOverviewTable.vue'
+
+  export type PodMonitorFilters = {
+    namespace?: string
+    node?: string
+    workload_kind?: string
+    workload_name?: string
+    pod?: string
+  }
+
+  export type PodFilterOptions = {
+    namespaces: string[]
+    nodes: string[]
+    workloads: DashboardWorkloadOption[]
+    pods: string[]
+  }
 
   /** API Server 各图表面板的顶部指标图例标签（quota/verb/code）；进程内存为单指标（undefined） */
   const APISERVER_METRIC_LABEL: Record<string, string | undefined> = {
@@ -147,11 +241,22 @@
       loading?: boolean
       showLegend?: boolean
       showEventsLink?: boolean
+      podFilters?: PodMonitorFilters
+      podFilterOptions?: PodFilterOptions
+      podFilterOptionsLoading?: boolean
     }>(),
     {
       loading: false,
       showLegend: true,
-      showEventsLink: true
+      showEventsLink: true,
+      podFilters: () => ({}),
+      podFilterOptions: () => ({
+        namespaces: [],
+        nodes: [],
+        workloads: [],
+        pods: []
+      }),
+      podFilterOptionsLoading: false
     }
   )
 
@@ -160,7 +265,51 @@
     'time-range-select': [range: { start: number; end: number }]
     'item-click': [payload: { panelId: string; name: string }]
     'node-select': [row: NodeOverviewRow]
+    'pod-filters-change': [value: PodMonitorFilters]
   }>()
+
+  const workloadSelectValue = computed(() => {
+    const kind = props.podFilters.workload_kind?.trim()
+    const name = props.podFilters.workload_name?.trim()
+    if (!kind || !name) return ''
+    return `${kind}::${name}`
+  })
+
+  function onFilterChange(key: 'namespace' | 'node' | 'pod', raw: string | null | undefined) {
+    const value = (raw || '').trim()
+    const next: PodMonitorFilters = { ...props.podFilters }
+
+    if (key === 'namespace') {
+      next.namespace = value || undefined
+      next.workload_kind = undefined
+      next.workload_name = undefined
+      next.pod = undefined
+    } else if (key === 'node') {
+      next.node = value || undefined
+      next.pod = undefined
+    } else {
+      next.pod = value || undefined
+    }
+
+    emit('pod-filters-change', next)
+  }
+
+  function onWorkloadChange(raw: string | null | undefined) {
+    const value = (raw || '').trim()
+    const next: PodMonitorFilters = { ...props.podFilters }
+    if (!value) {
+      next.workload_kind = undefined
+      next.workload_name = undefined
+    } else {
+      const sep = value.indexOf('::')
+      if (sep > 0) {
+        next.workload_kind = value.slice(0, sep)
+        next.workload_name = value.slice(sep + 2)
+      }
+    }
+    next.pod = undefined
+    emit('pod-filters-change', next)
+  }
 
   function resolvePanels(panelIds: string[]) {
     return resolveEmbedPanels(props.definition, panelIds)
