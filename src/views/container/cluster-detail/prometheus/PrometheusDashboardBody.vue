@@ -590,6 +590,7 @@
             @events-click="emit('events-click')"
             @time-range-select="emit('time-range-select', $event)"
             @item-click="emit('item-click', $event)"
+            @node-select="openNodeDetail"
           />
 
           <div
@@ -613,6 +614,15 @@
             />
           </div>
         </template>
+
+        <NodeDetailDrawer
+          v-model="nodeDetailVisible"
+          :row="selectedNodeRow"
+          :definition="definition"
+          :datasource="datasource"
+          :time-range="timeRange"
+          :granularity="granularity"
+        />
 </template>
 
 <script setup lang="ts">
@@ -629,13 +639,15 @@
     WarningFilled
   } from '@element-plus/icons-vue'
   import type { Component } from 'vue'
-  import { computed } from 'vue'
+  import { computed, ref } from 'vue'
   import type { DashboardDefinition, DashboardPanelResult } from '@/api/dashboard'
   import type { DatasourceItem } from '@/api/datasource'
   import type { MetricsTimeRange } from '@/utils/metrics/time-range'
   import type { MetricsAutoRefreshOption } from '@/utils/metrics/auto-refresh'
   import type { MetricsGranularityOption } from '@/utils/metrics/granularity'
   import PrometheusEmbedLayout from '@/views/container/cluster-detail/prometheus/embed/PrometheusEmbedLayout.vue'
+  import NodeDetailDrawer from '@/views/container/cluster-detail/prometheus/embed/NodeDetailDrawer.vue'
+  import type { NodeOverviewRow } from '@/views/container/cluster-detail/prometheus/embed/NodeOverviewTable.vue'
   import { buildEmbedPageView } from '@/views/container/cluster-detail/prometheus/embed/embed-views'
   import {
     evaluateLatencyLevel,
@@ -684,6 +696,13 @@
     props.showEventsLink === undefined ? Boolean(props.clusterName) : props.showEventsLink
   )
 
+  const nodeDetailVisible = ref(false)
+  const selectedNodeRow = ref<NodeOverviewRow | null>(null)
+
+  function openNodeDetail(row: NodeOverviewRow) {
+    selectedNodeRow.value = row
+    nodeDetailVisible.value = true
+  }
 
   const EMBED_LAYOUT_SECTIONS = new Set([
     'apiserver',

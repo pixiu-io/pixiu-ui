@@ -210,9 +210,11 @@
       const phase = series.metric.phase || series.metric.condition || ''
       const pvc = series.metric.persistentvolumeclaim?.trim()
       const pod = series.metric.pod?.trim()
+      const node = series.metric.node?.trim()
       const namespace = series.metric.namespace?.trim()
       const isPvcPanel = props.panel.id.includes('pvc')
       const isInstanceStatus = isInstanceStatusPanel.value
+      const isNodeReadyPanel = props.panel.id === 'node.embed.ready'
 
       let name: string
       let displayValue: string
@@ -225,6 +227,10 @@
         // PVC 明细：左侧 namespace/pvc，右侧 phase
         name = namespace ? `${namespace}/${pvc}` : pvc
         displayValue = phase || 'Exists'
+      } else if (node || isNodeReadyPanel) {
+        // 节点 Ready：必须用 node 名，不能落到 condition=Ready 被当成「phase 汇总」
+        name = node || seriesLabel(series) || `node-${index}`
+        displayValue = value > 0 ? 'Ready' : 'NotReady'
       } else if (pod) {
         // Pod 明细：左侧 namespace/pod，右侧 phase
         name = namespace ? `${namespace}/${pod}` : pod
@@ -241,9 +247,11 @@
       return {
         name,
         value: displayValue,
-        healthy: phase
-          ? !['Failed', 'Pending', 'Lost', 'Unknown'].includes(phase)
-          : value > 0,
+        healthy: node || isNodeReadyPanel
+          ? value > 0
+          : phase
+            ? !['Failed', 'Pending', 'Lost', 'Unknown'].includes(phase)
+            : value > 0,
         ip: isInstanceStatusPanel.value ? series.metric.instance || '' : undefined
       }
     })

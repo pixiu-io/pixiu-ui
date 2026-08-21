@@ -972,21 +972,270 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     '节点健康状态',
     'status',
     '',
-    6,
-    ['kube_node_status_condition'],
+    12,
+    [],
     false,
-    fixed('kube_node_status_condition{condition="Ready",status="true"} == 1')
+    // 保留全部节点（含 NotReady）；值为 1=Ready、0=NotReady
+    fixed('max by (node) (kube_node_status_condition{condition="Ready",status="true"})'),
+    '各节点 Ready 条件；无 node 标签时勿用 condition 当名称'
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.overview_cpu',
+    '节点 CPU（总览）',
+    'bar',
+    'percent',
+    6,
+    [],
+    false,
+    fixed(
+      '100 * sum by (node) (rate(container_cpu_usage_seconds_total{container!=""}[5m])) / clamp_min(sum by (node) (kube_node_status_allocatable{resource="cpu"}), 0.001)'
+    )
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.overview_cpu_total',
+    '节点总 CPU',
+    'bar',
+    'cores',
+    6,
+    [],
+    false,
+    // 优先 machine_cpu_cores（与 cAdvisor 节点标签一致），再回退 KSM allocatable/capacity
+    fixed(
+      '(' +
+        'sum by (node) (machine_cpu_cores)' +
+        ' or sum by (node) (kube_node_status_allocatable{resource="cpu",unit="core"})' +
+        ' or sum by (node) (kube_node_status_allocatable{resource="cpu"})' +
+        ' or sum by (node) (kube_node_status_capacity{resource="cpu",unit="core"})' +
+        ' or sum by (node) (kube_node_status_capacity{resource="cpu"})' +
+        ')'
+    ),
+    undefined,
+    {
+      fallbackQueries: [
+        fixed(
+          'label_replace(count by (nodename) (node_cpu_seconds_total{mode="idle"} * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)")'
+        ),
+        fixed(
+          'label_replace(count by (instance) (node_cpu_seconds_total{mode="idle"}), "node", "$1", "instance", "^([^:]+):.*")'
+        )
+      ]
+    }
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.overview_memory',
+    '节点内存（总览）',
+    'bar',
+    'percent',
+    6,
+    [],
+    false,
+    fixed(
+      '100 * sum by (node) (container_memory_working_set_bytes{container!=""}) / clamp_min(sum by (node) (kube_node_status_allocatable{resource="memory"}), 1)'
+    )
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.overview_disk',
+    '节点磁盘可用',
+    'bar',
+    'bytes',
+    6,
+    [],
+    false,
+    fixed(
+      'label_replace(max by (nodename) (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs|nsfs",mountpoint="/"} * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)")'
+    ),
+    '根分区可用字节；经 node_uname_info 关联节点名',
+    {
+      fallbackQueries: [
+        fixed(
+          'max by (node) (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs|nsfs",mountpoint="/"})'
+        ),
+        fixed(
+          'label_replace(max by (instance) (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs|nsfs",mountpoint="/"}), "node", "$1", "instance", "^([^:]+):.*")'
+        )
+      ]
+    }
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.overview_memory_total',
+    '节点总内存',
+    'bar',
+    'bytes',
+    6,
+    [],
+    false,
+    fixed('sum by (node) (kube_node_status_allocatable{resource="memory"})'),
+    undefined,
+    {
+      fallbackQueries: [
+        fixed(
+          'label_replace(sum by (nodename) (node_memory_MemTotal_bytes * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)")'
+        ),
+        fixed(
+          'label_replace(sum by (instance) (node_memory_MemTotal_bytes), "node", "$1", "instance", "^([^:]+):.*")'
+        )
+      ]
+    }
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.overview_net_transmit',
+    '节点发送速率',
+    'bar',
+    'Bps',
+    6,
+    [],
+    false,
+    fixed(
+      'label_replace(sum by (nodename) (rate(node_network_transmit_bytes_total{device!="lo"}[5m]) * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)")'
+    ),
+    undefined,
+    {
+      fallbackQueries: [
+        fixed('sum by (node) (rate(node_network_transmit_bytes_total{device!="lo"}[5m]))'),
+        fixed('sum by (node) (rate(container_network_transmit_bytes_total[5m]))'),
+        fixed(
+          'label_replace(sum by (instance) (rate(node_network_transmit_bytes_total{device!="lo"}[5m])), "node", "$1", "instance", "^([^:]+):.*")'
+        )
+      ]
+    }
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.overview_net_receive',
+    '节点接收速率',
+    'bar',
+    'Bps',
+    6,
+    [],
+    false,
+    fixed(
+      'label_replace(sum by (nodename) (rate(node_network_receive_bytes_total{device!="lo"}[5m]) * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)")'
+    ),
+    undefined,
+    {
+      fallbackQueries: [
+        fixed('sum by (node) (rate(node_network_receive_bytes_total{device!="lo"}[5m]))'),
+        fixed('sum by (node) (rate(container_network_receive_bytes_total[5m]))'),
+        fixed(
+          'label_replace(sum by (instance) (rate(node_network_receive_bytes_total{device!="lo"}[5m])), "node", "$1", "instance", "^([^:]+):.*")'
+        )
+      ]
+    }
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.overview_load5',
+    '节点 Load5',
+    'bar',
+    'short',
+    6,
+    [],
+    false,
+    fixed(
+      'label_replace(sum by (nodename) (node_load5 * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)")'
+    ),
+    undefined,
+    {
+      fallbackQueries: [
+        fixed('sum by (node) (node_load5)'),
+        fixed(
+          'label_replace(sum by (instance) (node_load5), "node", "$1", "instance", "^([^:]+):.*")'
+        )
+      ]
+    }
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.overview_connections',
+    '节点连接数',
+    'bar',
+    'short',
+    6,
+    [],
+    false,
+    fixed(
+      'label_replace(sum by (nodename) (node_netstat_Tcp_CurrEstab * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)")'
+    ),
+    'TCP 已建立连接数（CurrEstab）',
+    {
+      fallbackQueries: [
+        fixed('sum by (node) (node_netstat_Tcp_CurrEstab)'),
+        fixed(
+          'label_replace(sum by (nodename) (node_sockstat_TCP_inuse * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)")'
+        ),
+        fixed(
+          'label_replace(sum by (instance) (node_netstat_Tcp_CurrEstab), "node", "$1", "instance", "^([^:]+):.*")'
+        )
+      ]
+    }
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.overview_retrans',
+    '节点重传率',
+    'bar',
+    'percent',
+    6,
+    [],
+    false,
+    fixed(
+      'label_replace(' +
+        '100 * sum by (nodename) (rate(node_netstat_Tcp_RetransSegs[5m]) * on(instance) group_left(nodename) node_uname_info) ' +
+        '/ clamp_min(sum by (nodename) (rate(node_netstat_Tcp_OutSegs[5m]) * on(instance) group_left(nodename) node_uname_info), 1)' +
+        ', "node", "$1", "nodename", "(.*)")'
+    ),
+    'TCP 重传段 / 发出段',
+    {
+      fallbackQueries: [
+        fixed(
+          '100 * sum by (node) (rate(node_netstat_Tcp_RetransSegs[5m])) / clamp_min(sum by (node) (rate(node_netstat_Tcp_OutSegs[5m])), 1)'
+        ),
+        fixed(
+          'label_replace(' +
+            '100 * sum by (instance) (rate(node_netstat_Tcp_RetransSegs[5m])) / clamp_min(sum by (instance) (rate(node_netstat_Tcp_OutSegs[5m])), 1)' +
+            ', "node", "$1", "instance", "^([^:]+):.*")'
+        )
+      ]
+    }
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.overview_uptime',
+    '节点在线时间',
+    'bar',
+    'seconds',
+    6,
+    [],
+    false,
+    fixed(
+      'label_replace(max by (nodename) ((time() - node_boot_time_seconds) * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)")'
+    ),
+    undefined,
+    {
+      fallbackQueries: [
+        fixed('max by (node) (time() - node_boot_time_seconds)'),
+        fixed(
+          'label_replace(max by (instance) (time() - node_boot_time_seconds), "node", "$1", "instance", "^([^:]+):.*")'
+        )
+      ]
+    }
   ),
   embedPanel(
     'node-resource-embed',
     'node.embed.pods',
     '节点 Pod 数',
     'bar',
-    'short',
+    'count',
     6,
-    ['kube_pod_info'],
+    [],
     false,
-    fixed('sort_desc(sum by (node) (kube_pod_info))')
+    fixed('sort_desc(count by (node) (kube_pod_info))')
   ),
   embedPanel(
     'node-resource-embed',
@@ -995,7 +1244,7 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     'bar',
     'percent',
     6,
-    ['container_cpu_usage_seconds_total', 'kube_node_status_allocatable'],
+    [],
     false,
     fixed(
       'topk(10, 100 * sum by (node) (rate(container_cpu_usage_seconds_total{container!=""}[5m])) / clamp_min(sum by (node) (kube_node_status_allocatable{resource="cpu"}), 0.001))'
@@ -1008,7 +1257,7 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     'bar',
     'percent',
     6,
-    ['container_memory_working_set_bytes', 'kube_node_status_allocatable'],
+    [],
     false,
     fixed(
       'topk(10, 100 * sum by (node) (container_memory_working_set_bytes{container!=""}) / clamp_min(sum by (node) (kube_node_status_allocatable{resource="memory"}), 1))'
@@ -1509,6 +1758,17 @@ export const SCHEDULER_EMBED_PANEL_IDS = [
 
 export const NODE_RESOURCE_EMBED_PANEL_IDS = [
   'node.embed.ready',
+  'node.embed.overview_cpu',
+  'node.embed.overview_cpu_total',
+  'node.embed.overview_memory',
+  'node.embed.overview_memory_total',
+  'node.embed.overview_disk',
+  'node.embed.overview_net_transmit',
+  'node.embed.overview_net_receive',
+  'node.embed.overview_load5',
+  'node.embed.overview_connections',
+  'node.embed.overview_retrans',
+  'node.embed.overview_uptime',
   'node.embed.pods',
   'node.embed.cpu',
   'node.embed.memory'

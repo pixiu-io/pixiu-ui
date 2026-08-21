@@ -1,5 +1,6 @@
 import {
   CircleCheckFilled,
+  Coin,
   Connection,
   Cpu,
   Monitor,
@@ -546,18 +547,15 @@ export function buildNodeResourceEmbedView(
   resultMap: Record<string, DashboardPanelResult>
 ): EmbedPageView {
   const nodes = countNodeReady(resultMap)
-  const avgCpu = avgBarPercent(resultMap, 'node.embed.cpu')
-  const avgMemory = avgBarPercent(resultMap, 'node.embed.memory')
-  const podResult = resultMap['node.embed.pods']
-  const totalPods =
-    podResult?.status === 'success'
-      ? podResult.series.reduce((sum, item) => sum + Number(item.values.at(-1)?.value ?? 0), 0)
-      : null
+  const avgCpu = avgBarPercent(resultMap, 'node.embed.overview_cpu')
+  const avgMemory = avgBarPercent(resultMap, 'node.embed.overview_memory')
 
   let status: HealthResult['healthStatus'] = nodes.total > 0 ? 'healthy' : 'unknown'
   if (nodes.notReady > 0) status = nodes.notReady >= 2 ? 'danger' : 'warning'
   if (avgCpu !== null && avgCpu > 85) status = 'danger'
   else if (avgCpu !== null && avgCpu > 70 && status === 'healthy') status = 'warning'
+  if (avgMemory !== null && avgMemory > 85) status = 'danger'
+  else if (avgMemory !== null && avgMemory > 70 && status === 'healthy') status = 'warning'
 
   const health: HealthResult =
     nodes.total > 0
@@ -610,30 +608,27 @@ export function buildNodeResourceEmbedView(
         warning: avgCpu !== null && avgCpu > 70 && avgCpu <= 85
       },
       {
-        title: 'Pod 总数',
-        icon: Monitor,
+        title: '平均内存',
+        icon: Coin,
         iconColor: '#7c6af0',
         iconBg: 'rgba(124, 106, 240, 0.12)',
-        value: totalPods === null ? '-' : String(Math.round(totalPods)),
-        sub: '集群 Pod 分布'
+        value: avgMemory === null ? '-' : avgMemory.toFixed(1),
+        unit: '%',
+        sub: avgMemory !== null && avgMemory > 70 ? '内存热点' : '内存正常',
+        danger: avgMemory !== null && avgMemory > 85,
+        warning: avgMemory !== null && avgMemory > 70 && avgMemory <= 85
       }
     ]),
     sections: [
       {
-        title: '节点健康',
-        panelIds: ['node.embed.ready'],
-        gridClass: 'prometheus-dashboard__panel-grid--full'
+        title: '节点总览',
+        panelIds: [],
+        custom: 'node-overview-table'
       },
       {
         title: '资源 Top',
         panelIds: ['node.embed.cpu', 'node.embed.memory'],
         compactBar: true
-      },
-      {
-        title: 'Pod 分布',
-        panelIds: ['node.embed.pods'],
-        compactBar: true,
-        gridClass: 'prometheus-dashboard__panel-grid--coredns-latency'
       }
     ]
   }

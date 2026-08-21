@@ -49,7 +49,14 @@
       >
         {{ section.title }}
       </div>
+      <NodeOverviewTable
+        v-if="section.custom === 'node-overview-table'"
+        :result-map="resultMap"
+        :loading="loading"
+        @node-select="emit('node-select', $event)"
+      />
       <div
+        v-else
         class="prometheus-dashboard__panel-grid prometheus-dashboard__panel-grid--coredns"
         :class="section.gridClass"
       >
@@ -85,6 +92,8 @@
   import type { EmbedPageView } from './types'
   import { resolveEmbedPanels } from './utils'
   import ApiserverMetricCard from './apiserver-metric-card.vue'
+  import NodeOverviewTable from './NodeOverviewTable.vue'
+  import type { NodeOverviewRow } from './NodeOverviewTable.vue'
 
   /** API Server 各图表面板的顶部指标图例标签（quota/verb/code）；进程内存为单指标（undefined） */
   const APISERVER_METRIC_LABEL: Record<string, string | undefined> = {
@@ -143,6 +152,7 @@
     'events-click': []
     'time-range-select': [range: { start: number; end: number }]
     'item-click': [payload: { panelId: string; name: string }]
+    'node-select': [row: NodeOverviewRow]
   }>()
 
   function resolvePanels(panelIds: string[]) {

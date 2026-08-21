@@ -20,6 +20,8 @@ export type EmbedChartSection = {
   panelIds: string[]
   compactBar?: boolean
   gridClass?: string
+  /** 自定义块：节点总览表（不渲染 DashboardPanel） */
+  custom?: 'node-overview-table'
 }
 
 export type EmbedPageView = {
