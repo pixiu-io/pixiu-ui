@@ -330,13 +330,14 @@
     type ButtonMoreItem
   } from '@/components/core/forms/art-button-more/index.vue'
   import { CopyDocument, InfoFilled } from '@element-plus/icons-vue'
-  import { h, ref, computed, onUnmounted } from 'vue'
+  import { h, ref, computed, onMounted, onUnmounted, watch } from 'vue'
   import { CLUSTER_TABLE_PAGINATION_OPTIONS } from './constants/table'
   import ClusterTableEmpty from './components/cluster-table-empty.vue'
   import { useRoute, useRouter } from 'vue-router'
   import { buildClusterRouteQuery } from '@/utils/navigation/cluster-query'
   import { useTable } from '@/hooks/core/useTable'
   import { useSkipFirstActivatedRefresh } from '@/hooks/core/useSkipFirstActivatedRefresh'
+  import { useNodeListCpuUsage } from '@/hooks/kubernetes/useNodeListCpuUsage'
   import {
     deleteK8sNode,
     drainK8sNodeFetch,
@@ -376,6 +377,42 @@
       : 'refresh,size,fullscreen,columns,settings'
   )
 
+  const route = useRoute()
+  const clusterName = computed(() => String(route.query.cluster ?? '').trim())
+  const {
+    cpuUsageByNode,
+    memoryUsageByNode,
+    refresh: refreshCpuUsage,
+    startRefresh: startCpuUsageRefresh,
+    stopRefresh: stopCpuUsageRefresh
+  } = useNodeListCpuUsage(clusterName)
+
+  function lookupUsage(
+    row: K8sNode,
+    usageByNode: Record<string, number>
+  ): number | null {
+    const name = row.metadata?.name?.trim()
+    if (name && usageByNode[name] !== undefined) return usageByNode[name]
+    const internalIp = row.status?.addresses?.find((a) => a.type === 'InternalIP')?.address?.trim()
+    if (internalIp && usageByNode[internalIp] !== undefined) return usageByNode[internalIp]
+    return null
+  }
+
+  function lookupNodeCpuUsage(row: K8sNode): number | null {
+    return lookupUsage(row, cpuUsageByNode)
+  }
+
+  function lookupNodeMemoryUsage(row: K8sNode): number | null {
+    return lookupUsage(row, memoryUsageByNode)
+  }
+
+  function usageLevelClass(value: number | null): string {
+    if (value === null) return ''
+    if (value > 85) return 'is-danger'
+    if (value > 70) return 'is-warning'
+    return 'is-ok'
+  }
+
   function formatNodeMemory(raw: string): string {
     const ki = parseInt(String(raw).replace(/[^0-9]/g, ''), 10)
     if (!ki) return raw
@@ -396,7 +433,40 @@
     return raw
   }
 
-  const route = useRoute()
+  function renderUsageMetricRow(label: string, value: number | null) {
+    const numText =
+      value === null || !Number.isFinite(value) ? '-' : `${value.toFixed(1)}%`
+    const pct =
+      value === null || !Number.isFinite(value) ? 0 : Math.max(0, Math.min(100, value))
+    return h('div', { class: 'node-resource-usage__row' }, [
+      h('span', { class: 'node-resource-usage__label' }, label),
+      h('div', { class: 'node-resource-usage__bar' }, [
+        h('div', {
+          class: ['node-resource-usage__bar-fill', usageLevelClass(value)],
+          style: { width: `${pct}%` }
+        })
+      ]),
+      h('span', { class: 'node-resource-usage__num' }, numText)
+    ])
+  }
+
+  function renderResourceUsageCell(
+    row: K8sNode & { _cpuUsage?: number | null; _memoryUsage?: number | null }
+  ) {
+    const cpu = row._cpuUsage ?? null
+    const mem = row._memoryUsage ?? null
+    if (
+      (cpu === null || !Number.isFinite(cpu)) &&
+      (mem === null || !Number.isFinite(mem))
+    ) {
+      return h('span', { class: 'node-resource-usage__empty' }, '-')
+    }
+    return h('div', { class: 'node-resource-usage' }, [
+      renderUsageMetricRow('CPU', cpu),
+      renderUsageMetricRow('内存', mem)
+    ])
+  }
+
   const router = useRouter()
 
   const searchForm = ref<{ name?: string }>({})
@@ -714,6 +784,8 @@
             prop: 'resource',
             label: '节点规格',
             minWidth: 140,
+            checked: false,
+            visible: false,
             formatter: (row: K8sNode) => {
               const cpuRaw = row.status?.allocatable?.cpu ?? row.status?.capacity?.cpu ?? '-'
               const cpu = formatNodeCpu(cpuRaw)
@@ -725,6 +797,14 @@
                 h('div', { style: s }, `内存: ${mem}`)
               ])
             }
+          },
+          {
+            prop: 'resourceUsage',
+            label: '资源使用率',
+            minWidth: 150,
+            formatter: (
+              row: K8sNode & { _cpuUsage?: number | null; _memoryUsage?: number | null }
+            ) => renderResourceUsageCell(row)
           },
           {
             prop: 'metadata.labels',
@@ -839,9 +919,13 @@
 
   function onRefresh() {
     refreshData()
+    void refreshCpuUsage()
   }
 
-  useSkipFirstActivatedRefresh(refreshData)
+  useSkipFirstActivatedRefresh(() => {
+    refreshData()
+    void refreshCpuUsage()
+  })
 
   // -- YAML --
   const addNodeDialogVisible = ref(false)
@@ -871,9 +955,15 @@
       ...n,
       _local: true,
       _localIndex: i,
-      rowKey: `local-${i}-${n.name}`
+      rowKey: `local-${i}-${n.name}`,
+      _cpuUsage: null as number | null,
+      _memoryUsage: null as number | null
     })),
-    ...data.value
+    ...data.value.map((n) => ({
+      ...n,
+      _cpuUsage: lookupNodeCpuUsage(n),
+      _memoryUsage: lookupNodeMemoryUsage(n)
+    }))
   ])
 
   const addNodeFormRef = ref<FormInstance>()
@@ -1190,7 +1280,20 @@
     }
   }
 
-  onUnmounted(stopMonitorTimer)
+  onUnmounted(() => {
+    stopMonitorTimer()
+    stopCpuUsageRefresh()
+  })
+
+  onMounted(() => {
+    if (clusterName.value) startCpuUsageRefresh()
+  })
+
+  watch(clusterName, (name, prev) => {
+    if (name === prev) return
+    if (name) startCpuUsageRefresh()
+    else stopCpuUsageRefresh()
+  })
 
   // -- 事件 --
   interface K8sEventRow {
@@ -1472,6 +1575,66 @@
 
   .label-dialog-body .el-button {
     font-size: 12px;
+  }
+</style>
+
+<style lang="scss">
+  /* 表格 formatter 渲染节点，scoped 不一定生效；与 Node 监控概览色条对齐 */
+  .node-resource-usage {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    line-height: 1.4;
+  }
+
+  .node-resource-usage__row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .node-resource-usage__label {
+    flex: 0 0 28px;
+    font-size: 11px;
+    color: var(--el-text-color-regular);
+    white-space: nowrap;
+  }
+
+  .node-resource-usage__bar {
+    flex: 0 0 42px;
+    width: 42px;
+    height: 6px;
+    overflow: hidden;
+    background: var(--el-fill-color);
+    border-radius: 999px;
+  }
+
+  .node-resource-usage__bar-fill {
+    height: 100%;
+    border-radius: inherit;
+    background: #2e9b62;
+  }
+
+  .node-resource-usage__bar-fill.is-warning {
+    background: #d99a2b;
+  }
+
+  .node-resource-usage__bar-fill.is-danger {
+    background: #e45757;
+  }
+
+  .node-resource-usage__num {
+    flex: 0 0 auto;
+    min-width: 38px;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    color: var(--el-text-color-regular);
+  }
+
+  .node-resource-usage__empty {
+    font-size: 12px;
+    color: var(--el-text-color-regular);
   }
 </style>
 
