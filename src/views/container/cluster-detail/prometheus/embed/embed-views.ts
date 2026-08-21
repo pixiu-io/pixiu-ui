@@ -626,8 +626,14 @@ export function buildNodeResourceEmbedView(
         custom: 'node-overview-table'
       },
       {
-        title: '资源 Top',
-        panelIds: ['node.embed.cpu', 'node.embed.memory'],
+        // 直接复用总览已成功查询的面板（保证有数）；按速率/负载/连接展示 Top 条形图
+        title: '网络与负载 Top',
+        panelIds: [
+          'node.embed.overview_net_transmit',
+          'node.embed.overview_net_receive',
+          'node.embed.overview_load5',
+          'node.embed.overview_connections'
+        ],
         compactBar: true
       }
     ]

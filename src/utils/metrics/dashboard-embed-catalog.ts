@@ -1085,22 +1085,22 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
   embedPanel(
     'node-resource-embed',
     'node.embed.overview_net_transmit',
-    '节点发送速率',
+    '节点网络发送',
     'bar',
     'Bps',
     6,
     [],
     false,
     fixed(
-      'label_replace(sum by (nodename) (rate(node_network_transmit_bytes_total{device!="lo"}[5m]) * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)")'
+      'sort_desc(label_replace(sum by (nodename) (rate(node_network_transmit_bytes_total{device!="lo"}[5m]) * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)"))'
     ),
     undefined,
     {
       fallbackQueries: [
-        fixed('sum by (node) (rate(node_network_transmit_bytes_total{device!="lo"}[5m]))'),
-        fixed('sum by (node) (rate(container_network_transmit_bytes_total[5m]))'),
+        fixed('sort_desc(sum by (node) (rate(node_network_transmit_bytes_total{device!="lo"}[5m])))'),
+        fixed('sort_desc(sum by (node) (rate(container_network_transmit_bytes_total[5m])))'),
         fixed(
-          'label_replace(sum by (instance) (rate(node_network_transmit_bytes_total{device!="lo"}[5m])), "node", "$1", "instance", "^([^:]+):.*")'
+          'sort_desc(label_replace(sum by (instance) (rate(node_network_transmit_bytes_total{device!="lo"}[5m])), "node", "$1", "instance", "^([^:]+):.*"))'
         )
       ]
     }
@@ -1108,22 +1108,22 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
   embedPanel(
     'node-resource-embed',
     'node.embed.overview_net_receive',
-    '节点接收速率',
+    '节点网络接收',
     'bar',
     'Bps',
     6,
     [],
     false,
     fixed(
-      'label_replace(sum by (nodename) (rate(node_network_receive_bytes_total{device!="lo"}[5m]) * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)")'
+      'sort_desc(label_replace(sum by (nodename) (rate(node_network_receive_bytes_total{device!="lo"}[5m]) * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)"))'
     ),
     undefined,
     {
       fallbackQueries: [
-        fixed('sum by (node) (rate(node_network_receive_bytes_total{device!="lo"}[5m]))'),
-        fixed('sum by (node) (rate(container_network_receive_bytes_total[5m]))'),
+        fixed('sort_desc(sum by (node) (rate(node_network_receive_bytes_total{device!="lo"}[5m])))'),
+        fixed('sort_desc(sum by (node) (rate(container_network_receive_bytes_total[5m])))'),
         fixed(
-          'label_replace(sum by (instance) (rate(node_network_receive_bytes_total{device!="lo"}[5m])), "node", "$1", "instance", "^([^:]+):.*")'
+          'sort_desc(label_replace(sum by (instance) (rate(node_network_receive_bytes_total{device!="lo"}[5m])), "node", "$1", "instance", "^([^:]+):.*"))'
         )
       ]
     }
@@ -1131,21 +1131,21 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
   embedPanel(
     'node-resource-embed',
     'node.embed.overview_load5',
-    '节点 Load5',
+    '节点 Load',
     'bar',
     'short',
     6,
     [],
     false,
     fixed(
-      'label_replace(sum by (nodename) (node_load5 * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)")'
+      'sort_desc(label_replace(sum by (nodename) (node_load5 * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)"))'
     ),
     undefined,
     {
       fallbackQueries: [
-        fixed('sum by (node) (node_load5)'),
+        fixed('sort_desc(sum by (node) (node_load5))'),
         fixed(
-          'label_replace(sum by (instance) (node_load5), "node", "$1", "instance", "^([^:]+):.*")'
+          'sort_desc(label_replace(sum by (instance) (node_load5), "node", "$1", "instance", "^([^:]+):.*"))'
         )
       ]
     }
@@ -1160,17 +1160,17 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     [],
     false,
     fixed(
-      'label_replace(sum by (nodename) (node_netstat_Tcp_CurrEstab * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)")'
+      'sort_desc(label_replace(sum by (nodename) (node_netstat_Tcp_CurrEstab * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)"))'
     ),
     'TCP 已建立连接数（CurrEstab）',
     {
       fallbackQueries: [
-        fixed('sum by (node) (node_netstat_Tcp_CurrEstab)'),
+        fixed('sort_desc(sum by (node) (node_netstat_Tcp_CurrEstab))'),
         fixed(
-          'label_replace(sum by (nodename) (node_sockstat_TCP_inuse * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)")'
+          'sort_desc(label_replace(sum by (nodename) (node_sockstat_TCP_inuse * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)"))'
         ),
         fixed(
-          'label_replace(sum by (instance) (node_netstat_Tcp_CurrEstab), "node", "$1", "instance", "^([^:]+):.*")'
+          'sort_desc(label_replace(sum by (instance) (node_netstat_Tcp_CurrEstab), "node", "$1", "instance", "^([^:]+):.*"))'
         )
       ]
     }
@@ -1262,6 +1262,130 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     fixed(
       'topk(10, 100 * sum by (node) (container_memory_working_set_bytes{container!=""}) / clamp_min(sum by (node) (kube_node_status_allocatable{resource="memory"}), 1))'
     )
+  ),
+  // 参考主机监控大盘：吞吐排名 / Load / 连接数
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.net_throughput',
+    '网络吞吐 Top',
+    'bar',
+    'Bps',
+    6,
+    [],
+    false,
+    fixed(
+      'topk(10, label_replace(sum by (nodename) (' +
+        '(rate(node_network_transmit_bytes_total{device!="lo"}[5m]) + rate(node_network_receive_bytes_total{device!="lo"}[5m]))' +
+        ' * on(instance) group_left(nodename) node_uname_info' +
+        '), "node", "$1", "nodename", "(.*)"))'
+    ),
+    '发送+接收合计速率 Top 10',
+    {
+      fallbackQueries: [
+        fixed(
+          'topk(10, sum by (node) (rate(node_network_transmit_bytes_total{device!="lo"}[5m]) + rate(node_network_receive_bytes_total{device!="lo"}[5m])))'
+        ),
+        fixed(
+          'topk(10, sum by (node) (rate(container_network_transmit_bytes_total[5m]) + rate(container_network_receive_bytes_total[5m])))'
+        ),
+        fixed(
+          'topk(10, label_replace(sum by (instance) (rate(node_network_transmit_bytes_total{device!="lo"}[5m]) + rate(node_network_receive_bytes_total{device!="lo"}[5m])), "node", "$1", "instance", "^([^:]+):.*"))'
+        )
+      ]
+    }
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.net_transmit_top',
+    '网络发送 Top',
+    'bar',
+    'Bps',
+    6,
+    [],
+    false,
+    fixed(
+      'topk(10, label_replace(sum by (nodename) (rate(node_network_transmit_bytes_total{device!="lo"}[5m]) * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)"))'
+    ),
+    undefined,
+    {
+      fallbackQueries: [
+        fixed('topk(10, sum by (node) (rate(node_network_transmit_bytes_total{device!="lo"}[5m])))'),
+        fixed('topk(10, sum by (node) (rate(container_network_transmit_bytes_total[5m])))'),
+        fixed(
+          'topk(10, label_replace(sum by (instance) (rate(node_network_transmit_bytes_total{device!="lo"}[5m])), "node", "$1", "instance", "^([^:]+):.*"))'
+        )
+      ]
+    }
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.net_receive_top',
+    '网络接收 Top',
+    'bar',
+    'Bps',
+    6,
+    [],
+    false,
+    fixed(
+      'topk(10, label_replace(sum by (nodename) (rate(node_network_receive_bytes_total{device!="lo"}[5m]) * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)"))'
+    ),
+    undefined,
+    {
+      fallbackQueries: [
+        fixed('topk(10, sum by (node) (rate(node_network_receive_bytes_total{device!="lo"}[5m])))'),
+        fixed('topk(10, sum by (node) (rate(container_network_receive_bytes_total[5m])))'),
+        fixed(
+          'topk(10, label_replace(sum by (instance) (rate(node_network_receive_bytes_total{device!="lo"}[5m])), "node", "$1", "instance", "^([^:]+):.*"))'
+        )
+      ]
+    }
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.load_top',
+    'Load Top',
+    'bar',
+    'short',
+    6,
+    [],
+    false,
+    fixed(
+      'topk(10, label_replace(sum by (nodename) (node_load5 * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)"))'
+    ),
+    '5 分钟系统负载 Top 10',
+    {
+      fallbackQueries: [
+        fixed('topk(10, sum by (node) (node_load5))'),
+        fixed(
+          'topk(10, label_replace(sum by (instance) (node_load5), "node", "$1", "instance", "^([^:]+):.*"))'
+        )
+      ]
+    }
+  ),
+  embedPanel(
+    'node-resource-embed',
+    'node.embed.connections_top',
+    '连接数 Top',
+    'bar',
+    'short',
+    6,
+    [],
+    false,
+    fixed(
+      'topk(10, label_replace(sum by (nodename) (node_netstat_Tcp_CurrEstab * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)"))'
+    ),
+    'TCP 已建立连接数 Top 10',
+    {
+      fallbackQueries: [
+        fixed('topk(10, sum by (node) (node_netstat_Tcp_CurrEstab))'),
+        fixed(
+          'topk(10, label_replace(sum by (nodename) (node_sockstat_TCP_inuse * on(instance) group_left(nodename) node_uname_info), "node", "$1", "nodename", "(.*)"))'
+        ),
+        fixed(
+          'topk(10, label_replace(sum by (instance) (node_netstat_Tcp_CurrEstab), "node", "$1", "instance", "^([^:]+):.*"))'
+        )
+      ]
+    }
   ),
 
   // ---- Node pod embed ----
@@ -1769,9 +1893,7 @@ export const NODE_RESOURCE_EMBED_PANEL_IDS = [
   'node.embed.overview_connections',
   'node.embed.overview_retrans',
   'node.embed.overview_uptime',
-  'node.embed.pods',
-  'node.embed.cpu',
-  'node.embed.memory'
+  'node.embed.pods'
 ] as const
 
 export const NODE_POD_EMBED_PANEL_IDS = ['node.embed.pod_cpu', 'node.embed.pod_memory'] as const

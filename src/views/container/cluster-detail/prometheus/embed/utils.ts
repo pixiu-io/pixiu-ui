@@ -1,4 +1,5 @@
 import type { DashboardDefinition, DashboardPanelDefinition, DashboardPanelResult } from '@/api/dashboard'
+import { getDashboardDefinition } from '@/utils/metrics/dashboard-catalog'
 
 export function embedStat(
   resultMap: Record<string, DashboardPanelResult>,
@@ -27,8 +28,14 @@ export function resolveEmbedPanels(
   definition: DashboardDefinition,
   ids: string[]
 ): DashboardPanelDefinition[] {
+  // 优先用当前 catalog，避免页面首次加载的 definition 缓存缺少新面板导致整段空白
+  const catalogPanels = getDashboardDefinition().panels
   return ids
-    .map((id) => definition.panels.find((panel) => panel.id === id))
+    .map(
+      (id) =>
+        catalogPanels.find((panel) => panel.id === id) ??
+        definition.panels.find((panel) => panel.id === id)
+    )
     .filter((panel): panel is DashboardPanelDefinition => panel !== undefined)
 }
 
