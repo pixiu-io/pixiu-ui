@@ -3,7 +3,11 @@ import type {
   DashboardFilters,
   DashboardPanelDefinition
 } from '@/api/dashboard'
-import { embedPanelSpecs } from '@/utils/metrics/dashboard-embed-catalog'
+import {
+  componentInstanceQuota,
+  componentStatusQuery,
+  embedPanelSpecs
+} from '@/utils/metrics/dashboard-embed-catalog'
 
 export { resolveClusterDetailPanelIds, CLUSTER_DETAIL_EMBED_PANEL_IDS } from '@/utils/metrics/dashboard-embed-catalog'
 
@@ -529,7 +533,7 @@ const sections: DashboardDefinition['sections'] = [
     id: 'core',
     title: '核心组件监控',
     icon: 'ri:cpu-line',
-    children: ['kubelet', 'coredns', 'apiserver', 'controller-manager', 'scheduler', 'etcd']
+    children: ['apiserver', 'controller-manager', 'scheduler', 'etcd', 'coredns', 'kubelet']
   },
   {
     id: 'node',
@@ -558,8 +562,8 @@ export const DASHBOARD_SECTION_CHILD_NAMES: Record<string, string> = {
   'controller-manager': 'Controller Manager',
   scheduler: 'Scheduler',
   etcd: 'Etcd',
-  'node-resource': '集群节点监控详情',
-  'node-pod': '节点 Pod 监控',
+  'node-resource': 'Node 监控',
+  'node-pod': 'Pod 监控',
   workload: '工作负载监控概览',
   pod: '集群 Pod 监控'
 }
@@ -1886,6 +1890,39 @@ const panelSpecs: DashboardPanelSpec[] = [
   ),
   panel(
     'coredns-embed',
+    'coredns.embed.instance_status',
+    '实例在线状态',
+    'status',
+    '',
+    12,
+    ['up', 'kube_pod_info'],
+    false,
+    fixed(componentStatusQuery('coredns'))
+  ),
+  panel(
+    'coredns-embed',
+    'coredns.embed.instance_cpu',
+    '实例 CPU',
+    'line',
+    'cores',
+    6,
+    ['container_cpu_usage_seconds_total', 'kube_pod_container_resource_requests', 'kube_pod_container_resource_limits', 'kube_pod_info'],
+    true,
+    fixed(componentInstanceQuota('coredns', 'cpu'))
+  ),
+  panel(
+    'coredns-embed',
+    'coredns.embed.instance_memory',
+    '实例内存',
+    'line',
+    'bytes',
+    6,
+    ['container_memory_working_set_bytes', 'kube_pod_container_resource_requests', 'kube_pod_container_resource_limits', 'kube_pod_info'],
+    true,
+    fixed(componentInstanceQuota('coredns', 'memory'))
+  ),
+  panel(
+    'coredns-embed',
     'coredns.embed.panics',
     'Panics',
     'stat',
@@ -1911,7 +1948,10 @@ export const COREDNS_EMBED_PANEL_IDS = [
   'coredns.embed.pod_qps',
   'coredns.embed.pod_latency',
   'coredns.embed.process',
-  'coredns.embed.panics'
+  'coredns.embed.panics',
+  'coredns.embed.instance_status',
+  'coredns.embed.instance_cpu',
+  'coredns.embed.instance_memory'
 ] as const
 
 export function getDashboardDefinition(): DashboardDefinition {

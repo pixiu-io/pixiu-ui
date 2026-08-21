@@ -30,7 +30,7 @@
 import type { EChartsOption } from '@/plugins/echarts'
 
 // 图例位置类型
-export type LegendPosition = 'bottom' | 'top' | 'left' | 'right'
+export type LegendPosition = 'bottom' | 'top' | 'left' | 'right' | 'top-right'
 
 export type SymbolType =
   | 'circle'
@@ -174,6 +174,8 @@ export interface LineChartProps extends BaseChartProps, AxisDisplayProps, Intera
   silentUpdate?: boolean
   /** 坐标轴标签字号（px），缺省时沿用默认值 */
   axisFontSize?: number
+  /** Y 轴是否基于数据范围自适应（scale 模式，不强制包含 0） */
+  yAxisScale?: boolean
   /** x 轴标签最大显示数量，数据点超过时按 interval 智能抽样 */
   maxXAxisLabels?: number
 }

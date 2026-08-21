@@ -194,6 +194,41 @@
             <div
               class="prometheus-dashboard__section-title prometheus-dashboard__section-title--spaced"
             >
+              实例在线状态
+            </div>
+            <div class="prometheus-dashboard__panel-grid prometheus-dashboard__panel-grid--coredns">
+              <DashboardPanel
+                v-if="corednsStatusPanel"
+                :panel="corednsStatusPanel"
+                :result="resultMap['coredns.embed.instance_status']"
+                :loading="queryLoading"
+                :show-legend="showLegend"
+              />
+            </div>
+
+            <div
+              class="prometheus-dashboard__section-title prometheus-dashboard__section-title--spaced"
+            >
+              实例资源
+            </div>
+            <div class="prometheus-dashboard__panel-grid prometheus-dashboard__panel-grid--coredns">
+              <ApiserverMetricCard
+                title="实例 CPU"
+                unit="cores"
+                metric-label="quota"
+                :result="resultMap['coredns.embed.instance_cpu']"
+              />
+              <ApiserverMetricCard
+                title="实例内存"
+                unit="bytes"
+                metric-label="quota"
+                :result="resultMap['coredns.embed.instance_memory']"
+              />
+            </div>
+
+            <div
+              class="prometheus-dashboard__section-title prometheus-dashboard__section-title--spaced"
+            >
               副本与资源
             </div>
             <div class="prometheus-dashboard__coredns-resource">
@@ -608,6 +643,7 @@
     resolveEmbedPanels
   } from '@/views/container/cluster-detail/prometheus/embed/utils'
   import DashboardPanel from '@/views/safeguard/dashboard/modules/DashboardPanel.vue'
+  import ApiserverMetricCard from '@/views/container/cluster-detail/prometheus/embed/apiserver-metric-card.vue'
   import ClusterMonitorOverview from '@/views/container/cluster/modules/cluster-monitor-overview.vue'
 
   defineOptions({ name: 'PrometheusDashboardBody' })
@@ -828,6 +864,15 @@
   )
   const corednsProcessPanel = computed(
     () => props.definition.panels.find((panel) => panel.id === 'coredns.embed.process')
+  )
+  const corednsStatusPanel = computed(
+    () => props.definition.panels.find((panel) => panel.id === 'coredns.embed.instance_status')
+  )
+  const corednsInstanceCpuPanel = computed(
+    () => props.definition.panels.find((panel) => panel.id === 'coredns.embed.instance_cpu')
+  )
+  const corednsInstanceMemoryPanel = computed(
+    () => props.definition.panels.find((panel) => panel.id === 'coredns.embed.instance_memory')
   )
 
   type CorednsPodRow = {
@@ -1938,6 +1983,11 @@
     margin-left: 16px;
     margin-right: 16px;
     margin-bottom: 12px;
+  }
+
+  .prometheus-dashboard__panel-grid--coredns .apiserver-metric-card {
+    grid-column: span 6;
+    height: 260px;
   }
 
   .prometheus-dashboard__panel-grid--coredns-latency {

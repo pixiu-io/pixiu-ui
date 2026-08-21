@@ -17,6 +17,78 @@ interface EmbedPanelSpec extends DashboardPanelDefinition {
 /** 排除长连接/流式请求，避免全局 P99 被顶到直方图上限（常见 60s） */
 const APISERVER_LATENCY_SELECTOR = 'verb!~"WATCH|WATCHLIST|CONNECT|PROXY"'
 
+/** API Server 实例配额单线：按 instance+pod 关联 host_ip 后打 quota 标签（request|limit） */
+function apiserverQuotaPart(metric: string, resource: string, quota: string): string {
+  const matcher = `pod=~".*apiserver.*", resource="${resource}"`
+  const part = `sum by (instance, pod) (label_replace(${metric}{${matcher}} * on(pod, namespace) group_left(host_ip) (kube_pod_info{pod=~".*apiserver.*"}), "instance", "$1:6443", "host_ip", "(.*)"))`
+  return `label_replace(${part}, "quota", "${quota}", "__name__", ".*")`
+}
+
+/** API Server 实例使用量（used）：按 instance 关联 kube_pod_info 带出 pod 名，打 quota=used 标签 */
+function apiserverUsagePart(expr: string, quota: string): string {
+  return `label_replace(label_replace(${expr}, "host_ip", "$1", "instance", "([^:]+).*") * on(host_ip) group_left(pod) (kube_pod_info{pod=~".*apiserver.*"}), "quota", "${quota}", "__name__", ".*")`
+}
+
+/** 关联 kube_pod_info 带出 pod 名，并按 (pod, 指定 labels) 聚合（供请求/状态码等按实例+指标维度展示） */
+function apiserverPodGroup(expr: string, labels: string): string {
+  return `sum by (pod, ${labels}) (label_replace(${expr}, "host_ip", "$1", "instance", "([^:]+).*") * on(host_ip) group_left(pod) (kube_pod_info{pod=~".*apiserver.*"}))`
+}
+
+/** 请求延迟分位（P99/P90/P50）按实例关联 pod，合并为 (pod, quantile) 分组 */
+function apiserverQuantilePodQuery(selector: string): string {
+  return [0.99, 0.9, 0.5]
+    .map((q, i) => {
+      const expr = `histogram_quantile(${q}, sum by (instance, le) (rate(apiserver_request_duration_seconds_bucket{${selector}}[5m]))) * 1000`
+      const withPod = `label_replace(label_replace(sum by (instance) (${expr}), "host_ip", "$1", "instance", "([^:]+).*") * on(host_ip) group_left(pod) (kube_pod_info{pod=~".*apiserver.*"}), "quantile", "${q}", "__name__", ".*")`
+      return i === 0 ? withPod : `or ${withPod}`
+    })
+    .join(' ')
+}
+
+/** 核心组件实例资源（used/request/limit 三条线）：used 走 cAdvisor 按 pod，request/limit 按 pod 聚合 */
+export function componentInstanceQuota(component: string, resource: string): string {
+  const pat = `.*${component}.*`
+  const usageExpr =
+    resource === 'cpu'
+      ? `sum by (pod) (rate(container_cpu_usage_seconds_total{pod=~"${pat}", container!=""}[5m]))`
+      : `sum by (pod) (container_memory_working_set_bytes{pod=~"${pat}", container!=""})`
+  const used = `label_replace(${usageExpr}, "quota", "used", "__name__", ".*")`
+  const req = `label_replace(sum by (pod) (kube_pod_container_resource_requests{pod=~"${pat}", resource="${resource}"} * on(pod, namespace) group_left() (kube_pod_info{pod=~"${pat}"})), "quota", "request", "__name__", ".*")`
+  const lim = `label_replace(sum by (pod) (kube_pod_container_resource_limits{pod=~"${pat}", resource="${resource}"} * on(pod, namespace) group_left() (kube_pod_info{pod=~"${pat}"})), "quota", "limit", "__name__", ".*")`
+  return `${used} or ${req} or ${lim}`
+}
+
+/** 核心组件面板按 (pod, 指定 labels) 聚合：used/request/limit 中抽取某维度（供实例资源卡使用） */
+function componentUsagePart(component: string, expr: string, quota: string): string {
+  const pat = `.*${component}.*`
+  return `label_replace(label_replace(${expr}, "host_ip", "$1", "instance", "([^:]+).*") * on(host_ip) group_left(pod) (kube_pod_info{pod=~"${pat}"}), "quota", "${quota}", "__name__", ".*")`
+}
+
+/** 核心组件实例在线状态：up 经 pod_ip 关联 kube_pod_info 带出 pod 名 */
+export function componentStatusQuery(component: string): string {
+  const pat = `.*${component}.*`
+  return `label_replace(label_replace(up{job=~"${pat}"}, "pod_ip", "$1", "instance", "([^:]+).*") * on(pod_ip) group_left(pod) (kube_pod_info{pod=~"${pat}"}), "namespace", "", "namespace", ".*")`
+}
+
+/** 核心组件请求/错误指标按 (pod, 指定 labels) 聚合（rest_client_requests_total 等按实例关联 pod） */
+function componentPodGroup(component: string, expr: string, labels: string): string {
+  const pat = `.*${component}.*`
+  const group = labels ? `pod, ${labels}` : 'pod'
+  return `sum by (${group}) (label_replace(${expr}, "host_ip", "$1", "instance", "([^:]+).*") * on(host_ip) group_left(pod) (kube_pod_info{pod=~"${pat}"}))`
+}
+
+/** 核心组件延迟直方图 P99/P90/P50 按实例关联 pod（scheduler 等），合并为 (pod, quantile) 分组 */
+function componentQuantilePodQuery(component: string, metric: string): string {
+  const pat = `.*${component}.*`
+  return [0.99, 0.9, 0.5]
+    .map((q, i) => {
+      const expr = `histogram_quantile(${q}, sum by (instance, le) (rate(${metric}[5m]))) * 1000`
+      const withPod = `label_replace(label_replace(sum by (instance) (${expr}), "host_ip", "$1", "instance", "([^:]+).*") * on(host_ip) group_left(pod) (kube_pod_info{pod=~"${pat}"}), "quantile", "${q}", "__name__", ".*")`
+      return i === 0 ? withPod : `or ${withPod}`
+    })
+    .join(' ')
+}
+
 /**
  * Controller Manager 工作队列选择器（多标签兼容）。
  * 避免用全局 workqueue_*（会混入其它 Operator）导致误报「需关注」。
@@ -206,9 +278,9 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     'line',
     'ops',
     6,
-    ['apiserver_request_total'],
+    ['apiserver_request_total', 'kube_pod_info'],
     true,
-    fixed('sum by (verb) (rate(apiserver_request_total[5m]))')
+    fixed(apiserverPodGroup('rate(apiserver_request_total[5m])', 'verb'))
   ),
   embedPanel(
     'apiserver-embed',
@@ -217,24 +289,10 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     'line',
     'ms',
     6,
-    ['apiserver_request_duration_seconds_bucket'],
+    ['apiserver_request_duration_seconds_bucket', 'kube_pod_info'],
     true,
-    undefined,
-    '排除 WATCH / CONNECT 等长连接请求后的延迟分位',
-    {
-      quantileQueries: {
-        metric: 'apiserver_request_duration_seconds_bucket',
-        thresholds: [0.99, 0.9, 0.5],
-        unitFactor: 1000,
-        selector: APISERVER_LATENCY_SELECTOR
-      },
-      requiredMetricsAny: [
-        'apiserver_request_duration_seconds_bucket',
-        'apiserver_request_duration_seconds_sum',
-        'apiserver_request_duration_seconds_count'
-      ],
-      fallbackQuery: fixed(apiserverLatencyFallbackQuery())
-    }
+    fixed(apiserverQuantilePodQuery(APISERVER_LATENCY_SELECTOR)),
+    '排除 WATCH / CONNECT 等长连接请求后的延迟分位'
   ),
   embedPanel(
     'apiserver-embed',
@@ -243,9 +301,9 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     'line',
     'ops',
     6,
-    ['apiserver_request_total'],
+    ['apiserver_request_total', 'kube_pod_info'],
     true,
-    fixed('sum by (code) (rate(apiserver_request_total{code=~"5.."}[5m]))')
+    fixed(apiserverPodGroup('rate(apiserver_request_total{code=~"5.."}[5m])', 'code'))
   ),
   embedPanel(
     'apiserver-embed',
@@ -254,9 +312,89 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     'line',
     'bytes',
     6,
-    ['process_resident_memory_bytes'],
+    ['process_resident_memory_bytes', 'kube_pod_info'],
     true,
-    fixed('process_resident_memory_bytes{job="apiserver"}')
+    fixed(
+      'label_replace(process_resident_memory_bytes{job=~".*apiserver.*"}, "host_ip", "$1", "instance", "([^:]+).*") * on(host_ip) group_left(pod) (kube_pod_info{pod=~".*apiserver.*"})'
+    )
+  ),
+  embedPanel(
+    'apiserver-embed',
+    'apiserver.embed.instance_status',
+    '实例在线状态',
+    'status',
+    '',
+    12,
+    ['up', 'kube_pod_info'],
+    false,
+    fixed(
+      'label_replace(label_replace(up{job=~".*apiserver.*"}, "host_ip", "$1", "instance", "([^:]+).*") * on(host_ip) group_left(pod) (kube_pod_info{pod=~".*apiserver.*"}), "namespace", "", "namespace", ".*")'
+    )
+  ),
+  embedPanel(
+    'apiserver-embed',
+    'apiserver.embed.instance_cpu',
+    '实例 CPU',
+    'line',
+    'cores',
+    6,
+    ['process_cpu_seconds_total', 'kube_pod_container_resource_requests', 'kube_pod_container_resource_limits', 'kube_pod_info'],
+    true,
+    fixed(
+      apiserverUsagePart('sum by (instance) (rate(process_cpu_seconds_total{job=~".*apiserver.*"}[5m]))', 'used') +
+        ` or ${apiserverQuotaPart('kube_pod_container_resource_requests', 'cpu', 'request')}` +
+        ` or ${apiserverQuotaPart('kube_pod_container_resource_limits', 'cpu', 'limit')}`
+    )
+  ),
+  embedPanel(
+    'apiserver-embed',
+    'apiserver.embed.instance_memory',
+    '实例内存',
+    'line',
+    'bytes',
+    6,
+    ['process_resident_memory_bytes', 'kube_pod_container_resource_requests', 'kube_pod_container_resource_limits', 'kube_pod_info'],
+    true,
+    fixed(
+      apiserverUsagePart('process_resident_memory_bytes{job=~".*apiserver.*"}', 'used') +
+        ` or ${apiserverQuotaPart('kube_pod_container_resource_requests', 'memory', 'request')}` +
+        ` or ${apiserverQuotaPart('kube_pod_container_resource_limits', 'memory', 'limit')}`
+    )
+  ),
+
+  embedPanel(
+    'apiserver-embed',
+    'apiserver.embed.requests_3xx',
+    '3xx 请求速率',
+    'line',
+    'ops',
+    6,
+    ['apiserver_request_total', 'kube_pod_info'],
+    true,
+    fixed(apiserverPodGroup('rate(apiserver_request_total{code=~"3.."}[5m])', 'code'))
+  ),
+  embedPanel(
+    'apiserver-embed',
+    'apiserver.embed.requests_4xx',
+    '4xx 请求速率',
+    'line',
+    'ops',
+    6,
+    ['apiserver_request_total', 'kube_pod_info'],
+    true,
+    fixed(apiserverPodGroup('rate(apiserver_request_total{code=~"4.."}[5m])', 'code'))
+  ),
+
+  embedPanel(
+    'apiserver-embed',
+    'apiserver.embed.requests_by_code',
+    '请求状态码',
+    'line',
+    'count',
+    6,
+    ['apiserver_request_total', 'kube_pod_info'],
+    true,
+    fixed(apiserverPodGroup('increase(apiserver_request_total[5m])', 'code'))
   ),
 
   // ---- Kubelet embed ----
@@ -328,6 +466,40 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     true,
     fixed('sum by (operation_type) (rate(kubelet_runtime_operations_errors_total[5m]))'),
     'Kubelet 调用容器运行时发生错误的每秒速率，按操作类型统计。'
+  ),
+  embedPanel(
+    'kubelet-embed',
+    'kubelet.embed.instance_cpu',
+    '实例 CPU',
+    'line',
+    'cores',
+    6,
+    ['container_cpu_usage_seconds_total', 'kube_pod_container_resource_requests', 'kube_pod_container_resource_limits', 'kube_pod_info'],
+    true,
+    fixed(componentInstanceQuota('kubelet', 'cpu'))
+  ),
+  embedPanel(
+    'kubelet-embed',
+    'kubelet.embed.instance_memory',
+    '实例内存',
+    'line',
+    'bytes',
+    6,
+    ['container_memory_working_set_bytes', 'kube_pod_container_resource_requests', 'kube_pod_container_resource_limits', 'kube_pod_info'],
+    true,
+    fixed(componentInstanceQuota('kubelet', 'memory'))
+  ),
+  embedPanel(
+    'kubelet-embed',
+    'kubelet.embed.instance_status',
+    '实例在线状态',
+    'status',
+    '',
+    12,
+    ['up'],
+    false,
+    fixed('up{job="kubelet"}'),
+    'Kubelet 为宿主机进程，按节点实例展示探活状态'
   ),
 
   // ---- Controller Manager embed ----
@@ -452,6 +624,94 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
       ],
       fallbackQuery: fixed(controlPlaneContainerMemoryFallback('controller-manager'))
     }
+  ),
+  embedPanel(
+    'controller-embed',
+    'controller.embed.instance_cpu',
+    '实例 CPU',
+    'line',
+    'cores',
+    6,
+    ['process_cpu_seconds_total', 'kube_pod_container_resource_requests', 'kube_pod_container_resource_limits', 'kube_pod_info'],
+    true,
+    fixed(componentInstanceQuota('controller-manager', 'cpu'))
+  ),
+  embedPanel(
+    'controller-embed',
+    'controller.embed.instance_memory',
+    '实例内存',
+    'line',
+    'bytes',
+    6,
+    ['process_resident_memory_bytes', 'kube_pod_container_resource_requests', 'kube_pod_container_resource_limits', 'kube_pod_info'],
+    true,
+    fixed(componentInstanceQuota('controller-manager', 'memory'))
+  ),
+  embedPanel(
+    'controller-embed',
+    'controller.embed.instance_status',
+    '实例在线状态',
+    'status',
+    '',
+    12,
+    ['up', 'kube_pod_info'],
+    false,
+    fixed(componentStatusQuery('controller-manager'))
+  ),
+  embedPanel(
+    'controller-embed',
+    'controller.embed.requests',
+    '请求速率（按方法）',
+    'line',
+    'ops',
+    6,
+    ['rest_client_requests_total', 'kube_pod_info'],
+    true,
+    fixed(componentPodGroup('controller-manager', 'rate(rest_client_requests_total[5m])', 'method'))
+  ),
+  embedPanel(
+    'controller-embed',
+    'controller.embed.requests_by_code',
+    '请求状态码',
+    'line',
+    'count',
+    6,
+    ['rest_client_requests_total', 'kube_pod_info'],
+    true,
+    fixed(componentPodGroup('controller-manager', 'increase(rest_client_requests_total[5m])', 'code'))
+  ),
+  embedPanel(
+    'controller-embed',
+    'controller.embed.requests_3xx',
+    '3xx 请求速率',
+    'line',
+    'ops',
+    6,
+    ['rest_client_requests_total', 'kube_pod_info'],
+    true,
+    fixed(componentPodGroup('controller-manager', 'rate(rest_client_requests_total{code=~"3.."}[5m])', 'code'))
+  ),
+  embedPanel(
+    'controller-embed',
+    'controller.embed.requests_4xx',
+    '4xx 请求速率',
+    'line',
+    'ops',
+    6,
+    ['rest_client_requests_total', 'kube_pod_info'],
+    true,
+    fixed(componentPodGroup('controller-manager', 'rate(rest_client_requests_total{code=~"4.."}[5m])', 'code'))
+  ),
+  embedPanel(
+    'controller-embed',
+    'controller.embed.requests_5xx',
+    '5xx 请求速率',
+    'line',
+    'ops',
+    6,
+    ['rest_client_requests_total', 'kube_pod_info'],
+    true,
+    fixed(componentPodGroup('controller-manager', 'rate(rest_client_requests_total{code=~"5.."}[5m])', 'code'))
   ),
 
   // ---- Scheduler embed ----
@@ -613,6 +873,96 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
     {
       fallbackQuery: fixed(controlPlaneContainerMemoryFallback('scheduler'))
     }
+  ),
+  embedPanel(
+    'scheduler-embed',
+    'scheduler.embed.instance_cpu',
+    '实例 CPU',
+    'line',
+    'cores',
+    6,
+    ['container_cpu_usage_seconds_total', 'kube_pod_container_resource_requests', 'kube_pod_container_resource_limits', 'kube_pod_info'],
+    true,
+    fixed(componentInstanceQuota('scheduler', 'cpu'))
+  ),
+  embedPanel(
+    'scheduler-embed',
+    'scheduler.embed.instance_memory',
+    '实例内存',
+    'line',
+    'bytes',
+    6,
+    ['container_memory_working_set_bytes', 'kube_pod_container_resource_requests', 'kube_pod_container_resource_limits', 'kube_pod_info'],
+    true,
+    fixed(componentInstanceQuota('scheduler', 'memory'))
+  ),
+  embedPanel(
+    'scheduler-embed',
+    'scheduler.embed.instance_status',
+    '实例在线状态',
+    'status',
+    '',
+    12,
+    ['up', 'kube_pod_info'],
+    false,
+    fixed(componentStatusQuery('scheduler'))
+  ),
+  embedPanel(
+    'scheduler-embed',
+    'scheduler.embed.attempts_trend',
+    '调度尝试速率',
+    'line',
+    'ops',
+    6,
+    ['scheduler_schedule_attempts_total', 'kube_pod_info'],
+    true,
+    fixed(componentPodGroup('scheduler', 'rate(scheduler_schedule_attempts_total[5m])', ''))
+  ),
+  embedPanel(
+    'scheduler-embed',
+    'scheduler.embed.scheduled_rate',
+    '调度速率',
+    'line',
+    'ops',
+    6,
+    ['scheduler_schedule_attempts_total', 'kube_pod_info'],
+    true,
+    fixed(
+      componentPodGroup('scheduler', 'rate(scheduler_schedule_attempts_total{result="scheduled"}[5m])', '')
+    )
+  ),
+  embedPanel(
+    'scheduler-embed',
+    'scheduler.embed.latency_trend',
+    '调度延时 P99',
+    'line',
+    'ms',
+    6,
+    ['scheduler_e2e_scheduling_duration_seconds_bucket', 'kube_pod_info'],
+    true,
+    fixed(componentQuantilePodQuery('scheduler', 'scheduler_e2e_scheduling_duration_seconds_bucket'))
+  ),
+  embedPanel(
+    'scheduler-embed',
+    'scheduler.embed.pending_pods',
+    'Pending Pods',
+    'line',
+    'short',
+    6,
+    ['scheduler_pending_pods', 'kube_pod_info'],
+    true,
+    fixed(componentPodGroup('scheduler', 'scheduler_pending_pods', ''))
+  ),
+  embedPanel(
+    'scheduler-embed',
+    'scheduler.embed.incoming_pods',
+    'Incoming Pods 速率',
+    'line',
+    'ops',
+    6,
+    ['scheduler_queue_incoming_pods_total', 'kube_pod_info'],
+    true,
+    fixed(componentPodGroup('scheduler', 'rate(scheduler_queue_incoming_pods_total[5m])', ''))
   ),
 
   // ---- Node resource embed ----
@@ -1096,9 +1446,15 @@ export const APISERVER_EMBED_PANEL_IDS = [
   'apiserver.embed.latency_p99',
   'apiserver.embed.replicas',
   'apiserver.embed.requests',
+  'apiserver.embed.requests_by_code',
   'apiserver.embed.latency',
   'apiserver.embed.errors',
-  'apiserver.embed.process'
+  'apiserver.embed.requests_3xx',
+  'apiserver.embed.requests_4xx',
+  'apiserver.embed.process',
+  'apiserver.embed.instance_status',
+  'apiserver.embed.instance_cpu',
+  'apiserver.embed.instance_memory'
 ] as const
 
 export const KUBELET_EMBED_PANEL_IDS = [
@@ -1107,7 +1463,10 @@ export const KUBELET_EMBED_PANEL_IDS = [
   'kubelet.embed.node_count',
   'kubelet.embed.runtime_error_rate',
   'kubelet.embed.operation_rate',
-  'kubelet.embed.errors'
+  'kubelet.embed.errors',
+  'kubelet.embed.instance_cpu',
+  'kubelet.embed.instance_memory',
+  'kubelet.embed.instance_status'
 ] as const
 
 export const CONTROLLER_EMBED_PANEL_IDS = [
@@ -1118,7 +1477,15 @@ export const CONTROLLER_EMBED_PANEL_IDS = [
   'controller.embed.queue_top',
   'controller.embed.adds',
   'controller.embed.latency_p99',
-  'controller.embed.process'
+  'controller.embed.process',
+  'controller.embed.instance_cpu',
+  'controller.embed.instance_memory',
+  'controller.embed.instance_status',
+  'controller.embed.requests',
+  'controller.embed.requests_by_code',
+  'controller.embed.requests_3xx',
+  'controller.embed.requests_4xx',
+  'controller.embed.requests_5xx'
 ] as const
 
 export const SCHEDULER_EMBED_PANEL_IDS = [
@@ -1129,7 +1496,15 @@ export const SCHEDULER_EMBED_PANEL_IDS = [
   'scheduler.embed.results',
   'scheduler.embed.latency',
   'scheduler.embed.queue_depth',
-  'scheduler.embed.process'
+  'scheduler.embed.process',
+  'scheduler.embed.instance_cpu',
+  'scheduler.embed.instance_memory',
+  'scheduler.embed.instance_status',
+  'scheduler.embed.attempts_trend',
+  'scheduler.embed.scheduled_rate',
+  'scheduler.embed.latency_trend',
+  'scheduler.embed.pending_pods',
+  'scheduler.embed.incoming_pods'
 ] as const
 
 export const NODE_RESOURCE_EMBED_PANEL_IDS = [

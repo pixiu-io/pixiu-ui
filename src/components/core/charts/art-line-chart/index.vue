@@ -36,6 +36,7 @@
     silentUpdate: false,
     axisFontSize: undefined,
     maxXAxisLabels: undefined,
+    yAxisScale: false,
 
     // 轴线显示配置
     showAxisLabel: true,
@@ -266,8 +267,9 @@
       },
       yAxis: {
         type: 'value',
-        min: 0,
-        max: maxValue.value,
+        min: props.yAxisScale ? undefined : 0,
+        max: props.yAxisScale ? undefined : maxValue.value,
+        scale: props.yAxisScale ? true : undefined,
         axisLabel: {
           ...getAxisLabelStyle(props.showAxisLabel),
           ...(props.axisFontSize != null ? { fontSize: props.axisFontSize } : {})
@@ -453,7 +455,7 @@
       if (isAnimating.value && hasRenderableData()) return false
       return checkIsEmpty()
     },
-    watchSources: [],
+    watchSources: [() => props.data, () => props.xAxisData],
     onVisible: () => {
       if (hasRenderableData()) forceReplayAnimation()
     },

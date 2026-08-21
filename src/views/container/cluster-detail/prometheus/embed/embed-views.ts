@@ -182,8 +182,23 @@ export function buildApiserverEmbedView(
     ]),
     sections: [
       {
+        title: '实例状态',
+        panelIds: ['apiserver.embed.instance_status'],
+        gridClass: 'prometheus-dashboard__panel-grid--full'
+      },
+      {
+        title: '实例资源',
+        panelIds: ['apiserver.embed.instance_cpu', 'apiserver.embed.instance_memory']
+      },
+      {
         title: '请求与错误',
-        panelIds: ['apiserver.embed.requests', 'apiserver.embed.errors']
+        panelIds: [
+          'apiserver.embed.requests',
+          'apiserver.embed.requests_by_code',
+          'apiserver.embed.requests_3xx',
+          'apiserver.embed.requests_4xx',
+          'apiserver.embed.errors'
+        ]
       },
       {
         title: '延迟与资源',
@@ -261,6 +276,14 @@ export function buildKubeletEmbedView(
       }
     ]),
     sections: [
+      {
+        title: '实例在线状态',
+        panelIds: ['kubelet.embed.instance_status']
+      },
+      {
+        title: '实例资源',
+        panelIds: ['kubelet.embed.instance_cpu', 'kubelet.embed.instance_memory']
+      },
       {
         title: 'Runtime 操作',
         panelIds: ['kubelet.embed.operation_rate', 'kubelet.embed.errors']
@@ -365,12 +388,31 @@ export function buildControllerEmbedView(
     ]),
     sections: [
       {
-        title: '工作队列',
-        panelIds: ['controller.embed.queue_top', 'controller.embed.adds']
+        title: '实例在线状态',
+        panelIds: ['controller.embed.instance_status']
       },
       {
-        title: '处理性能',
-        panelIds: ['controller.embed.latency_p99', 'controller.embed.process']
+        title: '实例资源',
+        panelIds: ['controller.embed.instance_cpu', 'controller.embed.instance_memory']
+      },
+      {
+        title: '请求与错误',
+        panelIds: [
+          'controller.embed.requests',
+          'controller.embed.requests_by_code',
+          'controller.embed.requests_3xx',
+          'controller.embed.requests_4xx',
+          'controller.embed.requests_5xx'
+        ]
+      },
+      {
+        title: '工作队列',
+        panelIds: [
+          'controller.embed.queue_top',
+          'controller.embed.adds',
+          'controller.embed.latency_p99',
+          'controller.embed.process'
+        ]
       }
     ]
   }
@@ -473,12 +515,28 @@ export function buildSchedulerEmbedView(
     ]),
     sections: [
       {
-        title: '调度结果',
-        panelIds: ['scheduler.embed.results', 'scheduler.embed.queue_depth']
+        title: '实例在线状态',
+        panelIds: ['scheduler.embed.instance_status']
       },
       {
-        title: '调度性能',
-        panelIds: ['scheduler.embed.latency', 'scheduler.embed.process']
+        title: '实例资源',
+        panelIds: ['scheduler.embed.instance_cpu', 'scheduler.embed.instance_memory']
+      },
+      {
+        title: '调度结果',
+        panelIds: [
+          'scheduler.embed.results',
+          'scheduler.embed.queue_depth',
+          'scheduler.embed.attempts_trend',
+          'scheduler.embed.scheduled_rate',
+          'scheduler.embed.latency_trend',
+          'scheduler.embed.latency',
+          'scheduler.embed.process'
+        ]
+      },
+      {
+        title: 'Pod 抢占',
+        panelIds: ['scheduler.embed.pending_pods', 'scheduler.embed.incoming_pods']
       }
     ]
   }

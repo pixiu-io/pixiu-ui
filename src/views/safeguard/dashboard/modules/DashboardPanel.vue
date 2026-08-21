@@ -1,5 +1,8 @@
 <template>
-  <article class="dashboard-panel" :class="[`is-${panel.kind}`, `span-${panel.span}`]">
+  <article
+    class="dashboard-panel"
+    :class="[`is-${panel.kind}`, `span-${panel.span}`, { 'is-instance-status': isInstanceStatusPanel }]"
+  >
     <header class="dashboard-panel__header">
       <div class="dashboard-panel__heading">
         <h3>{{ panel.title }}</h3>
@@ -19,14 +22,22 @@
     </div>
 
     <div v-else-if="!result || result.status !== 'success'" class="dashboard-panel__state">
-      <div class="dashboard-panel__empty-icon" :class="result?.status || 'no_data'">
-        <ElIcon><DataAnalysis /></ElIcon>
-      </div>
-      <strong>{{ stateTitle }}</strong>
-      <span>{{ stateMessage }}</span>
-      <ElTooltip v-if="result?.status === 'error'" :content="result.message || ''">
-        <button class="dashboard-panel__error-detail" type="button">查看原因</button>
-      </ElTooltip>
+      <template v-if="result?.status === 'error'">
+        <div class="dashboard-panel__empty-icon" :class="result?.status || 'no_data'">
+          <ElIcon><DataAnalysis /></ElIcon>
+        </div>
+        <strong>{{ stateTitle }}</strong>
+        <span>{{ stateMessage }}</span>
+        <ElTooltip :content="result.message || ''">
+          <button class="dashboard-panel__error-detail" type="button">查看原因</button>
+        </ElTooltip>
+      </template>
+      <template v-else-if="result?.status === 'metric_missing'">
+        <span>{{ stateMessage }}</span>
+      </template>
+      <template v-else>
+        <strong class="dashboard-panel__empty-text">暂无数据</strong>
+      </template>
     </div>
 
     <div v-else-if="panel.kind === 'stat'" class="dashboard-panel__stat">
@@ -46,9 +57,21 @@
 
     <div v-else-if="panel.kind === 'status'" class="dashboard-panel__status-list">
       <div v-for="item in statusItems" :key="item.name" class="dashboard-panel__status-item">
-        <span class="dashboard-panel__status-dot" :class="item.healthy ? 'healthy' : 'warning'" />
+        <span
+          v-if="!isInstanceStatusPanel"
+          class="dashboard-panel__status-dot"
+          :class="item.healthy ? 'healthy' : 'warning'"
+        />
         <span class="dashboard-panel__status-name" :title="item.name">{{ item.name }}</span>
-        <strong>{{ item.value }}</strong>
+        <span v-if="item.ip" class="dashboard-panel__status-ip">{{ item.ip }}</span>
+        <strong v-if="!isInstanceStatusPanel">{{ item.value }}</strong>
+        <span
+          v-else
+          class="dashboard-panel__status-value"
+          :class="item.healthy ? 'online' : 'offline'"
+        >
+          {{ item.value }}
+        </span>
       </div>
     </div>
 
@@ -153,6 +176,9 @@
     return Number.isFinite(value) ? value : 0
   })
 
+  /** 实例在线状态面板：隐藏状态圆点、压缩高度（已用「在线/离线」文字表达状态） */
+  const isInstanceStatusPanel = computed(() => props.panel.id.endsWith('.embed.instance_status'))
+
   const stateTitle = computed(() => {
     if (props.result?.status === 'metric_missing') return '指标未采集'
     if (props.result?.status === 'error') return '查询失败'
@@ -186,11 +212,16 @@
       const pod = series.metric.pod?.trim()
       const namespace = series.metric.namespace?.trim()
       const isPvcPanel = props.panel.id.includes('pvc')
+      const isInstanceStatus = isInstanceStatusPanel.value
 
       let name: string
       let displayValue: string
 
-      if (pvc) {
+      if (isInstanceStatus) {
+        // 实例在线状态（各组件 up 探活）：Pod 名或实例地址 + 「在线/离线」文字
+        name = pod ? pod : seriesLabel(series) || `item-${index}`
+        displayValue = value > 0 ? '在线' : '离线'
+      } else if (pvc) {
         // PVC 明细：左侧 namespace/pvc，右侧 phase
         name = namespace ? `${namespace}/${pvc}` : pvc
         displayValue = phase || 'Exists'
@@ -212,7 +243,8 @@
         value: displayValue,
         healthy: phase
           ? !['Failed', 'Pending', 'Lost', 'Unknown'].includes(phase)
-          : value > 0
+          : value > 0,
+        ip: isInstanceStatusPanel.value ? series.metric.instance || '' : undefined
       }
     })
   )
@@ -241,6 +273,28 @@
 
   function seriesLabel(series: DashboardSeries): string {
     const labels = series.metric
+    // 实例级监控面板（含进程内存、3xx/4xx/5xx 按状态码）：系列名优先显示实例地址（IP:端口），避免 namespace 干扰
+    const isApiserverInstancePanel =
+      props.panel.id.startsWith('apiserver.embed.instance_') ||
+      props.panel.id === 'apiserver.embed.process' ||
+      props.panel.id === 'apiserver.embed.errors' ||
+      props.panel.id === 'apiserver.embed.requests_3xx' ||
+      props.panel.id === 'apiserver.embed.requests_4xx' ||
+      props.panel.id === 'apiserver.embed.requests_by_code'
+    if (isApiserverInstancePanel) {
+      const inst = labels.instance?.trim() || labels.host_ip?.trim()
+      if (labels.quota) return `${inst} (${labels.quota})`
+      if (labels.code_class) return `${inst} (${labels.code_class})`
+      if (labels.code) return `${inst} (${labels.code})`
+      if (inst) return inst
+    }
+    // 控制器工作队列：优先显示队列名（name），避免显示 namespace
+    if (
+      props.panel.id === 'controller.embed.queue_top' ||
+      props.panel.id === 'controller.embed.adds'
+    ) {
+      if (labels.name?.trim()) return labels.name.trim()
+    }
     if (labels.latency_kind === 'avg') return '平均延迟'
     if (labels.quantile) {
       const quantile = Number(labels.quantile)
@@ -341,7 +395,7 @@
     if (tier === 'p99') {
       return {
         color: getCssVar('--el-color-primary'),
-        width: isOverviewLineTrend ? 2 : 2.5,
+        width: isOverviewLineTrend ? 1 : 2.5,
         areaOpacity: 0.22
       }
     }
@@ -782,9 +836,9 @@
     flex-direction: column;
     gap: 7px;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     height: calc(100% - 46px);
-    padding: 20px;
+    padding: 28px 20px 20px;
     color: var(--el-text-color-secondary);
     text-align: center;
   }
@@ -792,6 +846,13 @@
   .dashboard-panel__state strong {
     font-size: 12px;
     color: var(--el-text-color-primary);
+  }
+
+  /* 暂无数据空态：浅灰色弱化 */
+  .dashboard-panel__empty-text {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--el-text-color-secondary);
   }
 
   .dashboard-panel__state span {
@@ -907,6 +968,48 @@
     min-height: 34px;
     font-size: 12px;
     border-bottom: 1px solid var(--el-border-color-extra-light);
+  }
+
+  /* 实例在线状态：按 2 行高度压缩，超出行滚动，去掉状态圆点后的列布局 */
+  .dashboard-panel.is-instance-status {
+    height: 126px;
+  }
+
+  /* 实例在线状态：名称靠左、IP 居中、状态靠右 */
+  .dashboard-panel.is-instance-status .dashboard-panel__status-item {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .dashboard-panel.is-instance-status .dashboard-panel__status-name {
+    min-width: 0;
+  }
+
+  .dashboard-panel.is-instance-status .dashboard-panel__status-value {
+    justify-self: end;
+  }
+
+  /* 实例 IP 列：字体与名称保持一致 */
+  .dashboard-panel__status-ip {
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    color: var(--el-text-color-primary);
+  }
+
+  /* 实例在线状态值：在线绿色、离线黄色，均不加粗 */
+  .dashboard-panel__status-value {
+    font-size: 12px;
+    font-weight: 400;
+  }
+
+  .dashboard-panel__status-value.online {
+    color: #67c23a;
+  }
+
+  .dashboard-panel__status-value.offline {
+    color: #e6a23c;
   }
 
   .dashboard-panel__status-dot {
