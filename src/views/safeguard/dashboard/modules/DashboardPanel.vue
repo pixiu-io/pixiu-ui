@@ -1,7 +1,7 @@
 <template>
   <article
     class="dashboard-panel"
-    :class="[`is-${panel.kind}`, `span-${panel.span}`, { 'is-instance-status': panel.id === 'apiserver.embed.instance_status' }]"
+    :class="[`is-${panel.kind}`, `span-${panel.span}`, { 'is-instance-status': isInstanceStatusPanel }]"
   >
     <header class="dashboard-panel__header">
       <div class="dashboard-panel__heading">
@@ -22,14 +22,22 @@
     </div>
 
     <div v-else-if="!result || result.status !== 'success'" class="dashboard-panel__state">
-      <div class="dashboard-panel__empty-icon" :class="result?.status || 'no_data'">
-        <ElIcon><DataAnalysis /></ElIcon>
-      </div>
-      <strong>{{ stateTitle }}</strong>
-      <span>{{ stateMessage }}</span>
-      <ElTooltip v-if="result?.status === 'error'" :content="result.message || ''">
-        <button class="dashboard-panel__error-detail" type="button">查看原因</button>
-      </ElTooltip>
+      <template v-if="result?.status === 'error'">
+        <div class="dashboard-panel__empty-icon" :class="result?.status || 'no_data'">
+          <ElIcon><DataAnalysis /></ElIcon>
+        </div>
+        <strong>{{ stateTitle }}</strong>
+        <span>{{ stateMessage }}</span>
+        <ElTooltip :content="result.message || ''">
+          <button class="dashboard-panel__error-detail" type="button">查看原因</button>
+        </ElTooltip>
+      </template>
+      <template v-else-if="result?.status === 'metric_missing'">
+        <span>{{ stateMessage }}</span>
+      </template>
+      <template v-else>
+        <strong class="dashboard-panel__empty-text">暂无数据</strong>
+      </template>
     </div>
 
     <div v-else-if="panel.kind === 'stat'" class="dashboard-panel__stat">
@@ -169,7 +177,7 @@
   })
 
   /** 实例在线状态面板：隐藏状态圆点、压缩高度（已用「在线/离线」文字表达状态） */
-  const isInstanceStatusPanel = computed(() => props.panel.id === 'apiserver.embed.instance_status')
+  const isInstanceStatusPanel = computed(() => props.panel.id.endsWith('.embed.instance_status'))
 
   const stateTitle = computed(() => {
     if (props.result?.status === 'metric_missing') return '指标未采集'
@@ -204,24 +212,23 @@
       const pod = series.metric.pod?.trim()
       const namespace = series.metric.namespace?.trim()
       const isPvcPanel = props.panel.id.includes('pvc')
+      const isInstanceStatus = isInstanceStatusPanel.value
 
       let name: string
       let displayValue: string
 
-      if (pvc) {
+      if (isInstanceStatus) {
+        // 实例在线状态（各组件 up 探活）：Pod 名或实例地址 + 「在线/离线」文字
+        name = pod ? pod : seriesLabel(series) || `item-${index}`
+        displayValue = value > 0 ? '在线' : '离线'
+      } else if (pvc) {
         // PVC 明细：左侧 namespace/pvc，右侧 phase
         name = namespace ? `${namespace}/${pvc}` : pvc
         displayValue = phase || 'Exists'
       } else if (pod) {
         // Pod 明细：左侧 namespace/pod，右侧 phase
         name = namespace ? `${namespace}/${pod}` : pod
-        // 实例在线状态（up 探活）：值 1/0 显示为「在线/离线」文字
-        const isInstanceStatus = props.panel.id === 'apiserver.embed.instance_status'
-        displayValue = isInstanceStatus
-          ? value > 0
-            ? '在线'
-            : '离线'
-          : phase || formatValue(value, props.panel.unit)
+        displayValue = phase || formatValue(value, props.panel.unit)
       } else if (phase) {
         // 仅按 phase 汇总（无具体资源名）
         name = isPvcPanel ? `PVC · ${phase}` : phase
@@ -280,6 +287,13 @@
       if (labels.code_class) return `${inst} (${labels.code_class})`
       if (labels.code) return `${inst} (${labels.code})`
       if (inst) return inst
+    }
+    // 控制器工作队列：优先显示队列名（name），避免显示 namespace
+    if (
+      props.panel.id === 'controller.embed.queue_top' ||
+      props.panel.id === 'controller.embed.adds'
+    ) {
+      if (labels.name?.trim()) return labels.name.trim()
     }
     if (labels.latency_kind === 'avg') return '平均延迟'
     if (labels.quantile) {
@@ -822,9 +836,9 @@
     flex-direction: column;
     gap: 7px;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     height: calc(100% - 46px);
-    padding: 20px;
+    padding: 28px 20px 20px;
     color: var(--el-text-color-secondary);
     text-align: center;
   }
@@ -832,6 +846,13 @@
   .dashboard-panel__state strong {
     font-size: 12px;
     color: var(--el-text-color-primary);
+  }
+
+  /* 暂无数据空态：浅灰色弱化 */
+  .dashboard-panel__empty-text {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--el-text-color-secondary);
   }
 
   .dashboard-panel__state span {

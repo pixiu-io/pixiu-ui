@@ -153,13 +153,9 @@
   }
 }
 
-.prometheus-dashboard__panel-grid--instance-resource {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin: 0 16px 20px;
-
-  .instance-resource-card {
-    height: 260px;
-  }
+.apiserver-metric-card {
+  grid-column: span 6;
+  height: 260px;
 }
 
 .prometheus-dashboard__panel-grid--coredns :deep(.dashboard-panel.is-line) {
