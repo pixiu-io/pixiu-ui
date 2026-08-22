@@ -126,8 +126,8 @@ export function useChart(options: UseChartOptions = {}) {
     if (resizeObserver || !chartRef.value || typeof ResizeObserver === 'undefined') return
 
     resizeObserver = new ResizeObserver(() => {
-      // 复用 RAF 合并，避免频繁触发
-      requestAnimationResize()
+      // 容器尺寸变化（含折叠菜单/抽屉等瞬时宽度变化）：立即 + 多延迟 resize，确保最终尺寸正确
+      multiDelayResize(RESIZE_DELAYS)
     })
     resizeObserver.observe(chartRef.value)
   }

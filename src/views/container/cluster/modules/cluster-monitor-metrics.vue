@@ -9,14 +9,52 @@
       v-model:timeRange="timeRange"
       v-model:granularity="granularity"
       v-model:autoRefresh="autoRefresh"
-      v-model:showLegend="showLegend"
+      :show-legend="false"
       class="resource-metrics-pane__toolbar"
     />
 
     <PrometheusOnboarding v-if="datasourceMissing" @associate="goDatasource" />
 
     <template v-else>
-      <div class="tab-section-title">CPU</div>
+      <template v-if="menuMode">
+        <div class="metrics-menu-layout">
+          <aside class="metrics-menu">
+            <div
+              v-for="item in metricMenu"
+              :key="item.key"
+              class="metrics-menu__item"
+              :class="{ 'is-active': activeMetric === item.key }"
+              @click="scrollToMetric(item.key)"
+            >
+              {{ item.label }}
+            </div>
+          </aside>
+          <main class="metrics-menu-main">
+            <div
+              v-for="item in metricMenu"
+              :key="item.key"
+              :id="`metric-${item.key}`"
+              class="metrics-metric-block"
+            >
+              <MetricChartPanel
+                :title="item.label"
+                :data="item.data"
+                :x-axis-data="cpuTimeLabels"
+                :is-empty="!item.data.length"
+                :silent-update="chartSilentUpdate"
+                :show-legend="showLegend"
+                height="260px"
+                :axis-font-size="10"
+                :max-x-axis-labels="axisLabelCount"
+                :expand-time-range="timeRange"
+                @expand-time-range-change="onExpandTimeRangeChange"
+              />
+            </div>
+          </main>
+        </div>
+      </template>
+      <template v-else>
+        <div class="tab-section-title">CPU</div>
       <div class="chart-grid">
         <MetricChartPanel
           title="CPU 总配置（核）"
@@ -210,6 +248,7 @@
           @expand-time-range-change="onExpandTimeRangeChange"
         />
       </div>
+      </template>
     </template>
   </div>
 </template>
@@ -237,7 +276,14 @@
 
   defineOptions({ name: 'ClusterMonitorMetrics' })
 
-  const props = defineProps<{ clusterName: string }>()
+  const props = withDefaults(
+    defineProps<{
+      clusterName: string
+      /** 菜单模式：左侧指标菜单 + 右侧单指标主图（集群详情监控 Tab 用）；默认分组展示（抽屉用） */
+      menuMode?: boolean
+    }>(),
+    { menuMode: false }
+  )
 
   const router = useRouter()
 
@@ -402,6 +448,33 @@
     )
   )
 
+  /** 指标菜单（菜单模式）：key 对应下方 computed，data 为对应趋势数组 */
+  const metricMenu = computed(() => [
+    { key: 'cpuTotalCores', label: 'CPU 总配置', data: cpuTotalCores.value },
+    { key: 'cpuUtilPercent', label: 'CPU 利用率', data: cpuUtilPercent.value },
+    { key: 'cpuUsageCores', label: 'CPU 使用量', data: cpuUsageCores.value },
+    { key: 'memTotalGib', label: '内存总量', data: memTotalGib.value },
+    { key: 'memUtilPercent', label: '内存使用率', data: memUtilPercent.value },
+    { key: 'memUsageGib', label: '内存使用量', data: memUsageGib.value },
+    { key: 'networkTransmitMb', label: '网络出流量', data: networkTransmitMb.value },
+    { key: 'networkReceiveMb', label: '网络入流量', data: networkReceiveMb.value },
+    { key: 'networkBandwidthMbps', label: '网络带宽', data: networkBandwidthMbps.value },
+    { key: 'networkPacketRate', label: '网络包容量', data: networkPacketRate.value },
+    { key: 'diskReadsValues', label: '块设备读取次数', data: diskReadsValues.value },
+    { key: 'diskWriteBytesValues', label: '块设备写入大小', data: diskWriteBytesValues.value },
+    { key: 'diskWritesValues', label: '块设备写入次数', data: diskWritesValues.value },
+    { key: 'diskReadBytesValues', label: '块设备读取大小', data: diskReadBytesValues.value }
+  ])
+  const activeMetric = ref('cpuUtilPercent')
+
+  /** 菜单锚点导航：点击菜单项滚动到对应指标卡片 */
+  function scrollToMetric(key: string) {
+    activeMetric.value = key
+    nextTick(() => {
+      document.getElementById(`metric-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }
+
   /** false 时折线图走生成动画；定时刷新为 true 静默更新 */
   const chartSilentUpdate = ref(false)
   let chartAnimateTimer: ReturnType<typeof setTimeout> | null = null
@@ -514,6 +587,7 @@
 
   .resource-metrics-pane__toolbar :deep(.metrics-monitor-toolbar__bar) {
     gap: 8px;
+    justify-content: flex-end;
     padding: 0;
     border: none;
     border-radius: 0;
@@ -628,5 +702,68 @@
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px;
+  }
+
+  .metrics-menu-layout {
+    display: grid;
+    grid-template-columns: 120px minmax(0, 1fr);
+    gap: 16px;
+    align-items: stretch;
+    max-height: calc(100vh - 220px);
+  }
+
+  .metrics-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 4px 0;
+    overflow-y: auto;
+    border-right: 1px solid var(--el-border-color-lighter);
+  }
+
+  .metrics-menu__item {
+    display: block;
+    width: 100%;
+    height: 32px;
+    padding: 0 10px;
+    font-size: 12px;
+    line-height: 32px;
+    color: var(--el-text-color-regular);
+    text-align: left;
+    cursor: pointer;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    transition: background-color 0.15s, color 0.15s;
+  }
+
+  .metrics-menu__item:hover {
+    color: var(--theme-color);
+    background: var(--el-fill-color-light);
+  }
+
+  .metrics-menu__item.is-active {
+    color: var(--theme-color);
+    font-weight: 600;
+    background: var(--el-fill-color-light);
+  }
+
+  .metrics-menu-main {
+    min-width: 0;
+    max-height: calc(100vh - 220px);
+    overflow-y: auto;
+    scroll-behavior: smooth;
+  }
+
+  .metrics-menu-main :deep(.metric-chart-panel) {
+    height: 260px;
+  }
+
+  .metrics-metric-block {
+    scroll-margin-top: 12px;
+  }
+
+  .metrics-metric-block + .metrics-metric-block {
+    margin-top: 16px;
   }
 </style>

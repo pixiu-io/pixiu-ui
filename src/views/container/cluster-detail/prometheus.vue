@@ -48,50 +48,78 @@
         <div class="prometheus-dashboard__monitor-tab is-active">监控详情</div>
       </div>
 
-      <div class="prometheus-dashboard__workspace">
-        <aside class="prometheus-dashboard__nav" aria-label="仪表盘分组">
-          <div
-            v-for="section in navSections"
-            :key="section.id"
-            class="prometheus-dashboard__nav-group"
-          >
-            <button
-              type="button"
-              class="prometheus-dashboard__nav-heading"
-              :aria-expanded="isNavGroupExpanded(section.id)"
-              @click="toggleNavGroup(section.id)"
+      <div
+        class="prometheus-dashboard__workspace"
+        :class="{ 'is-nav-collapsed': navCollapsed }"
+      >
+        <aside
+          class="prometheus-dashboard__nav"
+          :class="{ 'is-collapsed': navCollapsed }"
+          aria-label="仪表盘分组"
+        >
+          <div v-if="navCollapsed" class="prometheus-dashboard__nav-collapsed-bar">
+            <ElButton
+              text
+              circle
+              class="prometheus-dashboard__nav-expand"
+              title="展开菜单"
+              @click="navCollapsed = false"
             >
-              <ElIcon
-                class="prometheus-dashboard__nav-chevron"
-                :class="{ 'is-expanded': isNavGroupExpanded(section.id) }"
-              >
-                <CaretRight />
-              </ElIcon>
-              <span>{{ section.title }}</span>
-            </button>
-            <div v-show="isNavGroupExpanded(section.id)" class="prometheus-dashboard__nav-items">
-              <button
-                v-if="!section.children?.length"
-                type="button"
-                class="prometheus-dashboard__nav-item"
-                :class="{ 'is-active': activeSection === section.id }"
-                @click="selectSection(section.id)"
-              >
-                {{ section.title }}
-              </button>
-              <button
-                v-for="child in section.children"
-                v-else
-                :key="child"
-                type="button"
-                class="prometheus-dashboard__nav-item"
-                :class="{ 'is-active': activeSection === child }"
-                @click="selectSection(child)"
-              >
-                {{ sectionNames[child] || child }}
-              </button>
-            </div>
+              <ElIcon :size="15"><Expand /></ElIcon>
+            </ElButton>
           </div>
+          <template v-else>
+            <div
+              v-for="(section, index) in navSections"
+              :key="section.id"
+              class="prometheus-dashboard__nav-group"
+            >
+              <button
+                type="button"
+                class="prometheus-dashboard__nav-heading"
+                :aria-expanded="isNavGroupExpanded(section.id)"
+                @click="toggleNavGroup(section.id)"
+              >
+                <ElIcon
+                  class="prometheus-dashboard__nav-chevron"
+                  :class="{ 'is-expanded': isNavGroupExpanded(section.id) }"
+                >
+                  <CaretRight />
+                </ElIcon>
+                <span>{{ section.title }}</span>
+                <span
+                  v-if="index === 0"
+                  class="prometheus-dashboard__nav-collapse"
+                  title="折叠菜单"
+                  @click.stop="navCollapsed = true"
+                >
+                  <ElIcon :size="15"><Fold /></ElIcon>
+                </span>
+              </button>
+              <div v-show="isNavGroupExpanded(section.id)" class="prometheus-dashboard__nav-items">
+                <button
+                  v-if="!section.children?.length"
+                  type="button"
+                  class="prometheus-dashboard__nav-item"
+                  :class="{ 'is-active': activeSection === section.id }"
+                  @click="selectSection(section.id)"
+                >
+                  {{ section.title }}
+                </button>
+                <button
+                  v-for="child in section.children"
+                  v-else
+                  :key="child"
+                  type="button"
+                  class="prometheus-dashboard__nav-item"
+                  :class="{ 'is-active': activeSection === child }"
+                  @click="selectSection(child)"
+                >
+                  {{ sectionNames[child] || child }}
+                </button>
+              </div>
+            </div>
+          </template>
         </aside>
 
         <main class="prometheus-dashboard__content">
@@ -128,7 +156,7 @@
 </template>
 
 <script setup lang="ts">
-  import { CaretRight } from '@element-plus/icons-vue'
+  import { CaretRight, Expand, Fold } from '@element-plus/icons-vue'
   import { computed, inject, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useSettingStore } from '@/store/modules/setting'
@@ -184,6 +212,7 @@
   const filters = reactive<DashboardFilters>({})
   const activeSection = ref('cluster')
   const expandedNavGroups = ref<string[]>([])
+  const navCollapsed = ref(false)
   const resultMap = reactive<Record<string, DashboardPanelResult>>({})
   const datasourceLoading = ref(false)
   const queryLoading = ref(false)
@@ -306,9 +335,6 @@
 
   /** Pod 监控 Top 条：点击跳转 Pod 详情 */
   const POD_TOP_PANEL_IDS = new Set([
-    'node.embed.pod_cpu',
-    'node.embed.pod_memory',
-    'pod.embed.restarts',
     'node.embed.pod_net_tx',
     'node.embed.pod_net_rx'
   ])
@@ -776,6 +802,7 @@
     display: flex;
     flex: 0 0 auto;
     align-items: flex-start;
+    justify-content: space-between;
     height: 40px;
     padding: 10px 12px 0;
     border-bottom: 1px solid var(--el-border-color-lighter);
@@ -810,9 +837,13 @@
     padding-top: 12px;
   }
 
+  .prometheus-dashboard__workspace.is-nav-collapsed {
+    grid-template-columns: 40px minmax(0, 1fr);
+  }
+
   .prometheus-dashboard__nav {
     min-height: 0;
-    padding: 8px 6px 16px 10px;
+    padding: 4px 6px 16px 10px;
     overflow-y: auto;
     border-right: 1px solid var(--el-border-color-lighter);
     scrollbar-width: thin;
@@ -840,6 +871,36 @@
     }
   }
 
+  .prometheus-dashboard__nav.is-collapsed {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 4px 0;
+    overflow: hidden;
+    border-right: 1px solid var(--el-border-color-lighter);
+  }
+
+  .prometheus-dashboard__nav-collapsed-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .prometheus-dashboard__nav-expand {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    color: var(--el-text-color-secondary);
+    transition: color 0.15s;
+  }
+
+  .prometheus-dashboard__nav-expand:hover {
+    color: var(--theme-color);
+  }
+
   .prometheus-dashboard__nav-group + .prometheus-dashboard__nav-group {
     margin-top: 4px;
   }
@@ -863,6 +924,20 @@
   .prometheus-dashboard__nav-heading:hover {
     color: var(--theme-color);
     background: var(--el-fill-color-light);
+  }
+
+  .prometheus-dashboard__nav-collapse {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    margin-left: auto;
+    color: var(--el-text-color-secondary);
+    cursor: pointer;
+    transition: color 0.15s;
+  }
+
+  .prometheus-dashboard__nav-collapse:hover {
+    color: var(--theme-color);
   }
 
   .prometheus-dashboard__nav-chevron {
@@ -924,6 +999,14 @@
       overflow-x: auto;
       border-right: 0;
       border-bottom: 1px solid var(--el-border-color-lighter);
+    }
+
+    .prometheus-dashboard__nav.is-collapsed {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 4px 0;
+      border-right: 0;
     }
 
     .prometheus-dashboard__nav-group {

@@ -13,80 +13,88 @@
     </div>
 
     <div v-if="view.showPodFilters" class="prometheus-embed-page__filters">
-      <span class="prometheus-embed-page__filters-label">Namespace</span>
-      <ElSelect
-        :model-value="podFilters.namespace || undefined"
-        class="prometheus-embed-page__filters-select"
-        clearable
-        filterable
-        placeholder="全部 Namespace"
-        :loading="podFilterOptionsLoading"
-        @update:model-value="onFilterChange('namespace', $event)"
-      >
-        <ElOption
-          v-for="item in podFilterOptions.namespaces"
-          :key="item"
-          :label="item"
-          :value="item"
-        />
-      </ElSelect>
+      <div class="prometheus-embed-page__filter-item">
+        <span class="prometheus-embed-page__filters-label">Namespace</span>
+        <ElSelect
+          :model-value="podFilters.namespace || undefined"
+          class="prometheus-embed-page__filters-select"
+          clearable
+          filterable
+          placeholder="全部 Namespace"
+          :loading="podFilterOptionsLoading"
+          @update:model-value="onFilterChange('namespace', $event)"
+        >
+          <ElOption
+            v-for="item in podFilterOptions.namespaces"
+            :key="item"
+            :label="item"
+            :value="item"
+          />
+        </ElSelect>
+      </div>
 
-      <span class="prometheus-embed-page__filters-label">Node</span>
-      <ElSelect
-        :model-value="podFilters.node || undefined"
-        class="prometheus-embed-page__filters-select"
-        clearable
-        filterable
-        placeholder="全部 Node"
-        :loading="podFilterOptionsLoading"
-        @update:model-value="onFilterChange('node', $event)"
-      >
-        <ElOption
-          v-for="item in podFilterOptions.nodes"
-          :key="item"
-          :label="item"
-          :value="item"
-        />
-      </ElSelect>
+      <div class="prometheus-embed-page__filter-item">
+        <span class="prometheus-embed-page__filters-label">Node</span>
+        <ElSelect
+          :model-value="podFilters.node || undefined"
+          class="prometheus-embed-page__filters-select"
+          clearable
+          filterable
+          placeholder="全部 Node"
+          :loading="podFilterOptionsLoading"
+          @update:model-value="onFilterChange('node', $event)"
+        >
+          <ElOption
+            v-for="item in podFilterOptions.nodes"
+            :key="item"
+            :label="item"
+            :value="item"
+          />
+        </ElSelect>
+      </div>
 
-      <span class="prometheus-embed-page__filters-label">工作负载</span>
-      <ElSelect
-        :model-value="workloadSelectValue || undefined"
-        class="prometheus-embed-page__filters-select prometheus-embed-page__filters-select--wide"
-        clearable
-        filterable
-        placeholder="全部工作负载"
-        :loading="podFilterOptionsLoading"
-        @update:model-value="onWorkloadChange"
-      >
-        <ElOption
-          v-for="item in podFilterOptions.workloads"
-          :key="`${item.kind}/${item.name}`"
-          :label="`${item.kind}/${item.name}`"
-          :value="`${item.kind}::${item.name}`"
-        />
-      </ElSelect>
+      <div class="prometheus-embed-page__filter-item">
+        <span class="prometheus-embed-page__filters-label">工作负载</span>
+        <ElSelect
+          :model-value="workloadSelectValue || undefined"
+          class="prometheus-embed-page__filters-select prometheus-embed-page__filters-select--wide"
+          clearable
+          filterable
+          placeholder="全部工作负载"
+          :loading="podFilterOptionsLoading"
+          @update:model-value="onWorkloadChange"
+        >
+          <ElOption
+            v-for="item in podFilterOptions.workloads"
+            :key="`${item.kind}/${item.name}`"
+            :label="`${item.kind}/${item.name}`"
+            :value="`${item.kind}::${item.name}`"
+          />
+        </ElSelect>
+      </div>
 
-      <span class="prometheus-embed-page__filters-label">Pod</span>
-      <ElSelect
-        :model-value="podFilters.pod || undefined"
-        class="prometheus-embed-page__filters-select prometheus-embed-page__filters-select--wide"
-        clearable
-        filterable
-        placeholder="全部 Pod"
-        :loading="podFilterOptionsLoading"
-        @update:model-value="onFilterChange('pod', $event)"
-      >
-        <ElOption
-          v-for="item in podFilterOptions.pods"
-          :key="item"
-          :label="item"
-          :value="item"
-        />
-      </ElSelect>
+      <div class="prometheus-embed-page__filter-item">
+        <span class="prometheus-embed-page__filters-label">Pod</span>
+        <ElSelect
+          :model-value="podFilters.pod || undefined"
+          class="prometheus-embed-page__filters-select prometheus-embed-page__filters-select--wide"
+          clearable
+          filterable
+          placeholder="全部 Pod"
+          :loading="podFilterOptionsLoading"
+          @update:model-value="onFilterChange('pod', $event)"
+        >
+          <ElOption
+            v-for="item in podFilterOptions.pods"
+            :key="item"
+            :label="item"
+            :value="item"
+          />
+        </ElSelect>
+      </div>
     </div>
 
-    <div class="prometheus-dashboard__coredns-summary">
+    <div v-if="view.summaryCards.length" class="prometheus-dashboard__coredns-summary">
       <div class="prometheus-dashboard__summary-grid prometheus-dashboard__summary-grid--coredns">
         <div
           v-for="card in view.summaryCards"

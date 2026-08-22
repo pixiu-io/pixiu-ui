@@ -51,6 +51,15 @@
       @save="onNodeYamlSave"
     />
 
+    <NodeDetailDrawer
+      v-model="nodeDetailVisible"
+      :row="selectedNodeRow"
+      :definition="nodeDetailDefinition"
+      :datasource="nodeDetailDatasource"
+      :time-range="nodeDetailTimeRange"
+      :granularity="nodeDetailGranularity"
+    />
+
     <!-- 标签管理 -->
     <ElDialog
       v-model="labelVisible"
@@ -358,6 +367,13 @@
   import { updateK8sResourceFromYaml } from '@/api/kubernetes/yamlCreate'
   import yaml from 'js-yaml'
   import { notifyError } from '@/utils/sys/notify'
+  import type { DatasourceItem } from '@/api/datasource'
+  import NodeDetailDrawer from '@/views/container/cluster-detail/prometheus/embed/NodeDetailDrawer.vue'
+  import type { NodeOverviewRow } from '@/views/container/cluster-detail/prometheus/embed/NodeOverviewTable.vue'
+  import { getDashboardDefinition } from '@/utils/metrics/dashboard-catalog'
+  import { loadPrometheusDatasource } from '@/utils/datasource/prometheus-datasource'
+  import { getDefaultMetricsGranularity, type MetricsGranularityOption } from '@/utils/metrics/granularity'
+  import { getDefaultMetricsTimeRange, type MetricsTimeRange } from '@/utils/metrics/time-range'
 
   defineOptions({ name: 'ClusterDetailNodes' })
   const props = withDefaults(
@@ -455,16 +471,69 @@
   ) {
     const cpu = row._cpuUsage ?? null
     const mem = row._memoryUsage ?? null
-    if (
-      (cpu === null || !Number.isFinite(cpu)) &&
-      (mem === null || !Number.isFinite(mem))
-    ) {
-      return h('span', { class: 'node-resource-usage__empty' }, '-')
+    const content =
+      (cpu === null || !Number.isFinite(cpu)) && (mem === null || !Number.isFinite(mem))
+        ? h('span', { class: 'node-resource-usage__empty' }, '-')
+        : h('div', { class: 'node-resource-usage' }, [
+            renderUsageMetricRow('CPU', cpu),
+            renderUsageMetricRow('内存', mem)
+          ])
+    return h(
+      'div',
+      {
+        class: 'node-resource-usage-cell',
+        title: '查看节点资源详情',
+        onClick: () => openNodeDetailDrawer(row)
+      },
+      [content]
+    )
+  }
+
+  /** 节点资源详情抽屉（复用 Prometheus node 概览抽屉） */
+  const nodeDetailVisible = ref(false)
+  const selectedNodeRow = ref<NodeOverviewRow | null>(null)
+  const nodeDetailDatasource = ref<DatasourceItem | null>(null)
+  const nodeDetailTimeRange = ref<MetricsTimeRange>(getDefaultMetricsTimeRange())
+  const nodeDetailGranularity = ref<MetricsGranularityOption>(getDefaultMetricsGranularity())
+  const nodeDetailDefinition = getDashboardDefinition()
+
+  function nodeReadyOf(row: K8sNode): boolean | null {
+    const ready = row.status?.conditions?.find((c: any) => c.type === 'Ready')
+    if (!ready) return null
+    return ready.status === 'True'
+  }
+
+  function toNodeOverviewRow(row: K8sNode): NodeOverviewRow {
+    return {
+      name: row.metadata?.name ?? '',
+      ready: nodeReadyOf(row),
+      cpu: lookupNodeCpuUsage(row),
+      cpuTotal: null,
+      memory: lookupNodeMemoryUsage(row),
+      memoryTotal: null,
+      diskAvail: null,
+      netTx: null,
+      netRx: null,
+      connections: null,
+      retrans: null,
+      load5: null,
+      uptime: null,
+      pods: null,
+      hot: false,
+      diskLow: false,
+      retransHigh: false
     }
-    return h('div', { class: 'node-resource-usage' }, [
-      renderUsageMetricRow('CPU', cpu),
-      renderUsageMetricRow('内存', mem)
-    ])
+  }
+
+  async function openNodeDetailDrawer(row: K8sNode) {
+    if (!nodeDetailDatasource.value) {
+      nodeDetailDatasource.value = (await loadPrometheusDatasource(clusterName.value)) ?? null
+    }
+    selectedNodeRow.value = toNodeOverviewRow(row)
+    nodeDetailVisible.value = true
+    if (!nodeDetailDatasource.value) {
+      ElMessage.warning('未关联 Prometheus 数据源，节点资源详情不可用')
+    }
   }
 
   const router = useRouter()
@@ -1635,6 +1704,15 @@
   .node-resource-usage__empty {
     font-size: 12px;
     color: var(--el-text-color-regular);
+  }
+
+  /* 资源使用率列可点击，打开节点资源详情抽屉 */
+  .node-resource-usage-cell {
+    cursor: pointer;
+  }
+
+  .node-resource-usage-cell:hover {
+    opacity: 0.85;
   }
 </style>
 
