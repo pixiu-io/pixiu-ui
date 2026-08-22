@@ -1826,6 +1826,129 @@ export const embedPanelSpecs: EmbedPanelSpec[] = [
       ]
     }
   ),
+  embedPanel(
+    'node-pod-embed',
+    'node.embed.pod_cpu_top_trend',
+    'Top 10 CPU',
+    'line',
+    'cores',
+    6,
+    [],
+    true,
+    (filters) =>
+      `topk(10, sum by (namespace,pod) (${containerScoped('container_cpu_usage_seconds_total', filters, 'container!="",image!=""', true)}))`,
+    '按 Pod 汇总 CPU 用量 Top10 趋势（核）',
+    {
+      fallbackQueries: [
+        (filters) =>
+          `topk(10, sum by (namespace,pod) (${containerScoped('container_cpu_usage_seconds_total', filters, 'container!="",container!="POD"', true)}))`,
+        (filters) =>
+          `topk(10, sum by (namespace,pod) (${containerScoped('container_cpu_usage_seconds_total', filters, 'container!=""', true)}))`
+      ]
+    }
+  ),
+  embedPanel(
+    'node-pod-embed',
+    'node.embed.pod_memory_top_trend',
+    'Top 10 内存',
+    'line',
+    'bytes',
+    6,
+    [],
+    true,
+    (filters) =>
+      `topk(10, sum by (namespace,pod) (${containerScoped('container_memory_working_set_bytes', filters, 'container!="",image!=""', false)}))`,
+    '按 Pod 汇总内存工作集 Top10 趋势',
+    {
+      fallbackQueries: [
+        (filters) =>
+          `topk(10, sum by (namespace,pod) (${containerScoped('container_memory_working_set_bytes', filters, 'container!="",container!="POD"', false)}))`,
+        (filters) =>
+          `topk(10, sum by (namespace,pod) (${containerScoped('container_memory_working_set_bytes', filters, 'container!=""', false)}))`
+      ]
+    }
+  ),
+  embedPanel(
+    'node-pod-embed',
+    'container.embed.status',
+    '容器状态',
+    'line',
+    'count',
+    6,
+    [],
+    true,
+    (filters) => {
+      const running = kubePodScoped('kube_pod_container_status_running', filters)
+      const terminated = kubePodScoped('kube_pod_container_status_terminated', filters)
+      const waiting = kubePodScoped('kube_pod_container_status_waiting', filters)
+      return `sum by (state) (label_replace(sum(${running}), "state", "running", "nonexistent", ".*") or label_replace(sum(${terminated}), "state", "terminated", "nonexistent", ".*") or label_replace(sum(${waiting}), "state", "waiting", "nonexistent", ".*"))`
+    },
+    '集群容器运行/终止/等待状态数量趋势'
+  ),
+  embedPanel(
+    'node-pod-embed',
+    'container.embed.restarts_top',
+    '容器重启 TOP10',
+    'line',
+    'count',
+    6,
+    [],
+    true,
+    (filters) =>
+      `topk(10, ${kubePodScoped(`sum by (namespace,pod) (round(increase(${metricSelector('kube_pod_container_status_restarts_total', filters, '', ['namespace', 'pod'])}[1h])))`, filters)})`,
+    '按 Pod 汇总容器重启次数 Top10 趋势'
+  ),
+  embedPanel(
+    'node-pod-embed',
+    'container.embed.oom_killed',
+    'OOM Killed',
+    'line',
+    'count',
+    6,
+    [],
+    true,
+    (filters) =>
+      `topk(10, ${kubePodScoped(`sum by (namespace,pod) (round(increase(${metricSelector('container_oom_events_total', filters, 'container!="",container!="POD"', ['namespace', 'pod'])}[1h])))`, filters)})`,
+    '按 Pod 汇总 OOM Killed 事件数 Top10 趋势'
+  ),
+  embedPanel(
+    'node-pod-embed',
+    'container.embed.crashloop',
+    'CrashloopBackOff',
+    'line',
+    'count',
+    6,
+    [],
+    true,
+    (filters) =>
+      `topk(10, ${kubePodScoped(`sum by (namespace,pod) (${metricSelector('kube_pod_container_status_waiting_reason', filters, 'reason="CrashLoopBackOff"', ['namespace', 'pod'])} == 1)`, filters)})`,
+    '处于 CrashloopBackOff 状态的容器数 Top10 趋势'
+  ),
+  embedPanel(
+    'node-pod-embed',
+    'pod.embed.running_total',
+    'Pod Running',
+    'line',
+    'count',
+    6,
+    [],
+    true,
+    (filters) => `sum(${kubePodScoped('kube_pod_status_phase{phase="Running"} == 1', filters)})`,
+    '集群当前 Running 状态的 Pod 总数趋势'
+  ),
+  embedPanel(
+    'node-pod-embed',
+    'pod.embed.running_by_namespace',
+    'Pod Running By Namespace',
+    'line',
+    'count',
+    6,
+    [],
+    true,
+    (filters) =>
+      `sum by (namespace) (${kubePodScoped('kube_pod_status_phase{phase="Running"} == 1', filters)})`,
+    '按命名空间汇总 Running Pod 数量趋势'
+  ),
 
   // ---- Workload embed ----
   embedPanel(
@@ -2334,13 +2457,18 @@ export const NODE_RESOURCE_EMBED_PANEL_IDS = [
 export const NODE_POD_EMBED_PANEL_IDS = [
   'node.embed.pod_restarting',
   'pod.embed.phase',
-  'node.embed.pod_cpu',
-  'node.embed.pod_memory',
-  'pod.embed.restarts',
   'node.embed.pod_net_tx',
   'node.embed.pod_net_rx',
   'node.embed.pod_cpu_trend',
-  'node.embed.pod_memory_trend'
+  'node.embed.pod_memory_trend',
+  'node.embed.pod_cpu_top_trend',
+  'node.embed.pod_memory_top_trend',
+  'container.embed.status',
+  'container.embed.restarts_top',
+  'container.embed.oom_killed',
+  'container.embed.crashloop',
+  'pod.embed.running_total',
+  'pod.embed.running_by_namespace'
 ] as const
 
 export const WORKLOAD_EMBED_PANEL_IDS = [

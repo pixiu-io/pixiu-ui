@@ -311,6 +311,7 @@
     if (labels.cache) return labels.cache
     if (labels.rcode) return labels.rcode
     if ('type' in labels) return labels.type?.trim() || '未知类型'
+    if (labels.state) return labels.state
     if (labels.pod?.trim()) {
       const pod = labels.pod.trim()
       const namespace = labels.namespace?.trim()
@@ -462,8 +463,17 @@
       const isOverviewLineTrend = props.overviewLine
       const isPerPodTrend =
         props.panel.id === 'node.embed.pod_cpu_trend' ||
-        props.panel.id === 'node.embed.pod_memory_trend'
-      const lineColors = isOverviewLineTrend ? overviewColors : colors
+        props.panel.id === 'node.embed.pod_memory_trend' ||
+        props.panel.id === 'node.embed.pod_cpu_top_trend' ||
+        props.panel.id === 'node.embed.pod_memory_top_trend' ||
+        props.panel.id === 'container.embed.restarts_top' ||
+        props.panel.id === 'container.embed.oom_killed' ||
+        props.panel.id === 'container.embed.crashloop' ||
+        props.panel.id === 'pod.embed.running_by_namespace'
+      // Pod 分系列趋势：图例移到图下方，折线用鲜明色，提升可读性
+      const isPodTrendLegend = isPerPodTrend ? { top: 'auto' as const, bottom: 6 } : {}
+      const lineColors = isPerPodTrend ? colors : isOverviewLineTrend ? overviewColors : colors
+      const lineWidthBase = isOverviewLineTrend ? 1 : 2
       const axisFontSize = isOverviewLineTrend ? 10 : undefined
       const quantileChart = isQuantileLineChart(source)
       const chartSeries = quantileChart ? sortQuantileSeries(source) : source
@@ -474,6 +484,7 @@
       // 多系列时用滚动图例；点击图例即可显隐（避免 selector 在部分 ECharts 版本异常）
       const lineLegend = {
         ...legend,
+        ...isPodTrendLegend,
         type: 'scroll' as const
       }
       return {
@@ -485,8 +496,8 @@
           ? {
               left: 4,
               right: 12,
-              top: props.showLegend ? (multiPodLines ? 40 : 32) : 16,
-              bottom: 22,
+              top: props.showLegend ? (isPerPodTrend ? 14 : multiPodLines ? 40 : 32) : 16,
+              bottom: isPerPodTrend ? 30 : 22,
               containLabel: true
             }
           : { left: 14, right: 18, top: 34, bottom: 30, containLabel: true },
@@ -502,6 +513,8 @@
             fontSize: axisFontSize,
             formatter: (value: number) => formatValue(value, props.panel.unit)
           },
+          minInterval: props.panel.unit === 'count' ? 1 : undefined,
+          splitNumber: props.panel.unit === 'count' ? 6 : undefined,
           splitLine: { lineStyle: { color: splitColor, type: 'dashed' } }
         },
         series: visibleSeries.map((item, index) => {
@@ -517,7 +530,7 @@
               ? getCssVar('--el-color-primary')
               : seriesColor)
           const lineWidth =
-            quantileStyle?.width ?? (isOverviewLineTrend ? 1 : 2)
+            quantileStyle?.width ?? lineWidthBase
           const areaOpacity = quantileStyle?.areaOpacity ?? 0.2
           return {
             name: seriesLabel(item),

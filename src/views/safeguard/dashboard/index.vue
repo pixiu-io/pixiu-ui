@@ -927,7 +927,7 @@
 
   .prometheus-dashboard__nav {
     min-height: 0;
-    padding: 8px 6px 16px 10px;
+    padding: 4px 6px 16px 10px;
     overflow-y: auto;
     border-right: 1px solid var(--el-border-color-lighter);
     scrollbar-width: thin;

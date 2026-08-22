@@ -10,10 +10,20 @@
   margin: 0 16px 12px;
 }
 
+/* label 与下拉框成组，小屏换行时整组换行，避免 label 在上、下拉框在下 */
+.prometheus-embed-page__filter-item {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 6px;
+  align-items: center;
+}
+
+/* 与页面顶部 "Prometheus 实例:" 标题（prometheus.vue .prometheus-dashboard__source-bar label）保持一致的字体大小与颜色 */
 .prometheus-embed-page__filters-label {
   flex: 0 0 auto;
   font-size: 12px;
-  color: var(--el-text-color-secondary);
+  line-height: 1;
+  color: var(--el-text-color-regular);
 }
 
 .prometheus-embed-page__filters-select {

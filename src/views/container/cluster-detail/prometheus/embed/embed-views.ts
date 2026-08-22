@@ -678,62 +678,25 @@ export function buildNodePodEmbedView(
   return {
     ...health,
     showPodFilters: true,
-    summaryCards: healthCard(health, [
-      {
-        title: 'Running Pods',
-        icon: CircleCheckFilled,
-        iconColor: '#67c23a',
-        iconBg: 'rgba(103, 194, 58, 0.12)',
-        value: total > 0 ? String(Math.round(running)) : '-',
-        sub:
-          total > 0
-            ? `/ ${Math.round(total)} Pod${succeeded > 0 ? ` · Succeeded ${Math.round(succeeded)}` : ''}`
-            : '暂无数据'
-      },
-      {
-        title: '异常 Pods',
-        icon: WarningFilled,
-        iconColor: '#f56c6c',
-        iconBg: 'rgba(245, 108, 108, 0.12)',
-        value: total > 0 ? String(Math.round(abnormal)) : '-',
-        sub:
-          abnormal > 0
-            ? [
-                pending > 0 ? `Pending ${Math.round(pending)}` : '',
-                failed > 0 ? `Failed ${Math.round(failed)}` : '',
-                unknown > 0 ? `Unknown ${Math.round(unknown)}` : ''
-              ]
-                .filter(Boolean)
-                .join(' · ')
-            : '无异常',
-        danger: failed > 0,
-        warning: failed === 0 && abnormal > 0
-      },
-      {
-        title: '近 1h 有重启',
-        icon: Timer,
-        iconColor: '#e6a23c',
-        iconBg: 'rgba(230, 162, 60, 0.12)',
-        value: restarting === null ? '-' : String(Math.round(restarting)),
-        sub: restarting !== null && restarting > 0 ? '需关注重启' : '无近期重启',
-        warning: restarting !== null && restarting > 0
-      },
-      {
-        title: '资源热点',
-        icon: Cpu,
-        iconColor: '#409eff',
-        iconBg: 'rgba(64, 158, 255, 0.12)',
-        value: hotspots === null ? '-' : String(hotspots),
-        sub: hotspots !== null && hotspots > 0 ? 'CPU≥0.5 或 内存≥512Mi' : '暂无热点',
-        warning: hotspots !== null && hotspots > 0
-      }
-    ]),
+    summaryCards: [],
     sections: [
       {
-        title: '资源与重启 Top10',
-        panelIds: ['node.embed.pod_cpu', 'node.embed.pod_memory', 'pod.embed.restarts'],
-        compactBar: true,
-        gridClass: 'prometheus-dashboard__panel-grid--workload'
+        title: 'Pod',
+        panelIds: [
+          'node.embed.pod_cpu_top_trend',
+          'node.embed.pod_memory_top_trend',
+          'pod.embed.running_total',
+          'pod.embed.running_by_namespace'
+        ]
+      },
+      {
+        title: '容器',
+        panelIds: [
+          'container.embed.status',
+          'container.embed.restarts_top',
+          'container.embed.oom_killed',
+          'container.embed.crashloop'
+        ]
       },
       {
         title: '网络 Top10',
