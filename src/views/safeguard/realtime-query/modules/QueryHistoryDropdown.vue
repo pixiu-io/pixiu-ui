@@ -12,7 +12,7 @@
           <div class="qhd-item-meta">
             <span>{{ record.datasourceName || '数据源 #' + record.selectedDsId }}</span>
             <span class="qhd-meta-sep">|</span>
-            <span>{{ formatTimeRange(record.timeRangeMinutes) }}</span>
+            <span>{{ formatRecordTimeRange(record) }}</span>
             <span class="qhd-meta-sep">|</span>
             <span>{{ record.resultMode === 'table' ? 'Table' : 'Graph' }}</span>
             <span class="qhd-meta-sep">|</span>
@@ -32,6 +32,7 @@
 </template>
 
 <script setup lang="ts">
+  import { getMetricsTimeRangeLabel } from '@/utils/metrics/time-range'
   import type { QueryHistoryRecord } from '../useQueryHistory'
 
   defineProps<{
@@ -48,6 +49,15 @@
     if (minutes < 60) return `${minutes}min`
     if (minutes < 1440) return `${minutes / 60}h`
     return `${minutes / 1440}d`
+  }
+
+  function formatRecordTimeRange(record: QueryHistoryRecord): string {
+    if (!record.timeRange) return formatTimeRange(record.timeRangeMinutes)
+    return getMetricsTimeRangeLabel({
+      start: new Date(record.timeRange.start),
+      end: new Date(record.timeRange.end),
+      presetKey: record.timeRange.presetKey
+    })
   }
 
   function relativeTime(ts: number): string {
