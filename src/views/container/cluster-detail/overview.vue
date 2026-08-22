@@ -235,6 +235,7 @@
                     <div class="installed-components__recommend-desc">{{ item.desc }}</div>
                   </div>
                   <ElLink
+                    v-if="isRecommendClickable(item)"
                     type="primary"
                     underline="never"
                     class="installed-components__recommend-link"
@@ -704,6 +705,7 @@
   import { clusterDetailContextKey, clusterDetailRefreshKey } from './context'
   import { getCronJobApiVersion } from '@/utils/kubernetes/cronjob'
   import { notifyError } from '@/utils/sys/notify'
+  import { HELM_UI_VISIBLE } from '@/constants/feature-flags'
 
   defineOptions({ name: 'ClusterDetailOverview' })
 
@@ -1369,16 +1371,20 @@
     router.push({ path: `/container/${path}`, query: { ...route.query } })
   }
 
+  function isRecommendClickable(item: { link?: string; route?: string }) {
+    if (item.route === '/appstore' && !HELM_UI_VISIBLE) return false
+    return Boolean(item.route || item.link)
+  }
+
   function openRecommendLink(item: { link?: string; route?: string }) {
+    if (!isRecommendClickable(item)) return
     if (item.route) {
       router.push(item.route)
       return
     }
     if (item.link) {
       window.open(item.link, '_blank', 'noopener,noreferrer')
-      return
     }
-    go('helm')
   }
 
   function copyText(text: string) {

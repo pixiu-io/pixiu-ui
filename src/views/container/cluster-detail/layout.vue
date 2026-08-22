@@ -152,7 +152,7 @@
             <ElMenuItem index="storage">存储</ElMenuItem>
           </ElSubMenu>
 
-          <ElSubMenu index="group-app">
+          <ElSubMenu v-if="HELM_UI_VISIBLE" index="group-app">
             <template #title>
               <span>应用资源</span>
             </template>
@@ -213,6 +213,7 @@
     type ClusterDetailContext
   } from './context'
   import { buildClusterRouteQuery, setClusterAliasCache } from '@/utils/navigation/cluster-query'
+  import { HELM_UI_VISIBLE } from '@/constants/feature-flags'
   import { useSettingStore } from '@/store/modules/setting'
   import { storeToRefs } from 'pinia'
 
@@ -226,7 +227,7 @@
   /** 默认展开「资源对象」「应用资源」「运维中心」「监控告警」 */
   const DEFAULT_SUBMENU_OPENEDS: string[] = [
     'group-resource',
-    'group-app',
+    ...(HELM_UI_VISIBLE ? (['group-app'] as const) : []),
     'group-ops',
     'group-monitor'
   ]
@@ -681,6 +682,10 @@
     () => [route.path, route.query.cluster] as const,
     () => {
       const seg = route.path.replace(/^\/container\//, '').split('/')[0]
+      if (!HELM_UI_VISIBLE && seg === 'helm') {
+        router.replace({ path: '/container/overview', query: route.query })
+        return
+      }
       if (seg && DETAIL_SEGMENTS.has(seg) && !route.query.cluster) {
         router.replace({ path: '/container/cluster' })
       }
