@@ -5,7 +5,6 @@
 export const MenuCodes = {
   Dashboard: 'dashboard',
   DashboardConsole: 'dashboard.console',
-  DashboardAnalysis: 'dashboard.analysis',
 
   Container: 'container',
   ContainerCluster: 'container.cluster',

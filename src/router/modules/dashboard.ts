@@ -22,17 +22,6 @@ export const dashboardRoutes: AppRouteRecord = {
         fixedTab: true,
         menu: MenuCodes.DashboardConsole
       }
-    },
-    {
-      path: 'analysis',
-      name: 'Analysis',
-      component: '/dashboard/analysis',
-      meta: {
-        title: 'menus.dashboard.analysis',
-        icon: 'ri:align-item-bottom-line',
-        keepAlive: false,
-        menu: MenuCodes.DashboardAnalysis
-      }
     }
   ]
 }

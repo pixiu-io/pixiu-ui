@@ -223,8 +223,7 @@
     },
     "dashboard": {
       "title": "Dashboard",
-      "console": "Console",
-      "analysis": "Analysis"
+      "console": "Console"
     },
     "system": {
       "title": "Security Management",

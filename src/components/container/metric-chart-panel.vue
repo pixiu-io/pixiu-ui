@@ -1,14 +1,14 @@
 <!-- 监控指标卡片：标题 + 右上角最大化 + 折线图 -->
 <template>
   <div class="metric-chart-panel" :class="{ 'metric-chart-panel--plain': plain }">
-    <div class="metric-chart-panel__header">
+    <div v-if="!hideMaximize" class="metric-chart-panel__header">
       <span class="metric-chart-panel__title">{{ title }}</span>
       <ElButton
         text
         circle
         class="metric-chart-panel__maximize"
         title="最大化"
-        @click="expandedVisible = true"
+        @click="openExpand"
       >
         <ElIcon :size="14"><FullScreen /></ElIcon>
       </ElButton>
@@ -84,6 +84,8 @@
       maxXAxisLabels?: number
       /** 最大化弹窗内时间范围，未传则不显示时间调整 */
       expandTimeRange?: MetricsTimeRange
+      /** 隐藏内置最大化按钮（由外部自定义触发 openExpand） */
+      hideMaximize?: boolean
     }>(),
     {
       height: '180px',
@@ -94,7 +96,8 @@
       isEmpty: false,
       silentUpdate: false,
       showLegend: false,
-      plain: false
+      plain: false,
+      hideMaximize: false
     }
   )
 
@@ -109,6 +112,12 @@
   })
 
   const expandedVisible = ref(false)
+
+  function openExpand() {
+    expandedVisible.value = true
+  }
+
+  defineExpose({ openExpand })
 </script>
 
 <style scoped>
