@@ -2,6 +2,8 @@
 <template>
   <WorkbenchOverview
     :loading="loading"
+    :datasource-loading="datasourceLoading"
+    :datasource-ring-data="datasourceRingData"
     :trend-loading="trendLoading"
     :trend-range-days="trendRangeDays"
     :summary="summary"
@@ -33,6 +35,8 @@
 
   const {
     loading,
+    datasourceLoading,
+    datasourceRingData,
     trendLoading,
     trendRangeDays,
     clusterRows,

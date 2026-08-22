@@ -46,7 +46,9 @@
             :target="card.numTarget"
             :duration="900"
           />
-          <div class="workbench__metric-trend" :class="card.trendClass">{{ card.sub }}</div>
+          <div class="workbench__metric-trend">
+            较昨日 <span :class="card.trendClass">{{ card.sub }}</span>
+          </div>
           <div class="workbench__metric-icon" :style="{ color: card.iconColor, background: card.iconBg }">
             <ElIcon :size="card.compact ? 16 : 20"><component :is="card.icon" /></ElIcon>
           </div>
@@ -171,6 +173,45 @@
           </ul>
         </div>
       </div>
+
+      <div class="workbench__panel workbench__panel--category workbench__panel--datasource">
+        <div class="workbench__panel-head workbench__panel-head--split workbench__panel-head--split-single">
+          <div class="workbench__panel-title">数据源</div>
+          <button type="button" class="workbench__view-all" @click="goViewAllDatasources">
+            查看全部
+            <ElIcon :size="12"><ArrowRight /></ElIcon>
+          </button>
+        </div>
+        <div class="workbench__category-body" v-loading="datasourceLoading">
+          <template v-if="datasourceRingData.length">
+            <div class="workbench__category-chart">
+              <ArtRingChart
+                height="100px"
+                :data="datasourceRingData"
+                :colors="datasourceRingColors"
+                :radius="['55%', '85%']"
+                :border-radius="7"
+                :center-text="datasourceCenterText"
+                :center-text-font-size="16"
+                :show-label="false"
+              />
+            </div>
+            <ul class="workbench__category-stats">
+              <li v-for="item in datasourceStats" :key="item.label">
+                <span class="workbench__category-dot" :style="{ background: item.color }" />
+                <span>{{ item.label }}</span>
+                <strong>
+                  {{ item.value }}
+                  <span class="workbench__category-pct">（{{ item.percent }}%）</span>
+                </strong>
+              </li>
+            </ul>
+          </template>
+          <div v-else-if="!datasourceLoading" class="workbench__empty workbench__empty--center">
+            暂无数据源
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -191,11 +232,14 @@
   import { setClusterAliasCache } from '@/utils/navigation/cluster-query'
   import { notifyError } from '@/utils/sys/notify'
   import { getCssVar } from '@/utils/ui'
-  import type {
-    WorkbenchActivityItem,
-    WorkbenchClusterRow,
-    WorkbenchResourceSummary,
-    WorkbenchRiskRow
+  import {
+    dayOverDayTrendClass,
+    formatDayOverDayDelta,
+    type WorkbenchActivityItem,
+    type WorkbenchClusterRow,
+    type WorkbenchResourceSummary,
+    type WorkbenchRiskRow,
+    type WorkbenchSummaryDeltas
   } from '../useWorkbenchPage'
 
   type QuickAction = {
@@ -233,10 +277,13 @@
     activeAlerts: number
     highAlerts: number
     warnAlerts: number
+    deltas: WorkbenchSummaryDeltas
   }
 
   const props = defineProps<{
     loading: boolean
+    datasourceLoading: boolean
+    datasourceRingData: Array<{ name: string; value: number }>
     trendLoading: boolean
     trendRangeDays: 7 | 30
     summary: SummarySnapshot
@@ -296,12 +343,17 @@
     router.push('/container/cluster')
   }
 
+  function goViewAllDatasources() {
+    router.push('/monitor/datasource')
+  }
+
   function goViewAllResources() {
     router.push('/monitor/dashboard')
   }
 
   const heroCards = computed<HeroCard[]>(() => {
     const s = props.summary
+    const d = s.deltas
     return [
       {
         key: 'clusters',
@@ -310,8 +362,8 @@
         iconColor: '#7c6af0',
         iconBg: 'rgba(124, 106, 240, 0.12)',
         numTarget: s.totalClusters,
-        sub: `健康 ${s.healthyClusters} / 异常 ${s.abnormalClusters}`,
-        trendClass: s.abnormalClusters > 0 ? 'is-warning' : 'is-success',
+        sub: formatDayOverDayDelta(d.totalClusters),
+        trendClass: dayOverDayTrendClass(d.totalClusters),
         compact: true
       },
       {
@@ -321,8 +373,8 @@
         iconColor: '#409eff',
         iconBg: 'rgba(64, 158, 255, 0.12)',
         numTarget: s.nodeTotal,
-        sub: `Ready ${s.nodeReady} · NotReady ${s.nodeNotReady}`,
-        trendClass: s.nodeNotReady > 0 ? 'is-warning' : 'is-success',
+        sub: formatDayOverDayDelta(d.nodeTotal),
+        trendClass: dayOverDayTrendClass(d.nodeTotal),
         warning: s.nodeNotReady > 0,
         compact: true
       },
@@ -333,8 +385,8 @@
         iconColor: '#67c23a',
         iconBg: 'rgba(103, 194, 58, 0.12)',
         numTarget: s.runningPods,
-        sub: '全平台运行中合计',
-        trendClass: 'is-neutral',
+        sub: formatDayOverDayDelta(d.runningPods),
+        trendClass: dayOverDayTrendClass(d.runningPods),
         compact: true
       },
       {
@@ -344,8 +396,8 @@
         iconColor: '#f56c6c',
         iconBg: 'rgba(245, 108, 108, 0.12)',
         numTarget: s.activeAlerts,
-        sub: `高危 ${s.highAlerts} / 警告 ${s.warnAlerts}`,
-        trendClass: s.highAlerts > 0 ? 'is-danger' : s.activeAlerts > 0 ? 'is-warning' : 'is-success',
+        sub: formatDayOverDayDelta(d.activeAlerts),
+        trendClass: dayOverDayTrendClass(d.activeAlerts),
         compact: true
       }
     ]
@@ -369,9 +421,31 @@
     String(categoryRingData.value.reduce((sum, item) => sum + (Number(item.value) || 0), 0))
   )
 
-  const categoryRingColors = ['#7c6af0', '#5b8def']
+  const categoryRingColors = computed(() => [
+    getCssVar('--el-color-primary-light-1'),
+    '#4ABEFF'
+  ])
 
-  function buildCategoryStats(
+  const DATASOURCE_RING_PALETTE = [
+    '--el-color-primary-light-1',
+    '#4ABEFF',
+    '#14DEBA',
+    '#FFAF20',
+    '#FA8A6C'
+  ] as const
+
+  const datasourceRingColors = computed(() =>
+    props.datasourceRingData.map((_, index) => {
+      const token = DATASOURCE_RING_PALETTE[index % DATASOURCE_RING_PALETTE.length]
+      return token.startsWith('#') ? token : getCssVar(token)
+    })
+  )
+
+  const datasourceCenterText = computed(() =>
+    String(props.datasourceRingData.reduce((sum, item) => sum + (Number(item.value) || 0), 0))
+  )
+
+  function buildRingStats(
     data: { name: string; value: number }[],
     colors: string[]
   ): Array<{ label: string; value: number; percent: number; color: string }> {
@@ -384,7 +458,11 @@
     }))
   }
 
-  const categoryStats = computed(() => buildCategoryStats(categoryRingData.value, categoryRingColors))
+  const categoryStats = computed(() => buildRingStats(categoryRingData.value, categoryRingColors.value))
+
+  const datasourceStats = computed(() =>
+    buildRingStats(props.datasourceRingData, datasourceRingColors.value)
+  )
 
   const timelineItems = computed(() => {
     const merged = [...props.alertFeed, ...props.eventFeed]
@@ -666,18 +744,18 @@
     margin-top: 6px;
     font-size: 12px;
     color: var(--el-text-color-secondary);
-  }
 
-  .workbench__metric-trend.is-success {
-    color: #67c23a;
-  }
+    .is-success {
+      color: #67c23a;
+    }
 
-  .workbench__metric-trend.is-warning {
-    color: #e6a23c;
-  }
+    .is-danger {
+      color: #f56c6c;
+    }
 
-  .workbench__metric-trend.is-danger {
-    color: #f56c6c;
+    .is-warning {
+      color: #e6a23c;
+    }
   }
 
   .workbench__metric-icon {
@@ -738,8 +816,7 @@
     display: grid;
     gap: 12px;
     margin-bottom: 20px;
-    /* 与顶部 page-grid 右栏一致，保证「集群类别」与「最近动态」同宽 */
-    grid-template-columns: minmax(0, 3fr) minmax(260px, 1fr);
+    grid-template-columns: minmax(0, 1fr) 300px 300px;
   }
 
   .workbench__panel {
@@ -912,6 +989,25 @@
   .workbench__panel--category {
     display: flex;
     flex-direction: column;
+    width: 300px;
+    min-width: 300px;
+    max-width: 300px;
+    box-sizing: border-box;
+  }
+
+  .workbench__panel--datasource {
+    width: 300px;
+    min-width: 300px;
+    max-width: 300px;
+    box-sizing: border-box;
+  }
+
+  .workbench__empty--center {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100px;
   }
 
   .workbench__panel--table {
@@ -988,10 +1084,12 @@
     .workbench__insight-grid,
     .workbench__panel--timeline,
     .workbench__panel--table,
-    .workbench__panel--category {
+    .workbench__panel--category,
+    .workbench__panel--datasource {
       grid-column: 1;
       grid-row: auto;
       width: 100%;
+      min-width: 0;
       max-width: 100%;
       margin-left: 0;
       justify-self: stretch;

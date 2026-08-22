@@ -5,19 +5,17 @@
         <tr>
           <th>集群</th>
           <th>状态</th>
-          <th>Pod</th>
           <th>总CPU</th>
           <th>CPU使用率</th>
           <th>总内存</th>
           <th>内存使用率</th>
           <th>剩余磁盘</th>
-          <th>在线时间</th>
           <th>操作</th>
         </tr>
       </thead>
       <tbody v-if="loading && !rows.length">
         <tr>
-          <td colspan="10" class="overview-table__empty">正在查询集群…</td>
+          <td colspan="8" class="overview-table__empty">正在查询集群…</td>
         </tr>
       </tbody>
       <tbody v-else>
@@ -34,7 +32,6 @@
               {{ row.statusText }}
             </span>
           </td>
-          <td class="overview-table__num">{{ formatPod(row.podCount) }}</td>
           <td class="overview-table__num overview-table__num--left">
             {{ formatCores(row.cpuTotal) }}
           </td>
@@ -68,9 +65,6 @@
           <td class="overview-table__num" :class="{ 'is-warn-text': row.diskLow }">
             {{ formatBytes(row.diskAvail) }}
           </td>
-          <td class="overview-table__num overview-table__num--left">
-            {{ formatUptime(row.uptime) }}
-          </td>
           <td class="overview-table__actions" @click.stop>
             <ElButton link type="primary" @click="emit('cluster-enter', row)">进入</ElButton>
             <ElButton link type="primary" @click="emit('cluster-monitor', row)">监控</ElButton>
@@ -89,8 +83,6 @@
     formatBytes,
     formatCores,
     formatPercent,
-    formatPod,
-    formatUptime,
     levelClass
   } from '@/views/container/cluster-detail/prometheus/embed/overview-table-format'
 
@@ -120,7 +112,7 @@
   }
 
   .overview-table__table {
-    min-width: 860px;
+    min-width: 720px;
   }
 
   .overview-table__actions {

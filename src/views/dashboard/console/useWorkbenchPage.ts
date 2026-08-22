@@ -1,6 +1,12 @@
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { fetchDashboardQuery, type DashboardPanelResult } from '@/api/dashboard'
 import { fetchClusterList, type ClusterItem, type ClusterStatus } from '@/api/container'
+import {
+  DatasourceSubTypeMap,
+  fetchDatasourceList,
+  type DatasourceItem,
+  type DatasourceSubType
+} from '@/api/datasource'
 import { kubeProxyAxios } from '@/api/kubeProxy'
 import { loadPrometheusDatasource } from '@/utils/datasource/prometheus-datasource'
 import { notifyError } from '@/utils/sys/notify'
@@ -498,6 +504,82 @@ function buildResourceSummary(rows: WorkbenchClusterRow[]): WorkbenchResourceSum
   }
 }
 
+export type WorkbenchSummaryDeltas = {
+  totalClusters: number
+  nodeTotal: number
+  runningPods: number
+  activeAlerts: number
+}
+
+type WorkbenchMetricSnapshot = {
+  totalClusters: number
+  nodeTotal: number
+  runningPods: number
+  activeAlerts: number
+}
+
+const WORKBENCH_METRIC_SNAPSHOT_KEY = 'pixiu:workbench:metric-snapshots'
+const SNAPSHOT_RETENTION_DAYS = 14
+
+function workbenchDateKey(offsetDays = 0): string {
+  const date = new Date()
+  date.setHours(0, 0, 0, 0)
+  date.setDate(date.getDate() + offsetDays)
+  const pad = (value: number) => String(value).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
+function loadWorkbenchMetricSnapshots(): Record<string, WorkbenchMetricSnapshot> {
+  try {
+    const raw = localStorage.getItem(WORKBENCH_METRIC_SNAPSHOT_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw) as Record<string, WorkbenchMetricSnapshot>
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+function saveWorkbenchMetricSnapshot(snapshot: WorkbenchMetricSnapshot): void {
+  const snapshots = loadWorkbenchMetricSnapshots()
+  snapshots[workbenchDateKey()] = snapshot
+  const keepFrom = workbenchDateKey(-SNAPSHOT_RETENTION_DAYS)
+  for (const key of Object.keys(snapshots)) {
+    if (key < keepFrom) delete snapshots[key]
+  }
+  localStorage.setItem(WORKBENCH_METRIC_SNAPSHOT_KEY, JSON.stringify(snapshots))
+}
+
+function buildSummaryDeltas(
+  current: WorkbenchMetricSnapshot,
+  previous?: WorkbenchMetricSnapshot
+): WorkbenchSummaryDeltas {
+  if (!previous) {
+    return {
+      totalClusters: 0,
+      nodeTotal: 0,
+      runningPods: 0,
+      activeAlerts: 0
+    }
+  }
+  return {
+    totalClusters: current.totalClusters - previous.totalClusters,
+    nodeTotal: current.nodeTotal - previous.nodeTotal,
+    runningPods: current.runningPods - previous.runningPods,
+    activeAlerts: current.activeAlerts - previous.activeAlerts
+  }
+}
+
+export function formatDayOverDayDelta(delta: number): string {
+  if (delta > 0) return `+${delta}`
+  if (delta < 0) return String(delta)
+  return '+0'
+}
+
+export function dayOverDayTrendClass(delta: number): 'is-success' | 'is-danger' {
+  return delta < 0 ? 'is-danger' : 'is-success'
+}
+
 export function useWorkbenchPage() {
   const loading = ref(false)
   const enriching = ref(false)
@@ -515,6 +597,25 @@ export function useWorkbenchPage() {
   const diskTrendLabels = ref<string[]>([])
   const diskTrendValues = ref<number[]>([])
   const lastUpdatedAt = ref<number | null>(null)
+  const datasourceItems = ref<DatasourceItem[]>([])
+  const datasourceLoading = ref(false)
+  const summaryDeltas = ref<WorkbenchSummaryDeltas>({
+    totalClusters: 0,
+    nodeTotal: 0,
+    runningPods: 0,
+    activeAlerts: 0
+  })
+
+  const datasourceRingData = computed(() => {
+    const counts = new Map<string, number>()
+    for (const item of datasourceItems.value) {
+      const label = DatasourceSubTypeMap[item.subType as DatasourceSubType] ?? item.subType
+      counts.set(label, (counts.get(label) ?? 0) + 1)
+    }
+    return Array.from(counts.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+  })
 
   const resourceSummary = computed(() => buildResourceSummary(clusterRows.value))
 
@@ -552,9 +653,26 @@ export function useWorkbenchPage() {
       diskAvg,
       activeAlerts,
       highAlerts,
-      warnAlerts
+      warnAlerts,
+      deltas: summaryDeltas.value
     }
   })
+
+  function syncSummaryDeltas(rows: WorkbenchClusterRow[]) {
+    const nodeReady = rows.reduce((sum, row) => sum + row.nodeReady, 0)
+    const nodeNotReady = rows.reduce((sum, row) => sum + row.nodeNotReady, 0)
+    const current: WorkbenchMetricSnapshot = {
+      totalClusters: rows.length,
+      nodeTotal: nodeReady + nodeNotReady,
+      runningPods: rows.reduce((sum, row) => sum + (row.podCount ?? 0), 0),
+      activeAlerts: rows.reduce((sum, row) => sum + row.alertCount, 0)
+    }
+    const snapshots = loadWorkbenchMetricSnapshots()
+    summaryDeltas.value = buildSummaryDeltas(current, snapshots[workbenchDateKey(-1)])
+    saveWorkbenchMetricSnapshot(current)
+  }
+
+  watch(clusterRows, (rows) => syncSummaryDeltas(rows), { deep: true })
 
   const riskRows = computed<WorkbenchRiskRow[]>(() => {
     const rows: WorkbenchRiskRow[] = []
@@ -708,6 +826,18 @@ export function useWorkbenchPage() {
     await loadTrends(clusterRows.value.filter((row) => row.status === 0))
   }
 
+  async function loadDatasources() {
+    datasourceLoading.value = true
+    try {
+      const { items } = await fetchDatasourceList({ page: 1, limit: 500 })
+      datasourceItems.value = items
+    } catch {
+      datasourceItems.value = []
+    } finally {
+      datasourceLoading.value = false
+    }
+  }
+
   async function enrichClusterRowsInBackground(items: ClusterItem[]) {
     enriching.value = true
     try {
@@ -750,12 +880,16 @@ export function useWorkbenchPage() {
     } else {
       clearTrendData()
     }
+
+    void loadDatasources()
   }
 
   return {
     loading,
     enriching,
     trendLoading,
+    datasourceLoading,
+    datasourceRingData,
     trendRangeDays,
     clusterRows,
     resourceSummary,
