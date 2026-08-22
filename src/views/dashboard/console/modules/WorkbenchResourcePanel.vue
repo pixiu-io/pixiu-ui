@@ -14,7 +14,7 @@
       </button>
     </div>
 
-    <div class="workbench-resource__body" v-loading="loading || trendLoading">
+    <div class="workbench-resource__body">
       <div
         v-for="item in metricRows"
         :key="item.key"
@@ -56,7 +56,7 @@
           </div>
         </div>
 
-        <div class="workbench-resource__network-chart">
+        <div class="workbench-resource__network-chart" v-loading="trendLoading">
           <ArtLineChart
             height="40px"
             :data="networkChartData"
@@ -85,7 +85,6 @@
   import type { WorkbenchResourceSummary } from '../useWorkbenchPage'
 
   const props = defineProps<{
-    loading?: boolean
     trendLoading?: boolean
     summary: WorkbenchResourceSummary
     lastUpdatedAt: number | null

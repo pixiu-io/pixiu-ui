@@ -1,8 +1,6 @@
 <template>
   <div class="overview-table overview-table--embedded">
-    <div v-if="loading && !rows.length" class="overview-table__empty">正在查询集群…</div>
-    <div v-else-if="!rows.length" class="overview-table__empty">暂无集群数据</div>
-    <table v-else class="overview-table__table">
+    <table v-if="loading || rows.length" class="overview-table__table">
       <thead>
         <tr>
           <th>集群</th>
@@ -17,7 +15,12 @@
           <th>操作</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody v-if="loading && !rows.length">
+        <tr>
+          <td colspan="10" class="overview-table__empty">正在查询集群…</td>
+        </tr>
+      </tbody>
+      <tbody v-else>
         <tr
           v-for="row in rows"
           :key="row.name"
@@ -75,6 +78,7 @@
         </tr>
       </tbody>
     </table>
+    <div v-else class="overview-table__empty">暂无集群数据</div>
   </div>
 </template>
 

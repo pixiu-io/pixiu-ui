@@ -1,5 +1,5 @@
 <template>
-  <div class="workbench" v-loading="loading">
+  <div class="workbench">
     <!-- 顶部主栏 + 右侧快捷操作 -->
     <div class="workbench__page-grid">
       <div class="workbench__banner art-card">
@@ -86,7 +86,6 @@
 
         <WorkbenchResourcePanel
           class="workbench__panel workbench__panel--resource workbench__panel--insight"
-          :loading="loading"
           :trend-loading="trendLoading"
           :summary="resourceSummary"
           :last-updated-at="lastUpdatedAt"

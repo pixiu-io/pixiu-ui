@@ -88,6 +88,29 @@ const METRIC_PANEL_IDS = [
   'node.embed.overview_uptime'
 ] as const
 
+const CPU_MEM_DISK_TREND_PANEL_IDS = [
+  'cluster.cpu_usage_trend',
+  'cluster.memory_usage_trend',
+  'cluster.disk_usage_trend'
+] as const
+
+const NETWORK_TREND_PANEL_IDS = [
+  'network.bandwidth_trend',
+  'network.transmit_rate_mb_trend',
+  'network.receive_rate_mb_trend'
+] as const
+
+type TrendMap = Record<string, Partial<Record<string, DashboardPanelResult>>>
+
+/** enrich 阶段已拉取的近 7 天 CPU/内存/磁盘趋势，供 loadTrends 复用 */
+const enrichTrendCache: TrendMap = {}
+
+function clearEnrichTrendCache(): void {
+  for (const key of Object.keys(enrichTrendCache)) {
+    delete enrichTrendCache[key]
+  }
+}
+
 function lastPanelValue(result: DashboardPanelResult | undefined): number | null {
   const value = Number(result?.series?.[0]?.values?.at(-1)?.value)
   return Number.isFinite(value) ? value : null
@@ -227,7 +250,7 @@ function pressureScore(
   return Math.max(0, Math.min(100, Math.round(score)))
 }
 
-async function enrichCluster(cluster: ClusterItem): Promise<WorkbenchClusterRow> {
+function buildBaseClusterRow(cluster: ClusterItem): WorkbenchClusterRow {
   const statusCfg = CLUSTER_STATUS_CONFIG[cluster.status] ?? { type: 'info' as const, text: '未知' }
   const base: WorkbenchClusterRow = {
     id: cluster.id,
@@ -262,11 +285,18 @@ async function enrichCluster(cluster: ClusterItem): Promise<WorkbenchClusterRow>
     pressureScore: 0,
     hasPrometheus: false
   }
-
   if (!isRunningCluster(cluster)) {
     base.danger = base.status === 3 || base.status === 4
-    base.alertCount = clusterAlertCount(base)
-    base.pressureScore = pressureScore(base)
+  }
+  base.alertCount = clusterAlertCount(base)
+  base.pressureScore = pressureScore(base)
+  return base
+}
+
+async function enrichCluster(cluster: ClusterItem): Promise<WorkbenchClusterRow> {
+  const base = buildBaseClusterRow(cluster)
+
+  if (!isRunningCluster(cluster)) {
     return base
   }
 
@@ -296,6 +326,13 @@ async function enrichCluster(cluster: ClusterItem): Promise<WorkbenchClusterRow>
     base.memoryPercent = lastPanelValue(byId['cluster.memory_usage'])
     base.diskPercent = lastPanelValue(byId['cluster.disk_usage_trend'])
     applyOverviewMetrics(base, byId)
+    const cached: Partial<Record<string, DashboardPanelResult>> = {}
+    for (const id of CPU_MEM_DISK_TREND_PANEL_IDS) {
+      if (byId[id]) cached[id] = byId[id]
+    }
+    if (Object.keys(cached).length) {
+      enrichTrendCache[cluster.name] = cached
+    }
   } catch {
     /* Prometheus 查询失败时仍尝试 Pod 回退 */
   }
@@ -326,8 +363,6 @@ function averagePercent(values: Array<number | null>): number | null {
   if (!nums.length) return null
   return nums.reduce((sum, v) => sum + v, 0) / nums.length
 }
-
-type TrendMap = Record<string, Partial<Record<string, DashboardPanelResult>>>
 
 function mergeTrendSeries(
   clusters: WorkbenchClusterRow[],
@@ -465,6 +500,7 @@ function buildResourceSummary(rows: WorkbenchClusterRow[]): WorkbenchResourceSum
 
 export function useWorkbenchPage() {
   const loading = ref(false)
+  const enriching = ref(false)
   const trendLoading = ref(false)
   const trendRangeDays = ref<7 | 30>(7)
   const clusterRows = ref<WorkbenchClusterRow[]>([])
@@ -592,10 +628,28 @@ export function useWorkbenchPage() {
     return items.slice(0, 6)
   })
 
+  function clearTrendData() {
+    cpuTrendLabels.value = []
+    cpuTrendValues.value = []
+    memoryTrendLabels.value = []
+    memoryTrendValues.value = []
+    networkTrendLabels.value = []
+    networkTrendValues.value = []
+    networkTxTrendValues.value = []
+    networkRxTrendValues.value = []
+    diskTrendLabels.value = []
+    diskTrendValues.value = []
+  }
+
   async function loadTrends(runningRows: WorkbenchClusterRow[], days = trendRangeDays.value) {
+    const targets = runningRows.filter((row) => row.hasPrometheus).slice(0, 6)
+    if (!targets.length) {
+      clearTrendData()
+      return
+    }
+
     trendLoading.value = true
     const trendMap: TrendMap = {}
-    const targets = runningRows.filter((row) => row.hasPrometheus).slice(0, 6)
     try {
       await mapPool(targets, 2, async (row) => {
         const datasource = await loadPrometheusDatasource(row.name)
@@ -604,21 +658,24 @@ export function useWorkbenchPage() {
           const end = Math.floor(Date.now() / 1000)
           const start = end - days * 24 * 3600
           const step = Math.max(3600, Math.ceil((end - start) / 168))
+          const cachedCpuMemDisk = days === 7 ? enrichTrendCache[row.name] : undefined
+          if (cachedCpuMemDisk) {
+            trendMap[row.name] = { ...cachedCpuMemDisk }
+          }
+
+          const panelIds = cachedCpuMemDisk
+            ? [...NETWORK_TREND_PANEL_IDS]
+            : [...CPU_MEM_DISK_TREND_PANEL_IDS, ...NETWORK_TREND_PANEL_IDS]
+
           const response = await fetchDashboardQuery(datasource, {
-            panelIds: [
-              'cluster.cpu_usage_trend',
-              'cluster.memory_usage_trend',
-              'cluster.disk_usage_trend',
-              'network.bandwidth_trend',
-              'network.transmit_rate_mb_trend',
-              'network.receive_rate_mb_trend'
-            ],
+            panelIds: [...panelIds],
             start,
             end,
             step,
             filters: {}
           })
-          trendMap[row.name] = Object.fromEntries(response.results.map((item) => [item.id, item]))
+          const fetched = Object.fromEntries(response.results.map((item) => [item.id, item]))
+          trendMap[row.name] = { ...trendMap[row.name], ...fetched }
         } catch {
           /* 单集群趋势失败不影响整体 */
         }
@@ -651,36 +708,53 @@ export function useWorkbenchPage() {
     await loadTrends(clusterRows.value.filter((row) => row.status === 0))
   }
 
+  async function enrichClusterRowsInBackground(items: ClusterItem[]) {
+    enriching.value = true
+    try {
+      await mapPool(items, 3, async (cluster) => {
+        const enriched = await enrichCluster(cluster)
+        const idx = clusterRows.value.findIndex((row) => row.id === cluster.id)
+        if (idx >= 0) {
+          clusterRows.value[idx] = enriched
+        }
+      })
+      clusterRows.value = [...clusterRows.value].sort((a, b) => b.pressureScore - a.pressureScore)
+      lastUpdatedAt.value = Date.now()
+      void loadTrends(clusterRows.value.filter((row) => row.status === 0))
+    } finally {
+      enriching.value = false
+    }
+  }
+
   async function load() {
     loading.value = true
     podFallbackCache.clear()
+    clearEnrichTrendCache()
+    let items: ClusterItem[] = []
     try {
-      const { items } = await fetchClusterList({ page: 1, limit: 500 })
-      const enriched = await mapPool(items, 3, enrichCluster)
-      clusterRows.value = enriched.sort((a, b) => b.pressureScore - a.pressureScore)
-      await loadTrends(enriched.filter((row) => row.status === 0))
-      lastUpdatedAt.value = Date.now()
+      const { items: list } = await fetchClusterList({ page: 1, limit: 500 })
+      items = list
+      clusterRows.value = list.map(buildBaseClusterRow).sort((a, b) => b.pressureScore - a.pressureScore)
     } catch (e: unknown) {
       notifyError(e, '加载工作台数据失败')
       clusterRows.value = []
-      cpuTrendLabels.value = []
-      cpuTrendValues.value = []
-      memoryTrendLabels.value = []
-      memoryTrendValues.value = []
-      networkTrendLabels.value = []
-      networkTrendValues.value = []
-      networkTxTrendValues.value = []
-      networkRxTrendValues.value = []
-      diskTrendLabels.value = []
-      diskTrendValues.value = []
+      clearTrendData()
       lastUpdatedAt.value = null
+      items = []
     } finally {
       loading.value = false
+    }
+
+    if (items.length) {
+      void enrichClusterRowsInBackground(items)
+    } else {
+      clearTrendData()
     }
   }
 
   return {
     loading,
+    enriching,
     trendLoading,
     trendRangeDays,
     clusterRows,
