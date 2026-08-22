@@ -1,42 +1,61 @@
-<!-- 工作台页面 -->
+<!-- Pixiu 平台工作台 -->
 <template>
-  <!-- 增加顶部间距，避免工作台内容紧贴/被顶部栏遮挡 -->
-  <div style="padding-top: 20px">
-    <CardList></CardList>
-
-    <ElRow :gutter="20">
-      <ElCol :sm="24" :md="12" :lg="10">
-        <ActiveUser />
-      </ElCol>
-      <ElCol :sm="24" :md="12" :lg="14">
-        <SalesOverview />
-      </ElCol>
-    </ElRow>
-
-    <ElRow :gutter="20">
-      <ElCol :sm="24" :md="24" :lg="12">
-        <NewUser />
-      </ElCol>
-      <ElCol :sm="24" :md="12" :lg="6">
-        <Dynamic />
-      </ElCol>
-      <ElCol :sm="24" :md="12" :lg="6">
-        <TodoList />
-      </ElCol>
-    </ElRow>
-
-    <AboutProject />
-  </div>
+  <WorkbenchOverview
+    :loading="loading"
+    :trend-loading="trendLoading"
+    :trend-range-days="trendRangeDays"
+    :summary="summary"
+    :resource-summary="resourceSummary"
+    :last-updated-at="lastUpdatedAt"
+    :cluster-rows="clusterRows"
+    :risk-rows="riskRows"
+    :alert-feed="alertFeed"
+    :event-feed="eventFeed"
+    :cpu-trend-labels="cpuTrendLabels"
+    :cpu-trend-values="cpuTrendValues"
+    :memory-trend-labels="memoryTrendLabels"
+    :memory-trend-values="memoryTrendValues"
+    :network-trend-labels="networkTrendLabels"
+    :network-trend-values="networkTrendValues"
+    :network-tx-trend-values="networkTxTrendValues"
+    :network-rx-trend-values="networkRxTrendValues"
+    :disk-trend-values="diskTrendValues"
+    @update:trend-range-days="setTrendRange"
+  />
 </template>
 
 <script setup lang="ts">
-  import CardList from './modules/card-list.vue'
-  import ActiveUser from './modules/active-user.vue'
-  import SalesOverview from './modules/sales-overview.vue'
-  import NewUser from './modules/new-user.vue'
-  import Dynamic from './modules/dynamic-stats.vue'
-  import TodoList from './modules/todo-list.vue'
-  import AboutProject from './modules/about-project.vue'
+  import { onMounted } from 'vue'
+  import WorkbenchOverview from './modules/workbench-overview.vue'
+  import { useWorkbenchPage } from './useWorkbenchPage'
 
   defineOptions({ name: 'Console' })
+
+  const {
+    loading,
+    trendLoading,
+    trendRangeDays,
+    clusterRows,
+    summary,
+    resourceSummary,
+    lastUpdatedAt,
+    riskRows,
+    alertFeed,
+    eventFeed,
+    cpuTrendLabels,
+    cpuTrendValues,
+    memoryTrendLabels,
+    memoryTrendValues,
+    networkTrendLabels,
+    networkTrendValues,
+    networkTxTrendValues,
+    networkRxTrendValues,
+    diskTrendValues,
+    load,
+    setTrendRange
+  } = useWorkbenchPage()
+
+  onMounted(() => {
+    void load()
+  })
 </script>
