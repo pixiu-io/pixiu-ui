@@ -79,9 +79,19 @@
 <script setup lang="ts">
   import { ElMessage } from 'element-plus'
   import { Search } from '@element-plus/icons-vue'
-  import { computed, ref } from 'vue'
+  import { computed, onMounted, ref } from 'vue'
+  import { useRouter } from 'vue-router'
+  import { HELM_UI_VISIBLE } from '@/constants/feature-flags'
 
   defineOptions({ name: 'Appstore' })
+
+  const router = useRouter()
+
+  onMounted(() => {
+    if (!HELM_UI_VISIBLE) {
+      router.replace('/dashboard/console')
+    }
+  })
 
   interface AppItem {
     name: string
